@@ -1,0 +1,33 @@
+{
+  "title": "Configuración",
+  "profile": {
+    "title": "Perfil",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "phone": "Teléfono",
+    "save": "Guardar cambios",
+    "saved": "Perfil actualizado"
+  },
+  "password": {
+    "title": "Cambiar contraseña",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "confirm": "Confirmar nueva contraseña",
+    "change": "Cambiar contraseña",
+    "changed": "Contraseña cambiada"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "email": "Notificaciones por email",
+    "enabled": "Activadas",
+    "disabled": "Desactivadas",
+    "updated": "Configuración de notificaciones actualizada"
+  },
+  "danger": {
+    "title": "Zona de peligro",
+    "deleteAccount": "Eliminar cuenta",
+    "deleteConfirm": "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción es irreversible.",
+    "passwordRequired": "Ingresa tu contraseña para confirmar",
+    "deleted": "Cuenta eliminada"
+  }
+}

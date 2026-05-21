@@ -1,0 +1,137 @@
+package pl.projekt1.config;
+
+import org.springframework.context.MessageSource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import pl.projekt1.infrastructure.security.JwtAuthenticationFilter;
+
+import java.time.Instant;
+import java.util.Locale;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final AppConfig appConfig;
+    private final Environment environment;
+    private final OAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final MessageSource messageSource;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, AppConfig appConfig, Environment environment,
+                          OAuth2UserService oAuth2UserService, OAuth2SuccessHandler oAuth2SuccessHandler,
+                          MessageSource messageSource) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.appConfig = appConfig;
+        this.environment = environment;
+        this.oAuth2UserService = oAuth2UserService;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+        this.messageSource = messageSource;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> {
+                if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                    auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll();
+                }
+                auth.requestMatchers("/actuator/health").permitAll();
+                auth.requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll();
+                if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                    auth.requestMatchers("/api/dev/**").permitAll();
+                }
+                auth.requestMatchers("/api/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/api/user/**").authenticated()
+                    .anyRequest().authenticated();
+            })
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
+                .successHandler(oAuth2SuccessHandler)
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    Locale locale = resolveLocaleFromRequest(request);
+                    String message = messageSource.getMessage("error.unauthorized", null, locale);
+                    writeJsonError(response, 401, "UNAUTHORIZED", message);
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    Locale locale = resolveLocaleFromRequest(request);
+                    String message = messageSource.getMessage("error.forbidden", null, locale);
+                    writeJsonError(response, 403, "FORBIDDEN", message);
+                })
+            )
+            .headers(headers -> headers
+                .contentTypeOptions(contentType -> {})
+                .frameOptions(frame -> frame.deny())
+                .referrerPolicy(referrer -> referrer.policy(
+                    org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                .permissionsPolicyHeader(permissions -> permissions.policy("camera=(), microphone=(), geolocation=()"))
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .build();
+    }
+
+    @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        var configuration = new org.springframework.web.cors.CorsConfiguration();
+        var origins = java.util.Arrays.stream(appConfig.getCors().getAllowedOrigins().split(","))
+                .map(String::trim)
+                .toList();
+        configuration.setAllowedOriginPatterns(origins);
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        var source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    private static void writeJsonError(jakarta.servlet.http.HttpServletResponse response, int status, String code, String message)
+            throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        String escaped = message.replace("\\", "\\\\").replace("\"", "\\\"");
+        response.getWriter().write(
+            "{\"code\":\"" + code + "\",\"message\":\"" + escaped + "\",\"timestamp\":\"" + Instant.now() + "\"}"
+        );
+    }
+
+    private static Locale resolveLocaleFromRequest(jakarta.servlet.http.HttpServletRequest request) {
+        String header = request.getHeader("Accept-Language");
+        if (header != null && !header.isEmpty()) {
+            String lang = header.split("[,;_-]")[0].trim().toLowerCase();
+            if ("en".equals(lang)) return Locale.of("en");
+            if ("es".equals(lang)) return Locale.of("es");
+        }
+        return Locale.of("pl");
+    }
+}

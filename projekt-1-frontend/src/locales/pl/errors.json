@@ -1,0 +1,23 @@
+{
+  "network": "Błąd sieci. Sprawdź połączenie internetowe.",
+  "server": "Błąd serwera. Spróbuj ponownie później.",
+  "generic": "Wystąpił błąd ({{status}})",
+  "sessionExpired": "Sesja wygasła. Zaloguj się ponownie.",
+  "notFound": "Nie znaleziono",
+  "forbidden": "Brak dostępu",
+  "serviceUnavailable": "Usługa niedostępna. Spróbuj ponownie później.",
+  "authServer": "Błąd serwera autoryzacji",
+  "authGeneric": "Błąd autoryzacji ({{status}})",
+  "retry": "Spróbuj ponownie",
+  "boundary": {
+    "title": "Coś poszło nie tak",
+    "message": "Wystąpił nieoczekiwany błąd. Spróbuj odświeżyć stronę.",
+    "backHome": "Wróć na stronę główną"
+  },
+  "validation": {
+    "nameTooShort": "Imię musi mieć co najmniej 3 znaki",
+    "phoneInvalid": "Nieprawidłowy format telefonu (np. +48123456789)",
+    "passwordsMismatch": "Hasła się nie zgadzają",
+    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
+  }
+}

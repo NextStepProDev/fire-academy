@@ -1,0 +1,33 @@
+{
+  "title": "Settings",
+  "profile": {
+    "title": "Profile",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "save": "Save changes",
+    "saved": "Profile updated"
+  },
+  "password": {
+    "title": "Change Password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "change": "Change password",
+    "changed": "Password changed"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "email": "Email notifications",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "updated": "Notification settings updated"
+  },
+  "danger": {
+    "title": "Danger Zone",
+    "deleteAccount": "Delete Account",
+    "deleteConfirm": "Are you sure you want to delete your account? This action is irreversible.",
+    "passwordRequired": "Enter your password to confirm",
+    "deleted": "Account deleted"
+  }
+}

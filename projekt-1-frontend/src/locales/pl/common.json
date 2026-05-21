@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "home": "Strona główna",
+    "login": "Zaloguj się",
+    "logout": "Wyloguj się",
+    "profile": "Ustawienia",
+    "admin": "Panel admina",
+    "openMenu": "Otwórz menu",
+    "closeMenu": "Zamknij menu"
+  },
+  "home": {
+    "title": "Projekt 1",
+    "subtitle": "Witaj w aplikacji"
+  },
+  "admin": {
+    "title": "Panel administratora",
+    "placeholder": "Panel administracyjny — w budowie."
+  },
+  "footer": {
+    "copyright": "© {{year}} Projekt 1. Wszelkie prawa zastrzeżone."
+  }
+}

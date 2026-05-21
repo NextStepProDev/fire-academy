@@ -1,0 +1,71 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Image tag to deploy (e.g. main, sha-abc1234, 0.1.0)
+        required: true
+        default: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read VERSION file
+        id: version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION)
+          else
+            VERSION="main"
+          fi
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Encode docker-compose.prod.yml
+        id: compose
+        run: echo "content=$(base64 -w 0 projekt-1-hub/docker-compose.prod.yml)" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Oracle Cloud VM
+        uses: appleboy/ssh-action@v1
+        env:
+          COMPOSE_B64: ${{ steps.compose.outputs.content }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: COMPOSE_B64
+          script: |
+            echo "$COMPOSE_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/docker-compose.prod.yml
+            cd ${{ secrets.DEPLOY_PATH }}
+            export VERSION=${{ steps.version.outputs.version }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+
+      - name: Verify deployment health
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "Waiting for backend to become healthy..."
+            for i in $(seq 1 16); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' p1-backend-prod 2>/dev/null || echo "missing")
+              echo "Attempt $i/16: backend health = $STATUS"
+              if [ "$STATUS" = "healthy" ]; then
+                echo "Deployment verified successfully."
+                exit 0
+              fi
+              sleep 15
+            done
+            echo "ERROR: Backend did not become healthy within 4 minutes."
+            docker logs --tail 80 p1-backend-prod
+            exit 1

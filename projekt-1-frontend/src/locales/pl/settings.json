@@ -1,0 +1,33 @@
+{
+  "title": "Ustawienia",
+  "profile": {
+    "title": "Profil",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "phone": "Telefon",
+    "save": "Zapisz zmiany",
+    "saved": "Profil zaktualizowany"
+  },
+  "password": {
+    "title": "Zmiana hasła",
+    "current": "Aktualne hasło",
+    "new": "Nowe hasło",
+    "confirm": "Potwierdź nowe hasło",
+    "change": "Zmień hasło",
+    "changed": "Hasło zostało zmienione"
+  },
+  "notifications": {
+    "title": "Powiadomienia",
+    "email": "Powiadomienia email",
+    "enabled": "Włączone",
+    "disabled": "Wyłączone",
+    "updated": "Ustawienia powiadomień zaktualizowane"
+  },
+  "danger": {
+    "title": "Strefa niebezpieczna",
+    "deleteAccount": "Usuń konto",
+    "deleteConfirm": "Czy na pewno chcesz usunąć swoje konto? Ta operacja jest nieodwracalna.",
+    "passwordRequired": "Podaj hasło aby potwierdzić",
+    "deleted": "Konto zostało usunięte"
+  }
+}

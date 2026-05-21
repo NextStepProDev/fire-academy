@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "home": "Home",
+    "login": "Log in",
+    "logout": "Log out",
+    "profile": "Settings",
+    "admin": "Admin panel",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "home": {
+    "title": "Projekt 1",
+    "subtitle": "Welcome to the app"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "placeholder": "Admin panel — under construction."
+  },
+  "footer": {
+    "copyright": "© {{year}} Projekt 1. All rights reserved."
+  }
+}
