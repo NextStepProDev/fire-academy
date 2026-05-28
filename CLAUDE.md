@@ -1,6 +1,6 @@
 # Fire Academy
 
-System webowy — Java/Spring Boot backend + React frontend. Dark mode, Tailwind 4.
+Wizytówka klubu treningowego — treningi indywidualne i małe grupy (4–6 osób). Java/Spring Boot backend + React frontend. Dark mode (antracyt/czarny/pomarańczowy), Tailwind 4. Wyłącznie język polski.
 
 **Wersja:** odczytywana z pliku `VERSION` via `@version@` placeholder w `application.yml`
 
@@ -68,6 +68,27 @@ VERSION
 
 ---
 
+## Frontend Routes
+
+| Ścieżka | Komponent | Opis |
+|---------|-----------|------|
+| `/` | HomePage | Hero z 3 sekcjami (diagonal clip-path): Treningi / Obozy / Szkolenia |
+| `/treningi` | TrainingsPage | Coming Soon (placeholder) |
+| `/obozy` | EventsPage(CAMP) | Terminy + Rodzaje (popup modal) + O nas (instruktorzy) |
+| `/szkolenia` | EventsPage(COURSE) | Terminy + Rodzaje (popup modal) + O nas (instruktorzy) |
+| `/admin/login` | LoginPage | Logowanie admina (ukryte, brak linku na stronie) |
+| `/admin/register` | RegisterPage | Rejestracja admina |
+| `/admin/*` | AdminPage | Panel admina (6 zakładek: instruktorzy, rodzaje obozów/szkoleń, terminy, zapisy) |
+| `/verify-email` | VerifyEmailPage | Weryfikacja email (link z maila) |
+| `/reset-password` | ResetPasswordPage | Reset hasła (link z maila) |
+| `/forgot-password` | ForgotPasswordPage | Formularz zapomniałem hasła |
+
+Nawigacja (Navbar): Strona główna · Treningi · Obozy · Szkolenia · (Panel admina — widoczny tylko dla zalogowanego admina)
+
+Stopka (Footer): Opis Fire Academy · Quick links · Dane kontaktowe · Polityka prywatności · Regulamin
+
+---
+
 ## Język
 
 Aplikacja wspiera wyłącznie **język polski**. Backend: `messages.properties` (pl), frontend: `locales/pl/`. Default `preferredLanguage` w bazie i kodzie: `"pl"`.
@@ -82,6 +103,8 @@ Aplikacja wspiera wyłącznie **język polski**. Backend: `messages.properties` 
 - **Auto-admin:** email z `ADMIN_EMAIL` (env var) automatycznie dostaje ADMIN przy rejestracji
 - Account lockout: 5 failed attempts → 15 min lockout
 - Rate limiting: per-IP per-endpoint
+- **Logowanie ukryte** — brak przycisku logowania na stronie publicznej. Admin loguje się wchodząc na `/admin` (przekierowanie → `/admin/login`). Rejestracja: `/admin/register`
+- Strony utility (verify-email, reset-password, forgot-password, resend-verification) pozostają na root level (linki z maili)
 
 ---
 

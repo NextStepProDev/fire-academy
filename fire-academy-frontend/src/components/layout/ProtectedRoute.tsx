@@ -22,7 +22,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     saveRedirectPath(location.pathname + location.search)
-    return <Navigate to="/login" replace />
+    return <Navigate to="/admin/login" replace />
   }
 
   return <>{children}</>

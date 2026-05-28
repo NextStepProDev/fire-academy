@@ -42,7 +42,7 @@ export function ForgotPasswordPage() {
               </svg>
             </div>
             <p className="text-surface-300 mb-6">{t('forgotPassword.successMessage')}</p>
-            <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+            <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
               {t('forgotPassword.backToLogin')}
             </Link>
           </div>
@@ -70,7 +70,7 @@ export function ForgotPasswordPage() {
             </Button>
 
             <p className="text-center text-sm text-surface-400">
-              <Link to="/login" className="text-primary-400 hover:text-primary-300">
+              <Link to="/admin/login" className="text-primary-400 hover:text-primary-300">
                 {t('forgotPassword.backToLogin')}
               </Link>
             </p>

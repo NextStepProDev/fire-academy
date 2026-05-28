@@ -23,7 +23,7 @@ export function LoginPage() {
 
     try {
       await login(email, password)
-      navigate(consumeRedirectPath() || '/', { replace: true })
+      navigate(consumeRedirectPath() || '/admin', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
       setLoading(false)
@@ -103,7 +103,7 @@ export function LoginPage() {
         <div className="mt-6 space-y-2 text-center text-sm">
           <p className="text-surface-400">
             {t('login.noAccount')}{' '}
-            <Link to="/register" className="text-primary-400 hover:text-primary-300">
+            <Link to="/admin/register" className="text-primary-400 hover:text-primary-300">
               {t('login.register')}
             </Link>
           </p>

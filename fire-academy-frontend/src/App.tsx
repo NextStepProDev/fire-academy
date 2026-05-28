@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { HomePage } from './pages/HomePage'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
@@ -38,13 +38,13 @@ export default function App() {
             <Route path="treningi" element={<TrainingsPage />} />
             <Route path="obozy" element={<CampsPage />} />
             <Route path="szkolenia" element={<CoursesPage />} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
             <Route path="verify-email" element={<VerifyEmailPage />} />
-            <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="resend-verification" element={<ResendVerificationPage />} />
             <Route path="oauth-callback" element={<OAuthCallbackPage />} />
+            <Route path="admin/login" element={<LoginPage />} />
+            <Route path="admin/register" element={<RegisterPage />} />
             <Route
               path="settings"
               element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
@@ -53,6 +53,8 @@ export default function App() {
               path="admin/*"
               element={<AdminRoute><AdminPage /></AdminRoute>}
             />
+            <Route path="login" element={<Navigate to="/admin/login" replace />} />
+            <Route path="register" element={<Navigate to="/admin/register" replace />} />
           </Route>
         </Routes>
       </Suspense>

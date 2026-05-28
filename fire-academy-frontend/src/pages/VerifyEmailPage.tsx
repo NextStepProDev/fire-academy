@@ -46,7 +46,7 @@ export function VerifyEmailPage() {
             </div>
             <h2 className="text-xl font-bold text-surface-100 mb-2">{t('verify.successTitle')}</h2>
             <p className="text-surface-400 mb-6">{t('verify.successMessage')}</p>
-            <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+            <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
               {t('verify.goToLogin')}
             </Link>
           </>
@@ -54,7 +54,7 @@ export function VerifyEmailPage() {
           <>
             <h2 className="text-xl font-bold text-surface-100 mb-2">{t('verify.errorTitle')}</h2>
             <p className="text-surface-400 mb-6">{errorMessage}</p>
-            <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+            <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
               {t('verify.goToLogin')}
             </Link>
           </>

@@ -1,16 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, Moon, Sun, User, X, ChevronDown } from 'lucide-react'
+import { LogOut, Menu, User, X, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
-import { useTheme } from '../../context/ThemeContext'
-import { Button } from '../ui/Button'
 import clsx from 'clsx'
 
 export function Navbar() {
   const { t } = useTranslation('common')
   const { user, isAuthenticated, isAdmin, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -89,15 +86,8 @@ export function Navbar() {
             ))}
           </div>
 
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-surface-300 hover:text-surface-100 hover:bg-surface-800 transition-all duration-150 active:scale-95"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
-            </button>
-            {isAuthenticated ? (
+          {isAuthenticated && isAdmin && (
+            <div className="hidden md:flex items-center gap-2">
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -135,12 +125,8 @@ export function Navbar() {
                   </div>
                 )}
               </div>
-            ) : (
-              <Link to="/login">
-                <Button size="sm" className="px-4">{t('nav.login')}</Button>
-              </Link>
-            )}
-          </div>
+            </div>
+          )}
 
           <button
             className="md:hidden text-surface-300"
@@ -168,49 +154,34 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-4 border-t border-surface-800">
-              <div className="mb-3">
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-lg text-surface-300 hover:text-surface-100 hover:bg-surface-800 transition-all duration-150 active:scale-95"
-                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            {isAuthenticated && isAdmin && (
+              <div className="pt-4 border-t border-surface-800 space-y-1">
+                <div className="flex items-center gap-3 px-1 py-2">
+                  <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
+                    <span className="text-sm font-bold text-white">{userInitial}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-surface-200">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-xs text-surface-500">{user?.email}</p>
+                  </div>
+                </div>
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-1 py-2 text-surface-300 text-sm"
                 >
-                  {theme === 'dark' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+                  <User className="w-4 h-4" />
+                  {t('nav.settings')}
+                </Link>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); logout() }}
+                  className="flex items-center gap-3 px-1 py-2 text-rose-400/70 text-sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {t('nav.logout')}
                 </button>
               </div>
-              {isAuthenticated ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3 px-1 py-2">
-                    <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
-                      <span className="text-sm font-bold text-white">{userInitial}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-surface-200">{user?.firstName} {user?.lastName}</p>
-                      <p className="text-xs text-surface-500">{user?.email}</p>
-                    </div>
-                  </div>
-                  <Link
-                    to="/settings"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-1 py-2 text-surface-300 text-sm"
-                  >
-                    <User className="w-4 h-4" />
-                    {t('nav.settings')}
-                  </Link>
-                  <button
-                    onClick={() => { setMobileMenuOpen(false); logout() }}
-                    className="flex items-center gap-3 px-1 py-2 text-rose-400/70 text-sm"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    {t('nav.logout')}
-                  </button>
-                </div>
-              ) : (
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="primary" size="sm" className="w-full">{t('nav.login')}</Button>
-                </Link>
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}

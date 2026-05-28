@@ -79,7 +79,7 @@ export function RegisterPage() {
           </div>
           <h2 className="text-xl font-bold text-surface-100 mb-2">{t('register.successTitle')}</h2>
           <p className="text-surface-400 mb-6">{t('register.successMessage')}</p>
-          <Link to="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+          <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
             {t('register.goToLogin')}
           </Link>
         </div>
@@ -223,7 +223,7 @@ export function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-surface-400">
           {t('register.hasAccount')}{' '}
-          <Link to="/login" className="text-primary-400 hover:text-primary-300">
+          <Link to="/admin/login" className="text-primary-400 hover:text-primary-300">
             {t('register.login')}
           </Link>
         </p>
