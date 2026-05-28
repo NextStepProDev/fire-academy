@@ -1,0 +1,179 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { adminApi } from '../../api/admin'
+import { Button } from '../../components/ui/Button'
+import { Modal } from '../../components/ui/Modal'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { Pencil, Trash2 } from 'lucide-react'
+import type { EventCategory, EventInstance } from '../../types'
+import clsx from 'clsx'
+
+interface AdminEventsProps {
+  category: EventCategory
+}
+
+export function AdminEvents({ category }: AdminEventsProps) {
+  const { t } = useTranslation('admin')
+  const queryClient = useQueryClient()
+  const [editItem, setEditItem] = useState<EventInstance | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [form, setForm] = useState({ eventTypeId: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '' })
+
+  const queryKey = ['admin', 'events', category]
+  const { data: events, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category) })
+  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category) })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey })
+
+  const createMut = useMutation({
+    mutationFn: () => adminApi.createEvent({
+      eventTypeId: form.eventTypeId,
+      startDate: form.startDate,
+      endDate: form.endDate || undefined,
+      startTime: form.startTime || undefined,
+      location: form.location || undefined,
+      price: form.price ? Number(form.price) : undefined,
+      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
+    }),
+    onSuccess: invalidate,
+  })
+  const updateMut = useMutation({
+    mutationFn: (id: string) => adminApi.updateEvent(id, {
+      startDate: form.startDate,
+      endDate: form.endDate || undefined,
+      startTime: form.startTime || undefined,
+      location: form.location || undefined,
+      price: form.price ? Number(form.price) : undefined,
+      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
+    }),
+    onSuccess: invalidate,
+  })
+  const deleteMut = useMutation({ mutationFn: adminApi.deleteEvent, onSuccess: invalidate })
+  const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
+
+  const openCreate = () => {
+    setForm({ eventTypeId: eventTypes?.[0]?.id ?? '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '' })
+    setIsCreating(true)
+  }
+  const openEdit = (ev: EventInstance) => {
+    setForm({
+      eventTypeId: ev.eventTypeId,
+      startDate: ev.startDate,
+      endDate: ev.endDate ?? '',
+      startTime: ev.startTime ?? '',
+      location: ev.location ?? '',
+      price: ev.price?.toString() ?? '',
+      maxParticipants: ev.maxParticipants?.toString() ?? '',
+    })
+    setEditItem(ev)
+  }
+
+  const handleSave = async () => {
+    if (editItem) {
+      await updateMut.mutateAsync(editItem.id)
+      setEditItem(null)
+    } else {
+      await createMut.mutateAsync()
+      setIsCreating(false)
+    }
+  }
+
+  if (isLoading) return <LoadingSpinner />
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold text-surface-100">{t('events.title')}</h2>
+        <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
+      </div>
+
+      {!events?.length ? (
+        <p className="text-surface-500">{t('events.noItems')}</p>
+      ) : (
+        <div className="space-y-3">
+          {events.map(ev => (
+            <div key={ev.id} className={clsx('flex items-center gap-4 bg-surface-900 border border-surface-800 rounded-xl p-4', !ev.active && 'opacity-50')}>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-surface-100">{ev.eventTypeName}</p>
+                <p className="text-sm text-surface-400">
+                  {ev.startDate}{ev.endDate ? ` – ${ev.endDate}` : ''}
+                  {ev.startTime ? ` · ${ev.startTime}` : ''}
+                  {ev.location ? ` · ${ev.location}` : ''}
+                </p>
+                <p className="text-sm text-surface-500">
+                  {ev.price != null && `${ev.price} PLN · `}
+                  {t('events.enrolled')}: {(ev as unknown as { enrollmentCount?: number }).enrollmentCount ?? 0}
+                  {ev.maxParticipants != null && ` / ${ev.maxParticipants}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => toggleMut.mutate(ev.id)} className={clsx('px-2 py-1 text-xs rounded', ev.active ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-500')}>
+                  {ev.active ? t('actions.deactivate') : t('actions.activate')}
+                </button>
+                <button onClick={() => openEdit(ev)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteId(ev.id)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        isOpen={isCreating || !!editItem}
+        onClose={() => { setIsCreating(false); setEditItem(null) }}
+        title={editItem ? t('events.editTitle') : t('events.createTitle')}
+      >
+        <div className="space-y-4">
+          {!editItem && (
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.eventType')}</label>
+              <select value={form.eventTypeId} onChange={e => setForm(f => ({ ...f, eventTypeId: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">{t('events.selectEventType')}</option>
+                {eventTypes?.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
+              <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
+              <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startTime')}</label>
+              <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.location')}</label>
+              <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.price')}</label>
+              <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.maxParticipants')}</label>
+              <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={() => { if (deleteId) { deleteMut.mutate(deleteId); setDeleteId(null) } }} title={t('confirm.deleteTitle')} message={t('confirm.delete')} confirmLabel={t('actions.delete')} danger />
+    </div>
+  )
+}

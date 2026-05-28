@@ -1,0 +1,71 @@
+{
+  "actions": {
+    "create": "Dodaj",
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "upload": "Prześlij",
+    "moveUp": "W górę",
+    "moveDown": "W dół",
+    "activate": "Aktywuj",
+    "deactivate": "Dezaktywuj",
+    "addPhoto": "Dodaj zdjęcie",
+    "addEnrollment": "Dodaj zapis"
+  },
+  "confirm": {
+    "delete": "Czy na pewno chcesz usunąć?",
+    "deleteTitle": "Potwierdzenie usunięcia"
+  },
+  "instructors": {
+    "title": "Instruktorzy",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "bio": "Bio",
+    "photo": "Zdjęcie",
+    "createTitle": "Nowy instruktor",
+    "editTitle": "Edytuj instruktora",
+    "noItems": "Brak instruktorów"
+  },
+  "eventTypes": {
+    "title": "Rodzaje",
+    "name": "Nazwa",
+    "description": "Opis",
+    "price": "Cena (PLN)",
+    "maxParticipants": "Maks. uczestników",
+    "duration": "Czas trwania",
+    "thumbnail": "Miniaturka",
+    "photos": "Zdjęcia",
+    "createTitle": "Nowy rodzaj",
+    "editTitle": "Edytuj rodzaj",
+    "noItems": "Brak rodzajów"
+  },
+  "events": {
+    "title": "Terminy",
+    "eventType": "Rodzaj",
+    "startDate": "Data rozpoczęcia",
+    "endDate": "Data zakończenia",
+    "startTime": "Godzina",
+    "location": "Lokalizacja",
+    "price": "Cena (PLN)",
+    "maxParticipants": "Maks. uczestników",
+    "enrolled": "Zapisanych",
+    "createTitle": "Nowy termin",
+    "editTitle": "Edytuj termin",
+    "noItems": "Brak terminów",
+    "selectEventType": "Wybierz rodzaj"
+  },
+  "enrollments": {
+    "title": "Zapisy",
+    "selectEvent": "Wybierz termin",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "email": "Email",
+    "phone": "Telefon",
+    "date": "Data zapisu",
+    "addedByAdmin": "Dodany przez admina",
+    "noItems": "Brak zapisów",
+    "summary": "{{count}} / {{max}} zapisanych",
+    "summaryNoLimit": "{{count}} zapisanych"
+  }
+}

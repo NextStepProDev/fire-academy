@@ -31,7 +31,7 @@ jobs:
 
       - name: Encode docker-compose.prod.yml
         id: compose
-        run: echo "content=$(base64 -w 0 projekt-1-hub/docker-compose.prod.yml)" >> $GITHUB_OUTPUT
+        run: echo "content=$(base64 -w 0 fire-academy-hub/docker-compose.prod.yml)" >> $GITHUB_OUTPUT
 
       - name: Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1
@@ -58,7 +58,7 @@ jobs:
           script: |
             echo "Waiting for backend to become healthy..."
             for i in $(seq 1 16); do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' p1-backend-prod 2>/dev/null || echo "missing")
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' fa-backend-prod 2>/dev/null || echo "missing")
               echo "Attempt $i/16: backend health = $STATUS"
               if [ "$STATUS" = "healthy" ]; then
                 echo "Deployment verified successfully."
@@ -67,5 +67,5 @@ jobs:
               sleep 15
             done
             echo "ERROR: Backend did not become healthy within 4 minutes."
-            docker logs --tail 80 p1-backend-prod
+            docker logs --tail 80 fa-backend-prod
             exit 1

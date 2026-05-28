@@ -1,0 +1,111 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { publicApi } from '../api/public'
+import { InstructorCard } from '../components/events/InstructorCard'
+import { InstructorModal } from '../components/events/InstructorModal'
+import { EventTypeCard } from '../components/events/EventTypeCard'
+import { EventTypeModal } from '../components/events/EventTypeModal'
+import { EventRow } from '../components/events/EventRow'
+import { EnrollmentModal } from '../components/events/EnrollmentModal'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import type { EventCategory, Instructor, EventType } from '../types'
+
+interface EventsPageProps {
+  category: EventCategory
+}
+
+export function EventsPage({ category }: EventsPageProps) {
+  const { t } = useTranslation('events')
+  const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(null)
+  const [selectedEventType, setSelectedEventType] = useState<EventType | null>(null)
+  const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
+  const [enrollEventName, setEnrollEventName] = useState('')
+
+  const eventsQuery = useQuery({
+    queryKey: ['public', 'events', category],
+    queryFn: () => publicApi.getUpcomingEvents(category),
+  })
+
+  const eventTypesQuery = useQuery({
+    queryKey: ['public', 'event-types', category],
+    queryFn: () => publicApi.getEventTypes(category),
+  })
+
+  const instructorsQuery = useQuery({
+    queryKey: ['public', 'instructors'],
+    queryFn: () => publicApi.getInstructors(),
+  })
+
+  const pageTitle = category === 'CAMP' ? t('camps.title') : t('courses.title')
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
+      <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{pageTitle}</h1>
+
+      {/* Terminy */}
+      <section>
+        <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.terminy')}</h2>
+        {eventsQuery.isLoading ? (
+          <LoadingSpinner />
+        ) : eventsQuery.data?.length ? (
+          <div className="space-y-4">
+            {eventsQuery.data.map(event => (
+              <EventRow
+                key={event.id}
+                event={event}
+                onEnroll={() => {
+                  setEnrollEventId(event.id)
+                  setEnrollEventName(event.eventTypeName)
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-surface-500">{t('noEvents')}</p>
+        )}
+      </section>
+
+      {/* Rodzaje */}
+      <section>
+        <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.rodzaje')}</h2>
+        {eventTypesQuery.isLoading ? (
+          <LoadingSpinner />
+        ) : eventTypesQuery.data?.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {eventTypesQuery.data.map(et => (
+              <EventTypeCard key={et.id} eventType={et} onClick={() => setSelectedEventType(et)} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-surface-500">{t('noEventTypes')}</p>
+        )}
+      </section>
+
+      {/* O nas */}
+      <section>
+        <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.oNas')}</h2>
+        {instructorsQuery.isLoading ? (
+          <LoadingSpinner />
+        ) : instructorsQuery.data?.length ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            {instructorsQuery.data.map(instr => (
+              <InstructorCard key={instr.id} instructor={instr} onClick={() => setSelectedInstructor(instr)} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-surface-500">{t('noInstructors')}</p>
+        )}
+      </section>
+
+      <InstructorModal instructor={selectedInstructor} onClose={() => setSelectedInstructor(null)} />
+      <EventTypeModal eventType={selectedEventType} onClose={() => setSelectedEventType(null)} />
+      <EnrollmentModal
+        isOpen={!!enrollEventId}
+        onClose={() => setEnrollEventId(null)}
+        eventId={enrollEventId}
+        eventName={enrollEventName}
+      />
+    </div>
+  )
+}

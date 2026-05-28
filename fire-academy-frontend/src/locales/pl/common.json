@@ -1,0 +1,37 @@
+{
+  "nav": {
+    "home": "Strona główna",
+    "trainings": "Treningi",
+    "camps": "Obozy",
+    "courses": "Szkolenia",
+    "login": "Zaloguj się",
+    "logout": "Wyloguj się",
+    "settings": "Ustawienia",
+    "admin": "Panel admina",
+    "openMenu": "Otwórz menu",
+    "closeMenu": "Zamknij menu"
+  },
+  "home": {
+    "title": "Fire Academy",
+    "subtitle": "Witaj w aplikacji",
+    "section": {
+      "trainings": "Treningi",
+      "camps": "Obozy",
+      "courses": "Szkolenia"
+    }
+  },
+  "admin": {
+    "title": "Panel administratora",
+    "tabs": {
+      "instructors": "Instruktorzy",
+      "campTypes": "Rodzaje obozów",
+      "courseTypes": "Rodzaje szkoleń",
+      "campEvents": "Terminy obozów",
+      "courseEvents": "Terminy szkoleń",
+      "enrollments": "Zapisy"
+    }
+  },
+  "footer": {
+    "copyright": "© {{year}} Fire Academy. Wszelkie prawa zastrzeżone."
+  }
+}

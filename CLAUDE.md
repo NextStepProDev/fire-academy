@@ -1,4 +1,4 @@
-# Projekt 1
+# Fire Academy
 
 System webowy — Java/Spring Boot backend + React frontend. Dark mode, Tailwind 4.
 
@@ -22,9 +22,9 @@ System webowy — Java/Spring Boot backend + React frontend. Dark mode, Tailwind
 
 ### Struktura repozytorium
 ```
-projekt-1-backend/
-projekt-1-frontend/
-projekt-1-hub/          # Docker Compose (dev/prod), .env
+fire-academy-backend/
+fire-academy-frontend/
+fire-academy-hub/          # Docker Compose (dev/prod), .env
 .github/workflows/      # CI/CD
 VERSION
 ```
@@ -33,11 +33,13 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V1. Kolejna migracja: V2.**
+**Obecny stan: V3. Kolejna migracja: V4.**
 
 | Wersja | Co dodaje |
 |--------|-----------|
 | V1 | users, auth_tokens |
+| V2 | default language → pl, migracja istniejących en/es → pl |
+| V3 | instructors, event_types, event_type_photos, events, enrollments |
 
 ---
 
@@ -52,8 +54,23 @@ VERSION
 ### Files `/api/files` (public, cached 7 dni)
 `GET /files/{folder}/{filename}` — streaming
 
+### Public `/api/public` (brak auth)
+`GET /instructors` · `GET /event-types?category=` · `GET /events?category=` · `POST /events/{id}/enroll`
+
+### Admin `/api/admin` (ROLE_ADMIN)
+`/instructors` — CRUD + photo upload + reorder + toggle active
+`/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
+`/events` — CRUD + `?category=` + toggle active
+`/enrollments` — lista + admin-add + delete
+
 ### Dev `/api/dev` (profil `dev` only)
 `POST /login` · `POST /logout` · `GET /session` · `GET /users`
+
+---
+
+## Język
+
+Aplikacja wspiera wyłącznie **język polski**. Backend: `messages.properties` (pl), frontend: `locales/pl/`. Default `preferredLanguage` w bazie i kodzie: `"pl"`.
 
 ---
 
@@ -61,7 +78,7 @@ VERSION
 
 - Email/password: rejestracja → weryfikacja email → login → JWT
 - JWT: access (15 min) + refresh (7 dni), algorithm HS256
-- OAuth2 Google: wymaga `OAUTH2_GOOGLE_CLIENT_ID` + `OAUTH2_GOOGLE_CLIENT_SECRET` w `.env`
+- OAuth2 Google (opcjonalny): aktywacja przez profil `oauth2` (`SPRING_PROFILES_ACTIVE=dev,oauth2`), wymaga `OAUTH2_GOOGLE_CLIENT_ID` + `OAUTH2_GOOGLE_CLIENT_SECRET` w `.env`
 - **Auto-admin:** email z `ADMIN_EMAIL` (env var) automatycznie dostaje ADMIN przy rejestracji
 - Account lockout: 5 failed attempts → 15 min lockout
 - Rate limiting: per-IP per-endpoint
@@ -81,7 +98,26 @@ VERSION
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
 
 ### Zmienne środowiskowe (`.env`)
-`POSTGRES_DB/USER/PASSWORD`, `MAIL_HOST/PORT/USERNAME/PASSWORD`, `JWT_SECRET`, `GHCR_OWNER`, `VERSION`, `OAUTH2_GOOGLE_CLIENT_ID/SECRET`, `ADMIN_EMAIL`
+`POSTGRES_DB/USER/PASSWORD`, `MAIL_HOST/PORT/USERNAME/PASSWORD`, `JWT_SECRET`, `GHCR_OWNER`, `VERSION`, `ADMIN_EMAIL`
+Opcjonalne (profil `oauth2`): `OAUTH2_GOOGLE_CLIENT_ID/SECRET`
+
+---
+
+## Local Dev Workflow
+
+```bash
+# 1. Baza danych + MailHog
+cd fire-academy-hub && docker compose -f docker-compose.dev.yml up -d
+
+# 2. Backend (IntelliJ: Run FireAcademyApplication z profilem dev)
+#    lub z terminala:
+cd fire-academy-backend && ./gradlew bootRun
+
+# 3. Frontend
+cd fire-academy-frontend && npm run dev
+```
+
+Backend wymaga działającego PostgreSQL (port 5433). MailHog (web UI: localhost:8026) przechwytuje emaile wysyłane przez auth flow (weryfikacja konta, reset hasła).
 
 ---
 

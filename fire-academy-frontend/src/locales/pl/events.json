@@ -1,0 +1,50 @@
+{
+  "camps": {
+    "title": "Obozy"
+  },
+  "courses": {
+    "title": "Szkolenia"
+  },
+  "trainings": {
+    "title": "Treningi",
+    "comingSoon": "Wkrótce"
+  },
+  "sections": {
+    "terminy": "Terminy",
+    "rodzaje": "Rodzaje",
+    "oNas": "O nas"
+  },
+  "event": {
+    "date": "Data",
+    "location": "Lokalizacja",
+    "price": "Cena",
+    "spots": "Wolne miejsca",
+    "spotsOf": "{{available}} / {{max}}",
+    "spotsFull": "Brak miejsc",
+    "spotsUnlimited": "Bez limitu",
+    "enroll": "Zapisz się",
+    "duration": "Czas trwania",
+    "maxParticipants": "Maks. uczestników"
+  },
+  "enroll": {
+    "title": "Formularz zapisu",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "email": "Adres email",
+    "phone": "Numer telefonu",
+    "submit": "Wyślij zgłoszenie",
+    "success": "Zapis potwierdzony! Sprawdź swoją skrzynkę email.",
+    "firstNameRequired": "Imię jest wymagane",
+    "lastNameRequired": "Nazwisko jest wymagane",
+    "emailRequired": "Email jest wymagany",
+    "emailInvalid": "Nieprawidłowy format email",
+    "phoneRequired": "Numer telefonu jest wymagany",
+    "phoneInvalid": "Nieprawidłowy format numeru telefonu"
+  },
+  "instructor": {
+    "readMore": "Czytaj więcej"
+  },
+  "noEvents": "Brak nadchodzących terminów",
+  "noEventTypes": "Brak dostępnych rodzajów",
+  "noInstructors": "Brak instruktorów"
+}

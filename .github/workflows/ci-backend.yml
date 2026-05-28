@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - projekt-1-backend/**
+      - fire-academy-backend/**
       - VERSION
   pull_request:
     branches: [main]
     paths:
-      - projekt-1-backend/**
+      - fire-academy-backend/**
       - VERSION
 
 permissions:
@@ -23,7 +23,7 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
     defaults:
       run:
-        working-directory: projekt-1-backend
+        working-directory: fire-academy-backend
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
         if: always()
         with:
           name: test-reports
-          path: projekt-1-backend/build/reports/tests/
+          path: fire-academy-backend/build/reports/tests/
           retention-days: 7
 
   docker:
@@ -59,14 +59,14 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository_owner }}/projekt1-backend
+          images: ghcr.io/${{ github.repository_owner }}/fire-academy-backend
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.ref == 'refs/heads/main' }}
       - uses: docker/build-push-action@v6
         with:
-          context: projekt-1-backend
+          context: fire-academy-backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
