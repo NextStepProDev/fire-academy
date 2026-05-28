@@ -12,7 +12,7 @@
   "sections": {
     "terminy": "Terminy",
     "rodzaje": "Rodzaje",
-    "oNas": "O nas"
+    "oNas": "Kadra"
   },
   "event": {
     "date": "Data",
@@ -46,5 +46,5 @@
   },
   "noEvents": "Brak nadchodzących terminów",
   "noEventTypes": "Brak dostępnych rodzajów",
-  "noInstructors": "Brak instruktorów"
+  "noInstructors": "Brak osób w kadrze"
 }

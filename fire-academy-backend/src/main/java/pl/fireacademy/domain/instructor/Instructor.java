@@ -2,8 +2,11 @@ package pl.fireacademy.domain.instructor;
 
 import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
+import pl.fireacademy.domain.event.EventCategory;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -30,6 +33,12 @@ public class Instructor {
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "instructor_categories", joinColumns = @JoinColumn(name = "instructor_id"))
+    @Column(name = "category")
+    @Enumerated(EnumType.STRING)
+    private Set<EventCategory> categories = new HashSet<>();
 
     @Column(nullable = false)
     private boolean active = true;
@@ -70,6 +79,8 @@ public class Instructor {
     public void setPhotoFilename(@Nullable String photoFilename) { this.photoFilename = photoFilename; }
     public int getDisplayOrder() { return displayOrder; }
     public void setDisplayOrder(int displayOrder) { this.displayOrder = displayOrder; }
+    public Set<EventCategory> getCategories() { return categories; }
+    public void setCategories(Set<EventCategory> categories) { this.categories = categories; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

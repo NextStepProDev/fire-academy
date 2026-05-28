@@ -5,7 +5,7 @@
     "delete": "Usuń",
     "save": "Zapisz",
     "cancel": "Anuluj",
-    "upload": "Prześlij",
+    "uploadPhoto": "Zmień zdjęcie",
     "moveUp": "W górę",
     "moveDown": "W dół",
     "activate": "Aktywuj",
@@ -17,15 +17,20 @@
     "delete": "Czy na pewno chcesz usunąć?",
     "deleteTitle": "Potwierdzenie usunięcia"
   },
-  "instructors": {
-    "title": "Instruktorzy",
+  "kadra": {
+    "title": "Kadra",
     "firstName": "Imię",
     "lastName": "Nazwisko",
     "bio": "Bio",
     "photo": "Zdjęcie",
-    "createTitle": "Nowy instruktor",
-    "editTitle": "Edytuj instruktora",
-    "noItems": "Brak instruktorów"
+    "categories": "Kategorie",
+    "categoryTraining": "Treningi",
+    "categoryCamp": "Obozy",
+    "categoryCourse": "Szkolenia",
+    "createTitle": "Nowa osoba w kadrze",
+    "editTitle": "Edytuj osobę",
+    "noItems": "Brak osób w kadrze",
+    "categoriesRequired": "Wybierz co najmniej jedną kategorię"
   },
   "eventTypes": {
     "title": "Rodzaje",

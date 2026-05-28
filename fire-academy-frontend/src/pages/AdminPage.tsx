@@ -7,7 +7,7 @@ import { AdminEvents } from './admin/AdminEvents'
 import { AdminEnrollments } from './admin/AdminEnrollments'
 
 const tabs = [
-  { key: 'instructors', ns: 'admin.tabs.instructors' },
+  { key: 'kadra', ns: 'admin.tabs.kadra' },
   { key: 'camp-types', ns: 'admin.tabs.campTypes' },
   { key: 'course-types', ns: 'admin.tabs.courseTypes' },
   { key: 'camp-events', ns: 'admin.tabs.campEvents' },
@@ -17,7 +17,7 @@ const tabs = [
 
 export function AdminPage() {
   const { t } = useTranslation('common')
-  const [activeTab, setActiveTab] = useState('instructors')
+  const [activeTab, setActiveTab] = useState('kadra')
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -40,7 +40,7 @@ export function AdminPage() {
         ))}
       </div>
 
-      {activeTab === 'instructors' && <AdminInstructors />}
+      {activeTab === 'kadra' && <AdminInstructors />}
       {activeTab === 'camp-types' && <AdminEventTypes category="CAMP" />}
       {activeTab === 'course-types' && <AdminEventTypes category="COURSE" />}
       {activeTab === 'camp-events' && <AdminEvents category="CAMP" />}

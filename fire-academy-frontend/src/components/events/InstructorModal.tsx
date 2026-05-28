@@ -11,8 +11,8 @@ export function InstructorModal({ instructor, onClose }: InstructorModalProps) {
   if (!instructor) return null
   return (
     <Modal isOpen={!!instructor} onClose={onClose} title={`${instructor.firstName} ${instructor.lastName}`}>
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-40 h-40 rounded-full overflow-hidden bg-surface-800 flex items-center justify-center">
+      <div className="flex flex-col gap-4">
+        <div className="w-40 h-40 rounded-full overflow-hidden bg-surface-800 flex items-center justify-center mx-auto">
           {instructor.photoUrl ? (
             <img src={instructor.photoUrl} alt={instructor.firstName} className="w-full h-full object-cover" />
           ) : (
@@ -20,7 +20,7 @@ export function InstructorModal({ instructor, onClose }: InstructorModalProps) {
           )}
         </div>
         {instructor.bio && (
-          <p className="text-surface-300 text-center whitespace-pre-wrap">{instructor.bio}</p>
+          <p className="text-surface-300 whitespace-pre-wrap">{instructor.bio}</p>
         )}
       </div>
     </Modal>

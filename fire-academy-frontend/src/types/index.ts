@@ -12,7 +12,7 @@ export interface User {
   createdAt: string
 }
 
-export type EventCategory = 'CAMP' | 'COURSE'
+export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'
 
 export interface Instructor {
   id: string
@@ -20,6 +20,7 @@ export interface Instructor {
   lastName: string
   bio: string | null
   photoUrl: string | null
+  categories: EventCategory[]
   displayOrder: number
   active: boolean
   createdAt: string

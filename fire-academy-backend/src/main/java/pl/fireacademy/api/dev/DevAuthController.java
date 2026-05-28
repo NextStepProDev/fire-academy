@@ -1,65 +1,77 @@
 package pl.fireacademy.api.dev;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import pl.fireacademy.domain.auth.AuthToken;
+import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.auth.TokenType;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.domain.user.UserRole;
+import pl.fireacademy.infrastructure.security.JwtService;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/dev")
 @Profile("dev")
 public class DevAuthController {
-    private final UserRepository userRepository;
 
-    public DevAuthController(UserRepository userRepository) {
+    private static final String DEV_PASSWORD = "dev";
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthTokenRepository authTokenRepository;
+
+    public DevAuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                             JwtService jwtService, AuthTokenRepository authTokenRepository) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.authTokenRepository = authTokenRepository;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(HttpServletRequest request,
-                                                      @RequestParam(defaultValue = "false") boolean asAdmin) {
+    public ResponseEntity<Map<String, Object>> login(@RequestParam(defaultValue = "false") boolean asAdmin) {
         String email = asAdmin ? "admin@dev.local" : "user@dev.local";
         User user = userRepository.findByEmail(email).orElseGet(() -> {
             User u = new User(email, asAdmin ? "Admin" : "User", "Dev", null);
+            u.setPasswordHash(passwordEncoder.encode(DEV_PASSWORD));
             u.setRole(asAdmin ? UserRole.ADMIN : UserRole.USER);
             u.markEmailVerified();
             return userRepository.save(u);
         });
-        HttpSession session = request.getSession(true);
-        session.setAttribute("DEV_USER_ID", user.getId());
-        return ResponseEntity.ok(Map.of("userId", user.getId(), "email", user.getEmail(), "role", user.getRole().name()));
-    }
 
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session != null) session.invalidate();
-        return ResponseEntity.noContent().build();
-    }
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-    @GetMapping("/session")
-    public ResponseEntity<Map<String, Object>> session(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) return ResponseEntity.ok(Map.of("authenticated", false));
-        Object userId = session.getAttribute("DEV_USER_ID");
-        if (userId == null) return ResponseEntity.ok(Map.of("authenticated", false));
-        return userRepository.findById((UUID) userId)
-            .map(u -> ResponseEntity.ok(Map.of("authenticated", (Object) true, "userId", u.getId(), "email", u.getEmail(), "role", u.getRole().name())))
-            .orElse(ResponseEntity.ok(Map.of("authenticated", false)));
+        String refreshTokenHash = jwtService.hashToken(refreshToken);
+        Instant refreshExpiration = Instant.now().plusMillis(jwtService.getRefreshTokenExpirationMs());
+        authTokenRepository.save(new AuthToken(user, refreshTokenHash, TokenType.REFRESH_TOKEN, refreshExpiration));
+
+        return ResponseEntity.ok(Map.of(
+            "accessToken", accessToken,
+            "refreshToken", refreshToken,
+            "expiresIn", jwtService.getAccessTokenExpirationSeconds(),
+            "userId", user.getId(),
+            "email", user.getEmail(),
+            "role", user.getRole().name()
+        ));
     }
 
     @GetMapping("/users")
     public ResponseEntity<List<Map<String, Object>>> users() {
         List<Map<String, Object>> list = userRepository.findAll().stream()
-            .map(u -> Map.<String, Object>of("id", u.getId(), "email", u.getEmail(), "role", u.getRole().name(), "verified", u.isEmailVerified()))
+            .map(u -> Map.<String, Object>of(
+                "id", u.getId(),
+                "email", u.getEmail(),
+                "role", u.getRole().name(),
+                "verified", u.isEmailVerified()))
             .toList();
         return ResponseEntity.ok(list);
     }

@@ -43,6 +43,7 @@ public class AdminInstructorService {
 
         var instructor = new Instructor(request.firstName(), request.lastName());
         instructor.setBio(request.bio());
+        instructor.setCategories(request.categories());
         instructor.setDisplayOrder(maxOrder + 1);
         return toResponse(instructorRepository.save(instructor));
     }
@@ -53,6 +54,7 @@ public class AdminInstructorService {
         instructor.setFirstName(request.firstName());
         instructor.setLastName(request.lastName());
         instructor.setBio(request.bio());
+        instructor.setCategories(request.categories());
         return toResponse(instructorRepository.save(instructor));
     }
 
@@ -115,7 +117,7 @@ public class AdminInstructorService {
                 : null;
         return new InstructorResponse(
                 i.getId(), i.getFirstName(), i.getLastName(), i.getBio(),
-                photoUrl, i.getDisplayOrder(), i.isActive(), i.getCreatedAt()
+                photoUrl, i.getCategories(), i.getDisplayOrder(), i.isActive(), i.getCreatedAt()
         );
     }
 }

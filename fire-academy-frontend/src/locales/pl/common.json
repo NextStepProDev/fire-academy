@@ -23,7 +23,7 @@
   "admin": {
     "title": "Panel administratora",
     "tabs": {
-      "instructors": "Instruktorzy",
+      "kadra": "Kadra",
       "campTypes": "Rodzaje obozów",
       "courseTypes": "Rodzaje szkoleń",
       "campEvents": "Terminy obozów",

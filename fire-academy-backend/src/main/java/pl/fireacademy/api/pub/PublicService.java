@@ -38,8 +38,8 @@ public class PublicService {
         this.msg = msg;
     }
 
-    public List<InstructorCard> getActiveInstructors() {
-        return instructorRepository.findByActiveTrueOrderByDisplayOrderAsc().stream()
+    public List<InstructorCard> getActiveInstructors(EventCategory category) {
+        return instructorRepository.findActiveByCategoryOrdered(category).stream()
                 .map(i -> new InstructorCard(
                         i.getId(), i.getFirstName(), i.getLastName(), i.getBio(),
                         i.getPhotoFilename() != null ? "/api/files/instructors/" + i.getPhotoFilename() : null

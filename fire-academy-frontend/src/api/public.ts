@@ -9,8 +9,8 @@ export interface EnrollRequest {
 }
 
 export const publicApi = {
-  getInstructors: () =>
-    fetchApi<Instructor[]>('/public/instructors'),
+  getInstructors: (category: EventCategory) =>
+    fetchApi<Instructor[]>(`/public/instructors?category=${category}`),
 
   getEventTypes: (category: EventCategory) =>
     fetchApi<EventType[]>(`/public/event-types?category=${category}`),

@@ -33,8 +33,8 @@ export function EventsPage({ category }: EventsPageProps) {
   })
 
   const instructorsQuery = useQuery({
-    queryKey: ['public', 'instructors'],
-    queryFn: () => publicApi.getInstructors(),
+    queryKey: ['public', 'instructors', category],
+    queryFn: () => publicApi.getInstructors(category),
   })
 
   const pageTitle = category === 'CAMP' ? t('camps.title') : t('courses.title')

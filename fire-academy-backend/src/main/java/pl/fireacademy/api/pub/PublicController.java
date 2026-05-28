@@ -22,8 +22,8 @@ public class PublicController {
     }
 
     @GetMapping("/instructors")
-    public List<InstructorCard> getInstructors() {
-        return service.getActiveInstructors();
+    public List<InstructorCard> getInstructors(@RequestParam EventCategory category) {
+        return service.getActiveInstructors(category);
     }
 
     @GetMapping("/event-types")

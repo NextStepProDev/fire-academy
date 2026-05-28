@@ -33,13 +33,14 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V3. Kolejna migracja: V4.**
+**Obecny stan: V4. Kolejna migracja: V5.**
 
 | Wersja | Co dodaje |
 |--------|-----------|
 | V1 | users, auth_tokens |
 | V2 | default language → pl, migracja istniejących en/es → pl |
 | V3 | instructors, event_types, event_type_photos, events, enrollments |
+| V4 | instructor_categories (kadra per kategoria: CAMP/COURSE/TRAINING) |
 
 ---
 
@@ -55,16 +56,16 @@ VERSION
 `GET /files/{folder}/{filename}` — streaming
 
 ### Public `/api/public` (brak auth)
-`GET /instructors` · `GET /event-types?category=` · `GET /events?category=` · `POST /events/{id}/enroll`
+`GET /instructors?category=` · `GET /event-types?category=` · `GET /events?category=` · `POST /events/{id}/enroll`
 
 ### Admin `/api/admin` (ROLE_ADMIN)
-`/instructors` — CRUD + photo upload + reorder + toggle active
+`/instructors` — CRUD + categories (CAMP/COURSE/TRAINING) + photo upload + reorder + toggle active
 `/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
 `/events` — CRUD + `?category=` + toggle active
 `/enrollments` — lista + admin-add + delete
 
 ### Dev `/api/dev` (profil `dev` only)
-`POST /login` · `POST /logout` · `GET /session` · `GET /users`
+`POST /login` · `GET /users`
 
 ---
 
@@ -74,11 +75,11 @@ VERSION
 |---------|-----------|------|
 | `/` | HomePage | Hero z 3 sekcjami (diagonal clip-path): Treningi / Obozy / Szkolenia |
 | `/treningi` | TrainingsPage | Coming Soon (placeholder) |
-| `/obozy` | EventsPage(CAMP) | Terminy + Rodzaje (popup modal) + O nas (instruktorzy) |
-| `/szkolenia` | EventsPage(COURSE) | Terminy + Rodzaje (popup modal) + O nas (instruktorzy) |
+| `/obozy` | EventsPage(CAMP) | Terminy + Rodzaje (popup modal) + Kadra |
+| `/szkolenia` | EventsPage(COURSE) | Terminy + Rodzaje (popup modal) + Kadra |
 | `/admin/login` | LoginPage | Logowanie admina (ukryte, brak linku na stronie) |
 | `/admin/register` | RegisterPage | Rejestracja admina |
-| `/admin/*` | AdminPage | Panel admina (6 zakładek: instruktorzy, rodzaje obozów/szkoleń, terminy, zapisy) |
+| `/admin/*` | AdminPage | Panel admina (6 zakładek: kadra, rodzaje obozów/szkoleń, terminy, zapisy) |
 | `/verify-email` | VerifyEmailPage | Weryfikacja email (link z maila) |
 | `/reset-password` | ResetPasswordPage | Reset hasła (link z maila) |
 | `/forgot-password` | ForgotPasswordPage | Formularz zapomniałem hasła |

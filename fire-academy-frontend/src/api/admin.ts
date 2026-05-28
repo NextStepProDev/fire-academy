@@ -5,12 +5,14 @@ interface CreateInstructorRequest {
   firstName: string
   lastName: string
   bio?: string
+  categories: EventCategory[]
 }
 
 interface UpdateInstructorRequest {
   firstName: string
   lastName: string
   bio?: string
+  categories: EventCategory[]
 }
 
 interface CreateEventTypeRequest {
