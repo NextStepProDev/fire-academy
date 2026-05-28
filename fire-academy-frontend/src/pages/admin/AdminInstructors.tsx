@@ -29,7 +29,10 @@ export function AdminInstructors() {
     queryFn: adminApi.getInstructors,
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'instructors'] })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'instructors'] })
+    queryClient.invalidateQueries({ queryKey: ['public', 'instructors'] })
+  }
 
   const createMut = useMutation({ mutationFn: (d: typeof form) => adminApi.createInstructor(d), onSuccess: invalidate })
   const updateMut = useMutation({ mutationFn: ({ id, ...d }: typeof form & { id: string }) => adminApi.updateInstructor(id, d), onSuccess: invalidate })

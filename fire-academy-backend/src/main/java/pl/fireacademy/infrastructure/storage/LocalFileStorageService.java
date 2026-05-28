@@ -11,11 +11,14 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class LocalFileStorageService implements FileStorageService {
     private static final Logger log = LoggerFactory.getLogger(LocalFileStorageService.class);
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".webp");
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private final Path rootLocation;
 
     public LocalFileStorageService(@Value("${app.storage.root:./uploads}") String storageRoot) {
@@ -29,11 +32,20 @@ public class LocalFileStorageService implements FileStorageService {
 
     @Override
     public String store(String folder, MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new IllegalArgumentException("Niedozwolony typ pliku. Dozwolone: JPG, PNG, WebP");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename != null && originalFilename.contains(".")
+            ? originalFilename.substring(originalFilename.lastIndexOf('.')).toLowerCase()
+            : "";
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("Niedozwolone rozszerzenie pliku. Dozwolone: .jpg, .jpeg, .png, .webp");
+        }
+
         try {
-            String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename != null && originalFilename.contains(".")
-                ? originalFilename.substring(originalFilename.lastIndexOf('.'))
-                : ".jpg";
             String filename = UUID.randomUUID() + extension;
             Path dir = rootLocation.resolve(folder);
             Files.createDirectories(dir);

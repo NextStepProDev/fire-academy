@@ -47,7 +47,7 @@ VERSION
 ## API Endpoints
 
 ### Auth `/api/auth`
-`POST /register` · `POST /login` · `POST /verify-email?token=` · `POST /resend-verification` · `POST /forgot-password` · `POST /reset-password` · `POST /refresh`
+`POST /register` · `POST /login` · `POST /logout` · `POST /verify-email?token=` · `POST /resend-verification` · `POST /forgot-password` · `POST /reset-password` · `POST /refresh`
 
 ### User `/api/user` (auth required)
 `GET /me` · `PUT /me` · `PUT /me/password` · `DELETE /me`

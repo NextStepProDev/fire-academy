@@ -59,4 +59,11 @@ public class AuthController {
     public ResponseEntity<AuthTokensResponse> refreshTokens(@Valid @RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(authService.refreshTokens(request));
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Invalidates the refresh token server-side")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request.refreshToken());
+        return ResponseEntity.noContent().build();
+    }
 }

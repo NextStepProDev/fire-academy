@@ -154,7 +154,15 @@ export async function fetchApi<T>(
 export const authApi = {
   getCurrentUser: () => fetchApi<User>('/user/me'),
   logout: () => {
+    const refreshToken = getRefreshToken()
     clearTokens()
+    if (refreshToken) {
+      fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {})
+    }
   },
   changePassword: (currentPassword: string, newPassword: string) =>
     fetchApi<void>('/user/me/password', {

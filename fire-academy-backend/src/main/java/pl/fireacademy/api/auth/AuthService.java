@@ -245,6 +245,16 @@ public class AuthService {
         return generateTokens(user);
     }
 
+    @Transactional
+    public void logout(String refreshToken) {
+        String tokenHash = jwtService.hashToken(refreshToken);
+        authTokenRepository.findByTokenHashAndTokenType(tokenHash, TokenType.REFRESH_TOKEN)
+            .ifPresent(token -> {
+                token.markAsUsed();
+                authTokenRepository.save(token);
+            });
+    }
+
     private AuthTokensResponse generateTokens(User user) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);

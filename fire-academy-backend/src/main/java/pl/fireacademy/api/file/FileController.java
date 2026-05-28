@@ -38,6 +38,7 @@ public class FileController {
             .contentType(MediaType.parseMediaType(contentType))
             .contentLength(fileSize)
             .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic())
+            .header("X-Content-Type-Options", "nosniff")
             .body(new InputStreamResource(inputStream));
     }
 }
