@@ -61,7 +61,11 @@ VERSION
 `GET /files/{folder}/{filename}` — streaming
 
 ### Public `/api/public` (brak auth)
-`GET /instructors?category=` · `GET /event-types?category=` · `GET /events?category=` · `POST /events/{id}/enroll`
+`GET /instructors?category=` · `GET /instructors/{id}` · `GET /event-types?category=` · `GET /event-types/{id}` · `GET /events?category=` · `GET /events/{id}` · `POST /events/{id}/enroll`
+
+### OG `/og` (brak auth, HTML z Open Graph meta tagami dla crawlerów social media)
+`GET /` · `GET /{categorySlug}/rodzaj/{id}` · `GET /{categorySlug}/termin/{id}` · `GET /kadra/{id}`
+Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages do tych endpointów. Zwraca HTML z `og:title`, `og:description`, `og:image` + meta refresh redirect do SPA.
 
 ### Admin `/api/admin` (ROLE_ADMIN)
 `/instructors` — CRUD + categories (CAMP/COURSE/TRAINING) + photo upload + reorder + toggle active
@@ -82,6 +86,9 @@ VERSION
 | `/treningi` | TrainingsPage | Terminy + Rodzaje (popup modal) + Kadra |
 | `/obozy` | EventsPage(CAMP) | Terminy + Rodzaje (popup modal) + Kadra |
 | `/szkolenia` | EventsPage(COURSE) | Terminy + Rodzaje (popup modal) + Kadra |
+| `/:category/rodzaj/:id` | EventTypeDetailPage | Strona szczegółów rodzaju (galeria, opis, powiązane terminy, share) |
+| `/:category/termin/:id` | EventDetailPage | Strona szczegółów terminu (data, lokalizacja, cena, zapis, share) |
+| `/kadra/:id` | InstructorDetailPage | Strona szczegółów instruktora (zdjęcie, bio, share) |
 | `/admin/login` | LoginPage | Logowanie admina (ukryte, brak linku na stronie) |
 | `/admin/register` | RegisterPage | Rejestracja admina |
 | `/admin/*` | AdminPage | Panel admina (5 zakładek: kadra, treningi, obozy, szkolenia, zapisy) |
@@ -91,7 +98,10 @@ VERSION
 
 Nawigacja (Navbar): Strona główna · Treningi · Obozy · Szkolenia · (Panel admina — widoczny tylko dla zalogowanego admina)
 
-Stopka (Footer): Opis Fire Academy · Quick links · Dane kontaktowe · Polityka prywatności · Regulamin
+Stopka (Footer): Opis Fire Academy · Quick links · Dane kontaktowe · Polityka prywatności · Regulamin · ShareButton
+
+### Udostępnianie (ShareButton)
+Rozwijany przycisk (Facebook / WhatsApp / Kopiuj link) na: kartach rodzajów, wierszach terminów, kartach kadry, stronach szczegółów, stopce (strona główna). Slug kategorii: `treningi`↔TRAINING, `obozy`↔CAMP, `szkolenia`↔COURSE (`src/utils/categorySlug.ts`). OG meta tagi w `index.html` (statyczny fallback) + `react-helmet-async` (dynamiczny `<title>`) + backend `OgController` (dla crawlerów). Placeholder `public/og-default.png` — wymaga zastąpienia właściwym obrazem 1200×630px.
 
 ---
 
