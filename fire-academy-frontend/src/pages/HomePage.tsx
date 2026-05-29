@@ -18,7 +18,7 @@ const sections = [
     clipPath: 'polygon(0 31%, 100% 37%, 100% 73%, 0 67%)',
     textTop: '52%',
     overlayClass: 'bg-black/30 group-hover:bg-black/15',
-    imgArea: { top: '20%', bottom: '15%' },
+    imgArea: { top: '15%', bottom: '20%' },
   },
   {
     key: 'courses',

@@ -53,6 +53,7 @@ function EventCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', event.id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
+      queryClient.invalidateQueries({ queryKey: ['public', 'events'] })
       setIsAdding(false)
     },
   })
@@ -62,6 +63,7 @@ function EventCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', event.id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
+      queryClient.invalidateQueries({ queryKey: ['public', 'events'] })
     },
   })
 
@@ -226,6 +228,8 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey })
     queryClient.invalidateQueries({ queryKey: ['admin', 'event-types', category] })
+    queryClient.invalidateQueries({ queryKey: ['public', 'events', category] })
+    queryClient.invalidateQueries({ queryKey: ['public', 'event-types', category] })
   }
 
   const createMut = useMutation({
@@ -352,7 +356,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
-              <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>

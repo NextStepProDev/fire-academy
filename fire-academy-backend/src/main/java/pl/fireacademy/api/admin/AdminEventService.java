@@ -47,6 +47,10 @@ public class AdminEventService {
 
     @Transactional
     public EventResponse create(CreateEventRequest request) {
+        if (request.startDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException(msg.get("event.date.past"));
+        }
+
         Event event;
 
         if (request.eventTypeId() != null) {
@@ -71,6 +75,10 @@ public class AdminEventService {
 
     @Transactional
     public EventResponse update(UUID id, UpdateEventRequest request) {
+        if (request.startDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException(msg.get("event.date.past"));
+        }
+
         var event = findOrThrow(id);
         var changes = new ArrayList<FieldChange>();
 

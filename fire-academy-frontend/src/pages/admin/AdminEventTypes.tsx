@@ -29,7 +29,11 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     staleTime: 0,
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey })
+    queryClient.invalidateQueries({ queryKey: ['public', 'event-types', category] })
+    queryClient.invalidateQueries({ queryKey: ['public', 'events', category] })
+  }
 
   const createMut = useMutation({
     mutationFn: () => adminApi.createEventType({
