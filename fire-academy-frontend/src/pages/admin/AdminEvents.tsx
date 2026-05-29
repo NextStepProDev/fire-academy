@@ -20,24 +20,33 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const [editItem, setEditItem] = useState<EventInstance | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [form, setForm] = useState({ eventTypeId: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '' })
+  const [form, setForm] = useState({ eventTypeName: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '', duration: '' })
 
   const queryKey = ['admin', 'events', category]
   const { data: events, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category) })
   const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category) })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'event-types', category] })
+  }
 
   const createMut = useMutation({
-    mutationFn: () => adminApi.createEvent({
-      eventTypeId: form.eventTypeId,
-      startDate: form.startDate,
-      endDate: form.endDate || undefined,
-      startTime: form.startTime || undefined,
-      location: form.location || undefined,
-      price: form.price ? Number(form.price) : undefined,
-      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-    }),
+    mutationFn: () => {
+      const matchedType = eventTypes?.find(et => et.name === form.eventTypeName)
+      return adminApi.createEvent({
+        eventTypeId: matchedType?.id,
+        customName: matchedType ? undefined : form.eventTypeName,
+        category,
+        startDate: form.startDate,
+        endDate: form.endDate || undefined,
+        startTime: form.startTime || undefined,
+        location: form.location || undefined,
+        price: form.price ? Number(form.price) : undefined,
+        maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
+        duration: form.duration || undefined,
+      })
+    },
     onSuccess: invalidate,
   })
   const updateMut = useMutation({
@@ -48,6 +57,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
       location: form.location || undefined,
       price: form.price ? Number(form.price) : undefined,
       maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
+      duration: form.duration || undefined,
     }),
     onSuccess: invalidate,
   })
@@ -55,18 +65,19 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
 
   const openCreate = () => {
-    setForm({ eventTypeId: eventTypes?.[0]?.id ?? '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '' })
+    setForm({ eventTypeName: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '', duration: '' })
     setIsCreating(true)
   }
   const openEdit = (ev: EventInstance) => {
     setForm({
-      eventTypeId: ev.eventTypeId,
+      eventTypeName: ev.eventTypeName,
       startDate: ev.startDate,
       endDate: ev.endDate ?? '',
       startTime: ev.startTime ?? '',
       location: ev.location ?? '',
       price: ev.price?.toString() ?? '',
       maxParticipants: ev.maxParticipants?.toString() ?? '',
+      duration: ev.duration ?? '',
     })
     setEditItem(ev)
   }
@@ -87,7 +98,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-surface-100">{t('events.title')}</h2>
-        <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
+        <Button variant="primary" size="sm" onClick={openCreate}>{t('actions.create')}</Button>
       </div>
 
       {!events?.length ? (
@@ -105,6 +116,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
                 </p>
                 <p className="text-sm text-surface-500">
                   {ev.price != null && `${ev.price} PLN · `}
+                  {ev.duration && `${ev.duration} · `}
                   {t('events.enrolled')}: {(ev as unknown as { enrollmentCount?: number }).enrollmentCount ?? 0}
                   {ev.maxParticipants != null && ` / ${ev.maxParticipants}`}
                 </p>
@@ -130,10 +142,16 @@ export function AdminEvents({ category }: AdminEventsProps) {
           {!editItem && (
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.eventType')}</label>
-              <select value={form.eventTypeId} onChange={e => setForm(f => ({ ...f, eventTypeId: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="">{t('events.selectEventType')}</option>
-                {eventTypes?.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
-              </select>
+              <input
+                list={`event-types-${category}`}
+                value={form.eventTypeName}
+                onChange={e => setForm(f => ({ ...f, eventTypeName: e.target.value }))}
+                placeholder={t('events.typeOrSelect')}
+                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <datalist id={`event-types-${category}`}>
+                {eventTypes?.map(et => <option key={et.id} value={et.name} />)}
+              </datalist>
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -156,7 +174,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
               <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.price')}</label>
               <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
@@ -164,6 +182,10 @@ export function AdminEvents({ category }: AdminEventsProps) {
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.maxParticipants')}</label>
               <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.duration')}</label>
+              <input value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
           <div className="flex justify-end gap-3">

@@ -5,13 +5,19 @@ import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminEnrollments } from './admin/AdminEnrollments'
+import type { EventCategory } from '../types'
+
+const categoryTabs: Record<string, EventCategory> = {
+  trainings: 'TRAINING',
+  camps: 'CAMP',
+  courses: 'COURSE',
+}
 
 const tabs = [
   { key: 'kadra', ns: 'admin.tabs.kadra' },
-  { key: 'camp-types', ns: 'admin.tabs.campTypes' },
-  { key: 'course-types', ns: 'admin.tabs.courseTypes' },
-  { key: 'camp-events', ns: 'admin.tabs.campEvents' },
-  { key: 'course-events', ns: 'admin.tabs.courseEvents' },
+  { key: 'trainings', ns: 'admin.tabs.trainings' },
+  { key: 'camps', ns: 'admin.tabs.camps' },
+  { key: 'courses', ns: 'admin.tabs.courses' },
   { key: 'enrollments', ns: 'admin.tabs.enrollments' },
 ] as const
 
@@ -41,10 +47,14 @@ export function AdminPage() {
       </div>
 
       {activeTab === 'kadra' && <AdminInstructors />}
-      {activeTab === 'camp-types' && <AdminEventTypes category="CAMP" />}
-      {activeTab === 'course-types' && <AdminEventTypes category="COURSE" />}
-      {activeTab === 'camp-events' && <AdminEvents category="CAMP" />}
-      {activeTab === 'course-events' && <AdminEvents category="COURSE" />}
+
+      {categoryTabs[activeTab] && (
+        <div className="space-y-12">
+          <AdminEventTypes category={categoryTabs[activeTab]} />
+          <AdminEvents category={categoryTabs[activeTab]} />
+        </div>
+      )}
+
       {activeTab === 'enrollments' && <AdminEnrollments />}
     </div>
   )

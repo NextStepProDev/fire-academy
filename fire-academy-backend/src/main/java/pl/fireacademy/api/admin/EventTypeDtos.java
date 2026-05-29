@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.event.EventCategory;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -19,9 +18,6 @@ public final class EventTypeDtos {
             String category,
             String name,
             @Nullable String description,
-            @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration,
             @Nullable String thumbnailUrl,
             List<PhotoResponse> photos,
             int displayOrder,
@@ -38,17 +34,11 @@ public final class EventTypeDtos {
     public record CreateEventTypeRequest(
             @NotNull EventCategory category,
             @NotBlank String name,
-            @Nullable String description,
-            @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration
+            @Nullable String description
     ) {}
 
     public record UpdateEventTypeRequest(
             @NotBlank String name,
-            @Nullable String description,
-            @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration
+            @Nullable String description
     ) {}
 }

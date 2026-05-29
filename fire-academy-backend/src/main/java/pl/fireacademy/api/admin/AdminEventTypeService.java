@@ -32,6 +32,7 @@ public class AdminEventTypeService {
         this.msg = msg;
     }
 
+    @Transactional(readOnly = true)
     public List<EventTypeResponse> getAll(EventCategory category) {
         return eventTypeRepository.findByCategoryOrderByDisplayOrderAsc(category).stream()
                 .map(this::toResponse)
@@ -46,9 +47,6 @@ public class AdminEventTypeService {
 
         var et = new EventType(request.category(), request.name());
         et.setDescription(request.description());
-        et.setPrice(request.price());
-        et.setMaxParticipants(request.maxParticipants());
-        et.setDuration(request.duration());
         et.setDisplayOrder(maxOrder + 1);
         return toResponse(eventTypeRepository.save(et));
     }
@@ -58,9 +56,6 @@ public class AdminEventTypeService {
         var et = findOrThrow(id);
         et.setName(request.name());
         et.setDescription(request.description());
-        et.setPrice(request.price());
-        et.setMaxParticipants(request.maxParticipants());
-        et.setDuration(request.duration());
         return toResponse(eventTypeRepository.save(et));
     }
 
@@ -176,7 +171,6 @@ public class AdminEventTypeService {
                 .toList();
         return new EventTypeResponse(
                 et.getId(), et.getCategory().name(), et.getName(), et.getDescription(),
-                et.getPrice(), et.getMaxParticipants(), et.getDuration(),
                 thumbnailUrl, photos, et.getDisplayOrder(), et.isActive(), et.getCreatedAt()
         );
     }

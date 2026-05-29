@@ -43,6 +43,10 @@ public class Event {
     @Column(name = "max_participants")
     private Integer maxParticipants;
 
+    @Nullable
+    @Column(length = 100)
+    private String duration;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -71,14 +75,6 @@ public class Event {
         this.updatedAt = Instant.now();
     }
 
-    public BigDecimal getEffectivePrice() {
-        return price != null ? price : eventType.getPrice();
-    }
-
-    public Integer getEffectiveMaxParticipants() {
-        return maxParticipants != null ? maxParticipants : eventType.getMaxParticipants();
-    }
-
     public UUID getId() { return id; }
     public EventType getEventType() { return eventType; }
     public LocalDate getStartDate() { return startDate; }
@@ -93,6 +89,8 @@ public class Event {
     public void setPrice(@Nullable BigDecimal price) { this.price = price; }
     @Nullable public Integer getMaxParticipants() { return maxParticipants; }
     public void setMaxParticipants(@Nullable Integer maxParticipants) { this.maxParticipants = maxParticipants; }
+    @Nullable public String getDuration() { return duration; }
+    public void setDuration(@Nullable String duration) { this.duration = duration; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

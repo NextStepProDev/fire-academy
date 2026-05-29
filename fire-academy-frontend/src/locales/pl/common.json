@@ -24,10 +24,9 @@
     "title": "Panel administratora",
     "tabs": {
       "kadra": "Kadra",
-      "campTypes": "Rodzaje obozów",
-      "courseTypes": "Rodzaje szkoleń",
-      "campEvents": "Terminy obozów",
-      "courseEvents": "Terminy szkoleń",
+      "trainings": "Treningi",
+      "camps": "Obozy",
+      "courses": "Szkolenia",
       "enrollments": "Zapisy"
     }
   },

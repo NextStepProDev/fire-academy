@@ -1,59 +1,180 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal } from '../ui/Modal'
+import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
-import type { EventType } from '../../types'
+import { Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import type { EventType, EventInstance } from '../../types'
 
 interface EventTypeModalProps {
   eventType: EventType | null
+  events: EventInstance[]
+  onEnroll: (eventId: string, eventName: string) => void
   onClose: () => void
 }
 
-export function EventTypeModal({ eventType, onClose }: EventTypeModalProps) {
+export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTypeModalProps) {
   const { t } = useTranslation('events')
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const touchStart = useRef<number | null>(null)
+
+  const photos = eventType?.photos ?? []
+
+  const prev = useCallback(() => {
+    if (lightboxIndex === null) return
+    setLightboxIndex(lightboxIndex > 0 ? lightboxIndex - 1 : photos.length - 1)
+  }, [lightboxIndex, photos.length])
+
+  const next = useCallback(() => {
+    if (lightboxIndex === null) return
+    setLightboxIndex(lightboxIndex < photos.length - 1 ? lightboxIndex + 1 : 0)
+  }, [lightboxIndex, photos.length])
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') prev()
+      else if (e.key === 'ArrowRight') next()
+      else if (e.key === 'Escape') setLightboxIndex(null)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [lightboxIndex, prev, next])
 
   if (!eventType) return null
   return (
     <>
       <Modal isOpen={!!eventType} onClose={onClose} title={eventType.name}>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {eventType.thumbnailUrl && (
+            <div className="relative -mx-6 -mt-2 overflow-hidden">
+              <img src={eventType.thumbnailUrl} alt="" className="w-full aspect-square object-cover" />
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-surface-900 to-transparent" />
+            </div>
+          )}
+
           {eventType.description && (
             <p className="text-surface-300 whitespace-pre-wrap">{eventType.description}</p>
           )}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {eventType.price != null && (
-              <div>
-                <span className="text-surface-500">{t('event.price')}:</span>
-                <span className="ml-2 text-surface-100">{eventType.price} PLN</span>
-              </div>
-            )}
-            {eventType.maxParticipants != null && (
-              <div>
-                <span className="text-surface-500">{t('event.maxParticipants')}:</span>
-                <span className="ml-2 text-surface-100">{eventType.maxParticipants}</span>
-              </div>
-            )}
-            {eventType.duration && (
-              <div>
-                <span className="text-surface-500">{t('event.duration')}:</span>
-                <span className="ml-2 text-surface-100">{eventType.duration}</span>
-              </div>
-            )}
-          </div>
-          {eventType.photos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              {eventType.photos.map(p => (
-                <button key={p.id} onClick={() => setSelectedPhoto(p.url)} className="aspect-square rounded-lg overflow-hidden bg-surface-800">
+
+          {photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((p, i) => (
+                <button key={p.id} onClick={() => setLightboxIndex(i)} className="aspect-square rounded-lg overflow-hidden bg-surface-800">
                   <img src={p.url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                 </button>
               ))}
             </div>
           )}
+
+          {events.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-surface-100 mb-3 border-l-4 border-primary-500 pl-3">{t('sections.terminy')}</h3>
+              <div className="space-y-3">
+                {events.map(event => {
+                  const isFull = event.maxParticipants != null && event.availableSpots <= 0
+                  return (
+                    <div key={event.id} className="flex items-center gap-3 bg-surface-800/50 rounded-lg p-3">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-400">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
+                            {event.startTime ? `, ${event.startTime}` : ''}
+                          </span>
+                          {event.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5" />
+                              {event.location}
+                            </span>
+                          )}
+                          {event.duration && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {event.duration}
+                            </span>
+                          )}
+                          {event.maxParticipants != null && (
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5" />
+                              {t('event.spotsOf', { available: event.availableSpots, max: event.maxParticipants })}
+                            </span>
+                          )}
+                        </div>
+                        {event.price != null && (
+                          <p className="text-primary-400 font-medium text-sm">{event.price} PLN</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => onEnroll(event.id, event.eventTypeName)}
+                        disabled={isFull}
+                      >
+                        {isFull ? t('event.spotsFull') : t('event.enroll')}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
-      {selectedPhoto && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80" onClick={() => setSelectedPhoto(null)}>
-          <img src={selectedPhoto} alt="" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg" />
+
+      {lightboxIndex !== null && photos[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90"
+          onClick={() => setLightboxIndex(null)}
+          onTouchStart={e => { touchStart.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            if (touchStart.current === null) return
+            const diff = e.changedTouches[0].clientX - touchStart.current
+            if (Math.abs(diff) > 50) diff > 0 ? prev() : next()
+            touchStart.current = null
+          }}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); setLightboxIndex(null) }}
+            className="absolute top-4 right-4 p-2 text-white/70 hover:text-white z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); prev() }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); next() }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
+
+          <img
+            src={photos[lightboxIndex].url}
+            alt=""
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+
+          {photos.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={e => { e.stopPropagation(); setLightboxIndex(i) }}
+                  className={`w-2 h-2 rounded-full transition-colors ${i === lightboxIndex ? 'bg-white' : 'bg-white/40'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

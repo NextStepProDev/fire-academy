@@ -37,7 +37,8 @@ export function EventsPage({ category }: EventsPageProps) {
     queryFn: () => publicApi.getInstructors(category),
   })
 
-  const pageTitle = category === 'CAMP' ? t('camps.title') : t('courses.title')
+  const titleKey = { CAMP: 'camps.title', COURSE: 'courses.title', TRAINING: 'trainings.title' }[category]
+  const pageTitle = t(titleKey)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
@@ -99,7 +100,16 @@ export function EventsPage({ category }: EventsPageProps) {
       </section>
 
       <InstructorModal instructor={selectedInstructor} onClose={() => setSelectedInstructor(null)} />
-      <EventTypeModal eventType={selectedEventType} onClose={() => setSelectedEventType(null)} />
+      <EventTypeModal
+        eventType={selectedEventType}
+        events={eventsQuery.data?.filter(e => e.eventTypeId === selectedEventType?.id) ?? []}
+        onEnroll={(eventId, eventName) => {
+          setSelectedEventType(null)
+          setEnrollEventId(eventId)
+          setEnrollEventName(eventName)
+        }}
+        onClose={() => setSelectedEventType(null)}
+      />
       <EnrollmentModal
         isOpen={!!enrollEventId}
         onClose={() => setEnrollEventId(null)}

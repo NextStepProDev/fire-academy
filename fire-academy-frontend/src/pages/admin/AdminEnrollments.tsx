@@ -12,7 +12,7 @@ import type { EventCategory } from '../../types'
 export function AdminEnrollments() {
   const { t } = useTranslation('admin')
   const queryClient = useQueryClient()
-  const [category, setCategory] = useState<EventCategory>('CAMP')
+  const [category, setCategory] = useState<EventCategory>('TRAINING')
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [isAdding, setIsAdding] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -51,6 +51,7 @@ export function AdminEnrollments() {
 
       <div className="flex flex-wrap gap-4 mb-6">
         <div className="flex gap-2">
+          <button onClick={() => { setCategory('TRAINING'); setSelectedEventId('') }} className={`px-3 py-1.5 text-sm rounded-lg ${category === 'TRAINING' ? 'bg-primary-600 text-white' : 'bg-surface-800 text-surface-300'}`}>Treningi</button>
           <button onClick={() => { setCategory('CAMP'); setSelectedEventId('') }} className={`px-3 py-1.5 text-sm rounded-lg ${category === 'CAMP' ? 'bg-primary-600 text-white' : 'bg-surface-800 text-surface-300'}`}>Obozy</button>
           <button onClick={() => { setCategory('COURSE'); setSelectedEventId('') }} className={`px-3 py-1.5 text-sm rounded-lg ${category === 'COURSE' ? 'bg-primary-600 text-white' : 'bg-surface-800 text-surface-300'}`}>Szkolenia</button>
         </div>

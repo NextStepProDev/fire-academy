@@ -47,31 +47,32 @@ public class PublicService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<EventTypeCard> getActiveEventTypes(EventCategory category) {
         return eventTypeRepository.findByCategoryAndActiveTrueOrderByDisplayOrderAsc(category).stream()
                 .map(et -> new EventTypeCard(
                         et.getId(), et.getName(), et.getDescription(),
-                        et.getPrice(), et.getMaxParticipants(), et.getDuration(),
                         et.getThumbnailFilename() != null ? "/api/files/eventtypes/" + et.getThumbnailFilename() : null,
                         et.getPhotos().stream()
-                                .map(p -> "/api/files/eventtypephotos/" + p.getFilename())
+                                .map(p -> new PublicDtos.PhotoItem(p.getId(), "/api/files/eventtypephotos/" + p.getFilename(), p.getDisplayOrder()))
                                 .toList()
                 ))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<EventCard> getUpcomingEvents(EventCategory category) {
         var events = eventRepository
                 .findByEventType_CategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
                         category, LocalDate.now());
         return events.stream().map(e -> {
             long enrolled = enrollmentRepository.countByEventId(e.getId());
-            Integer max = e.getEffectiveMaxParticipants();
+            Integer max = e.getMaxParticipants();
             int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
             return new EventCard(
-                    e.getId(), e.getEventType().getName(),
+                    e.getId(), e.getEventType().getId(), e.getEventType().getName(),
                     e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getLocation(),
-                    e.getEffectivePrice(), max, available
+                    e.getPrice(), max, e.getDuration(), available
             );
         }).toList();
     }
@@ -89,7 +90,7 @@ public class PublicService {
             throw new IllegalStateException(msg.get("enrollment.duplicate"));
         }
 
-        Integer max = event.getEffectiveMaxParticipants();
+        Integer max = event.getMaxParticipants();
         if (max != null) {
             long enrolled = enrollmentRepository.countByEventId(eventId);
             if (enrolled >= max) {

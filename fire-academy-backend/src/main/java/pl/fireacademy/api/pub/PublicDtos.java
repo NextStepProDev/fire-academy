@@ -22,19 +22,19 @@ public final class PublicDtos {
             @Nullable String photoUrl
     ) {}
 
+    public record PhotoItem(UUID id, String url, int displayOrder) {}
+
     public record EventTypeCard(
             UUID id,
             String name,
             @Nullable String description,
-            @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration,
             @Nullable String thumbnailUrl,
-            List<String> photoUrls
+            List<PhotoItem> photos
     ) {}
 
     public record EventCard(
             UUID id,
+            UUID eventTypeId,
             String eventTypeName,
             LocalDate startDate,
             @Nullable LocalDate endDate,
@@ -42,6 +42,7 @@ public final class PublicDtos {
             @Nullable String location,
             @Nullable BigDecimal price,
             @Nullable Integer maxParticipants,
+            @Nullable String duration,
             int availableSpots
     ) {}
 

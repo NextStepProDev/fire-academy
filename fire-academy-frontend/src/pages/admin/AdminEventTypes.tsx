@@ -20,7 +20,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const [editItem, setEditItem] = useState<EventType | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', price: '', maxParticipants: '', duration: '' })
+  const [form, setForm] = useState({ name: '', description: '' })
 
   const queryKey = ['admin', 'event-types', category]
   const { data: types, isLoading } = useQuery({
@@ -35,9 +35,6 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
       category,
       name: form.name,
       description: form.description || undefined,
-      price: form.price ? Number(form.price) : undefined,
-      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-      duration: form.duration || undefined,
     }),
     onSuccess: invalidate,
   })
@@ -45,9 +42,6 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     mutationFn: (id: string) => adminApi.updateEventType(id, {
       name: form.name,
       description: form.description || undefined,
-      price: form.price ? Number(form.price) : undefined,
-      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-      duration: form.duration || undefined,
     }),
     onSuccess: invalidate,
   })
@@ -59,14 +53,11 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate })
   const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate })
 
-  const openCreate = () => { setForm({ name: '', description: '', price: '', maxParticipants: '', duration: '' }); setIsCreating(true) }
+  const openCreate = () => { setForm({ name: '', description: '' }); setIsCreating(true) }
   const openEdit = (et: EventType) => {
     setForm({
       name: et.name,
       description: et.description ?? '',
-      price: et.price?.toString() ?? '',
-      maxParticipants: et.maxParticipants?.toString() ?? '',
-      duration: et.duration ?? '',
     })
     setEditItem(et)
   }
@@ -102,11 +93,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-surface-100">{et.name}</p>
-                  <p className="text-sm text-surface-500">
-                    {et.price != null && `${et.price} PLN`}
-                    {et.maxParticipants != null && ` · max ${et.maxParticipants}`}
-                    {et.duration && ` · ${et.duration}`}
-                  </p>
+                  {et.description && <p className="text-sm text-surface-500 truncate">{et.description}</p>}
                 </div>
                 <div className="flex items-center gap-1">
                   <label className="cursor-pointer">
@@ -157,20 +144,6 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.description')}</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.price')}</label>
-              <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.maxParticipants')}</label>
-              <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.duration')}</label>
-              <input value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            </div>
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>

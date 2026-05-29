@@ -11,7 +11,7 @@ export function EventTypeCard({ eventType, onClick }: EventTypeCardProps) {
       onClick={onClick}
       className="group text-left bg-surface-900 border border-surface-800 rounded-xl overflow-hidden hover:border-primary-600/50 transition-all duration-200"
     >
-      <div className="aspect-video bg-surface-800 flex items-center justify-center overflow-hidden">
+      <div className="aspect-[4/3] bg-surface-800 flex items-center justify-center overflow-hidden">
         {eventType.thumbnailUrl ? (
           <img
             src={eventType.thumbnailUrl}
@@ -23,10 +23,7 @@ export function EventTypeCard({ eventType, onClick }: EventTypeCardProps) {
         )}
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-surface-100 mb-1">{eventType.name}</h3>
-        {eventType.price != null && (
-          <p className="text-primary-400 font-medium">{eventType.price} PLN</p>
-        )}
+        <h3 className="font-semibold text-surface-100">{eventType.name}</h3>
       </div>
     </button>
   )

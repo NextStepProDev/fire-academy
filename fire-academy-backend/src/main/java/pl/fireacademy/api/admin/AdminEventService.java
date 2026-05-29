@@ -28,6 +28,7 @@ public class AdminEventService {
         this.msg = msg;
     }
 
+    @Transactional(readOnly = true)
     public List<EventResponse> getAll(EventCategory category) {
         return eventRepository.findByEventType_CategoryOrderByStartDateDesc(category).stream()
                 .map(this::toResponse)
@@ -36,8 +37,24 @@ public class AdminEventService {
 
     @Transactional
     public EventResponse create(CreateEventRequest request) {
-        var eventType = eventTypeRepository.findById(request.eventTypeId())
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+        EventType eventType;
+
+        if (request.eventTypeId() != null) {
+            eventType = eventTypeRepository.findById(request.eventTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+        } else if (request.customName() != null && !request.customName().isBlank()) {
+            eventType = eventTypeRepository.findByNameAndCategory(request.customName(), request.category())
+                    .orElseGet(() -> {
+                        int maxOrder = eventTypeRepository.findTopByCategoryOrderByDisplayOrderDesc(request.category())
+                                .map(EventType::getDisplayOrder)
+                                .orElse(-1);
+                        var et = new EventType(request.category(), request.customName());
+                        et.setDisplayOrder(maxOrder + 1);
+                        return eventTypeRepository.save(et);
+                    });
+        } else {
+            throw new IllegalArgumentException(msg.get("event.name.required"));
+        }
 
         var event = new Event(eventType, request.startDate());
         event.setEndDate(request.endDate());
@@ -45,6 +62,7 @@ public class AdminEventService {
         event.setLocation(request.location());
         event.setPrice(request.price());
         event.setMaxParticipants(request.maxParticipants());
+        event.setDuration(request.duration());
         return toResponse(eventRepository.save(event));
     }
 
@@ -57,6 +75,7 @@ public class AdminEventService {
         event.setLocation(request.location());
         event.setPrice(request.price());
         event.setMaxParticipants(request.maxParticipants());
+        event.setDuration(request.duration());
         return toResponse(eventRepository.save(event));
     }
 
@@ -87,8 +106,7 @@ public class AdminEventService {
         return new EventResponse(
                 e.getId(), e.getEventType().getId(), e.getEventType().getName(),
                 e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getLocation(),
-                e.getPrice(), e.getEffectivePrice(),
-                e.getMaxParticipants(), e.getEffectiveMaxParticipants(),
+                e.getPrice(), e.getMaxParticipants(), e.getDuration(),
                 enrollmentCount, e.isActive(), e.getCreatedAt()
         );
     }

@@ -19,27 +19,24 @@ interface CreateEventTypeRequest {
   category: EventCategory
   name: string
   description?: string
-  price?: number
-  maxParticipants?: number
-  duration?: string
 }
 
 interface UpdateEventTypeRequest {
   name: string
   description?: string
-  price?: number
-  maxParticipants?: number
-  duration?: string
 }
 
 interface CreateEventRequest {
-  eventTypeId: string
+  eventTypeId?: string
+  customName?: string
+  category: EventCategory
   startDate: string
   endDate?: string
   startTime?: string
   location?: string
   price?: number
   maxParticipants?: number
+  duration?: string
 }
 
 interface UpdateEventRequest {
@@ -49,6 +46,7 @@ interface UpdateEventRequest {
   location?: string
   price?: number
   maxParticipants?: number
+  duration?: string
 }
 
 interface AdminEnrollRequest {

@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Users } from 'lucide-react'
+import { MapPin, Calendar, Users, Clock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
 import type { EventInstance } from '../../types'
@@ -26,6 +26,12 @@ export function EventRow({ event, onEnroll }: EventRowProps) {
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
               {event.location}
+            </span>
+          )}
+          {event.duration && (
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              {event.duration}
             </span>
           )}
           {event.maxParticipants != null && (

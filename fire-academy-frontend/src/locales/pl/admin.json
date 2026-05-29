@@ -58,7 +58,8 @@
     "createTitle": "Nowy termin",
     "editTitle": "Edytuj termin",
     "noItems": "Brak terminów",
-    "selectEventType": "Wybierz rodzaj"
+    "selectEventType": "Wybierz rodzaj",
+    "typeOrSelect": "Wybierz lub wpisz nazwę"
   },
   "enrollments": {
     "title": "Zapisy",

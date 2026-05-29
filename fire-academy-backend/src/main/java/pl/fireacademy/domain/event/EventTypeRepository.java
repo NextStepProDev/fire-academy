@@ -13,4 +13,6 @@ public interface EventTypeRepository extends JpaRepository<EventType, UUID> {
     List<EventType> findByCategoryOrderByDisplayOrderAsc(EventCategory category);
 
     Optional<EventType> findTopByCategoryOrderByDisplayOrderDesc(EventCategory category);
+
+    Optional<EventType> findByNameAndCategory(String name, EventCategory category);
 }

@@ -37,9 +37,6 @@ export interface EventType {
   category: EventCategory
   name: string
   description: string | null
-  price: number | null
-  maxParticipants: number | null
-  duration: string | null
   thumbnailUrl: string | null
   photos: EventTypePhoto[]
   displayOrder: number
@@ -49,7 +46,7 @@ export interface EventType {
 
 export interface EventInstance {
   id: string
-  eventTypeId: string
+  eventTypeId: string | null
   eventTypeName: string
   startDate: string
   endDate: string | null
@@ -57,6 +54,7 @@ export interface EventInstance {
   location: string | null
   price: number | null
   maxParticipants: number | null
+  duration: string | null
   availableSpots: number
   active: boolean
   createdAt: string
