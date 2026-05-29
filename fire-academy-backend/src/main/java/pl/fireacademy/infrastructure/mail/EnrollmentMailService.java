@@ -275,6 +275,69 @@ public class EnrollmentMailService {
         }
     }
 
+    @Async("mailExecutor")
+    public void sendEnrollmentDeletionNotification(String recipientEmail, String firstName,
+                                                    String eventName, LocalDate date) {
+        String subject = msg.get("email.enrollment.deletion.subject");
+        String dateStr = date.format(DATE_FMT);
+
+        String body = """
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
+                    <div style="padding: 30px;">
+                        <h1 style="color: #f97316;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
+                        <hr style="border-color: #4a4a4a; margin: 20px 0;" />
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                msg.get("email.enrollment.deletion.greeting", firstName),
+                msg.get("email.enrollment.deletion.body", eventName, dateStr),
+                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.deletion.footer"),
+                msg.get("email.footer")
+        );
+
+        sendEmail(recipientEmail, subject, body);
+    }
+
+    @Async("mailExecutor")
+    public void sendEnrollmentDeletionAdminNotification(String eventName, String participantName,
+                                                         String participantEmail, LocalDate date) {
+        String subject = msg.get("email.enrollment.deletion.admin.subject", eventName);
+        String dateStr = date.format(DATE_FMT);
+
+        String body = """
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
+                    <div style="padding: 30px;">
+                        <h1 style="color: #f97316;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                subject,
+                msg.get("email.enrollment.deletion.admin.body", eventName, dateStr),
+                msg.get("email.enrollment.notification.participant", participantName, participantEmail),
+                msg.get("email.enrollment.confirmation.date", dateStr)
+        );
+
+        for (String adminEmail : adminEmailConfig.getAdminEmails()) {
+            sendEmail(adminEmail, subject, body);
+        }
+    }
+
     private void sendEmail(String to, String subject, String body) {
         try {
             var message = mailSender.createMimeMessage();

@@ -70,7 +70,19 @@ public class AdminEnrollmentService {
     public void delete(UUID id) {
         var enrollment = enrollmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("enrollment.not.found")));
+
+        var event = enrollment.getEvent();
+        var participantName = enrollment.getFirstName() + " " + enrollment.getLastName();
+
         enrollmentRepository.delete(enrollment);
+
+        enrollmentMailService.sendEnrollmentDeletionNotification(
+                enrollment.getEmail(), enrollment.getFirstName(),
+                event.getDisplayName(), event.getStartDate());
+
+        enrollmentMailService.sendEnrollmentDeletionAdminNotification(
+                event.getDisplayName(), participantName,
+                enrollment.getEmail(), event.getStartDate());
     }
 
     private EnrollmentResponse toResponse(Enrollment e) {
