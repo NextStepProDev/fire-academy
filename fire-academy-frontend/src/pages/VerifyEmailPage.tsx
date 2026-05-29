@@ -8,15 +8,11 @@ export function VerifyEmailPage() {
   const { t } = useTranslation('auth')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [errorMessage, setErrorMessage] = useState('')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(() => token ? 'loading' : 'error')
+  const [errorMessage, setErrorMessage] = useState(() => token ? '' : t('verify.noToken'))
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setErrorMessage(t('verify.noToken'))
-      return
-    }
+    if (!token) return
 
     verifyEmail(token)
       .then(() => setStatus('success'))

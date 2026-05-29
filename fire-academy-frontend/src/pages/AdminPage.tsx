@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
@@ -7,49 +7,56 @@ import { AdminEvents } from './admin/AdminEvents'
 import type { EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
-  trainings: 'TRAINING',
-  camps: 'CAMP',
-  courses: 'COURSE',
+  treningi: 'TRAINING',
+  obozy: 'CAMP',
+  szkolenia: 'COURSE',
 }
 
 const tabs = [
   { key: 'kadra', ns: 'admin.tabs.kadra' },
-  { key: 'trainings', ns: 'admin.tabs.trainings' },
-  { key: 'camps', ns: 'admin.tabs.camps' },
-  { key: 'courses', ns: 'admin.tabs.courses' },
+  { key: 'treningi', ns: 'admin.tabs.trainings' },
+  { key: 'obozy', ns: 'admin.tabs.camps' },
+  { key: 'szkolenia', ns: 'admin.tabs.courses' },
 ] as const
+
+const validTabs = new Set(tabs.map(item => item.key))
 
 export function AdminPage() {
   const { t } = useTranslation('common')
-  const [activeTab, setActiveTab] = useState('kadra')
+  const { tab } = useParams<{ tab: string }>()
+  const navigate = useNavigate()
+
+  if (!tab || !validTabs.has(tab)) {
+    return <Navigate to="/admin/kadra" replace />
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-surface-100 mb-6">{t('admin.title')}</h1>
 
       <div className="flex flex-wrap gap-1 mb-8 border-b border-surface-800 pb-1">
-        {tabs.map(tab => (
+        {tabs.map(item => (
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            key={item.key}
+            onClick={() => navigate(`/admin/${item.key}`)}
             className={clsx(
               'px-4 py-2 text-sm font-medium rounded-t-lg transition-colors',
-              activeTab === tab.key
+              tab === item.key
                 ? 'bg-surface-800 text-primary-400 border-b-2 border-primary-500'
                 : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
             )}
           >
-            {t(tab.ns)}
+            {t(item.ns)}
           </button>
         ))}
       </div>
 
-      {activeTab === 'kadra' && <AdminInstructors />}
+      {tab === 'kadra' && <AdminInstructors />}
 
-      {categoryTabs[activeTab] && (
+      {categoryTabs[tab] && (
         <div className="space-y-12">
-          <AdminEvents category={categoryTabs[activeTab]} />
-          <AdminEventTypes category={categoryTabs[activeTab]} />
+          <AdminEvents category={categoryTabs[tab]} />
+          <AdminEventTypes category={categoryTabs[tab]} />
         </div>
       )}
 

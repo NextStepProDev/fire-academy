@@ -287,8 +287,6 @@ export function AdminEvents({ category }: AdminEventsProps) {
     setEditItem(ev)
   }
 
-  const canSave = isCreating ? (form.eventTypeName && form.startDate) : !!form.startDate
-
   const closeForm = () => { setIsCreating(false); setEditItem(null) }
 
   const handleSave = async () => {

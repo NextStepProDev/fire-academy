@@ -23,10 +23,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const { i18n } = useTranslation()
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => hasTokens())
 
   const i18nRef = useRef(i18n)
-  i18nRef.current = i18n
+  useEffect(() => { i18nRef.current = i18n })
 
   const syncLanguage = useCallback((preferredLanguage: string) => {
     if (preferredLanguage && preferredLanguage !== i18nRef.current.language) {
@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     try {
+      setIsLoading(true)
       const currentUser = await authApi.getCurrentUser()
       setUser(currentUser)
       syncLanguage(currentUser.preferredLanguage)
@@ -53,8 +54,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [syncLanguage])
 
   useEffect(() => {
-    fetchUser()
-  }, [fetchUser])
+    if (!hasTokens()) return
+    authApi.getCurrentUser()
+      .then(currentUser => {
+        setUser(currentUser)
+        syncLanguage(currentUser.preferredLanguage)
+      })
+      .catch(() => {
+        clearTokens()
+        setUser(null)
+      })
+      .finally(() => setIsLoading(false))
+  }, [syncLanguage])
 
   useEffect(() => {
     const handler = () => {

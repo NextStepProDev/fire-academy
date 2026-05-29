@@ -50,8 +50,12 @@ export default function App() {
               element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
             />
             <Route
-              path="admin/*"
+              path="admin/:tab"
               element={<AdminRoute><AdminPage /></AdminRoute>}
+            />
+            <Route
+              path="admin"
+              element={<AdminRoute><Navigate to="/admin/kadra" replace /></AdminRoute>}
             />
             <Route path="login" element={<Navigate to="/admin/login" replace />} />
             <Route path="register" element={<Navigate to="/admin/register" replace />} />

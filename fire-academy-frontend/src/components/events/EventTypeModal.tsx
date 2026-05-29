@@ -124,7 +124,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
           onTouchEnd={e => {
             if (touchStart.current === null) return
             const diff = e.changedTouches[0].clientX - touchStart.current
-            if (Math.abs(diff) > 50) diff > 0 ? prev() : next()
+            if (Math.abs(diff) > 50) { if (diff > 0) prev(); else next() }
             touchStart.current = null
           }}
         >
