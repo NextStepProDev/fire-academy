@@ -49,7 +49,12 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventTypeActive, onSuccess: invalidate })
   const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderEventType(id, dir), onSuccess: invalidate })
   const thumbMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadEventTypeThumbnail(id, file), onSuccess: invalidate })
-  const photoMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.addEventTypePhoto(id, file), onSuccess: invalidate })
+  const photoMut = useMutation({
+    mutationFn: async ({ id, files }: { id: string; files: File[] }) => {
+      for (const file of files) await adminApi.addEventTypePhoto(id, file)
+    },
+    onSuccess: invalidate,
+  })
   const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate })
   const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate })
 
@@ -114,15 +119,17 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
                 {et.photos.map((p, pi) => (
                   <div key={p.id} className="relative w-20 h-20 rounded bg-surface-800 overflow-hidden group">
                     <img src={p.url} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                      <button onClick={() => reorderPhotoMut.mutate({ id: et.id, photoId: p.id, dir: 'up' })} disabled={pi === 0} className="p-0.5 text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
-                      <button onClick={() => reorderPhotoMut.mutate({ id: et.id, photoId: p.id, dir: 'down' })} disabled={pi === et.photos.length - 1} className="p-0.5 text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
-                      <button onClick={() => deletePhotoMut.mutate({ id: et.id, photoId: p.id })} className="p-0.5 text-rose-400"><X className="w-3 h-3" /></button>
+                    <button onClick={() => deletePhotoMut.mutate({ id: et.id, photoId: p.id })} className="absolute top-0.5 right-0.5 p-1 rounded-full bg-black/70 text-rose-400 hover:text-rose-300 hover:bg-black/90 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="absolute bottom-0 inset-x-0 flex justify-center gap-1 p-0.5 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => reorderPhotoMut.mutate({ id: et.id, photoId: p.id, dir: 'up' })} disabled={pi === 0} className="p-0.5 text-white disabled:opacity-30"><ChevronUp className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => reorderPhotoMut.mutate({ id: et.id, photoId: p.id, dir: 'down' })} disabled={pi === et.photos.length - 1} className="p-0.5 text-white disabled:opacity-30"><ChevronDown className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 ))}
                 <label className="w-20 h-20 rounded border-2 border-dashed border-surface-700 flex items-center justify-center cursor-pointer hover:border-primary-500 transition-colors">
-                  <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) photoMut.mutate({ id: et.id, file: e.target.files[0] }) }} />
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files?.length) photoMut.mutate({ id: et.id, files: Array.from(e.target.files) }) }} />
                   <Plus className="w-5 h-5 text-surface-500" />
                 </label>
               </div>

@@ -55,6 +55,6 @@ public class AdminInstructorController {
     @PostMapping("/{id}/reorder")
     public ResponseEntity<Void> reorder(@PathVariable UUID id, @RequestBody Map<String, String> body) {
         service.reorder(id, body.get("direction"));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }

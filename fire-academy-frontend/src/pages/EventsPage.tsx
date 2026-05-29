@@ -73,7 +73,7 @@ export function EventsPage({ category }: EventsPageProps) {
         {eventTypesQuery.isLoading ? (
           <LoadingSpinner />
         ) : eventTypesQuery.data?.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-3">
             {eventTypesQuery.data.map(et => (
               <EventTypeCard key={et.id} eventType={et} onClick={() => setSelectedEventType(et)} />
             ))}

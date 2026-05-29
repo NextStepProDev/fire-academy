@@ -63,7 +63,7 @@ public class AdminEventTypeController {
     public ResponseEntity<Void> reorderPhoto(@PathVariable UUID id, @PathVariable UUID photoId,
                                              @RequestBody Map<String, String> body) {
         service.reorderPhoto(id, photoId, body.get("direction"));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/toggle-active")
@@ -74,6 +74,6 @@ public class AdminEventTypeController {
     @PostMapping("/{id}/reorder")
     public ResponseEntity<Void> reorder(@PathVariable UUID id, @RequestBody Map<String, String> body) {
         service.reorder(id, body.get("direction"));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
