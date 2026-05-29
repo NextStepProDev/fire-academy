@@ -19,7 +19,7 @@ const tabs = [
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
 ] as const
 
-const validTabs = new Set(tabs.map(item => item.key))
+const validTabs: Set<string> = new Set(tabs.map(item => item.key))
 
 export function AdminPage() {
   const { t } = useTranslation('common')
