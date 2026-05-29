@@ -19,7 +19,7 @@
     "location": "Lokalizacja",
     "price": "Cena",
     "spots": "Wolne miejsca",
-    "spotsOf": "{{available}} / {{max}}",
+    "spotsOf": "Wolne miejsca: {{available}} / {{max}}",
     "spotsFull": "Brak miejsc",
     "spotsUnlimited": "Bez limitu",
     "details": "Szczegóły",
