@@ -168,7 +168,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
                 checked={privacyAccepted}
                 onChange={e => {
                   setPrivacyAccepted(e.target.checked)
-                  if (e.target.checked) setErrors(prev => { const { privacy: _, ...rest } = prev; return rest })
+                  if (e.target.checked) setErrors(prev => { const next = { ...prev }; delete next.privacy; return next })
                 }}
                 className="mt-0.5 w-4 h-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500 shrink-0"
               />

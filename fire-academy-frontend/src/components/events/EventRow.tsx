@@ -24,7 +24,6 @@ export function EventRow({ event, onEnroll, onDetails, shareUrl }: EventRowProps
   const { t } = useTranslation('events')
   const isFull = event.maxParticipants != null && event.availableSpots <= 0
   const tooLate = isWithin24h(event)
-  const canEnroll = !isFull && !tooLate
 
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
