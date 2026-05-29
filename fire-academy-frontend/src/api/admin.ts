@@ -131,4 +131,8 @@ export const adminApi = {
     fetchApi<Enrollment>('/admin/enrollments', { method: 'POST', body: JSON.stringify(data) }),
   deleteEnrollment: (id: string) =>
     fetchApi<void>(`/admin/enrollments/${id}`, { method: 'DELETE' }),
+  searchEnrollmentsByEmail: (email: string) =>
+    fetchApi<Enrollment[]>(`/admin/enrollments/search?email=${encodeURIComponent(email)}`),
+  anonymizeByEmail: (email: string) =>
+    fetchApi<{ anonymizedCount: number }>(`/admin/enrollments/anonymize?email=${encodeURIComponent(email)}`, { method: 'POST' }),
 }

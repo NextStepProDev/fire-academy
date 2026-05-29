@@ -5,6 +5,7 @@ import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminArchive } from './admin/AdminArchive'
+import { AdminRodo } from './admin/AdminRodo'
 import type { EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
@@ -19,6 +20,7 @@ const tabs = [
   { key: 'obozy', ns: 'admin.tabs.camps' },
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
   { key: 'archiwum', ns: 'admin.tabs.archive' },
+  { key: 'rodo', ns: 'admin.tabs.rodo' },
 ] as const
 
 const validTabs: Set<string> = new Set(tabs.map(item => item.key))
@@ -63,6 +65,7 @@ export function AdminPage() {
       )}
 
       {tab === 'archiwum' && <AdminArchive />}
+      {tab === 'rodo' && <AdminRodo />}
     </div>
   )
 }

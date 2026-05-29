@@ -46,7 +46,10 @@
     "emailRequired": "Email jest wymagany",
     "emailInvalid": "Nieprawidłowy format email",
     "phoneRequired": "Numer telefonu jest wymagany",
-    "phoneInvalid": "Nieprawidłowy format numeru telefonu"
+    "phoneInvalid": "Nieprawidłowy format numeru telefonu",
+    "privacyLabel": "Zapoznałem/am się z",
+    "privacyLink": "polityką prywatności",
+    "privacyRequired": "Wymagane potwierdzenie zapoznania się z polityką prywatności"
   },
   "instructor": {
     "readMore": "Czytaj więcej"

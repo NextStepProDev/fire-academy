@@ -59,6 +59,18 @@ public class Enrollment {
         this.createdAt = Instant.now();
     }
 
+    public void anonymize() {
+        this.firstName = "Dane";
+        this.lastName = "usunięte";
+        this.email = "anonimowy-" + id + "@usuniety.rodo";
+        this.phone = "000000000";
+        this.note = null;
+    }
+
+    public boolean isAnonymized() {
+        return email != null && email.endsWith("@usuniety.rodo");
+    }
+
     public UUID getId() { return id; }
     public Event getEvent() { return event; }
     public String getFirstName() { return firstName; }

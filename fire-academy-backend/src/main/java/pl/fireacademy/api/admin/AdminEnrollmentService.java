@@ -85,6 +85,21 @@ public class AdminEnrollmentService {
                 enrollment.getEmail(), event.getStartDate());
     }
 
+    @Transactional(readOnly = true)
+    public List<EnrollmentResponse> searchByEmail(String email) {
+        return enrollmentRepository.findByEmailIgnoreCase(email.trim()).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public EnrollmentDtos.AnonymizeResponse anonymizeByEmail(String email) {
+        var enrollments = enrollmentRepository.findByEmailIgnoreCase(email.trim());
+        enrollments.forEach(Enrollment::anonymize);
+        enrollmentRepository.saveAll(enrollments);
+        return new EnrollmentDtos.AnonymizeResponse(enrollments.size());
+    }
+
     private EnrollmentResponse toResponse(Enrollment e) {
         return new EnrollmentResponse(
                 e.getId(), e.getEvent().getId(),

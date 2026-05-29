@@ -36,4 +36,6 @@ public final class EnrollmentDtos {
             @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone,
             @Nullable String note
     ) {}
+
+    public record AnonymizeResponse(int anonymizedCount) {}
 }

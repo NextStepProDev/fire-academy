@@ -40,4 +40,14 @@ public class AdminEnrollmentController {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/search")
+    public List<EnrollmentResponse> searchByEmail(@RequestParam String email) {
+        return service.searchByEmail(email);
+    }
+
+    @PostMapping("/anonymize")
+    public AnonymizeResponse anonymizeByEmail(@RequestParam String email) {
+        return service.anonymizeByEmail(email);
+    }
 }

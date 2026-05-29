@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { publicApi } from '../../api/public'
@@ -12,7 +13,7 @@ interface EnrollmentModalProps {
   eventName: string
 }
 
-type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone', string>>
+type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone' | 'privacy', string>>
 
 const inputBase = 'w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 focus:outline-none focus:ring-2'
 const inputOk = `${inputBase} border-surface-700 focus:ring-primary-500`
@@ -21,6 +22,7 @@ const inputErr = `${inputBase} border-rose-500/60 focus:ring-rose-500`
 export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: EnrollmentModalProps) {
   const { t } = useTranslation('events')
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [touched, setTouched] = useState<Set<string>>(new Set())
   const [serverError, setServerError] = useState<string | null>(null)
@@ -29,6 +31,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
 
   const handleClose = () => {
     setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+    setPrivacyAccepted(false)
     setErrors({})
     setTouched(new Set())
     setServerError(null)
@@ -36,7 +39,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
     onClose()
   }
 
-  const validate = (fields = form): FieldErrors => {
+  const validate = (fields = form, checkPrivacy = false): FieldErrors => {
     const errs: FieldErrors = {}
     if (!fields.firstName.trim()) errs.firstName = t('enroll.firstNameRequired')
     else if (fields.firstName.trim().length < 3) errs.firstName = t('enroll.nameMinLength')
@@ -49,6 +52,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
       const digits = fields.phone.replace(/\s/g, '')
       if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) errs.phone = t('enroll.phoneInvalid')
     }
+    if (checkPrivacy && !privacyAccepted) errs.privacy = t('enroll.privacyRequired')
     return errs
   }
 
@@ -64,10 +68,10 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
     e.preventDefault()
     setServerError(null)
 
-    const allFields = new Set(['firstName', 'lastName', 'email', 'phone'])
+    const allFields = new Set(['firstName', 'lastName', 'email', 'phone', 'privacy'])
     setTouched(allFields)
 
-    const errs = validate()
+    const errs = validate(form, true)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
     if (!eventId) return
@@ -156,6 +160,26 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
               rows={3}
               className={`${inputOk} resize-none`}
             />
+          </div>
+          <div>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={privacyAccepted}
+                onChange={e => {
+                  setPrivacyAccepted(e.target.checked)
+                  if (e.target.checked) setErrors(prev => { const { privacy: _, ...rest } = prev; return rest })
+                }}
+                className="mt-0.5 w-4 h-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500 shrink-0"
+              />
+              <span className="text-sm text-surface-400">
+                {t('enroll.privacyLabel')}{' '}
+                <Link to="/polityka-prywatnosci" target="_blank" className="text-primary-400 hover:text-primary-300 underline transition-colors">
+                  {t('enroll.privacyLink')}
+                </Link>
+              </span>
+            </label>
+            {fieldError('privacy') && <p className="text-xs text-rose-400 mt-1 ml-6">{fieldError('privacy')}</p>}
           </div>
           {serverError && <p className="text-sm text-rose-400/80">{serverError}</p>}
           <Button type="submit" variant="primary" className="w-full" loading={loading}>
