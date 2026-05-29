@@ -8,6 +8,7 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,13 +18,16 @@ public class AdminEnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final EventRepository eventRepository;
+    private final EnrollmentMailService enrollmentMailService;
     private final MessageService msg;
 
     public AdminEnrollmentService(EnrollmentRepository enrollmentRepository,
                                   EventRepository eventRepository,
+                                  EnrollmentMailService enrollmentMailService,
                                   MessageService msg) {
         this.enrollmentRepository = enrollmentRepository;
         this.eventRepository = eventRepository;
+        this.enrollmentMailService = enrollmentMailService;
         this.msg = msg;
     }
 
@@ -48,7 +52,18 @@ public class AdminEnrollmentService {
 
         var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
                 request.email(), request.phone(), request.note(), true);
-        return toResponse(enrollmentRepository.save(enrollment));
+        var saved = enrollmentRepository.save(enrollment);
+
+        enrollmentMailService.sendAdminEnrollmentConfirmation(
+                request.email(), request.firstName(),
+                event.getDisplayName(), event.getStartDate(), event.getLocation());
+
+        enrollmentMailService.sendAdminEnrollmentNotification(
+                event.getDisplayName(),
+                request.firstName() + " " + request.lastName(),
+                request.email(), event.getStartDate());
+
+        return toResponse(saved);
     }
 
     @Transactional
