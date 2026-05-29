@@ -36,6 +36,21 @@ public class PublicController {
         return service.getUpcomingEvents(category);
     }
 
+    @GetMapping("/instructors/{id}")
+    public InstructorCard getInstructor(@PathVariable UUID id) {
+        return service.getInstructorById(id);
+    }
+
+    @GetMapping("/event-types/{id}")
+    public EventTypeCard getEventType(@PathVariable UUID id) {
+        return service.getEventTypeById(id);
+    }
+
+    @GetMapping("/events/{eventId}")
+    public EventCard getEvent(@PathVariable UUID eventId) {
+        return service.getEventById(eventId);
+    }
+
     @PostMapping("/events/{eventId}/enroll")
     public ResponseEntity<MessageResponse> enroll(@PathVariable UUID eventId,
                                                    @Valid @RequestBody EnrollRequest request) {

@@ -71,7 +71,8 @@ public class SecurityConfig {
                 if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
                     auth.requestMatchers("/api/dev/**").permitAll();
                 }
-                auth.requestMatchers("/api/public/**").permitAll()
+                auth.requestMatchers("/og/**").permitAll()
+                    .requestMatchers("/api/public/**").permitAll()
                     .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .requestMatchers("/api/user/**").authenticated()
                     .anyRequest().authenticated();

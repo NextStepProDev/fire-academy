@@ -6,6 +6,7 @@ import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
+import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
@@ -76,6 +77,46 @@ public class PublicService {
                     e.getPrice(), max, available
             );
         }).toList();
+    }
+
+    public InstructorCard getInstructorById(UUID id) {
+        var i = instructorRepository.findById(id)
+                .filter(Instructor::isActive)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("instructor.not.found")));
+        return new InstructorCard(
+                i.getId(), i.getFirstName(), i.getLastName(), i.getBio(),
+                i.getPhotoFilename() != null ? "/api/files/instructors/" + i.getPhotoFilename() : null
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public EventTypeCard getEventTypeById(UUID id) {
+        var et = eventTypeRepository.findById(id)
+                .filter(EventType::isActive)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+        return new EventTypeCard(
+                et.getId(), et.getName(), et.getDescription(),
+                et.getThumbnailFilename() != null ? "/api/files/eventtypes/" + et.getThumbnailFilename() : null,
+                et.getPhotos().stream()
+                        .map(p -> new PublicDtos.PhotoItem(p.getId(), "/api/files/eventtypephotos/" + p.getFilename(), p.getDisplayOrder()))
+                        .toList()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public EventCard getEventById(UUID id) {
+        var event = eventRepository.findById(id)
+                .filter(Event::isActive)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+        long enrolled = enrollmentRepository.countByEventId(event.getId());
+        Integer max = event.getMaxParticipants();
+        int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
+        var et = event.getEventType();
+        return new EventCard(
+                event.getId(), et != null ? et.getId() : null, event.getDisplayName(), event.getDescription(),
+                event.getStartDate(), event.getEndDate(), event.getStartTime(), event.getEndTime(), event.getLocation(),
+                event.getPrice(), max, available
+        );
     }
 
     @Transactional

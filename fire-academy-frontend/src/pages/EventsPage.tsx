@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { Helmet } from 'react-helmet-async'
 import { publicApi } from '../api/public'
 import { InstructorCard } from '../components/events/InstructorCard'
 import { InstructorModal } from '../components/events/InstructorModal'
@@ -10,6 +11,7 @@ import { EventRow } from '../components/events/EventRow'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
 import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { categoryToSlug } from '../utils/categorySlug'
 import type { EventCategory, Instructor, EventType, EventInstance } from '../types'
 
 interface EventsPageProps {
@@ -56,9 +58,13 @@ export function EventsPage({ category }: EventsPageProps) {
 
   const titleKey = { CAMP: 'camps.title', COURSE: 'courses.title', TRAINING: 'trainings.title' }[category]
   const pageTitle = t(titleKey)
+  const slug = categoryToSlug(category)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
+      <Helmet>
+        <title>{pageTitle} | Fire Academy</title>
+      </Helmet>
       <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{pageTitle}</h1>
 
       {/* Terminy */}
@@ -77,6 +83,7 @@ export function EventsPage({ category }: EventsPageProps) {
                   setEnrollEventName(event.eventTypeName)
                 }}
                 onDetails={hasDetails(event) ? () => handleDetails(event) : undefined}
+                shareUrl={`/${slug}/termin/${event.id}`}
               />
             ))}
           </div>
@@ -93,7 +100,7 @@ export function EventsPage({ category }: EventsPageProps) {
         ) : eventTypesQuery.data?.length ? (
           <div className="space-y-3">
             {eventTypesQuery.data.map(et => (
-              <EventTypeCard key={et.id} eventType={et} onClick={() => setSelectedEventType(et)} />
+              <EventTypeCard key={et.id} eventType={et} onClick={() => setSelectedEventType(et)} shareUrl={`/${slug}/rodzaj/${et.id}`} />
             ))}
           </div>
         ) : (
@@ -109,7 +116,7 @@ export function EventsPage({ category }: EventsPageProps) {
         ) : instructorsQuery.data?.length ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {instructorsQuery.data.map(instr => (
-              <InstructorCard key={instr.id} instructor={instr} onClick={() => setSelectedInstructor(instr)} />
+              <InstructorCard key={instr.id} instructor={instr} onClick={() => setSelectedInstructor(instr)} shareUrl={`/kadra/${instr.id}`} />
             ))}
           </div>
         ) : (

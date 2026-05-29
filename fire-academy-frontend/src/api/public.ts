@@ -19,6 +19,15 @@ export const publicApi = {
   getUpcomingEvents: (category: EventCategory) =>
     fetchApi<EventInstance[]>(`/public/events?category=${category}`),
 
+  getInstructor: (id: string) =>
+    fetchApi<Instructor>(`/public/instructors/${id}`),
+
+  getEventType: (id: string) =>
+    fetchApi<EventType>(`/public/event-types/${id}`),
+
+  getEvent: (id: string) =>
+    fetchApi<EventInstance>(`/public/events/${id}`),
+
   enroll: (eventId: string, data: EnrollRequest) =>
     fetchApi<{ message: string }>(`/public/events/${eventId}/enroll`, {
       method: 'POST',

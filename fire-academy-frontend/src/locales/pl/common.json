@@ -32,6 +32,11 @@
       "rodo": "RODO"
     }
   },
+  "share": {
+    "label": "Udostępnij",
+    "copyLink": "Kopiuj link",
+    "copied": "Skopiowano!"
+  },
   "footer": {
     "copyright": "© {{year}} Fire Academy. Wszelkie prawa zastrzeżone.",
     "description": "Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.",

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Mail, Phone, MapPin } from 'lucide-react'
+import { ShareButton } from '../ui/ShareButton'
 
 export function Footer() {
   const { t } = useTranslation('common')
@@ -78,6 +79,7 @@ export function Footer() {
             <Link to="/regulamin" className="text-xs text-surface-500 hover:text-surface-300 transition-colors">
               {t('footer.terms')}
             </Link>
+            <ShareButton url="/" title="Fire Academy" />
           </div>
         </div>
       </div>

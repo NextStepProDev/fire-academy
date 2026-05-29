@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Helmet } from 'react-helmet-async'
 import { HeroIntro } from '../components/home/HeroIntro'
 
 const sections = [
@@ -45,6 +46,9 @@ export function HomePage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      <Helmet>
+        <title>Fire Academy</title>
+      </Helmet>
       {showIntro && <HeroIntro onComplete={handleIntroComplete} />}
       {sections.map((section) => (
         <Link

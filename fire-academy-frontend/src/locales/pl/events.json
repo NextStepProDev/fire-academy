@@ -54,6 +54,11 @@
   "instructor": {
     "readMore": "Czytaj więcej"
   },
+  "detail": {
+    "backToList": "Wróć do listy",
+    "relatedEvents": "Dostępne terminy",
+    "gallery": "Galeria"
+  },
   "noEvents": "Brak nadchodzących terminów",
   "noEventTypes": "Brak dostępnych rodzajów",
   "noInstructors": "Brak osób w kadrze"

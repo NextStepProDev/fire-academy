@@ -21,6 +21,9 @@ const TrainingsPage = lazy(() => import('./pages/TrainingsPage').then(m => ({ de
 const CampsPage = lazy(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
 const CoursesPage = lazy(() => import('./pages/CoursesPage').then(m => ({ default: m.CoursesPage })))
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })))
+const EventTypeDetailPage = lazy(() => import('./pages/EventTypeDetailPage').then(m => ({ default: m.EventTypeDetailPage })))
+const EventDetailPage = lazy(() => import('./pages/EventDetailPage').then(m => ({ default: m.EventDetailPage })))
+const InstructorDetailPage = lazy(() => import('./pages/InstructorDetailPage').then(m => ({ default: m.InstructorDetailPage })))
 
 const LazyFallback = () => (
   <div className="flex justify-center py-12">
@@ -39,6 +42,9 @@ export default function App() {
             <Route path="treningi" element={<TrainingsPage />} />
             <Route path="obozy" element={<CampsPage />} />
             <Route path="szkolenia" element={<CoursesPage />} />
+            <Route path="kadra/:id" element={<InstructorDetailPage />} />
+            <Route path=":categorySlug/rodzaj/:id" element={<EventTypeDetailPage />} />
+            <Route path=":categorySlug/termin/:id" element={<EventDetailPage />} />
             <Route path="polityka-prywatnosci" element={<PrivacyPolicyPage />} />
             <Route path="verify-email" element={<VerifyEmailPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />

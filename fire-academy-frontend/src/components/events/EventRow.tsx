@@ -1,6 +1,7 @@
 import { MapPin, Calendar, Users, Phone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
+import { ShareButton } from '../ui/ShareButton'
 import { formatDateRange } from '../../utils/dates'
 import type { EventInstance } from '../../types'
 
@@ -8,6 +9,7 @@ interface EventRowProps {
   event: EventInstance
   onEnroll: () => void
   onDetails?: () => void
+  shareUrl?: string
 }
 
 function isWithin24h(event: EventInstance): boolean {
@@ -18,7 +20,7 @@ function isWithin24h(event: EventInstance): boolean {
   return hoursLeft < 24
 }
 
-export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
+export function EventRow({ event, onEnroll, onDetails, shareUrl }: EventRowProps) {
   const { t } = useTranslation('events')
   const isFull = event.maxParticipants != null && event.availableSpots <= 0
   const tooLate = isWithin24h(event)
@@ -67,7 +69,10 @@ export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
           </p>
         )}
       </div>
-      <div className="flex gap-2 sm:ml-auto">
+      <div className="flex items-center gap-2 sm:ml-auto">
+        {shareUrl && (
+          <ShareButton url={shareUrl} title={event.eventTypeName} />
+        )}
         {onDetails && (
           <Button variant="ghost" size="sm" onClick={onDetails}>
             {t('event.details')}
