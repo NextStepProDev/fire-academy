@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <defs>
+    <linearGradient id="flame-outer" x1="100" y1="240" x2="100" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <linearGradient id="flame-inner" x1="100" y1="200" x2="100" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="60%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="flame-core" x1="100" y1="180" x2="100" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#fff"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer flame -->
+  <path d="M100 5 C100 5 45 70 35 130 C25 190 55 235 100 235 C145 235 175 190 165 130 C155 70 100 5 100 5Z
+           M100 5 C110 50 140 80 145 110 C150 140 135 160 120 140 C105 120 100 5 100 5Z
+           M100 5 C90 50 60 80 55 110 C50 140 65 160 80 140 C95 120 100 5 100 5Z"
+        fill="url(#flame-outer)" fill-rule="evenodd"/>
+  <!-- Inner flame -->
+  <path d="M100 45 C100 45 65 100 60 140 C55 180 75 215 100 215 C125 215 145 180 140 140 C135 100 100 45 100 45Z"
+        fill="url(#flame-inner)"/>
+  <!-- Core glow -->
+  <path d="M100 90 C100 90 80 130 78 155 C76 180 88 200 100 200 C112 200 124 180 122 155 C120 130 100 90 100 90Z"
+        fill="url(#flame-core)" opacity="0.9"/>
+</svg>

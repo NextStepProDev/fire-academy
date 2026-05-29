@@ -1,5 +1,7 @@
+import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { HeroIntro } from '../components/home/HeroIntro'
 
 const sections = [
   {
@@ -38,9 +40,12 @@ const separators = [
 
 export function HomePage() {
   const { t } = useTranslation('common')
+  const [showIntro, setShowIntro] = useState(true)
+  const handleIntroComplete = useCallback(() => setShowIntro(false), [])
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      {showIntro && <HeroIntro onComplete={handleIntroComplete} />}
       {sections.map((section) => (
         <Link
           key={section.key}
