@@ -35,8 +35,9 @@ public final class PublicDtos {
 
     public record EventCard(
             UUID id,
-            UUID eventTypeId,
+            @Nullable UUID eventTypeId,
             String eventTypeName,
+            @Nullable String description,
             LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,

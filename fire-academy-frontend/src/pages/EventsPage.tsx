@@ -8,8 +8,9 @@ import { EventTypeCard } from '../components/events/EventTypeCard'
 import { EventTypeModal } from '../components/events/EventTypeModal'
 import { EventRow } from '../components/events/EventRow'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
+import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import type { EventCategory, Instructor, EventType } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance } from '../types'
 
 interface EventsPageProps {
   category: EventCategory
@@ -19,6 +20,7 @@ export function EventsPage({ category }: EventsPageProps) {
   const { t } = useTranslation('events')
   const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(null)
   const [selectedEventType, setSelectedEventType] = useState<EventType | null>(null)
+  const [descriptionEvent, setDescriptionEvent] = useState<EventInstance | null>(null)
   const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
   const [enrollEventName, setEnrollEventName] = useState('')
 
@@ -36,6 +38,21 @@ export function EventsPage({ category }: EventsPageProps) {
     queryKey: ['public', 'instructors', category],
     queryFn: () => publicApi.getInstructors(category),
   })
+
+  const handleDetails = (event: EventInstance) => {
+    const eventType = eventTypesQuery.data?.find(et => et.id === event.eventTypeId)
+    if (eventType && (eventType.description || eventType.photos.length > 0 || eventType.thumbnailUrl)) {
+      setSelectedEventType(eventType)
+    } else if (event.description) {
+      setDescriptionEvent(event)
+    }
+  }
+
+  const hasDetails = (event: EventInstance): boolean => {
+    const eventType = eventTypesQuery.data?.find(et => et.id === event.eventTypeId)
+    if (eventType && (eventType.description || eventType.photos.length > 0 || eventType.thumbnailUrl)) return true
+    return !!event.description
+  }
 
   const titleKey = { CAMP: 'camps.title', COURSE: 'courses.title', TRAINING: 'trainings.title' }[category]
   const pageTitle = t(titleKey)
@@ -59,6 +76,7 @@ export function EventsPage({ category }: EventsPageProps) {
                   setEnrollEventId(event.id)
                   setEnrollEventName(event.eventTypeName)
                 }}
+                onDetails={hasDetails(event) ? () => handleDetails(event) : undefined}
               />
             ))}
           </div>
@@ -110,6 +128,11 @@ export function EventsPage({ category }: EventsPageProps) {
         }}
         onClose={() => setSelectedEventType(null)}
       />
+      {descriptionEvent && (
+        <Modal isOpen onClose={() => setDescriptionEvent(null)} title={descriptionEvent.eventTypeName}>
+          <p className="text-surface-300 whitespace-pre-wrap">{descriptionEvent.description}</p>
+        </Modal>
+      )}
       <EnrollmentModal
         isOpen={!!enrollEventId}
         onClose={() => setEnrollEventId(null)}

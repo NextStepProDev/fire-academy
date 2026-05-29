@@ -63,14 +63,15 @@ public class PublicService {
     @Transactional(readOnly = true)
     public List<EventCard> getUpcomingEvents(EventCategory category) {
         var events = eventRepository
-                .findByEventType_CategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+                .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
                         category, LocalDate.now());
         return events.stream().map(e -> {
             long enrolled = enrollmentRepository.countByEventId(e.getId());
             Integer max = e.getMaxParticipants();
             int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
+            var et = e.getEventType();
             return new EventCard(
-                    e.getId(), e.getEventType().getId(), e.getEventType().getName(),
+                    e.getId(), et != null ? et.getId() : null, e.getDisplayName(), e.getDescription(),
                     e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getEndTime(), e.getLocation(),
                     e.getPrice(), max, available
             );
@@ -104,10 +105,10 @@ public class PublicService {
 
         enrollmentMailService.sendEnrollmentConfirmation(
                 request.email(), request.firstName(),
-                event.getEventType().getName(), event.getStartDate(), event.getLocation());
+                event.getDisplayName(), event.getStartDate(), event.getLocation());
 
         enrollmentMailService.sendEnrollmentNotification(
-                event.getEventType().getName(),
+                event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
                 request.email(), event.getStartDate());
     }

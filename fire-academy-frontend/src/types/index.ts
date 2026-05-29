@@ -48,6 +48,7 @@ export interface EventInstance {
   id: string
   eventTypeId: string | null
   eventTypeName: string
+  description: string | null
   startDate: string
   endDate: string | null
   startTime: string | null

@@ -13,10 +13,10 @@ import java.util.UUID;
 
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
-    List<Event> findByEventType_CategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+    List<Event> findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
             EventCategory category, LocalDate date);
 
-    List<Event> findByEventType_CategoryOrderByStartDateDesc(EventCategory category);
+    List<Event> findByCategoryOrderByStartDateDesc(EventCategory category);
 
     List<Event> findByEventTypeIdOrderByStartDateDesc(UUID eventTypeId);
 

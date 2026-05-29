@@ -59,7 +59,7 @@ public class AdminEnrollmentService {
     private EnrollmentResponse toResponse(Enrollment e) {
         return new EnrollmentResponse(
                 e.getId(), e.getEvent().getId(),
-                e.getEvent().getEventType().getName(),
+                e.getEvent().getDisplayName(),
                 e.getEvent().getStartDate(),
                 e.getFirstName(), e.getLastName(), e.getEmail(), e.getPhone(),
                 e.isAddedByAdmin(), e.getCreatedAt()

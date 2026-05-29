@@ -51,6 +51,7 @@
   "events": {
     "title": "Terminy",
     "eventType": "Rodzaj",
+    "description": "Opis",
     "startDate": "Data rozpoczęcia",
     "endDate": "Data zakończenia",
     "startTime": "Początek",

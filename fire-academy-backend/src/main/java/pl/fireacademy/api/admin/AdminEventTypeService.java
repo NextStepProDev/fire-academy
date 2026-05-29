@@ -19,15 +19,18 @@ public class AdminEventTypeService {
 
     private final EventTypeRepository eventTypeRepository;
     private final EventTypePhotoRepository photoRepository;
+    private final EventRepository eventRepository;
     private final FileStorageService fileStorageService;
     private final MessageService msg;
 
     public AdminEventTypeService(EventTypeRepository eventTypeRepository,
                                  EventTypePhotoRepository photoRepository,
+                                 EventRepository eventRepository,
                                  FileStorageService fileStorageService,
                                  MessageService msg) {
         this.eventTypeRepository = eventTypeRepository;
         this.photoRepository = photoRepository;
+        this.eventRepository = eventRepository;
         this.fileStorageService = fileStorageService;
         this.msg = msg;
     }
@@ -62,6 +65,10 @@ public class AdminEventTypeService {
     @Transactional
     public void delete(UUID id) {
         var et = findOrThrow(id);
+        for (var event : eventRepository.findByEventTypeIdOrderByStartDateDesc(id)) {
+            event.convertToCustomName(et.getName());
+            eventRepository.save(event);
+        }
         if (et.getThumbnailFilename() != null) {
             fileStorageService.delete(THUMBNAIL_FOLDER, et.getThumbnailFilename());
         }

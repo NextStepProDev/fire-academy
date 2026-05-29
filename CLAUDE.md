@@ -33,7 +33,7 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V5. Kolejna migracja: V6.**
+**Obecny stan: V8. Kolejna migracja: V9.**
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -42,6 +42,9 @@ VERSION
 | V3 | instructors, event_types, event_type_photos, events, enrollments |
 | V4 | instructor_categories (kadra per kategoria: CAMP/COURSE/TRAINING) |
 | V5 | przeniesienie price/max_participants/duration z event_types do events |
+| V6 | end_time w events, usunięcie duration |
+| V7 | description w events (opis terminu) |
+| V8 | category + custom_name w events, nullable event_type_id |
 
 ---
 
@@ -62,7 +65,7 @@ VERSION
 ### Admin `/api/admin` (ROLE_ADMIN)
 `/instructors` — CRUD + categories (CAMP/COURSE/TRAINING) + photo upload + reorder + toggle active
 `/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
-`/events` — CRUD + `?category=` + toggle active + auto-create EventType z customName
+`/events` — CRUD + `?category=` + toggle active + customName (bez auto-create EventType)
 `/enrollments` — lista + admin-add + delete
 
 ### Dev `/api/dev` (profil `dev` only)

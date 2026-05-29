@@ -21,7 +21,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
-  const [form, setForm] = useState({ eventTypeName: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
+  const [form, setForm] = useState({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
 
   const queryKey = ['admin', 'events', category]
   const { data: events, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: 0 })
@@ -38,6 +38,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
       return adminApi.createEvent({
         eventTypeId: matchedType?.id,
         customName: matchedType ? undefined : form.eventTypeName,
+        description: form.description || undefined,
         category,
         startDate: form.startDate,
         endDate: form.endDate || undefined,
@@ -53,13 +54,13 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const updateMut = useMutation({
     mutationFn: (id: string) => adminApi.updateEvent(id, {
       startDate: form.startDate,
+      description: form.description || undefined,
       endDate: form.endDate || undefined,
       startTime: form.startTime || undefined,
       endTime: form.endTime || undefined,
       location: form.location || undefined,
       price: form.price ? Number(form.price) : undefined,
       maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-      duration: form.duration || undefined,
     }),
     onSuccess: invalidate,
   })
@@ -67,12 +68,13 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
 
   const openCreate = () => {
-    setForm({ eventTypeName: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
+    setForm({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
     setIsCreating(true)
   }
   const openEdit = (ev: EventInstance) => {
     setForm({
       eventTypeName: ev.eventTypeName,
+      description: ev.description ?? '',
       startDate: ev.startDate,
       endDate: ev.endDate ?? '',
       startTime: ev.startTime ?? '',
@@ -164,6 +166,12 @@ export function AdminEvents({ category }: AdminEventsProps) {
               <datalist id={`event-types-${category}`}>
                 {eventTypes?.map(et => <option key={et.id} value={et.name} />)}
               </datalist>
+            </div>
+          )}
+          {(form.eventTypeName && !eventTypes?.find(et => et.name === form.eventTypeName)) && (
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.description')}</label>
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">

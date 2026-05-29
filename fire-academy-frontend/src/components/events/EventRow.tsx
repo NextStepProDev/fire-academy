@@ -7,9 +7,10 @@ import type { EventInstance } from '../../types'
 interface EventRowProps {
   event: EventInstance
   onEnroll: () => void
+  onDetails?: () => void
 }
 
-export function EventRow({ event, onEnroll }: EventRowProps) {
+export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
   const { t } = useTranslation('events')
   const isFull = event.maxParticipants != null && event.availableSpots <= 0
 
@@ -40,7 +41,12 @@ export function EventRow({ event, onEnroll }: EventRowProps) {
           <p className="text-primary-400 font-semibold">{event.price} PLN</p>
         )}
       </div>
-      <div className="sm:ml-auto">
+      <div className="flex gap-2 sm:ml-auto">
+        {onDetails && (
+          <Button variant="ghost" size="sm" onClick={onDetails}>
+            {t('event.details')}
+          </Button>
+        )}
         <Button
           variant="primary"
           size="sm"

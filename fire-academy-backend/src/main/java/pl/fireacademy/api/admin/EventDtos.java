@@ -16,8 +16,9 @@ public final class EventDtos {
 
     public record EventResponse(
             UUID id,
-            UUID eventTypeId,
+            @Nullable UUID eventTypeId,
             String eventTypeName,
+            @Nullable String description,
             LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
@@ -33,6 +34,7 @@ public final class EventDtos {
     public record CreateEventRequest(
             @Nullable UUID eventTypeId,
             @Nullable String customName,
+            @Nullable String description,
             @NotNull EventCategory category,
             @NotNull LocalDate startDate,
             @Nullable LocalDate endDate,
@@ -45,6 +47,7 @@ public final class EventDtos {
 
     public record UpdateEventRequest(
             @NotNull LocalDate startDate,
+            @Nullable String description,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,

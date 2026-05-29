@@ -17,9 +17,18 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EventCategory category;
+
+    @Nullable
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_type_id", nullable = false)
+    @JoinColumn(name = "event_type_id")
     private EventType eventType;
+
+    @Nullable
+    @Column(name = "custom_name")
+    private String customName;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -35,6 +44,10 @@ public class Event {
     @Nullable
     @Column(name = "end_time")
     private LocalTime endTime;
+
+    @Nullable
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     @Nullable
     private String location;
@@ -58,9 +71,25 @@ public class Event {
 
     protected Event() {}
 
-    public Event(EventType eventType, LocalDate startDate) {
+    public Event(EventCategory category, EventType eventType, LocalDate startDate) {
+        this.category = category;
         this.eventType = eventType;
         this.startDate = startDate;
+    }
+
+    public Event(EventCategory category, String customName, LocalDate startDate) {
+        this.category = category;
+        this.customName = customName;
+        this.startDate = startDate;
+    }
+
+    public void convertToCustomName(String name) {
+        this.customName = name;
+        this.eventType = null;
+    }
+
+    public String getDisplayName() {
+        return eventType != null ? eventType.getName() : customName;
     }
 
     @PrePersist
@@ -76,7 +105,9 @@ public class Event {
     }
 
     public UUID getId() { return id; }
-    public EventType getEventType() { return eventType; }
+    public EventCategory getCategory() { return category; }
+    @Nullable public EventType getEventType() { return eventType; }
+    @Nullable public String getCustomName() { return customName; }
     public LocalDate getStartDate() { return startDate; }
     public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
     @Nullable public LocalDate getEndDate() { return endDate; }
@@ -85,6 +116,8 @@ public class Event {
     public void setStartTime(@Nullable LocalTime startTime) { this.startTime = startTime; }
     @Nullable public LocalTime getEndTime() { return endTime; }
     public void setEndTime(@Nullable LocalTime endTime) { this.endTime = endTime; }
+    @Nullable public String getDescription() { return description; }
+    public void setDescription(@Nullable String description) { this.description = description; }
     @Nullable public String getLocation() { return location; }
     public void setLocation(@Nullable String location) { this.location = location; }
     @Nullable public BigDecimal getPrice() { return price; }

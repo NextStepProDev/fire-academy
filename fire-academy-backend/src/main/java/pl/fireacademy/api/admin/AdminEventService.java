@@ -30,33 +30,26 @@ public class AdminEventService {
 
     @Transactional(readOnly = true)
     public List<EventResponse> getAll(EventCategory category) {
-        return eventRepository.findByEventType_CategoryOrderByStartDateDesc(category).stream()
+        return eventRepository.findByCategoryOrderByStartDateDesc(category).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional
     public EventResponse create(CreateEventRequest request) {
-        EventType eventType;
+        Event event;
 
         if (request.eventTypeId() != null) {
-            eventType = eventTypeRepository.findById(request.eventTypeId())
+            var eventType = eventTypeRepository.findById(request.eventTypeId())
                     .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+            event = new Event(request.category(), eventType, request.startDate());
         } else if (request.customName() != null && !request.customName().isBlank()) {
-            eventType = eventTypeRepository.findByNameAndCategory(request.customName(), request.category())
-                    .orElseGet(() -> {
-                        int maxOrder = eventTypeRepository.findTopByCategoryOrderByDisplayOrderDesc(request.category())
-                                .map(EventType::getDisplayOrder)
-                                .orElse(-1);
-                        var et = new EventType(request.category(), request.customName());
-                        et.setDisplayOrder(maxOrder + 1);
-                        return eventTypeRepository.save(et);
-                    });
+            event = new Event(request.category(), request.customName(), request.startDate());
         } else {
             throw new IllegalArgumentException(msg.get("event.name.required"));
         }
 
-        var event = new Event(eventType, request.startDate());
+        event.setDescription(request.description());
         event.setEndDate(request.endDate());
         event.setStartTime(request.startTime());
         event.setEndTime(request.endTime());
@@ -70,6 +63,7 @@ public class AdminEventService {
     public EventResponse update(UUID id, UpdateEventRequest request) {
         var event = findOrThrow(id);
         event.setStartDate(request.startDate());
+        event.setDescription(request.description());
         event.setEndDate(request.endDate());
         event.setStartTime(request.startTime());
         event.setEndTime(request.endTime());
@@ -103,8 +97,12 @@ public class AdminEventService {
 
     private EventResponse toResponse(Event e) {
         long enrollmentCount = enrollmentRepository.countByEventId(e.getId());
+        var et = e.getEventType();
         return new EventResponse(
-                e.getId(), e.getEventType().getId(), e.getEventType().getName(),
+                e.getId(),
+                et != null ? et.getId() : null,
+                e.getDisplayName(),
+                e.getDescription(),
                 e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getEndTime(), e.getLocation(),
                 e.getPrice(), e.getMaxParticipants(),
                 enrollmentCount, e.isActive(), e.getCreatedAt()
