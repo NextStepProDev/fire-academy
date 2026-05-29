@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
 import { Calendar, MapPin, Users, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { formatDateRange } from '../../utils/dates'
 import type { EventType, EventInstance } from '../../types'
 
 interface EventTypeModalProps {
@@ -78,7 +79,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-400">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
-                            {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
+                            {formatDateRange(event.startDate, event.endDate)}
                             {event.startTime ? `, ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
                           </span>
                           {event.location && (

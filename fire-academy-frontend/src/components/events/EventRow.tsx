@@ -1,6 +1,7 @@
 import { MapPin, Calendar, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
+import { formatDateRange } from '../../utils/dates'
 import type { EventInstance } from '../../types'
 
 interface EventRowProps {
@@ -19,7 +20,7 @@ export function EventRow({ event, onEnroll }: EventRowProps) {
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-surface-400">
           <span className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4" />
-            {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
+            {formatDateRange(event.startDate, event.endDate)}
             {event.startTime ? `, ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
           </span>
           {event.location && (
