@@ -2,6 +2,7 @@ package pl.fireacademy.api.pub;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
@@ -39,10 +40,10 @@ public final class PublicDtos {
             LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
             @Nullable String location,
             @Nullable BigDecimal price,
             @Nullable Integer maxParticipants,
-            @Nullable String duration,
             int availableSpots
     ) {}
 
@@ -50,6 +51,6 @@ public final class PublicDtos {
             @NotBlank String firstName,
             @NotBlank String lastName,
             @Email @NotBlank String email,
-            @NotBlank String phone
+            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone
     ) {}
 }

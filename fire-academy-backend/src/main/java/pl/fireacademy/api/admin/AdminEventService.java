@@ -59,10 +59,10 @@ public class AdminEventService {
         var event = new Event(eventType, request.startDate());
         event.setEndDate(request.endDate());
         event.setStartTime(request.startTime());
+        event.setEndTime(request.endTime());
         event.setLocation(request.location());
         event.setPrice(request.price());
         event.setMaxParticipants(request.maxParticipants());
-        event.setDuration(request.duration());
         return toResponse(eventRepository.save(event));
     }
 
@@ -72,10 +72,10 @@ public class AdminEventService {
         event.setStartDate(request.startDate());
         event.setEndDate(request.endDate());
         event.setStartTime(request.startTime());
+        event.setEndTime(request.endTime());
         event.setLocation(request.location());
         event.setPrice(request.price());
         event.setMaxParticipants(request.maxParticipants());
-        event.setDuration(request.duration());
         return toResponse(eventRepository.save(event));
     }
 
@@ -105,8 +105,8 @@ public class AdminEventService {
         long enrollmentCount = enrollmentRepository.countByEventId(e.getId());
         return new EventResponse(
                 e.getId(), e.getEventType().getId(), e.getEventType().getName(),
-                e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getLocation(),
-                e.getPrice(), e.getMaxParticipants(), e.getDuration(),
+                e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getEndTime(), e.getLocation(),
+                e.getPrice(), e.getMaxParticipants(),
                 enrollmentCount, e.isActive(), e.getCreatedAt()
         );
     }

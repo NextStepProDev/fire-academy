@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
-import { Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Calendar, MapPin, Users, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import type { EventType, EventInstance } from '../../types'
 
 interface EventTypeModalProps {
@@ -79,18 +79,12 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
                             {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
-                            {event.startTime ? `, ${event.startTime}` : ''}
+                            {event.startTime ? `, ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
                           </span>
                           {event.location && (
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3.5 h-3.5" />
                               {event.location}
-                            </span>
-                          )}
-                          {event.duration && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {event.duration}
                             </span>
                           )}
                           {event.maxParticipants != null && (

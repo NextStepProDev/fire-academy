@@ -30,9 +30,10 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
     if (!form.firstName.trim()) return t('enroll.firstNameRequired')
     if (!form.lastName.trim()) return t('enroll.lastNameRequired')
     if (!form.email.trim()) return t('enroll.emailRequired')
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return t('enroll.emailInvalid')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return t('enroll.emailInvalid')
     if (!form.phone.trim()) return t('enroll.phoneRequired')
-    if (!/^[+]?[\d\s()-]{7,20}$/.test(form.phone.trim())) return t('enroll.phoneInvalid')
+    const digits = form.phone.replace(/\s/g, '')
+    if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) return t('enroll.phoneInvalid')
     return null
   }
 
@@ -45,7 +46,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
 
     setLoading(true)
     try {
-      await publicApi.enroll(eventId, form)
+      await publicApi.enroll(eventId, { ...form, phone: form.phone.replace(/\s/g, '') })
       setSuccess(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

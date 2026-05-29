@@ -50,8 +50,8 @@ export function AdminPage() {
 
       {categoryTabs[activeTab] && (
         <div className="space-y-12">
-          <AdminEventTypes category={categoryTabs[activeTab]} />
           <AdminEvents category={categoryTabs[activeTab]} />
+          <AdminEventTypes category={categoryTabs[activeTab]} />
         </div>
       )}
 

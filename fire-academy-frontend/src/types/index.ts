@@ -51,10 +51,10 @@ export interface EventInstance {
   startDate: string
   endDate: string | null
   startTime: string | null
+  endTime: string | null
   location: string | null
   price: number | null
   maxParticipants: number | null
-  duration: string | null
   availableSpots: number
   active: boolean
   createdAt: string

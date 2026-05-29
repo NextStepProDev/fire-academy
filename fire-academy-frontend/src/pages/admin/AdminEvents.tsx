@@ -20,11 +20,12 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const [editItem, setEditItem] = useState<EventInstance | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [form, setForm] = useState({ eventTypeName: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '', duration: '' })
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [form, setForm] = useState({ eventTypeName: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
 
   const queryKey = ['admin', 'events', category]
-  const { data: events, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category) })
-  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category) })
+  const { data: events, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: 0 })
+  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: 0 })
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey })
@@ -41,10 +42,10 @@ export function AdminEvents({ category }: AdminEventsProps) {
         startDate: form.startDate,
         endDate: form.endDate || undefined,
         startTime: form.startTime || undefined,
+        endTime: form.endTime || undefined,
         location: form.location || undefined,
         price: form.price ? Number(form.price) : undefined,
         maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-        duration: form.duration || undefined,
       })
     },
     onSuccess: invalidate,
@@ -54,6 +55,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
       startDate: form.startDate,
       endDate: form.endDate || undefined,
       startTime: form.startTime || undefined,
+      endTime: form.endTime || undefined,
       location: form.location || undefined,
       price: form.price ? Number(form.price) : undefined,
       maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
@@ -65,7 +67,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
 
   const openCreate = () => {
-    setForm({ eventTypeName: '', startDate: '', endDate: '', startTime: '', location: '', price: '', maxParticipants: '', duration: '' })
+    setForm({ eventTypeName: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
     setIsCreating(true)
   }
   const openEdit = (ev: EventInstance) => {
@@ -74,12 +76,22 @@ export function AdminEvents({ category }: AdminEventsProps) {
       startDate: ev.startDate,
       endDate: ev.endDate ?? '',
       startTime: ev.startTime ?? '',
+      endTime: ev.endTime ?? '',
       location: ev.location ?? '',
       price: ev.price?.toString() ?? '',
       maxParticipants: ev.maxParticipants?.toString() ?? '',
-      duration: ev.duration ?? '',
     })
     setEditItem(ev)
+  }
+
+  const isDirty = Object.values(form).some(v => v !== '')
+  const canSave = isCreating ? (form.eventTypeName && form.startDate) : !!form.startDate
+
+  const closeForm = () => { setIsCreating(false); setEditItem(null); setShowCloseConfirm(false) }
+
+  const handleClose = () => {
+    if (!isDirty) { closeForm(); return }
+    setShowCloseConfirm(true)
   }
 
   const handleSave = async () => {
@@ -90,6 +102,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
       await createMut.mutateAsync()
       setIsCreating(false)
     }
+    setShowCloseConfirm(false)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -111,12 +124,11 @@ export function AdminEvents({ category }: AdminEventsProps) {
                 <p className="font-medium text-surface-100">{ev.eventTypeName}</p>
                 <p className="text-sm text-surface-400">
                   {ev.startDate}{ev.endDate ? ` – ${ev.endDate}` : ''}
-                  {ev.startTime ? ` · ${ev.startTime}` : ''}
+                  {ev.startTime ? ` · ${ev.startTime}${ev.endTime ? ` – ${ev.endTime}` : ''}` : ''}
                   {ev.location ? ` · ${ev.location}` : ''}
                 </p>
                 <p className="text-sm text-surface-500">
                   {ev.price != null && `${ev.price} PLN · `}
-                  {ev.duration && `${ev.duration} · `}
                   {t('events.enrolled')}: {(ev as unknown as { enrollmentCount?: number }).enrollmentCount ?? 0}
                   {ev.maxParticipants != null && ` / ${ev.maxParticipants}`}
                 </p>
@@ -135,7 +147,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
 
       <Modal
         isOpen={isCreating || !!editItem}
-        onClose={() => { setIsCreating(false); setEditItem(null) }}
+        onClose={handleClose}
         title={editItem ? t('events.editTitle') : t('events.createTitle')}
       >
         <div className="space-y-4">
@@ -161,20 +173,24 @@ export function AdminEvents({ category }: AdminEventsProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
-              <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="date" value={form.endDate} min={form.startDate || undefined} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startTime')}</label>
               <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endTime')}</label>
+              <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.location')}</label>
               <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.price')}</label>
               <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
@@ -183,15 +199,24 @@ export function AdminEvents({ category }: AdminEventsProps) {
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.maxParticipants')}</label>
               <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.duration')}</label>
-              <input value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
+            <Button variant="ghost" size="sm" onClick={handleClose}>{t('actions.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
           </div>
+
+          {showCloseConfirm && (
+            <div className="mt-4 p-4 bg-surface-800 border border-surface-700 rounded-lg space-y-3">
+              <p className="text-sm text-surface-300">{t('confirm.unsavedChanges')}</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowCloseConfirm(false)}>{t('actions.backToForm')}</Button>
+                <Button variant="ghost" size="sm" onClick={closeForm}>{t('actions.discard')}</Button>
+                {canSave && (
+                  <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 

@@ -21,10 +21,10 @@ public final class EventDtos {
             LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
             @Nullable String location,
             @Nullable BigDecimal price,
             @Nullable Integer maxParticipants,
-            @Nullable String duration,
             long enrollmentCount,
             boolean active,
             Instant createdAt
@@ -37,19 +37,19 @@ public final class EventDtos {
             @NotNull LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
             @Nullable String location,
             @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration
+            @Nullable Integer maxParticipants
     ) {}
 
     public record UpdateEventRequest(
             @NotNull LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
             @Nullable String location,
             @Nullable BigDecimal price,
-            @Nullable Integer maxParticipants,
-            @Nullable String duration
+            @Nullable Integer maxParticipants
     ) {}
 }

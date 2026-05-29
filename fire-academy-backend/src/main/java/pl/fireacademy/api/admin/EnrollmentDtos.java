@@ -3,6 +3,7 @@ package pl.fireacademy.api.admin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -31,6 +32,6 @@ public final class EnrollmentDtos {
             @NotBlank String firstName,
             @NotBlank String lastName,
             @Email @NotBlank String email,
-            @NotBlank String phone
+            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone
     ) {}
 }

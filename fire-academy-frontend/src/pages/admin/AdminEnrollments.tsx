@@ -21,12 +21,14 @@ export function AdminEnrollments() {
   const { data: events } = useQuery({
     queryKey: ['admin', 'events', category],
     queryFn: () => adminApi.getEvents(category),
+    staleTime: 0,
   })
 
   const { data: enrollments, isLoading } = useQuery({
     queryKey: ['admin', 'enrollments', selectedEventId],
     queryFn: () => adminApi.getEnrollmentsByEvent(selectedEventId),
     enabled: !!selectedEventId,
+    staleTime: 0,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', selectedEventId] })
@@ -37,7 +39,7 @@ export function AdminEnrollments() {
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
-      phone: form.phone,
+      phone: form.phone.replace(/\s/g, ''),
     }),
     onSuccess: () => { invalidate(); setIsAdding(false) },
   })

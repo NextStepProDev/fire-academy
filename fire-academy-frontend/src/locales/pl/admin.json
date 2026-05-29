@@ -11,11 +11,14 @@
     "activate": "Aktywuj",
     "deactivate": "Dezaktywuj",
     "addPhoto": "Dodaj zdjęcie",
-    "addEnrollment": "Dodaj zapis"
+    "addEnrollment": "Dodaj zapis",
+    "backToForm": "Wróć",
+    "discard": "Odrzuć"
   },
   "confirm": {
     "delete": "Czy na pewno chcesz usunąć?",
-    "deleteTitle": "Potwierdzenie usunięcia"
+    "deleteTitle": "Potwierdzenie usunięcia",
+    "unsavedChanges": "Masz niezapisane zmiany. Co chcesz zrobić?"
   },
   "kadra": {
     "title": "Kadra",
@@ -50,7 +53,8 @@
     "eventType": "Rodzaj",
     "startDate": "Data rozpoczęcia",
     "endDate": "Data zakończenia",
-    "startTime": "Godzina",
+    "startTime": "Początek",
+    "endTime": "Koniec",
     "location": "Lokalizacja",
     "price": "Cena (PLN)",
     "maxParticipants": "Maks. uczestników",

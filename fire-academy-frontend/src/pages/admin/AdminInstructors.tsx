@@ -27,6 +27,7 @@ export function AdminInstructors() {
   const { data: instructors, isLoading } = useQuery({
     queryKey: ['admin', 'instructors'],
     queryFn: adminApi.getInstructors,
+    staleTime: 0,
   })
 
   const invalidate = () => {

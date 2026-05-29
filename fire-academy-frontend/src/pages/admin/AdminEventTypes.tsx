@@ -26,6 +26,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const { data: types, isLoading } = useQuery({
     queryKey,
     queryFn: () => adminApi.getEventTypes(category),
+    staleTime: 0,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey })

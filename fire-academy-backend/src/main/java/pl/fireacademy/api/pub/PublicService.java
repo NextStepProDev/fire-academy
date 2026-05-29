@@ -71,8 +71,8 @@ public class PublicService {
             int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
             return new EventCard(
                     e.getId(), e.getEventType().getId(), e.getEventType().getName(),
-                    e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getLocation(),
-                    e.getPrice(), max, e.getDuration(), available
+                    e.getStartDate(), e.getEndDate(), e.getStartTime(), e.getEndTime(), e.getLocation(),
+                    e.getPrice(), max, available
             );
         }).toList();
     }

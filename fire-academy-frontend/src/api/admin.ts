@@ -33,20 +33,20 @@ interface CreateEventRequest {
   startDate: string
   endDate?: string
   startTime?: string
+  endTime?: string
   location?: string
   price?: number
   maxParticipants?: number
-  duration?: string
 }
 
 interface UpdateEventRequest {
   startDate: string
   endDate?: string
   startTime?: string
+  endTime?: string
   location?: string
   price?: number
   maxParticipants?: number
-  duration?: string
 }
 
 interface AdminEnrollRequest {
