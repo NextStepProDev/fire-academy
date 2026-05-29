@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
+import { AdminArchive } from './admin/AdminArchive'
 import type { EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
@@ -17,6 +18,7 @@ const tabs = [
   { key: 'treningi', ns: 'admin.tabs.trainings' },
   { key: 'obozy', ns: 'admin.tabs.camps' },
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
+  { key: 'archiwum', ns: 'admin.tabs.archive' },
 ] as const
 
 const validTabs: Set<string> = new Set(tabs.map(item => item.key))
@@ -60,6 +62,7 @@ export function AdminPage() {
         </div>
       )}
 
+      {tab === 'archiwum' && <AdminArchive />}
     </div>
   )
 }

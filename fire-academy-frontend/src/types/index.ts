@@ -57,6 +57,7 @@ export interface EventInstance {
   price: number | null
   maxParticipants: number | null
   availableSpots: number
+  enrollmentCount: number
   active: boolean
   createdAt: string
 }

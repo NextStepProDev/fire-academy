@@ -66,6 +66,14 @@
     "selectEventType": "Wybierz rodzaj",
     "typeOrSelect": "Wybierz lub wpisz nazwę"
   },
+  "archive": {
+    "title": "Archiwum",
+    "all": "Wszystkie",
+    "categoryTraining": "Treningi",
+    "categoryCamp": "Obozy",
+    "categoryCourse": "Szkolenia",
+    "noItems": "Brak archiwalnych terminów"
+  },
   "enrollments": {
     "title": "Zapisy",
     "selectEvent": "Wybierz termin",
