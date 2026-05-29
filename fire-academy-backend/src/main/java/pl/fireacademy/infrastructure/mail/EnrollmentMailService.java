@@ -59,6 +59,7 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         %s
                         <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
+                        <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
                         <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
                     </div>
@@ -71,6 +72,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.confirmation.date", dateStr),
                 locationHtml,
                 msg.get("email.enrollment.confirmation.footer"),
+                msg.get("email.enrollment.cancel.info"),
                 msg.get("email.footer")
         );
 
@@ -137,6 +139,7 @@ public class EnrollmentMailService {
                             %s
                         </div>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
                         <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
                     </div>
@@ -149,6 +152,7 @@ public class EnrollmentMailService {
                 msg.get("email.event.modified.changes"),
                 changesHtml,
                 msg.get("email.event.modified.footer"),
+                msg.get("email.enrollment.cancel.info"),
                 msg.get("email.footer")
         );
 
