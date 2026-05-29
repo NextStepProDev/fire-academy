@@ -8,8 +8,8 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => {
     const enterTimer = setTimeout(() => setPhase('hold'), 100)
-    const exitTimer = setTimeout(() => setPhase('exit'), 3800)
-    const doneTimer = setTimeout(onComplete, 4600)
+    const exitTimer = setTimeout(() => setPhase('exit'), 3100)
+    const doneTimer = setTimeout(onComplete, 3800)
     return () => {
       clearTimeout(enterTimer)
       clearTimeout(exitTimer)

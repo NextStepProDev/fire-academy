@@ -70,7 +70,7 @@ export function HomePage() {
             className="absolute left-0 right-0 flex justify-center -translate-y-1/2"
             style={{ top: section.textTop }}
           >
-            <h2 className="text-5xl md:text-7xl font-bold text-white tracking-wider uppercase drop-shadow-lg group-hover:text-primary-400 transition-colors duration-300">
+            <h2 className="text-5xl md:text-7xl font-bold text-white tracking-wider uppercase drop-shadow-lg group-hover:text-primary-400 group-active:scale-95 transition-all duration-300">
               {t(`home.section.${section.key}`)}
             </h2>
           </div>

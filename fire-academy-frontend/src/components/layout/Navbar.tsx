@@ -91,7 +91,7 @@ export function Navbar() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-800 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-800 active:scale-95 transition-all duration-150"
                 >
                   <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
                     <span className="text-sm font-bold text-white">{userInitial}</span>
@@ -129,7 +129,7 @@ export function Navbar() {
           )}
 
           <button
-            className="md:hidden text-surface-300"
+            className="md:hidden text-surface-300 active:scale-90 transition-transform duration-150"
             aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >

@@ -24,17 +24,17 @@ export function Footer() {
             </h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/treningi" className="text-sm text-surface-400 hover:text-primary-400 transition-colors">
+                <Link to="/treningi" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
                   {t('nav.trainings')}
                 </Link>
               </li>
               <li>
-                <Link to="/obozy" className="text-sm text-surface-400 hover:text-primary-400 transition-colors">
+                <Link to="/obozy" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
                   {t('nav.camps')}
                 </Link>
               </li>
               <li>
-                <Link to="/szkolenia" className="text-sm text-surface-400 hover:text-primary-400 transition-colors">
+                <Link to="/szkolenia" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
                   {t('nav.courses')}
                 </Link>
               </li>
@@ -54,13 +54,13 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-primary-500 shrink-0" />
-                <a href="tel:+48534823667" className="text-sm text-surface-400 hover:text-primary-400 transition-colors">
+                <a href="tel:+48534823667" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
                   +48 534 823 667
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-primary-500 shrink-0" />
-                <a href="mailto:kontakt@fireacademy.pl" className="text-sm text-surface-400 hover:text-primary-400 transition-colors">
+                <a href="mailto:kontakt@fireacademy.pl" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
                   kontakt@fireacademy.pl
                 </a>
               </li>
@@ -73,10 +73,10 @@ export function Footer() {
             {t('footer.copyright', { year })}
           </p>
           <div className="flex items-center gap-6">
-            <Link to="/polityka-prywatnosci" className="text-xs text-surface-500 hover:text-surface-300 transition-colors">
+            <Link to="/polityka-prywatnosci" className="inline-block text-xs text-surface-500 hover:text-surface-300 hover:-translate-y-0.5 transition-all duration-200">
               {t('footer.privacy')}
             </Link>
-            <Link to="/regulamin" className="text-xs text-surface-500 hover:text-surface-300 transition-colors">
+            <Link to="/regulamin" className="inline-block text-xs text-surface-500 hover:text-surface-300 hover:-translate-y-0.5 transition-all duration-200">
               {t('footer.terms')}
             </Link>
             <ShareButton url="/" title="Fire Academy" />

@@ -10,7 +10,7 @@ interface EventTypeCardProps {
 
 export function EventTypeCard({ eventType, onClick, shareUrl }: EventTypeCardProps) {
   return (
-    <div className="w-full flex items-center gap-4 p-4 bg-surface-900 border border-surface-800 rounded-lg hover:border-primary-500/50 hover:-translate-y-0.5 transition-all duration-200">
+    <div className="w-full flex items-center gap-4 p-4 bg-surface-900 border border-surface-800 rounded-lg hover:border-primary-500/50 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">
       <button
         onClick={onClick}
         className="flex items-center gap-4 flex-1 min-w-0 text-left"

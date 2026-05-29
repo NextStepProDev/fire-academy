@@ -79,7 +79,7 @@ export function ShareButton({ url, title, className }: ShareButtonProps) {
     <div className={clsx('relative', className)} ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 rounded-lg text-surface-400 hover:text-surface-200 hover:bg-surface-800 transition-colors"
+        className="p-2 rounded-lg text-surface-400 hover:text-surface-200 hover:bg-surface-800 active:scale-90 transition-all duration-150"
         aria-label={t('share.label')}
         title={t('share.label')}
       >
@@ -90,21 +90,21 @@ export function ShareButton({ url, title, className }: ShareButtonProps) {
         <div className="absolute right-0 bottom-full mb-1 bg-surface-900 border border-surface-700 rounded-lg shadow-lg shadow-black/30 py-1 z-50 min-w-[160px]">
           <button
             onClick={shareFacebook}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 active:scale-95 transition-all duration-150"
           >
             <FacebookIcon className="w-4 h-4" />
             Facebook
           </button>
           <button
             onClick={shareWhatsApp}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 active:scale-95 transition-all duration-150"
           >
             <WhatsAppIcon className="w-4 h-4" />
             WhatsApp
           </button>
           <button
             onClick={copyLink}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 active:scale-95 transition-all duration-150"
           >
             {copied ? <Check className="w-4 h-4 text-green-400" /> : <Link className="w-4 h-4" />}
             {copied ? t('share.copied') : t('share.copyLink')}

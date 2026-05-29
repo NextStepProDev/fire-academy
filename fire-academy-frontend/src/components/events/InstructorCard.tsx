@@ -11,7 +11,7 @@ interface InstructorCardProps {
 export function InstructorCard({ instructor, onClick, shareUrl }: InstructorCardProps) {
   const fullName = `${instructor.firstName} ${instructor.lastName}`
   return (
-    <div className="group relative bg-surface-900 border border-surface-800 rounded-xl overflow-hidden hover:border-primary-600/50 transition-all duration-200">
+    <div className="group relative bg-surface-900 border border-surface-800 rounded-xl overflow-hidden hover:border-primary-600/50 active:scale-[0.98] transition-all duration-200">
       <button
         onClick={onClick}
         className="w-full text-left"
