@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
-import { Calendar, MapPin, Users, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { formatDateRange } from '../../utils/dates'
 import type { EventType, EventInstance } from '../../types'
 
@@ -99,14 +99,22 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
                           <p className="text-primary-400 font-medium text-sm">{event.price} PLN</p>
                         )}
                       </div>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => onEnroll(event.id, event.eventTypeName)}
-                        disabled={isFull}
-                      >
-                        {isFull ? t('event.spotsFull') : t('event.enroll')}
-                      </Button>
+                      {isFull ? (
+                        <a href="tel:+48534823667">
+                          <Button variant="primary" size="sm">
+                            <Phone className="w-4 h-4" />
+                            {t('event.waitingList')}
+                          </Button>
+                        </a>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => onEnroll(event.id, event.eventTypeName)}
+                        >
+                          {t('event.enroll')}
+                        </Button>
+                      )}
                     </div>
                   )
                 })}

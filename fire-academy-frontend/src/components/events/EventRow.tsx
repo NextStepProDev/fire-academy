@@ -50,6 +50,14 @@ export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
         {event.price != null && (
           <p className="text-primary-400 font-semibold">{event.price} PLN</p>
         )}
+        {isFull && (
+          <p className="text-sm text-surface-400">
+            {t('event.spotsFull')}. {t('event.waitingList')}:
+            <a href="tel:+48534823667" className="ml-1 text-primary-400 hover:text-primary-300 inline-flex items-center gap-1">
+              <Phone className="w-3.5 h-3.5" />534 823 667
+            </a>
+          </p>
+        )}
         {tooLate && !isFull && (
           <p className="text-sm text-surface-400">
             {t('event.tooLate')}
@@ -65,14 +73,23 @@ export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
             {t('event.details')}
           </Button>
         )}
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onEnroll}
-          disabled={!canEnroll}
-        >
-          {isFull ? t('event.spotsFull') : tooLate ? t('event.enrollClosed') : t('event.enroll')}
-        </Button>
+        {isFull ? (
+          <a href="tel:+48534823667">
+            <Button variant="primary" size="sm">
+              <Phone className="w-4 h-4" />
+              {t('event.waitingList')}
+            </Button>
+          </a>
+        ) : (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onEnroll}
+            disabled={tooLate}
+          >
+            {tooLate ? t('event.enrollClosed') : t('event.enroll')}
+          </Button>
+        )}
       </div>
     </div>
   )
