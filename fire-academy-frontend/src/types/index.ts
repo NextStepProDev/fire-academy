@@ -70,6 +70,7 @@ export interface Enrollment {
   lastName: string
   email: string
   phone: string
+  note: string | null
   addedByAdmin: boolean
   createdAt: string
 }

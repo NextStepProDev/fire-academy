@@ -52,6 +52,7 @@ public final class PublicDtos {
             @NotBlank String firstName,
             @NotBlank String lastName,
             @Email @NotBlank String email,
-            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone
+            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone,
+            @Nullable String note
     ) {}
 }

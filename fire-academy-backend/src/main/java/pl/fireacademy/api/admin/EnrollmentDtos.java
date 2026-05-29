@@ -23,6 +23,7 @@ public final class EnrollmentDtos {
             String lastName,
             String email,
             String phone,
+            @Nullable String note,
             boolean addedByAdmin,
             Instant createdAt
     ) {}
@@ -32,6 +33,7 @@ public final class EnrollmentDtos {
             @NotBlank String firstName,
             @NotBlank String lastName,
             @Email @NotBlank String email,
-            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone
+            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone,
+            @Nullable String note
     ) {}
 }

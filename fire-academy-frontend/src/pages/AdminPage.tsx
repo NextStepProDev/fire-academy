@@ -4,7 +4,6 @@ import clsx from 'clsx'
 import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
-import { AdminEnrollments } from './admin/AdminEnrollments'
 import type { EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
@@ -18,7 +17,6 @@ const tabs = [
   { key: 'trainings', ns: 'admin.tabs.trainings' },
   { key: 'camps', ns: 'admin.tabs.camps' },
   { key: 'courses', ns: 'admin.tabs.courses' },
-  { key: 'enrollments', ns: 'admin.tabs.enrollments' },
 ] as const
 
 export function AdminPage() {
@@ -55,7 +53,6 @@ export function AdminPage() {
         </div>
       )}
 
-      {activeTab === 'enrollments' && <AdminEnrollments />}
     </div>
   )
 }

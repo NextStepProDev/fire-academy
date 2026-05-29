@@ -33,7 +33,7 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V8. Kolejna migracja: V9.**
+**Obecny stan: V9. Kolejna migracja: V10.**
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -45,6 +45,7 @@ VERSION
 | V6 | end_time w events, usunięcie duration |
 | V7 | description w events (opis terminu) |
 | V8 | category + custom_name w events, nullable event_type_id |
+| V9 | note w enrollments (informacja dla organizatora) |
 
 ---
 

@@ -12,44 +12,76 @@ interface EnrollmentModalProps {
   eventName: string
 }
 
+type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'phone', string>>
+
+const inputBase = 'w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 focus:outline-none focus:ring-2'
+const inputOk = `${inputBase} border-surface-700 focus:ring-primary-500`
+const inputErr = `${inputBase} border-rose-500/60 focus:ring-rose-500`
+
 export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: EnrollmentModalProps) {
   const { t } = useTranslation('events')
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '' })
-  const [error, setError] = useState<string | null>(null)
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [touched, setTouched] = useState<Set<string>>(new Set())
+  const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
   const handleClose = () => {
-    setForm({ firstName: '', lastName: '', email: '', phone: '' })
-    setError(null)
+    setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+    setErrors({})
+    setTouched(new Set())
+    setServerError(null)
     setSuccess(false)
     onClose()
   }
 
-  const validate = (): string | null => {
-    if (!form.firstName.trim()) return t('enroll.firstNameRequired')
-    if (!form.lastName.trim()) return t('enroll.lastNameRequired')
-    if (!form.email.trim()) return t('enroll.emailRequired')
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return t('enroll.emailInvalid')
-    if (!form.phone.trim()) return t('enroll.phoneRequired')
-    const digits = form.phone.replace(/\s/g, '')
-    if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) return t('enroll.phoneInvalid')
-    return null
+  const validate = (fields = form): FieldErrors => {
+    const errs: FieldErrors = {}
+    if (!fields.firstName.trim()) errs.firstName = t('enroll.firstNameRequired')
+    else if (fields.firstName.trim().length < 3) errs.firstName = t('enroll.nameMinLength')
+    if (!fields.lastName.trim()) errs.lastName = t('enroll.lastNameRequired')
+    else if (fields.lastName.trim().length < 3) errs.lastName = t('enroll.nameMinLength')
+    if (!fields.email.trim()) errs.email = t('enroll.emailRequired')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) errs.email = t('enroll.emailInvalid')
+    if (!fields.phone.trim()) errs.phone = t('enroll.phoneRequired')
+    else {
+      const digits = fields.phone.replace(/\s/g, '')
+      if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) errs.phone = t('enroll.phoneInvalid')
+    }
+    return errs
   }
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => new Set(prev).add(field))
+    setErrors(validate())
+  }
+
+  const fieldError = (field: keyof FieldErrors) =>
+    touched.has(field) ? errors[field] : undefined
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
-    const validationError = validate()
-    if (validationError) { setError(validationError); return }
+    setServerError(null)
+
+    const allFields = new Set(['firstName', 'lastName', 'email', 'phone'])
+    setTouched(allFields)
+
+    const errs = validate()
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
     if (!eventId) return
 
     setLoading(true)
     try {
-      await publicApi.enroll(eventId, { ...form, phone: form.phone.replace(/\s/g, '') })
+      await publicApi.enroll(eventId, {
+        ...form,
+        phone: form.phone.replace(/\s/g, ''),
+        note: form.note.trim() || undefined,
+      })
       setSuccess(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setServerError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
@@ -65,50 +97,67 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
           <p className="text-surface-100 font-medium">{t('enroll.success')}</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('enroll.firstName')}</label>
               <input
                 type="text"
-                required
                 value={form.firstName}
                 onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
-                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onBlur={() => handleBlur('firstName')}
+                className={fieldError('firstName') ? inputErr : inputOk}
               />
+              {fieldError('firstName') && <p className="text-xs text-rose-400 mt-1">{fieldError('firstName')}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('enroll.lastName')}</label>
               <input
                 type="text"
-                required
                 value={form.lastName}
                 onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
-                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onBlur={() => handleBlur('lastName')}
+                className={fieldError('lastName') ? inputErr : inputOk}
               />
+              {fieldError('lastName') && <p className="text-xs text-rose-400 mt-1">{fieldError('lastName')}</p>}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('enroll.email')}</label>
             <input
               type="email"
-              required
               value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              onBlur={() => handleBlur('email')}
+              className={fieldError('email') ? inputErr : inputOk}
+              placeholder="jan@przykład.pl"
             />
+            {fieldError('email') && <p className="text-xs text-rose-400 mt-1">{fieldError('email')}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('enroll.phone')}</label>
             <input
               type="tel"
-              required
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              onBlur={() => handleBlur('phone')}
+              className={fieldError('phone') ? inputErr : inputOk}
+              placeholder="123 456 789"
+            />
+            {fieldError('phone') && <p className="text-xs text-rose-400 mt-1">{fieldError('phone')}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">
+              {t('enroll.note')} <span className="text-surface-500 font-normal">({t('enroll.optional')})</span>
+            </label>
+            <textarea
+              value={form.note}
+              onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+              rows={3}
+              className={`${inputOk} resize-none`}
             />
           </div>
-          {error && <p className="text-sm text-rose-400/80">{error}</p>}
+          {serverError && <p className="text-sm text-rose-400/80">{serverError}</p>}
           <Button type="submit" variant="primary" className="w-full" loading={loading}>
             {t('enroll.submit')}
           </Button>

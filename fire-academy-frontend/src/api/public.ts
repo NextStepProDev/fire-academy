@@ -6,6 +6,7 @@ export interface EnrollRequest {
   lastName: string
   email: string
   phone: string
+  note?: string
 }
 
 export const publicApi = {

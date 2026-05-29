@@ -59,6 +59,7 @@ interface AdminEnrollRequest {
   lastName: string
   email: string
   phone: string
+  note?: string
 }
 
 export const adminApi = {

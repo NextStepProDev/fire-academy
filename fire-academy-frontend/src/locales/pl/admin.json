@@ -69,12 +69,18 @@
   "enrollments": {
     "title": "Zapisy",
     "selectEvent": "Wybierz termin",
+    "allEvents": "Wszystkie terminy",
+    "event": "Termin",
+    "noUpcoming": "Brak nadchodzących terminów",
+    "archive": "Archiwum",
     "firstName": "Imię",
     "lastName": "Nazwisko",
     "email": "Email",
     "phone": "Telefon",
     "date": "Data zapisu",
     "addedByAdmin": "Dodany przez admina",
+    "note": "Informacja dla organizatora",
+    "optional": "opcjonalnie",
     "noItems": "Brak zapisów",
     "summary": "{{count}} / {{max}} zapisanych",
     "summaryNoLimit": "{{count}} zapisanych"

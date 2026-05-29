@@ -27,14 +27,16 @@ public class AdminEnrollmentService {
         this.msg = msg;
     }
 
+    @Transactional(readOnly = true)
     public List<EnrollmentResponse> getByEvent(UUID eventId) {
         return enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<EnrollmentResponse> getByCategory(EventCategory category) {
-        return enrollmentRepository.findByEvent_EventType_CategoryOrderByCreatedAtDesc(category).stream()
+        return enrollmentRepository.findByEventCategory(category).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -45,7 +47,7 @@ public class AdminEnrollmentService {
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
 
         var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
-                request.email(), request.phone(), true);
+                request.email(), request.phone(), request.note(), true);
         return toResponse(enrollmentRepository.save(enrollment));
     }
 
@@ -62,7 +64,7 @@ public class AdminEnrollmentService {
                 e.getEvent().getDisplayName(),
                 e.getEvent().getStartDate(),
                 e.getFirstName(), e.getLastName(), e.getEmail(), e.getPhone(),
-                e.isAddedByAdmin(), e.getCreatedAt()
+                e.getNote(), e.isAddedByAdmin(), e.getCreatedAt()
         );
     }
 }

@@ -1,6 +1,7 @@
 package pl.fireacademy.domain.enrollment;
 
 import jakarta.persistence.*;
+import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.event.Event;
 
 import java.time.Instant;
@@ -30,6 +31,10 @@ public class Enrollment {
     @Column(nullable = false, length = 20)
     private String phone;
 
+    @Nullable
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @Column(name = "added_by_admin", nullable = false)
     private boolean addedByAdmin;
 
@@ -38,12 +43,14 @@ public class Enrollment {
 
     protected Enrollment() {}
 
-    public Enrollment(Event event, String firstName, String lastName, String email, String phone, boolean addedByAdmin) {
+    public Enrollment(Event event, String firstName, String lastName, String email, String phone,
+                      @Nullable String note, boolean addedByAdmin) {
         this.event = event;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.phone = phone;
+        this.note = note;
         this.addedByAdmin = addedByAdmin;
     }
 
@@ -58,6 +65,7 @@ public class Enrollment {
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }
     public String getPhone() { return phone; }
+    @Nullable public String getNote() { return note; }
     public boolean isAddedByAdmin() { return addedByAdmin; }
     public Instant getCreatedAt() { return createdAt; }
 }

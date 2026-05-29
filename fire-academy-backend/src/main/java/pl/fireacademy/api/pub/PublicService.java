@@ -107,7 +107,7 @@ public class PublicService {
         }
 
         var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
-                request.email(), request.phone(), false);
+                request.email(), request.phone(), request.note(), false);
         enrollmentRepository.save(enrollment);
 
         enrollmentMailService.sendEnrollmentConfirmation(
