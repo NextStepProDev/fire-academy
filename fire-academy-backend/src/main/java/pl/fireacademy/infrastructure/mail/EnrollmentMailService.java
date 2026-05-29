@@ -12,8 +12,11 @@ import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
+import pl.fireacademy.api.admin.EventDtos.FieldChange;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 public class EnrollmentMailService {
@@ -98,6 +101,96 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.notification.body", eventTypeName),
                 msg.get("email.enrollment.notification.participant", participantName, participantEmail),
                 msg.get("email.enrollment.confirmation.date", dateStr)
+        );
+
+        for (String adminEmail : adminEmailConfig.getAdminEmails()) {
+            sendEmail(adminEmail, subject, body);
+        }
+    }
+
+    @Async("mailExecutor")
+    public void sendEventModificationNotification(String recipientEmail, String firstName,
+                                                    String eventName, LocalDate date,
+                                                    List<FieldChange> changes) {
+        String subject = msg.get("email.event.modified.subject");
+
+        var changesHtml = new StringBuilder();
+        for (var change : changes) {
+            changesHtml.append("""
+                <p style="font-size: 14px; margin: 4px 0;">
+                    <strong>%s:</strong>
+                    <span style="text-decoration: line-through; color: #9ca3af;">%s</span>
+                    → <span style="color: #f97316; font-weight: bold;">%s</span>
+                </p>
+                """.formatted(change.field(), change.oldValue(), change.newValue()));
+        }
+
+        String body = """
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
+                    <div style="padding: 30px;">
+                        <h1 style="color: #f97316;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="background-color: #3d3a37; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">%s</p>
+                            %s
+                        </div>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <hr style="border-color: #4a4a4a; margin: 20px 0;" />
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                msg.get("email.event.modified.greeting", firstName),
+                msg.get("email.event.modified.body", eventName, date.format(DATE_FMT)),
+                msg.get("email.event.modified.changes"),
+                changesHtml,
+                msg.get("email.event.modified.footer"),
+                msg.get("email.footer")
+        );
+
+        sendEmail(recipientEmail, subject, body);
+    }
+
+    @Async("mailExecutor")
+    public void sendEventModificationAdminNotification(String eventName, LocalDate date,
+                                                        List<FieldChange> changes) {
+        String subject = msg.get("email.event.modified.subject");
+
+        var changesHtml = new StringBuilder();
+        for (var change : changes) {
+            changesHtml.append("""
+                <p style="font-size: 14px; margin: 4px 0;">
+                    <strong>%s:</strong>
+                    <span style="text-decoration: line-through; color: #9ca3af;">%s</span>
+                    → <span style="color: #f97316; font-weight: bold;">%s</span>
+                </p>
+                """.formatted(change.field(), change.oldValue(), change.newValue()));
+        }
+
+        String body = """
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
+                    <div style="padding: 30px;">
+                        <h1 style="color: #f97316;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="background-color: #3d3a37; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                            <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">%s</p>
+                            %s
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                subject,
+                msg.get("email.event.modified.admin.body", eventName, date.format(DATE_FMT)),
+                msg.get("email.event.modified.changes"),
+                changesHtml
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {

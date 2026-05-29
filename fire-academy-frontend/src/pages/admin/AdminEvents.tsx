@@ -52,16 +52,21 @@ export function AdminEvents({ category }: AdminEventsProps) {
     onSuccess: invalidate,
   })
   const updateMut = useMutation({
-    mutationFn: (id: string) => adminApi.updateEvent(id, {
-      startDate: form.startDate,
-      description: form.description || undefined,
-      endDate: form.endDate || undefined,
-      startTime: form.startTime || undefined,
-      endTime: form.endTime || undefined,
-      location: form.location || undefined,
-      price: form.price ? Number(form.price) : undefined,
-      maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-    }),
+    mutationFn: (id: string) => {
+      const matchedType = eventTypes?.find(et => et.name === form.eventTypeName)
+      return adminApi.updateEvent(id, {
+        eventTypeId: matchedType?.id,
+        customName: matchedType ? undefined : form.eventTypeName || undefined,
+        description: form.description || undefined,
+        startDate: form.startDate,
+        endDate: form.endDate || undefined,
+        startTime: form.startTime || undefined,
+        endTime: form.endTime || undefined,
+        location: form.location || undefined,
+        price: form.price ? Number(form.price) : undefined,
+        maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
+      })
+    },
     onSuccess: invalidate,
   })
   const deleteMut = useMutation({ mutationFn: adminApi.deleteEvent, onSuccess: invalidate })
@@ -153,21 +158,19 @@ export function AdminEvents({ category }: AdminEventsProps) {
         title={editItem ? t('events.editTitle') : t('events.createTitle')}
       >
         <div className="space-y-4">
-          {!editItem && (
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.eventType')}</label>
-              <input
-                list={`event-types-${category}`}
-                value={form.eventTypeName}
-                onChange={e => setForm(f => ({ ...f, eventTypeName: e.target.value }))}
-                placeholder={t('events.typeOrSelect')}
-                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <datalist id={`event-types-${category}`}>
-                {eventTypes?.map(et => <option key={et.id} value={et.name} />)}
-              </datalist>
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.eventType')}</label>
+            <input
+              list={`event-types-${category}`}
+              value={form.eventTypeName}
+              onChange={e => setForm(f => ({ ...f, eventTypeName: e.target.value }))}
+              placeholder={t('events.typeOrSelect')}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <datalist id={`event-types-${category}`}>
+              {eventTypes?.map(et => <option key={et.id} value={et.name} />)}
+            </datalist>
+          </div>
           {(form.eventTypeName && !eventTypes?.find(et => et.name === form.eventTypeName)) && (
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.description')}</label>

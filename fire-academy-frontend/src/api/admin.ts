@@ -41,8 +41,10 @@ interface CreateEventRequest {
 }
 
 interface UpdateEventRequest {
-  startDate: string
+  eventTypeId?: string
+  customName?: string
   description?: string
+  startDate: string
   endDate?: string
   startTime?: string
   endTime?: string

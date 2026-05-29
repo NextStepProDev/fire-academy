@@ -87,6 +87,13 @@ public class PublicService {
             throw new IllegalStateException(msg.get("enrollment.event.inactive"));
         }
 
+        var startDateTime = event.getStartTime() != null
+                ? event.getStartDate().atTime(event.getStartTime())
+                : event.getStartDate().atStartOfDay();
+        if (java.time.LocalDateTime.now().plusHours(24).isAfter(startDateTime)) {
+            throw new IllegalStateException(msg.get("enrollment.too.late"));
+        }
+
         if (enrollmentRepository.existsByEventIdAndEmail(eventId, request.email())) {
             throw new IllegalStateException(msg.get("enrollment.duplicate"));
         }

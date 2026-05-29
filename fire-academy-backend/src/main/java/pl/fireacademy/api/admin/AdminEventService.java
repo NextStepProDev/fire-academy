@@ -3,11 +3,18 @@ package pl.fireacademy.api.admin;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.admin.EventDtos.*;
+import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -16,21 +23,24 @@ public class AdminEventService {
     private final EventRepository eventRepository;
     private final EventTypeRepository eventTypeRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentMailService enrollmentMailService;
     private final MessageService msg;
 
     public AdminEventService(EventRepository eventRepository,
                              EventTypeRepository eventTypeRepository,
                              EnrollmentRepository enrollmentRepository,
+                             EnrollmentMailService enrollmentMailService,
                              MessageService msg) {
         this.eventRepository = eventRepository;
         this.eventTypeRepository = eventTypeRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.enrollmentMailService = enrollmentMailService;
         this.msg = msg;
     }
 
     @Transactional(readOnly = true)
     public List<EventResponse> getAll(EventCategory category) {
-        return eventRepository.findByCategoryOrderByStartDateDesc(category).stream()
+        return eventRepository.findByCategoryOrderByStartDateAsc(category).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -62,15 +72,56 @@ public class AdminEventService {
     @Transactional
     public EventResponse update(UUID id, UpdateEventRequest request) {
         var event = findOrThrow(id);
+        var changes = new ArrayList<FieldChange>();
+
+        String oldName = event.getDisplayName();
+        if (request.eventTypeId() != null) {
+            var eventType = eventTypeRepository.findById(request.eventTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+            event.setEventType(eventType);
+            addChange(changes, msg.get("email.change.name"), oldName, eventType.getName());
+        } else if (request.customName() != null && !request.customName().isBlank()) {
+            event.convertToCustomName(request.customName());
+            addChange(changes, msg.get("email.change.name"), oldName, request.customName());
+        }
+
+        addChange(changes, msg.get("email.change.date"), fmt(event.getStartDate()), fmt(request.startDate()));
         event.setStartDate(request.startDate());
-        event.setDescription(request.description());
+
+        addChange(changes, msg.get("email.change.endDate"), fmt(event.getEndDate()), fmt(request.endDate()));
         event.setEndDate(request.endDate());
+
+        addChange(changes, msg.get("email.change.startTime"), fmt(event.getStartTime()), fmt(request.startTime()));
         event.setStartTime(request.startTime());
+
+        addChange(changes, msg.get("email.change.endTime"), fmt(event.getEndTime()), fmt(request.endTime()));
         event.setEndTime(request.endTime());
+
+        addChange(changes, msg.get("email.change.location"), orEmpty(event.getLocation()), orEmpty(request.location()));
         event.setLocation(request.location());
+
+        addChange(changes, msg.get("email.change.price"), fmtPrice(event.getPrice()), fmtPrice(request.price()));
         event.setPrice(request.price());
+
+        addChange(changes, msg.get("email.change.maxParticipants"), fmt(event.getMaxParticipants()), fmt(request.maxParticipants()));
         event.setMaxParticipants(request.maxParticipants());
-        return toResponse(eventRepository.save(event));
+
+        event.setDescription(request.description());
+
+        var saved = eventRepository.save(event);
+
+        if (!changes.isEmpty()) {
+            var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(id);
+            for (Enrollment enrollment : enrollments) {
+                enrollmentMailService.sendEventModificationNotification(
+                        enrollment.getEmail(), enrollment.getFirstName(),
+                        saved.getDisplayName(), saved.getStartDate(), changes);
+            }
+            enrollmentMailService.sendEventModificationAdminNotification(
+                    saved.getDisplayName(), saved.getStartDate(), changes);
+        }
+
+        return toResponse(saved);
     }
 
     @Transactional
@@ -108,4 +159,14 @@ public class AdminEventService {
                 enrollmentCount, e.isActive(), e.getCreatedAt()
         );
     }
+
+    private void addChange(List<FieldChange> changes, String field, String oldVal, String newVal) {
+        if (!Objects.equals(oldVal, newVal)) {
+            changes.add(new FieldChange(field, oldVal.isEmpty() ? "–" : oldVal, newVal.isEmpty() ? "–" : newVal));
+        }
+    }
+
+    private static String fmt(Object val) { return val != null ? val.toString() : ""; }
+    private static String orEmpty(String val) { return val != null ? val : ""; }
+    private static String fmtPrice(BigDecimal val) { return val != null ? val.toPlainString() + " PLN" : ""; }
 }

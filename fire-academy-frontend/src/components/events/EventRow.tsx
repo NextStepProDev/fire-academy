@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Users } from 'lucide-react'
+import { MapPin, Calendar, Users, Phone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
 import { formatDateRange } from '../../utils/dates'
@@ -10,9 +10,19 @@ interface EventRowProps {
   onDetails?: () => void
 }
 
+function isWithin24h(event: EventInstance): boolean {
+  const startDateTime = event.startTime
+    ? new Date(`${event.startDate}T${event.startTime}`)
+    : new Date(`${event.startDate}T00:00:00`)
+  const hoursLeft = (startDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
+  return hoursLeft < 24
+}
+
 export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
   const { t } = useTranslation('events')
   const isFull = event.maxParticipants != null && event.availableSpots <= 0
+  const tooLate = isWithin24h(event)
+  const canEnroll = !isFull && !tooLate
 
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -40,6 +50,14 @@ export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
         {event.price != null && (
           <p className="text-primary-400 font-semibold">{event.price} PLN</p>
         )}
+        {tooLate && !isFull && (
+          <p className="text-sm text-surface-400">
+            {t('event.tooLate')}
+            <a href="tel:+48534823667" className="ml-1 text-primary-400 hover:text-primary-300 inline-flex items-center gap-1">
+              <Phone className="w-3.5 h-3.5" />534 823 667
+            </a>
+          </p>
+        )}
       </div>
       <div className="flex gap-2 sm:ml-auto">
         {onDetails && (
@@ -51,9 +69,9 @@ export function EventRow({ event, onEnroll, onDetails }: EventRowProps) {
           variant="primary"
           size="sm"
           onClick={onEnroll}
-          disabled={isFull}
+          disabled={!canEnroll}
         >
-          {isFull ? t('event.spotsFull') : t('event.enroll')}
+          {isFull ? t('event.spotsFull') : tooLate ? t('event.enrollClosed') : t('event.enroll')}
         </Button>
       </div>
     </div>

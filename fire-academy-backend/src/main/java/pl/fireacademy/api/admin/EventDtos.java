@@ -45,9 +45,13 @@ public final class EventDtos {
             @Nullable Integer maxParticipants
     ) {}
 
+    public record FieldChange(String field, String oldValue, String newValue) {}
+
     public record UpdateEventRequest(
-            @NotNull LocalDate startDate,
+            @Nullable UUID eventTypeId,
+            @Nullable String customName,
             @Nullable String description,
+            @NotNull LocalDate startDate,
             @Nullable LocalDate endDate,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,

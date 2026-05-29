@@ -83,6 +83,11 @@ public class Event {
         this.startDate = startDate;
     }
 
+    public void setEventType(EventType eventType) {
+        this.eventType = eventType;
+        this.customName = null;
+    }
+
     public void convertToCustomName(String name) {
         this.customName = name;
         this.eventType = null;

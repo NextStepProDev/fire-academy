@@ -16,7 +16,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     List<Event> findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
             EventCategory category, LocalDate date);
 
-    List<Event> findByCategoryOrderByStartDateDesc(EventCategory category);
+    List<Event> findByCategoryOrderByStartDateAsc(EventCategory category);
 
     List<Event> findByEventTypeIdOrderByStartDateDesc(UUID eventTypeId);
 
