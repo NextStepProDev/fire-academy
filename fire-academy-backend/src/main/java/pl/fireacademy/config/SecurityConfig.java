@@ -72,6 +72,7 @@ public class SecurityConfig {
                     auth.requestMatchers("/api/dev/**").permitAll();
                 }
                 auth.requestMatchers("/og/**").permitAll()
+                    .requestMatchers("/sitemap.xml").permitAll()
                     .requestMatchers("/api/public/**").permitAll()
                     .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .requestMatchers("/api/user/**").authenticated()

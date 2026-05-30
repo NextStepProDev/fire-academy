@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet-async'
 import { ArrowLeft, Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { publicApi } from '../api/public'
 import { slugToCategory } from '../utils/categorySlug'
 import { formatDateRange } from '../utils/dates'
+import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
@@ -77,9 +77,50 @@ export function EventTypeDetailPage() {
 
   return (
     <>
-      <Helmet>
-        <title>{et.name} | Fire Academy</title>
-      </Helmet>
+      <Seo
+        title={et.name}
+        description={et.description || `${et.name} — sprawdź szczegóły i nadchodzące terminy w Fire Academy.`}
+        path={shareUrl}
+        image={et.thumbnailUrl}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Course',
+          name: et.name,
+          ...(et.description && { description: et.description }),
+          provider: {
+            '@type': 'Organization',
+            name: 'Fire Academy',
+            url: window.location.origin,
+          },
+          ...(et.thumbnailUrl && { image: `${window.location.origin}${et.thumbnailUrl}` }),
+          url: `${window.location.origin}${shareUrl}`,
+          inLanguage: 'pl',
+          ...(relatedEvents.length > 0 && {
+            hasCourseInstance: relatedEvents.map(event => ({
+              '@type': 'CourseInstance',
+              courseMode: 'Offline',
+              startDate: event.startTime ? `${event.startDate}T${event.startTime}` : event.startDate,
+              ...(event.endDate && { endDate: event.endTime ? `${event.endDate}T${event.endTime}` : event.endDate }),
+              ...(event.location && { location: { '@type': 'Place', name: event.location } }),
+              ...(event.price != null && {
+                offers: {
+                  '@type': 'Offer',
+                  price: String(event.price),
+                  priceCurrency: 'PLN',
+                  availability: event.maxParticipants != null && event.availableSpots <= 0
+                    ? 'https://schema.org/SoldOut'
+                    : 'https://schema.org/InStock',
+                },
+              }),
+            })),
+          }),
+        }}
+        breadcrumbs={[
+          { name: 'Fire Academy', path: '/' },
+          { name: t(`${({ TRAINING: 'trainings', CAMP: 'camps', COURSE: 'courses' } as const)[category!]}.title`), path: `/${categorySlug}` },
+          { name: et.name, path: shareUrl },
+        ]}
+      />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
         <Link

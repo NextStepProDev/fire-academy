@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /settings
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /resend-verification
+Disallow: /oauth-callback
+Disallow: /api/
+
+Sitemap: https://fireacademy.pl/sitemap.xml

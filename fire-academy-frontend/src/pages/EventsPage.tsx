@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet-async'
 import { publicApi } from '../api/public'
+import { Seo } from '../components/seo/Seo'
 import { InstructorCard } from '../components/events/InstructorCard'
 import { InstructorModal } from '../components/events/InstructorModal'
 import { EventTypeCard } from '../components/events/EventTypeCard'
@@ -59,12 +59,48 @@ export function EventsPage({ category }: EventsPageProps) {
   const titleKey = { CAMP: 'camps.title', COURSE: 'courses.title', TRAINING: 'trainings.title' }[category]
   const pageTitle = t(titleKey)
   const slug = categoryToSlug(category)
+  const descriptionMap: Record<string, string> = {
+    TRAINING: 'Treningi indywidualne i grupowe w Fire Academy. Sprawdź nadchodzące terminy, rodzaje treningów i kadrę instruktorów.',
+    CAMP: 'Obozy sportowe Fire Academy. Sprawdź terminy obozów, programy i dostępne miejsca.',
+    COURSE: 'Szkolenia i kursy Fire Academy. Podnieś swoje umiejętności z doświadczoną kadrą.',
+  }
+
+  const eventsJsonLd = (eventsQuery.data ?? []).map(event => ({
+    '@context': 'https://schema.org' as const,
+    '@type': 'Event' as const,
+    name: event.eventTypeName,
+    startDate: event.startTime ? `${event.startDate}T${event.startTime}` : event.startDate,
+    ...(event.endDate && { endDate: event.endTime ? `${event.endDate}T${event.endTime}` : event.endDate }),
+    ...(event.location && { location: { '@type': 'Place' as const, name: event.location } }),
+    ...(event.description && { description: event.description }),
+    ...(event.price != null && {
+      offers: {
+        '@type': 'Offer' as const,
+        price: String(event.price),
+        priceCurrency: 'PLN',
+        availability: event.maxParticipants != null && event.availableSpots <= 0
+          ? 'https://schema.org/SoldOut'
+          : 'https://schema.org/InStock',
+        url: `${window.location.origin}/${slug}/termin/${event.id}`,
+      },
+    }),
+    organizer: { '@type': 'Organization' as const, name: 'Fire Academy' },
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    url: `${window.location.origin}/${slug}/termin/${event.id}`,
+  }))
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
-      <Helmet>
-        <title>{pageTitle} | Fire Academy</title>
-      </Helmet>
+      <Seo
+        title={pageTitle}
+        description={descriptionMap[category]}
+        path={`/${slug}`}
+        jsonLd={eventsJsonLd.length > 0 ? eventsJsonLd : undefined}
+        breadcrumbs={[
+          { name: 'Fire Academy', path: '/' },
+          { name: pageTitle, path: `/${slug}` },
+        ]}
+      />
       <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{pageTitle}</h1>
 
       {/* Terminy */}

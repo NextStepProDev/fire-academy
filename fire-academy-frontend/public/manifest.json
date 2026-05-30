@@ -1,0 +1,17 @@
+{
+  "name": "Fire Academy",
+  "short_name": "Fire Academy",
+  "description": "Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#f97316",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -18,6 +18,10 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
       },
+      '/sitemap.xml': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
       '/oauth2': {
         target: 'http://localhost:8081',
         changeOrigin: true,

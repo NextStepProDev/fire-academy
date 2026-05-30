@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet-async'
 import { ArrowLeft, Calendar, MapPin, Users, Phone } from 'lucide-react'
 import { publicApi } from '../api/public'
 import { slugToCategory } from '../utils/categorySlug'
 import { formatDateRange } from '../utils/dates'
+import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
@@ -64,11 +64,61 @@ export function EventDetailPage() {
     ? `${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}`
     : null
 
+  const seoDescription = [
+    dateStr,
+    timeStr,
+    event.location,
+    event.price != null ? `${event.price} PLN` : null,
+    event.description,
+  ].filter(Boolean).join(' | ')
+
+  const eventJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: event.eventTypeName,
+    startDate: event.startTime ? `${event.startDate}T${event.startTime}` : event.startDate,
+    ...(event.endDate && { endDate: event.endTime ? `${event.endDate}T${event.endTime}` : event.endDate }),
+    ...(event.location && {
+      location: { '@type': 'Place', name: event.location },
+    }),
+    ...(event.description && { description: event.description }),
+    ...(thumbnail && { image: `${window.location.origin}${thumbnail}` }),
+    ...(event.price != null && {
+      offers: {
+        '@type': 'Offer',
+        price: String(event.price),
+        priceCurrency: 'PLN',
+        availability: isFull ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+        url: `${window.location.origin}${shareUrl}`,
+      },
+    }),
+    ...(event.maxParticipants != null && {
+      maximumAttendeeCapacity: event.maxParticipants,
+      remainingAttendeeCapacity: event.availableSpots,
+    }),
+    organizer: {
+      '@type': 'Organization',
+      name: 'Fire Academy',
+      url: window.location.origin,
+    },
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    eventStatus: 'https://schema.org/EventScheduled',
+  }
+
   return (
     <>
-      <Helmet>
-        <title>{event.eventTypeName} — {dateStr} | Fire Academy</title>
-      </Helmet>
+      <Seo
+        title={`${event.eventTypeName} — ${dateStr}`}
+        description={seoDescription}
+        path={shareUrl}
+        image={thumbnail}
+        jsonLd={eventJsonLd}
+        breadcrumbs={[
+          { name: 'Fire Academy', path: '/' },
+          { name: t(`${({ TRAINING: 'trainings', CAMP: 'camps', COURSE: 'courses' } as const)[category!]}.title`), path: `/${categorySlug}` },
+          { name: event.eventTypeName, path: shareUrl },
+        ]}
+      />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
         <Link

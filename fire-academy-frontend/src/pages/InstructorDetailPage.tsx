@@ -1,9 +1,9 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet-async'
 import { ArrowLeft, User } from 'lucide-react'
 import { publicApi } from '../api/public'
+import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
@@ -36,9 +36,32 @@ export function InstructorDetailPage() {
 
   return (
     <>
-      <Helmet>
-        <title>{fullName} | Fire Academy</title>
-      </Helmet>
+      <Seo
+        title={fullName}
+        description={instructor.bio || `${fullName} — instruktor Fire Academy.`}
+        path={shareUrl}
+        image={instructor.photoUrl}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Person',
+          name: fullName,
+          givenName: instructor.firstName,
+          familyName: instructor.lastName,
+          ...(instructor.bio && { description: instructor.bio }),
+          ...(instructor.photoUrl && { image: `${window.location.origin}${instructor.photoUrl}` }),
+          jobTitle: 'Instruktor',
+          worksFor: {
+            '@type': 'Organization',
+            name: 'Fire Academy',
+            url: window.location.origin,
+          },
+          url: `${window.location.origin}${shareUrl}`,
+        }}
+        breadcrumbs={[
+          { name: 'Fire Academy', path: '/' },
+          { name: fullName, path: shareUrl },
+        ]}
+      />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
         <button

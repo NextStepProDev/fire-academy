@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Helmet } from 'react-helmet-async'
+import { Seo } from '../components/seo/Seo'
 import { HeroIntro } from '../components/home/HeroIntro'
 
 const sections = [
@@ -46,9 +46,31 @@ export function HomePage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      <Helmet>
-        <title>Fire Academy</title>
-      </Helmet>
+      <Seo
+        title="Fire Academy"
+        description="Fire Academy — treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców."
+        path="/"
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SportsActivityLocation',
+            name: 'Fire Academy',
+            description: 'Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.',
+            url: window.location.origin,
+            image: `${window.location.origin}/og-default.png`,
+            telephone: '+48534823667',
+            '@id': `${window.location.origin}/#organization`,
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'Fire Academy',
+            url: window.location.origin,
+            publisher: { '@id': `${window.location.origin}/#organization` },
+            inLanguage: 'pl-PL',
+          },
+        ]}
+      />
       {showIntro && <HeroIntro onComplete={handleIntroComplete} />}
       {sections.map((section) => (
         <Link
