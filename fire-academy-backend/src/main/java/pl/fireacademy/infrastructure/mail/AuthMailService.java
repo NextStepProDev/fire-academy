@@ -7,6 +7,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -78,6 +79,7 @@ public class AuthMailService {
     }
 
     private String buildVerificationEmailBody(String lang, String firstName, String verificationUrl) {
+        String safeFirstName = HtmlUtils.htmlEscape(firstName);
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
@@ -96,7 +98,7 @@ public class AuthMailService {
             </body>
             </html>
             """.formatted(
-            msg.getForLang("email.verification.greeting", lang, firstName),
+            msg.getForLang("email.verification.greeting", lang, safeFirstName),
             msg.getForLang("email.verification.body", lang),
             msg.getForLang("email.verification.action", lang),
             verificationUrl,
@@ -107,6 +109,7 @@ public class AuthMailService {
     }
 
     private String buildWelcomeEmailBody(String lang, String firstName) {
+        String safeFirstName = HtmlUtils.htmlEscape(firstName);
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
@@ -120,13 +123,14 @@ public class AuthMailService {
             </body>
             </html>
             """.formatted(
-            msg.getForLang("email.welcome.greeting", lang, firstName),
+            msg.getForLang("email.welcome.greeting", lang, safeFirstName),
             msg.getForLang("email.welcome.body", lang),
             msg.getForLang("email.welcome.see.you", lang)
         );
     }
 
     private String buildPasswordResetEmailBody(String lang, String firstName, String resetUrl) {
+        String safeFirstName = HtmlUtils.htmlEscape(firstName);
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
@@ -145,7 +149,7 @@ public class AuthMailService {
             </body>
             </html>
             """.formatted(
-            msg.getForLang("email.reset.greeting", lang, firstName),
+            msg.getForLang("email.reset.greeting", lang, safeFirstName),
             msg.getForLang("email.reset.body", lang),
             msg.getForLang("email.reset.action", lang),
             resetUrl,
@@ -156,6 +160,7 @@ public class AuthMailService {
     }
 
     private String buildPasswordChangedEmailBody(String lang, String firstName) {
+        String safeFirstName = HtmlUtils.htmlEscape(firstName);
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
@@ -169,7 +174,7 @@ public class AuthMailService {
             </body>
             </html>
             """.formatted(
-            msg.getForLang("email.password.changed.greeting", lang, firstName),
+            msg.getForLang("email.password.changed.greeting", lang, safeFirstName),
             msg.getForLang("email.password.changed.body", lang),
             msg.getForLang("email.password.changed.warning", lang)
         );

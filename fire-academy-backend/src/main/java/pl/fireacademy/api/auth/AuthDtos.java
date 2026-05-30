@@ -9,8 +9,8 @@ public final class AuthDtos {
     public record RegisterRequest(
         @NotBlank(message = "{validation.email.required}") @Email(message = "{validation.email.invalid}") String email,
         @NotBlank(message = "{validation.password.required}") @Size(min = 8, max = 100, message = "{validation.password.size}") String password,
-        @NotBlank(message = "{validation.firstname.required}") @Size(min = 3, max = 100, message = "{validation.firstname.size}") String firstName,
-        @NotBlank(message = "{validation.lastname.required}") @Size(min = 3, max = 100, message = "{validation.lastname.size}") String lastName,
+        @NotBlank(message = "{validation.firstname.required}") @Size(min = 3, max = 36, message = "{validation.firstname.size}") String firstName,
+        @NotBlank(message = "{validation.lastname.required}") @Size(min = 3, max = 36, message = "{validation.lastname.size}") String lastName,
         @Nullable String phone,
         @Nullable String preferredLanguage
     ) {}
