@@ -107,7 +107,8 @@ class PublicServiceTest {
         when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(2L);
+        when(enrollmentRepository.countByEventIds(List.of(eventId)))
+            .thenReturn(List.<Object[]>of(new Object[]{eventId, 2L}));
 
         List<EventCard> result = publicService.getUpcomingEvents(EventCategory.TRAINING);
 
@@ -121,7 +122,8 @@ class PublicServiceTest {
         when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(10L);
+        when(enrollmentRepository.countByEventIds(List.of(eventId)))
+            .thenReturn(List.<Object[]>of(new Object[]{eventId, 10L}));
 
         List<EventCard> result = publicService.getUpcomingEvents(EventCategory.TRAINING);
 
@@ -133,7 +135,8 @@ class PublicServiceTest {
         when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(6L);
+        when(enrollmentRepository.countByEventIds(List.of(eventId)))
+            .thenReturn(List.<Object[]>of(new Object[]{eventId, 6L}));
 
         List<EventCard> result = publicService.getUpcomingEvents(EventCategory.TRAINING);
 

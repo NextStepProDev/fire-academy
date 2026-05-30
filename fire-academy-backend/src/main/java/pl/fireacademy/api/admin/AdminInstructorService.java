@@ -1,9 +1,12 @@
 package pl.fireacademy.api.admin;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.admin.InstructorDtos.*;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -35,6 +38,10 @@ public class AdminInstructorService {
                 .toList();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public InstructorResponse create(CreateInstructorRequest request) {
         int maxOrder = instructorRepository.findTopByOrderByDisplayOrderDesc()
@@ -48,6 +55,10 @@ public class AdminInstructorService {
         return toResponse(instructorRepository.save(instructor));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public InstructorResponse update(UUID id, UpdateInstructorRequest request) {
         var instructor = findOrThrow(id);
@@ -58,6 +69,10 @@ public class AdminInstructorService {
         return toResponse(instructorRepository.save(instructor));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public void delete(UUID id) {
         var instructor = findOrThrow(id);
@@ -67,6 +82,10 @@ public class AdminInstructorService {
         instructorRepository.delete(instructor);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public InstructorResponse uploadPhoto(UUID id, MultipartFile file) {
         var instructor = findOrThrow(id);
@@ -78,6 +97,10 @@ public class AdminInstructorService {
         return toResponse(instructorRepository.save(instructor));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public InstructorResponse toggleActive(UUID id) {
         var instructor = findOrThrow(id);
@@ -85,6 +108,10 @@ public class AdminInstructorService {
         return toResponse(instructorRepository.save(instructor));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.INSTRUCTORS, allEntries = true),
+            @CacheEvict(value = CacheConfig.INSTRUCTOR, allEntries = true)
+    })
     @Transactional
     public void reorder(UUID id, String direction) {
         var all = instructorRepository.findAllByOrderByDisplayOrderAsc();

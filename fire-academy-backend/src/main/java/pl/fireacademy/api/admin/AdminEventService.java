@@ -1,8 +1,11 @@
 package pl.fireacademy.api.admin;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.admin.EventDtos.*;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
@@ -45,6 +48,10 @@ public class AdminEventService {
                 .toList();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public EventResponse create(CreateEventRequest request) {
         if (request.startDate().isBefore(LocalDate.now())) {
@@ -73,6 +80,10 @@ public class AdminEventService {
         return toResponse(eventRepository.save(event));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public EventResponse update(UUID id, UpdateEventRequest request) {
         if (request.startDate().isBefore(LocalDate.now())) {
@@ -132,6 +143,10 @@ public class AdminEventService {
         return toResponse(saved);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public EventResponse toggleActive(UUID id) {
         var event = findOrThrow(id);
@@ -139,6 +154,10 @@ public class AdminEventService {
         return toResponse(eventRepository.save(event));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public void delete(UUID id) {
         var event = findOrThrow(id);

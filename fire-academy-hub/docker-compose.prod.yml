@@ -2,18 +2,25 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: fa-postgres-prod
+    mem_limit: 256m
     command:
       - "postgres"
       - "-c"
-      - "shared_buffers=128MB"
+      - "shared_buffers=48MB"
       - "-c"
-      - "work_mem=8MB"
+      - "work_mem=4MB"
       - "-c"
-      - "effective_cache_size=256MB"
+      - "effective_cache_size=128MB"
       - "-c"
       - "random_page_cost=1.1"
       - "-c"
       - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "max_connections=30"
+      - "-c"
+      - "maintenance_work_mem=32MB"
+      - "-c"
+      - "wal_buffers=2MB"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -22,26 +29,26 @@ services:
       - fa_postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
+        max-size: "10m"
         max-file: "3"
 
   backend:
     image: ghcr.io/${GHCR_OWNER}/fire-academy-backend:${VERSION:-latest}
     container_name: fa-backend-prod
-    mem_limit: 400m
+    mem_limit: 384m
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
-      interval: 15s
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
       timeout: 5s
-      retries: 8
-      start_period: 60s
+      retries: 5
+      start_period: 90s
     volumes:
       - fa_uploads_data_prod:/app/uploads
     environment:
@@ -67,6 +74,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS}
       APP_BASE_URL: ${APP_BASE_URL}
+      JAVA_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,12 +82,13 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "20m"
+        max-file: "3"
 
   frontend:
     image: ghcr.io/${GHCR_OWNER}/fire-academy-frontend:${VERSION:-latest}
     container_name: fa-frontend-prod
+    mem_limit: 64m
     depends_on:
       - backend
     networks:
@@ -89,7 +98,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "20m"
+        max-size: "10m"
         max-file: "3"
 
 volumes:

@@ -1,8 +1,11 @@
 package pl.fireacademy.api.pub;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.pub.PublicDtos.*;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
@@ -13,7 +16,9 @@ import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class PublicService {
@@ -39,6 +44,7 @@ public class PublicService {
         this.msg = msg;
     }
 
+    @Cacheable(CacheConfig.INSTRUCTORS)
     public List<InstructorCard> getActiveInstructors(EventCategory category) {
         return instructorRepository.findActiveByCategoryOrdered(category).stream()
                 .map(i -> new InstructorCard(
@@ -48,6 +54,7 @@ public class PublicService {
                 .toList();
     }
 
+    @Cacheable(CacheConfig.EVENT_TYPES)
     @Transactional(readOnly = true)
     public List<EventTypeCard> getActiveEventTypes(EventCategory category) {
         return eventTypeRepository.findByCategoryAndActiveTrueOrderByDisplayOrderAsc(category).stream()
@@ -61,13 +68,23 @@ public class PublicService {
                 .toList();
     }
 
+    @Cacheable(CacheConfig.EVENTS)
     @Transactional(readOnly = true)
     public List<EventCard> getUpcomingEvents(EventCategory category) {
         var events = eventRepository
                 .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
                         category, LocalDate.now());
+
+        if (events.isEmpty()) {
+            return List.of();
+        }
+
+        var eventIds = events.stream().map(Event::getId).toList();
+        Map<UUID, Long> countMap = enrollmentRepository.countByEventIds(eventIds).stream()
+                .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
+
         return events.stream().map(e -> {
-            long enrolled = enrollmentRepository.countByEventId(e.getId());
+            long enrolled = countMap.getOrDefault(e.getId(), 0L);
             Integer max = e.getMaxParticipants();
             int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
             var et = e.getEventType();
@@ -79,6 +96,7 @@ public class PublicService {
         }).toList();
     }
 
+    @Cacheable(CacheConfig.INSTRUCTOR)
     public InstructorCard getInstructorById(UUID id) {
         var i = instructorRepository.findById(id)
                 .filter(Instructor::isActive)
@@ -89,6 +107,7 @@ public class PublicService {
         );
     }
 
+    @Cacheable(CacheConfig.EVENT_TYPE)
     @Transactional(readOnly = true)
     public EventTypeCard getEventTypeById(UUID id) {
         var et = eventTypeRepository.findById(id)
@@ -103,6 +122,7 @@ public class PublicService {
         );
     }
 
+    @Cacheable(CacheConfig.EVENT)
     @Transactional(readOnly = true)
     public EventCard getEventById(UUID id) {
         var event = eventRepository.findById(id)
@@ -119,6 +139,7 @@ public class PublicService {
         );
     }
 
+    @CacheEvict(value = {CacheConfig.EVENTS, CacheConfig.EVENT}, allEntries = true)
     @Transactional
     public void enroll(UUID eventId, EnrollRequest request) {
         var event = eventRepository.findByIdForUpdate(eventId)

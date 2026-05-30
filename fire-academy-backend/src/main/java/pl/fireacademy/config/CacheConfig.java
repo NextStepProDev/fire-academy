@@ -15,10 +15,23 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
 
+    public static final String INSTRUCTORS = "publicInstructors";
+    public static final String EVENT_TYPES = "publicEventTypes";
+    public static final String EVENTS = "publicEvents";
+    public static final String INSTRUCTOR = "publicInstructor";
+    public static final String EVENT_TYPE = "publicEventType";
+    public static final String EVENT = "publicEvent";
+
     @Bean
     public CacheManager cacheManager() {
         SimpleCacheManager manager = new SimpleCacheManager();
         manager.setCaches(List.of(
+                build(INSTRUCTORS, 10, 10),
+                build(EVENT_TYPES, 10, 10),
+                build(EVENTS, 10, 2),
+                build(INSTRUCTOR, 50, 10),
+                build(EVENT_TYPE, 50, 10),
+                build(EVENT, 50, 2)
         ));
         return manager;
     }

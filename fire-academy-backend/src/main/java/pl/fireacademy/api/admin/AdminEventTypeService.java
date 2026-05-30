@@ -1,9 +1,12 @@
 package pl.fireacademy.api.admin;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.admin.EventTypeDtos.*;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
@@ -42,6 +45,10 @@ public class AdminEventTypeService {
                 .toList();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public EventTypeResponse create(CreateEventTypeRequest request) {
         int maxOrder = eventTypeRepository.findTopByCategoryOrderByDisplayOrderDesc(request.category())
@@ -54,6 +61,10 @@ public class AdminEventTypeService {
         return toResponse(eventTypeRepository.save(et));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public EventTypeResponse update(UUID id, UpdateEventTypeRequest request) {
         var et = findOrThrow(id);
@@ -62,6 +73,12 @@ public class AdminEventTypeService {
         return toResponse(eventTypeRepository.save(et));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public void delete(UUID id) {
         var et = findOrThrow(id);
@@ -78,6 +95,10 @@ public class AdminEventTypeService {
         eventTypeRepository.delete(et);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public EventTypeResponse uploadThumbnail(UUID id, MultipartFile file) {
         var et = findOrThrow(id);
@@ -89,6 +110,10 @@ public class AdminEventTypeService {
         return toResponse(eventTypeRepository.save(et));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public EventTypeResponse addPhoto(UUID id, MultipartFile file) {
         var et = findOrThrow(id);
@@ -101,6 +126,10 @@ public class AdminEventTypeService {
         return toResponse(eventTypeRepository.save(et));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public void deletePhoto(UUID eventTypeId, UUID photoId) {
         var et = findOrThrow(eventTypeId);
@@ -113,6 +142,10 @@ public class AdminEventTypeService {
         eventTypeRepository.save(et);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public EventTypeResponse toggleActive(UUID id) {
         var et = findOrThrow(id);
@@ -120,6 +153,10 @@ public class AdminEventTypeService {
         return toResponse(eventTypeRepository.save(et));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public void reorder(UUID id, String direction) {
         var et = findOrThrow(id);
@@ -142,6 +179,10 @@ public class AdminEventTypeService {
         eventTypeRepository.save(b);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENT_TYPES, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT_TYPE, allEntries = true)
+    })
     @Transactional
     public void reorderPhoto(UUID eventTypeId, UUID photoId, String direction) {
         var et = findOrThrow(eventTypeId);

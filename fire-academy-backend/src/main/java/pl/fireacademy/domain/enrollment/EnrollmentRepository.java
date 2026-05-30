@@ -3,15 +3,20 @@ package pl.fireacademy.domain.enrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pl.fireacademy.domain.event.EventCategory;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     long countByEventId(UUID eventId);
+
+    @Query("SELECT e.event.id, COUNT(e) FROM Enrollment e WHERE e.event.id IN :eventIds GROUP BY e.event.id")
+    List<Object[]> countByEventIds(@Param("eventIds") Collection<UUID> eventIds);
 
     List<Enrollment> findByEventIdOrderByCreatedAtDesc(UUID eventId);
 

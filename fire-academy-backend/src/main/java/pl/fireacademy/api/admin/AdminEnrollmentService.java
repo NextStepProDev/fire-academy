@@ -1,8 +1,11 @@
 package pl.fireacademy.api.admin;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.admin.EnrollmentDtos.*;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.EventCategory;
@@ -45,6 +48,10 @@ public class AdminEnrollmentService {
                 .toList();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public EnrollmentResponse adminEnroll(AdminEnrollRequest request) {
         var event = eventRepository.findById(request.eventId())
@@ -66,6 +73,10 @@ public class AdminEnrollmentService {
         return toResponse(saved);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public void delete(UUID id) {
         var enrollment = enrollmentRepository.findById(id)
