@@ -200,7 +200,8 @@ public class OgController {
     }
 
     private static String escapeJson(String text) {
-        return text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
+        return text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+                .replace("<", "\\u003c").replace(">", "\\u003e");
     }
 
     private static String truncate(String text, int maxLen) {
