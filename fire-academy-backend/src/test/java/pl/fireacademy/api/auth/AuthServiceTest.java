@@ -1,0 +1,512 @@
+package pl.fireacademy.api.auth;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import pl.fireacademy.api.auth.AuthDtos.*;
+import pl.fireacademy.config.AdminEmailConfig;
+import pl.fireacademy.domain.auth.AuthToken;
+import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.auth.TokenType;
+import pl.fireacademy.domain.user.User;
+import pl.fireacademy.domain.user.UserRepository;
+import pl.fireacademy.domain.user.UserRole;
+import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.mail.AuthMailService;
+import pl.fireacademy.infrastructure.security.JwtService;
+
+import java.lang.reflect.Field;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AuthServiceTest {
+
+    @Mock private UserRepository userRepository;
+    @Mock private AuthTokenRepository authTokenRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private JwtService jwtService;
+    @Mock private AuthMailService authMailService;
+    @Mock private AdminEmailConfig adminEmailConfig;
+    @Mock private MessageService msg;
+
+    @InjectMocks private AuthService authService;
+
+    private RegisterRequest registerRequest;
+    private LoginRequest loginRequest;
+    private User existingUser;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        registerRequest = new RegisterRequest(
+            "new@example.com", "Password123", "Jan", "Kowalski", null, null
+        );
+
+        loginRequest = new LoginRequest("test@example.com", "Password123");
+
+        existingUser = new User("test@example.com", "Jan", "Kowalski", null);
+        setId(existingUser, UUID.randomUUID());
+        existingUser.setPasswordHash("encoded-password");
+        existingUser.markEmailVerified();
+    }
+
+    // --- Register ---
+
+    @Test
+    void shouldRegisterNewUser() {
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123")).thenReturn("encoded");
+        when(adminEmailConfig.isAdminEmail("new@example.com")).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("secure-token");
+        when(jwtService.hashToken("secure-token")).thenReturn("hashed-token");
+        when(msg.get("auth.register.success")).thenReturn("Rejestracja zakończona");
+
+        MessageResponse result = authService.register(registerRequest);
+
+        assertNotNull(result);
+        assertEquals("Rejestracja zakończona", result.message());
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User saved = userCaptor.getValue();
+        assertEquals("new@example.com", saved.getEmail());
+        assertEquals("Jan", saved.getFirstName());
+        assertEquals(UserRole.USER, saved.getRole());
+
+        verify(authMailService).sendVerificationEmail(any(User.class), eq("secure-token"));
+    }
+
+    @Test
+    void shouldThrowWhenEmailAlreadyExists() {
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(true);
+        when(msg.get("auth.email.exists")).thenReturn("Email zajęty");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.register(registerRequest));
+        assertEquals("Email zajęty", ex.getMessage());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldAutoPromoteAdminOnRegister() {
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123")).thenReturn("encoded");
+        when(adminEmailConfig.isAdminEmail("new@example.com")).thenReturn(true);
+        when(jwtService.generateSecureToken()).thenReturn("token");
+        when(jwtService.hashToken("token")).thenReturn("hash");
+        when(msg.get("auth.register.success")).thenReturn("ok");
+
+        authService.register(registerRequest);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals(UserRole.ADMIN, captor.getValue().getRole());
+    }
+
+    @Test
+    void shouldDefaultLanguageToPlWhenNull() {
+        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, null);
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+        when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("t");
+        when(jwtService.hashToken("t")).thenReturn("h");
+        when(msg.get("auth.register.success")).thenReturn("ok");
+
+        authService.register(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals("pl", captor.getValue().getPreferredLanguage());
+    }
+
+    @Test
+    void shouldDefaultLanguageToPlWhenUnsupported() {
+        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, "de");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+        when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("t");
+        when(jwtService.hashToken("t")).thenReturn("h");
+        when(msg.get("auth.register.success")).thenReturn("ok");
+
+        authService.register(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals("pl", captor.getValue().getPreferredLanguage());
+    }
+
+    // --- Login ---
+
+    @Test
+    void shouldLoginSuccessfully() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(jwtService.generateAccessToken(existingUser)).thenReturn("access-jwt");
+        when(jwtService.generateRefreshToken(existingUser)).thenReturn("refresh-jwt");
+        when(jwtService.hashToken("refresh-jwt")).thenReturn("refresh-hash");
+        when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
+
+        AuthTokensResponse result = authService.login(loginRequest);
+
+        assertEquals("access-jwt", result.accessToken());
+        assertEquals("refresh-jwt", result.refreshToken());
+        assertEquals(900L, result.expiresIn());
+    }
+
+    @Test
+    void shouldThrowWhenUserNotFound() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
+        when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+        assertEquals("Nieprawidłowe dane", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenOAuthUserTriesToLoginWithPassword() {
+        existingUser.setPasswordHash(null);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(msg.get("auth.login.oauth")).thenReturn("Zaloguj przez OAuth");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+        assertEquals("Zaloguj przez OAuth", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenAccountLocked() throws Exception {
+        existingUser.setPasswordHash("encoded-password");
+        Field lockedField = User.class.getDeclaredField("lockedUntil");
+        lockedField.setAccessible(true);
+        lockedField.set(existingUser, Instant.now().plusSeconds(600));
+
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(msg.get(eq("auth.login.locked"), anyLong())).thenReturn("Konto zablokowane");
+
+        var ex = assertThrows(IllegalStateException.class, () -> authService.login(loginRequest));
+        assertEquals("Konto zablokowane", ex.getMessage());
+    }
+
+    @Test
+    void shouldIncrementFailedAttemptsOnWrongPassword() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
+        when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
+
+        assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+
+        verify(userRepository).save(existingUser);
+        assertEquals(1, existingUser.getFailedLoginAttempts());
+    }
+
+    @Test
+    void shouldLockAccountAfterFiveFailedAttempts() throws Exception {
+        Field attemptsField = User.class.getDeclaredField("failedLoginAttempts");
+        attemptsField.setAccessible(true);
+        attemptsField.set(existingUser, 4);
+
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
+        when(msg.get(eq("auth.login.locked"), anyLong())).thenReturn("Konto zablokowane");
+
+        assertThrows(IllegalStateException.class, () -> authService.login(loginRequest));
+        assertTrue(existingUser.isAccountLocked());
+    }
+
+    @Test
+    void shouldThrowWhenEmailNotVerified() {
+        existingUser.setEmailVerified(false);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(msg.get("auth.email.not.verified")).thenReturn("Email niezweryfikowany");
+
+        var ex = assertThrows(IllegalStateException.class, () -> authService.login(loginRequest));
+        assertEquals("Email niezweryfikowany", ex.getMessage());
+    }
+
+    @Test
+    void shouldResetFailedAttemptsOnSuccessfulLogin() throws Exception {
+        Field attemptsField = User.class.getDeclaredField("failedLoginAttempts");
+        attemptsField.setAccessible(true);
+        attemptsField.set(existingUser, 3);
+
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(jwtService.generateAccessToken(existingUser)).thenReturn("access");
+        when(jwtService.generateRefreshToken(existingUser)).thenReturn("refresh");
+        when(jwtService.hashToken("refresh")).thenReturn("hash");
+        when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
+
+        authService.login(loginRequest);
+
+        assertEquals(0, existingUser.getFailedLoginAttempts());
+        assertNull(existingUser.getLockedUntil());
+    }
+
+    @Test
+    void shouldAutoPromoteAdminOnLogin() {
+        existingUser.setRole(UserRole.USER);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(adminEmailConfig.isAdminEmail("test@example.com")).thenReturn(true);
+        when(jwtService.generateAccessToken(existingUser)).thenReturn("access");
+        when(jwtService.generateRefreshToken(existingUser)).thenReturn("refresh");
+        when(jwtService.hashToken("refresh")).thenReturn("hash");
+        when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
+
+        authService.login(loginRequest);
+
+        assertEquals(UserRole.ADMIN, existingUser.getRole());
+    }
+
+    // --- Verify Email ---
+
+    @Test
+    void shouldVerifyEmailSuccessfully() {
+        AuthToken authToken = new AuthToken(existingUser, "hash", TokenType.EMAIL_VERIFICATION, Instant.now().plusSeconds(600));
+        existingUser.setEmailVerified(false);
+
+        when(jwtService.hashToken("raw-token")).thenReturn("hash");
+        when(authTokenRepository.findValidToken(eq("hash"), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(Optional.of(authToken));
+        when(msg.get("auth.verify.success")).thenReturn("Zweryfikowano");
+
+        MessageResponse result = authService.verifyEmail("raw-token");
+
+        assertEquals("Zweryfikowano", result.message());
+        assertTrue(existingUser.isEmailVerified());
+        assertTrue(authToken.isUsed());
+        verify(authMailService).sendWelcomeEmail(existingUser);
+    }
+
+    @Test
+    void shouldThrowWhenVerificationTokenInvalid() {
+        when(jwtService.hashToken("bad-token")).thenReturn("bad-hash");
+        when(authTokenRepository.findValidToken(eq("bad-hash"), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(Optional.empty());
+        when(msg.get("auth.verify.invalid")).thenReturn("Token nieprawidłowy");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.verifyEmail("bad-token"));
+        assertEquals("Token nieprawidłowy", ex.getMessage());
+    }
+
+    // --- Resend Verification ---
+
+    @Test
+    void shouldResendVerificationEmail() {
+        existingUser.setEmailVerified(false);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("token");
+        when(jwtService.hashToken("token")).thenReturn("hash");
+        when(msg.get("auth.resend.success")).thenReturn("Wysłano");
+
+        MessageResponse result = authService.resendVerification(new ResendVerificationRequest("test@example.com"));
+
+        assertEquals("Wysłano", result.message());
+        verify(authMailService).sendVerificationEmail(existingUser, "token");
+    }
+
+    @Test
+    void shouldReturnSuccessForNonExistentEmailOnResend() {
+        when(userRepository.findByEmail("none@example.com")).thenReturn(Optional.empty());
+        when(msg.get("auth.resend.success")).thenReturn("Wysłano");
+
+        MessageResponse result = authService.resendVerification(new ResendVerificationRequest("none@example.com"));
+
+        assertEquals("Wysłano", result.message());
+        verify(authMailService, never()).sendVerificationEmail(any(), any());
+    }
+
+    @Test
+    void shouldReturnAlreadyVerifiedMessage() {
+        existingUser.setEmailVerified(true);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(msg.get("auth.resend.already.verified")).thenReturn("Już zweryfikowany");
+
+        MessageResponse result = authService.resendVerification(new ResendVerificationRequest("test@example.com"));
+
+        assertEquals("Już zweryfikowany", result.message());
+    }
+
+    @Test
+    void shouldThrowWhenResendCooldownActive() {
+        existingUser.setEmailVerified(false);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(true);
+        when(msg.get("auth.resend.cooldown")).thenReturn("Poczekaj minutę");
+
+        assertThrows(IllegalStateException.class,
+            () -> authService.resendVerification(new ResendVerificationRequest("test@example.com")));
+    }
+
+    // --- Forgot Password ---
+
+    @Test
+    void shouldSendPasswordResetEmail() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.PASSWORD_RESET), any())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("reset-token");
+        when(jwtService.hashToken("reset-token")).thenReturn("reset-hash");
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
+
+        MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+
+        assertEquals("Wysłano reset", result.message());
+        verify(authMailService).sendPasswordResetEmail(existingUser, "reset-token");
+    }
+
+    @Test
+    void shouldReturnSuccessForNonExistentEmailOnForgotPassword() {
+        when(userRepository.findByEmail("none@example.com")).thenReturn(Optional.empty());
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
+
+        MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("none@example.com"));
+
+        assertEquals("Wysłano reset", result.message());
+        verify(authMailService, never()).sendPasswordResetEmail(any(), any());
+    }
+
+    @Test
+    void shouldReturnSuccessForOAuthUserOnForgotPassword() {
+        existingUser.setPasswordHash(null);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
+
+        MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+
+        assertEquals("Wysłano reset", result.message());
+        verify(authMailService, never()).sendPasswordResetEmail(any(), any());
+    }
+
+    @Test
+    void shouldThrowWhenForgotPasswordCooldownActive() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.PASSWORD_RESET), any())).thenReturn(true);
+        when(msg.get("auth.forgot.cooldown")).thenReturn("Poczekaj");
+
+        assertThrows(IllegalStateException.class,
+            () -> authService.forgotPassword(new ForgotPasswordRequest("test@example.com")));
+    }
+
+    // --- Reset Password ---
+
+    @Test
+    void shouldResetPasswordSuccessfully() {
+        AuthToken authToken = new AuthToken(existingUser, "hash", TokenType.PASSWORD_RESET, Instant.now().plusSeconds(3600));
+        when(jwtService.hashToken("reset-token")).thenReturn("hash");
+        when(authTokenRepository.findValidToken(eq("hash"), eq(TokenType.PASSWORD_RESET), any())).thenReturn(Optional.of(authToken));
+        when(passwordEncoder.encode("NewPassword123")).thenReturn("new-encoded");
+        when(msg.get("auth.reset.success")).thenReturn("Hasło zmienione");
+
+        MessageResponse result = authService.resetPassword(new ResetPasswordRequest("reset-token", "NewPassword123"));
+
+        assertEquals("Hasło zmienione", result.message());
+        assertEquals("new-encoded", existingUser.getPasswordHash());
+        assertTrue(authToken.isUsed());
+        verify(authTokenRepository).deleteByUserIdAndTokenType(existingUser.getId(), TokenType.REFRESH_TOKEN);
+        verify(authMailService).sendPasswordChangedNotification(existingUser);
+    }
+
+    @Test
+    void shouldThrowWhenResetTokenInvalid() {
+        when(jwtService.hashToken("bad")).thenReturn("bad-hash");
+        when(authTokenRepository.findValidToken(eq("bad-hash"), eq(TokenType.PASSWORD_RESET), any())).thenReturn(Optional.empty());
+        when(msg.get("auth.reset.invalid")).thenReturn("Token wygasł");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.resetPassword(new ResetPasswordRequest("bad", "NewPass123")));
+    }
+
+    // --- Refresh Tokens ---
+
+    @Test
+    void shouldRefreshTokensSuccessfully() {
+        AuthToken storedToken = new AuthToken(existingUser, "old-hash", TokenType.REFRESH_TOKEN, Instant.now().plusSeconds(3600));
+        when(jwtService.validateToken("old-refresh")).thenReturn(true);
+        when(jwtService.isRefreshToken("old-refresh")).thenReturn(true);
+        when(jwtService.hashToken("old-refresh")).thenReturn("old-hash");
+        when(authTokenRepository.findValidToken(eq("old-hash"), eq(TokenType.REFRESH_TOKEN), any())).thenReturn(Optional.of(storedToken));
+        when(jwtService.generateAccessToken(existingUser)).thenReturn("new-access");
+        when(jwtService.generateRefreshToken(existingUser)).thenReturn("new-refresh");
+        when(jwtService.hashToken("new-refresh")).thenReturn("new-hash");
+        when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
+
+        AuthTokensResponse result = authService.refreshTokens(new RefreshTokenRequest("old-refresh"));
+
+        assertEquals("new-access", result.accessToken());
+        assertEquals("new-refresh", result.refreshToken());
+        assertTrue(storedToken.isUsed());
+    }
+
+    @Test
+    void shouldThrowWhenRefreshTokenInvalid() {
+        when(jwtService.validateToken("bad")).thenReturn(false);
+        when(msg.get("auth.refresh.invalid")).thenReturn("Token nieprawidłowy");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.refreshTokens(new RefreshTokenRequest("bad")));
+    }
+
+    @Test
+    void shouldThrowWhenRefreshTokenIsNotRefreshType() {
+        when(jwtService.validateToken("access-token")).thenReturn(true);
+        when(jwtService.isRefreshToken("access-token")).thenReturn(false);
+        when(msg.get("auth.refresh.invalid.type")).thenReturn("Zły typ tokenu");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.refreshTokens(new RefreshTokenRequest("access-token")));
+    }
+
+    @Test
+    void shouldThrowWhenRefreshTokenRevoked() {
+        when(jwtService.validateToken("revoked")).thenReturn(true);
+        when(jwtService.isRefreshToken("revoked")).thenReturn(true);
+        when(jwtService.hashToken("revoked")).thenReturn("revoked-hash");
+        when(authTokenRepository.findValidToken(eq("revoked-hash"), eq(TokenType.REFRESH_TOKEN), any())).thenReturn(Optional.empty());
+        when(msg.get("auth.refresh.revoked")).thenReturn("Token unieważniony");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> authService.refreshTokens(new RefreshTokenRequest("revoked")));
+    }
+
+    // --- Logout ---
+
+    @Test
+    void shouldLogoutSuccessfully() {
+        AuthToken storedToken = new AuthToken(existingUser, "hash", TokenType.REFRESH_TOKEN, Instant.now().plusSeconds(3600));
+        when(jwtService.hashToken("refresh")).thenReturn("hash");
+        when(authTokenRepository.findByTokenHashAndTokenType(eq("hash"), eq(TokenType.REFRESH_TOKEN))).thenReturn(Optional.of(storedToken));
+
+        authService.logout("refresh");
+
+        assertTrue(storedToken.isUsed());
+        verify(authTokenRepository).save(storedToken);
+    }
+
+    @Test
+    void shouldHandleLogoutWithNonExistentToken() {
+        when(jwtService.hashToken("unknown")).thenReturn("unknown-hash");
+        when(authTokenRepository.findByTokenHashAndTokenType(eq("unknown-hash"), eq(TokenType.REFRESH_TOKEN))).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> authService.logout("unknown"));
+    }
+
+    private static void setId(User user, UUID id) throws Exception {
+        Field idField = User.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(user, id);
+    }
+}

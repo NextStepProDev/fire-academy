@@ -98,6 +98,21 @@ jacoco {
     toolVersion = '0.8.13'
 }
 
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.60
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
+}
+
 tasks.withType(JavaCompile) {
     options.compilerArgs << '-parameters'
 }
