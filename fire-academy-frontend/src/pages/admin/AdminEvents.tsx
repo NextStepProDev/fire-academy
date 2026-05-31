@@ -32,6 +32,8 @@ function EventCard({
   const [isAdding, setIsAdding] = useState(false)
   const [enrollDeleteId, setEnrollDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+  const [enrollErrors, setEnrollErrors] = useState<Record<string, string>>({})
+  const [enrollTouched, setEnrollTouched] = useState<Set<string>>(new Set())
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [emailMessage, setEmailMessage] = useState('')
   const [emailConfirm, setEmailConfirm] = useState(false)
@@ -86,6 +88,42 @@ function EventCard({
     ? new Set(enrollments.filter(e => e.firstName !== '***').map(e => e.email.toLowerCase())).size
     : 0
 
+  const validateEnroll = (fields = form) => {
+    const errs: Record<string, string> = {}
+    if (!fields.firstName.trim()) errs.firstName = t('enrollments.firstNameRequired')
+    else if (fields.firstName.trim().length < 3) errs.firstName = t('enrollments.nameMinLength')
+    if (!fields.lastName.trim()) errs.lastName = t('enrollments.lastNameRequired')
+    else if (fields.lastName.trim().length < 3) errs.lastName = t('enrollments.nameMinLength')
+    if (!fields.email.trim()) errs.email = t('enrollments.emailRequired')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) errs.email = t('enrollments.emailInvalid')
+    if (!fields.phone.trim()) errs.phone = t('enrollments.phoneRequired')
+    else {
+      const digits = fields.phone.replace(/\s/g, '')
+      if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) errs.phone = t('enrollments.phoneInvalid')
+    }
+    return errs
+  }
+
+  const handleEnrollBlur = (field: string) => {
+    setEnrollTouched(prev => new Set(prev).add(field))
+    setEnrollErrors(validateEnroll())
+  }
+
+  const enrollFieldError = (field: string) => enrollTouched.has(field) ? enrollErrors[field] : undefined
+
+  const handleEnrollSubmit = () => {
+    setEnrollTouched(new Set(['firstName', 'lastName', 'email', 'phone']))
+    const errs = validateEnroll()
+    setEnrollErrors(errs)
+    if (Object.keys(errs).length > 0) return
+    addMut.mutate()
+  }
+
+  const inputClass = (field: string) =>
+    `w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 focus:outline-none focus:ring-2 ${
+      enrollFieldError(field) ? 'border-rose-500/60 focus:ring-rose-500' : 'border-surface-700 focus:ring-primary-500'
+    }`
+
   return (
     <div className={clsx('bg-surface-900 border border-surface-800 rounded-xl overflow-hidden', !event.active && 'opacity-50')}>
       <div className="px-4 py-4 flex items-start gap-4 cursor-pointer hover:bg-surface-800/30 transition-colors" onClick={() => setExpanded(!expanded)}>
@@ -131,7 +169,7 @@ function EventCard({
                 {t('actions.sendMessage')}
               </Button>
             )}
-            <Button variant="primary" size="sm" onClick={() => { setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' }); setIsAdding(true) }}>
+            <Button variant="primary" size="sm" onClick={() => { setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' }); setEnrollErrors({}); setEnrollTouched(new Set()); setIsAdding(true) }}>
               <UserPlus className="w-4 h-4 mr-1.5" />
               {t('actions.addEnrollment')}
             </Button>
@@ -203,20 +241,47 @@ function EventCard({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.firstName')}</label>
-              <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input
+                value={form.firstName}
+                onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+                onBlur={() => handleEnrollBlur('firstName')}
+                className={inputClass('firstName')}
+              />
+              {enrollFieldError('firstName') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('firstName')}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.lastName')}</label>
-              <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input
+                value={form.lastName}
+                onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+                onBlur={() => handleEnrollBlur('lastName')}
+                className={inputClass('lastName')}
+              />
+              {enrollFieldError('lastName') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('lastName')}</p>}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.email')}</label>
-            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              onBlur={() => handleEnrollBlur('email')}
+              className={inputClass('email')}
+            />
+            {enrollFieldError('email') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('email')}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.phone')}</label>
-            <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              onBlur={() => handleEnrollBlur('phone')}
+              className={inputClass('phone')}
+              placeholder="123 456 789"
+            />
+            {enrollFieldError('phone') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('phone')}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">
@@ -226,7 +291,7 @@ function EventCard({
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={() => addMut.mutate()} loading={addMut.isPending}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleEnrollSubmit} loading={addMut.isPending}>{t('actions.save')}</Button>
           </div>
         </div>
       </Modal>

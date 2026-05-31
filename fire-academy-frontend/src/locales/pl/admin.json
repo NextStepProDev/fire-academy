@@ -104,7 +104,14 @@
     "optional": "opcjonalnie",
     "noItems": "Brak zapisów",
     "summary": "{{count}} / {{max}} zapisanych",
-    "summaryNoLimit": "{{count}} zapisanych"
+    "summaryNoLimit": "{{count}} zapisanych",
+    "firstNameRequired": "Imię jest wymagane",
+    "lastNameRequired": "Nazwisko jest wymagane",
+    "nameMinLength": "Minimum 3 znaki",
+    "emailRequired": "Email jest wymagany",
+    "emailInvalid": "Nieprawidłowy format email",
+    "phoneRequired": "Numer telefonu jest wymagany",
+    "phoneInvalid": "Nieprawidłowy format (9 cyfr lub +XX i 9 cyfr)"
   },
   "bulkEmail": {
     "title": "Wyślij wiadomość do uczestników",
