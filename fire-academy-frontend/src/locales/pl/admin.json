@@ -12,6 +12,7 @@
     "deactivate": "Dezaktywuj",
     "addPhoto": "Dodaj zdjęcie",
     "addEnrollment": "Dodaj zapis",
+    "sendMessage": "Wyślij wiadomość",
     "backToForm": "Wróć",
     "discard": "Odrzuć"
   },
@@ -104,5 +105,15 @@
     "noItems": "Brak zapisów",
     "summary": "{{count}} / {{max}} zapisanych",
     "summaryNoLimit": "{{count}} zapisanych"
+  },
+  "bulkEmail": {
+    "title": "Wyślij wiadomość do uczestników",
+    "messagePlaceholder": "Wpisz treść wiadomości...",
+    "send": "Wyślij",
+    "sending": "Wysyłanie...",
+    "success": "Wiadomość wysłana do {{count}} uczestników",
+    "noEnrollments": "Brak zapisanych uczestników",
+    "confirmTitle": "Potwierdzenie wysyłki",
+    "confirmMessage": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestników wydarzenia \"{{event}}\"?"
   }
 }

@@ -135,4 +135,6 @@ export const adminApi = {
     fetchApi<Enrollment[]>(`/admin/enrollments/search?email=${encodeURIComponent(email)}`),
   anonymizeByEmail: (email: string) =>
     fetchApi<{ anonymizedCount: number }>(`/admin/enrollments/anonymize?email=${encodeURIComponent(email)}`, { method: 'POST' }),
+  sendBulkEmail: (data: { eventId: string; message: string }) =>
+    fetchApi<{ recipientCount: number }>('/admin/enrollments/bulk-email', { method: 'POST', body: JSON.stringify(data) }),
 }

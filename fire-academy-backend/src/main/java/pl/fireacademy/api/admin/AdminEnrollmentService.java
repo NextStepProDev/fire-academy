@@ -13,6 +13,7 @@ import pl.fireacademy.domain.event.EventRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -101,6 +102,34 @@ public class AdminEnrollmentService {
         return enrollmentRepository.findByEmailIgnoreCase(email.trim()).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public EnrollmentDtos.BulkEmailResponse sendBulkEmail(EnrollmentDtos.BulkEmailRequest request) {
+        var event = eventRepository.findById(request.eventId())
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+
+        var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(event.getId());
+
+        var seen = new LinkedHashSet<String>();
+        var recipients = enrollments.stream()
+                .filter(e -> !e.isAnonymized())
+                .filter(e -> seen.add(e.getEmail().toLowerCase()))
+                .toList();
+
+        if (recipients.isEmpty()) {
+            throw new IllegalStateException(msg.get("email.bulk.no.enrollments"));
+        }
+
+        for (var enrollment : recipients) {
+            enrollmentMailService.sendBulkEventMessage(
+                    enrollment.getEmail(), enrollment.getFirstName(),
+                    event.getDisplayName(), event.getStartDate(),
+                    event.getLocation(), request.message(),
+                    event.getCategory(), event.getId().toString());
+        }
+
+        return new EnrollmentDtos.BulkEmailResponse(recipients.size());
     }
 
     @Transactional

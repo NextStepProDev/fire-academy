@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare, Mail, CheckCircle } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 
@@ -32,6 +32,10 @@ function EventCard({
   const [isAdding, setIsAdding] = useState(false)
   const [enrollDeleteId, setEnrollDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', note: '' })
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailMessage, setEmailMessage] = useState('')
+  const [emailConfirm, setEmailConfirm] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState<number | null>(null)
 
   const { data: enrollments } = useQuery({
     queryKey: ['admin', 'enrollments', event.id],
@@ -67,6 +71,21 @@ function EventCard({
     },
   })
 
+  const bulkEmailMut = useMutation({
+    mutationFn: () => adminApi.sendBulkEmail({ eventId: event.id, message: emailMessage }),
+    onSuccess: (data) => {
+      setEmailConfirm(false)
+      setIsSendingEmail(false)
+      setEmailMessage('')
+      setEmailSuccess(data.recipientCount)
+      setTimeout(() => setEmailSuccess(null), 4000)
+    },
+  })
+
+  const uniqueEmails = enrollments
+    ? new Set(enrollments.filter(e => e.firstName !== '***').map(e => e.email.toLowerCase())).size
+    : 0
+
   return (
     <div className={clsx('bg-surface-900 border border-surface-800 rounded-xl overflow-hidden', !event.active && 'opacity-50')}>
       <div className="px-4 py-4 flex items-start gap-4 cursor-pointer hover:bg-surface-800/30 transition-colors" onClick={() => setExpanded(!expanded)}>
@@ -99,7 +118,19 @@ function EventCard({
 
       {expanded && (
         <div className="border-t border-surface-800 px-5 py-3">
-          <div className="flex justify-end mb-3">
+          <div className="flex justify-end gap-2 mb-3">
+            {emailSuccess !== null && (
+              <span className="flex items-center gap-1.5 text-sm text-green-400 mr-auto">
+                <CheckCircle className="w-4 h-4" />
+                {t('bulkEmail.success', { count: emailSuccess })}
+              </span>
+            )}
+            {enrollCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => { setEmailMessage(''); setIsSendingEmail(true) }}>
+                <Mail className="w-4 h-4 mr-1.5" />
+                {t('actions.sendMessage')}
+              </Button>
+            )}
             <Button variant="primary" size="sm" onClick={() => { setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' }); setIsAdding(true) }}>
               <UserPlus className="w-4 h-4 mr-1.5" />
               {t('actions.addEnrollment')}
@@ -208,6 +239,47 @@ function EventCard({
         message={t('confirm.delete')}
         confirmLabel={t('actions.delete')}
         danger
+      />
+
+      <Modal isOpen={isSendingEmail} onClose={() => setIsSendingEmail(false)} title={t('bulkEmail.title')}>
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400">
+            {event.eventTypeName} · {event.startDate}{event.location ? ` · ${event.location}` : ''}
+          </p>
+          <div>
+            <textarea
+              value={emailMessage}
+              onChange={e => setEmailMessage(e.target.value)}
+              rows={6}
+              maxLength={5000}
+              placeholder={t('bulkEmail.messagePlaceholder')}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            />
+            <p className="text-xs text-surface-500 mt-1 text-right">{emailMessage.length} / 5000</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setIsSendingEmail(false)}>{t('actions.cancel')}</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setEmailConfirm(true)}
+              disabled={!emailMessage.trim()}
+            >
+              <Mail className="w-4 h-4 mr-1.5" />
+              {t('bulkEmail.send')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={emailConfirm}
+        onClose={() => setEmailConfirm(false)}
+        onConfirm={() => bulkEmailMut.mutate()}
+        title={t('bulkEmail.confirmTitle')}
+        message={t('bulkEmail.confirmMessage', { count: uniqueEmails, event: event.eventTypeName })}
+        confirmLabel={t('bulkEmail.send')}
+        loading={bulkEmailMut.isPending}
       />
     </div>
   )

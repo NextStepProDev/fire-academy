@@ -39,4 +39,11 @@ public final class EnrollmentDtos {
     ) {}
 
     public record AnonymizeResponse(int anonymizedCount) {}
+
+    public record BulkEmailRequest(
+            @NotNull UUID eventId,
+            @NotBlank @Size(max = 5000, message = "{validation.note.size}") String message
+    ) {}
+
+    public record BulkEmailResponse(int recipientCount) {}
 }

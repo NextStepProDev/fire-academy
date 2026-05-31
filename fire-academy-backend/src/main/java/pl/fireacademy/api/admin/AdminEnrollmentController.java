@@ -50,4 +50,9 @@ public class AdminEnrollmentController {
     public AnonymizeResponse anonymizeByEmail(@RequestParam String email) {
         return service.anonymizeByEmail(email);
     }
+
+    @PostMapping("/bulk-email")
+    public BulkEmailResponse sendBulkEmail(@Valid @RequestBody BulkEmailRequest request) {
+        return service.sendBulkEmail(request);
+    }
 }
