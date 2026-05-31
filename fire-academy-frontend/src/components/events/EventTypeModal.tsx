@@ -102,7 +102,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
                       {isFull ? (
                         <a href="tel:+48534823667">
                           <Button variant="primary" size="sm">
-                            <Phone className="w-4 h-4" />
+                            <Phone className="w-4 h-4 mr-1.5" />
                             {t('event.waitingList')}
                           </Button>
                         </a>

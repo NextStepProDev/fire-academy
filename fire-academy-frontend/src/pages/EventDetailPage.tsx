@@ -176,7 +176,7 @@ export function EventDetailPage() {
               </p>
               <a href="tel:+48534823667">
                 <Button variant="primary">
-                  <Phone className="w-4 h-4" />
+                  <Phone className="w-4 h-4 mr-1.5" />
                   534 823 667
                 </Button>
               </a>
