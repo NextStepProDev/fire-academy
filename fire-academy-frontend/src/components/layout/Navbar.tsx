@@ -65,8 +65,12 @@ export function Navbar() {
     <nav className={clsx('bg-surface-900/80 backdrop-blur-sm border-b border-surface-800 sticky top-0 z-50 transition-transform duration-300', navHidden && !mobileMenuOpen && '-translate-y-full')}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="text-xl font-bold text-surface-100 hover:opacity-80 transition-opacity">
-            Fire Academy
+          <Link to="/" className="hover:opacity-80 transition-opacity">
+            <img
+              src="/images/logo/logo-white.png"
+              alt="Fire Academy"
+              className="h-9"
+            />
           </Link>
 
           <div className="hidden md:flex items-center gap-1">

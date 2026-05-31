@@ -12,7 +12,11 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div>
-            <h3 className="text-lg font-bold text-surface-100 mb-4">Fire Academy</h3>
+            <img
+              src="/images/logo/logo-white.png"
+              alt="Fire Academy"
+              className="h-10 mb-4"
+            />
             <p className="text-sm text-surface-400 leading-relaxed">
               {t('footer.description')}
             </p>
@@ -43,13 +47,13 @@ export function Footer() {
 
           <div>
             <h4 className="text-sm font-semibold text-surface-200 uppercase tracking-wider mb-4">
-              {t('footer.contact')}
+              Fire Academy
             </h4>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-primary-500 mt-0.5 shrink-0" />
                 <span className="text-sm text-surface-400">
-                  ul. Sportowa 12, 00-001 Warszawa
+                  ul. Kanałowa 1, 40-748 Katowice
                 </span>
               </li>
               <li className="flex items-center gap-3">
@@ -60,8 +64,8 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-primary-500 shrink-0" />
-                <a href="mailto:kontakt@fireacademy.pl" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
-                  kontakt@fireacademy.pl
+                <a href="mailto:fireacademy.biz@gmail.com" className="inline-block text-sm text-surface-400 hover:text-primary-400 hover:-translate-y-0.5 transition-all duration-200">
+                  fireacademy.biz@gmail.com
                 </a>
               </li>
             </ul>
@@ -76,10 +80,7 @@ export function Footer() {
             <Link to="/polityka-prywatnosci" className="inline-block text-xs text-surface-500 hover:text-surface-300 hover:-translate-y-0.5 transition-all duration-200">
               {t('footer.privacy')}
             </Link>
-            <Link to="/regulamin" className="inline-block text-xs text-surface-500 hover:text-surface-300 hover:-translate-y-0.5 transition-all duration-200">
-              {t('footer.terms')}
-            </Link>
-            <ShareButton url="/" title="Fire Academy" />
+<ShareButton url="/" title="Fire Academy" />
           </div>
         </div>
       </div>

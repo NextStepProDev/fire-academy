@@ -91,7 +91,7 @@ export function RegisterPage() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-8">
       <div className="bg-surface-900 rounded-xl p-8 max-w-md w-full border border-surface-800">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-surface-100">Fire Academy</h1>
+          <img src="/images/logo/logo-white.png" alt="Fire Academy" className="h-12 mx-auto" />
           <p className="text-surface-400 mt-1">{t('register.title')}</p>
         </div>
 

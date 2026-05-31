@@ -39,12 +39,13 @@ export function PrivacyPolicyPage() {
             Administratorem Twoich danych osobowych jest:
           </p>
           <div className="mt-4 bg-surface-800/50 rounded-xl p-4 space-y-1 text-surface-300 text-sm">
-            <p className="font-semibold text-surface-200">Fire Academy</p>
-            <p>ul. Sportowa 12, 00-001 Warszawa</p>
+            <p className="font-semibold text-surface-200">FIZJO4LIFE Sp. z o.o.</p>
+            <p>ul. 1 Maja 5C, 32-590 Libiąż</p>
+            <p>KRS: 0001024771 · NIP: 6282290548 · REGON: 524728084</p>
             <p>
               E-mail:{' '}
-              <a href="mailto:kontakt@fireacademy.pl" className="text-primary-400 hover:text-primary-300 transition-colors">
-                kontakt@fireacademy.pl
+              <a href="mailto:fireacademy.biz@gmail.com" className="text-primary-400 hover:text-primary-300 transition-colors">
+                fireacademy.biz@gmail.com
               </a>
             </p>
             <p>
@@ -179,8 +180,8 @@ export function PrivacyPolicyPage() {
           </div>
           <p className="text-surface-400 text-sm mt-6 leading-relaxed">
             Aby skorzystać z któregokolwiek z powyższych praw, napisz do nas na adres{' '}
-            <a href="mailto:kontakt@fireacademy.pl" className="text-primary-400 hover:text-primary-300 transition-colors">
-              kontakt@fireacademy.pl
+            <a href="mailto:fireacademy.biz@gmail.com" className="text-primary-400 hover:text-primary-300 transition-colors">
+              fireacademy.biz@gmail.com
             </a>.
             Przysługuje Ci również prawo wniesienia skargi do organu nadzorczego — Prezesa Urzędu Ochrony Danych Osobowych
             (PUODO), ul. Stawki 2, 00-193 Warszawa.
@@ -217,10 +218,10 @@ export function PrivacyPolicyPage() {
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <a
-              href="mailto:kontakt@fireacademy.pl"
+              href="mailto:fireacademy.biz@gmail.com"
               className="text-primary-400 hover:text-primary-300 transition-colors font-medium"
             >
-              kontakt@fireacademy.pl
+              fireacademy.biz@gmail.com
             </a>
             <a
               href="tel:+48534823667"

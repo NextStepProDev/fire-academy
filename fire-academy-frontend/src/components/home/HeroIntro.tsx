@@ -32,9 +32,9 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
 
       <div className="relative z-10 flex flex-col items-center gap-6 md:flex-row md:gap-10">
         <img
-          src="/images/hero/logo-placeholder.svg"
+          src="/images/logo/logo-white.png"
           alt="Fire Academy"
-          className={`h-28 w-28 drop-shadow-[0_0_30px_rgba(249,115,22,0.6)] md:h-40 md:w-40 transition-all duration-1000 ease-out ${
+          className={`h-28 w-auto drop-shadow-[0_0_30px_rgba(249,115,22,0.6)] md:h-40 transition-all duration-1000 ease-out ${
             phase === 'enter'
               ? '-translate-x-24 opacity-0 scale-75'
               : 'translate-x-0 opacity-100 scale-100'
