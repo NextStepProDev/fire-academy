@@ -98,8 +98,8 @@ export function HomePage() {
               backgroundPosition: section.key === 'camps' && isMobile ? 'center 0%' : section.bgPosition,
               top: section.imgArea.top,
               bottom: section.imgArea.bottom,
-              left: 'left' in section.imgArea ? section.imgArea.left : '0',
-              right: 'right' in section.imgArea ? section.imgArea.right : '0',
+              left: (section.imgArea as Record<string, string>).left ?? '0',
+              right: (section.imgArea as Record<string, string>).right ?? '0',
             }}
           />
           <div className={`absolute inset-0 ${section.overlayClass} transition-colors duration-300`} />
