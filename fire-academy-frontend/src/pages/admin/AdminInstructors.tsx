@@ -79,25 +79,27 @@ export function AdminInstructors() {
       ) : (
         <div className="space-y-3">
           {instructors.map((instr, idx) => (
-            <div key={instr.id} className="flex items-center gap-4 bg-surface-900 border border-surface-800 rounded-xl p-4">
-              <div className={clsx('w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center overflow-hidden flex-shrink-0', !instr.active && 'opacity-50')}>
-                {instr.photoUrl ? (
-                  <img src={instr.photoUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-6 h-6 text-surface-600" />
-                )}
-              </div>
-              <div className={clsx('flex-1 min-w-0', !instr.active && 'opacity-50')}>
-                <p className="font-medium text-surface-100">{instr.firstName} {instr.lastName}</p>
-                <div className="flex gap-1 mt-1">
-                  {instr.categories.map(cat => (
-                    <span key={cat} className="px-1.5 py-0.5 text-[10px] rounded bg-primary-900/30 text-primary-400">
-                      {t(`kadra.category${cat.charAt(0) + cat.slice(1).toLowerCase()}`)}
-                    </span>
-                  ))}
+            <div key={instr.id} className="bg-surface-900 border border-surface-800 rounded-xl p-4">
+              <div className="flex items-center gap-4">
+                <div className={clsx('w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center overflow-hidden flex-shrink-0', !instr.active && 'opacity-50')}>
+                  {instr.photoUrl ? (
+                    <img src={instr.photoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-6 h-6 text-surface-600" />
+                  )}
+                </div>
+                <div className={clsx('flex-1 min-w-0', !instr.active && 'opacity-50')}>
+                  <p className="font-medium text-surface-100 truncate">{instr.firstName} {instr.lastName}</p>
+                  <div className="flex gap-1 mt-1">
+                    {instr.categories.map(cat => (
+                      <span key={cat} className="px-1.5 py-0.5 text-[10px] rounded bg-primary-900/30 text-primary-400">
+                        {t(`kadra.category${cat.charAt(0) + cat.slice(1).toLowerCase()}`)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 mt-3 flex-wrap">
                 <label className="cursor-pointer">
                   <input
                     type="file"
