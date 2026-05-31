@@ -74,6 +74,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS}
       APP_BASE_URL: ${APP_BASE_URL}
+      SITE_URL: ${SITE_URL:-${APP_BASE_URL}}
       JAVA_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
     depends_on:
       postgres:

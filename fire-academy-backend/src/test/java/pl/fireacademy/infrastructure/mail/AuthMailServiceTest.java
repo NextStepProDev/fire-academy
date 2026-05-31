@@ -31,7 +31,7 @@ class AuthMailServiceTest {
         AppConfig appConfig = new AppConfig();
         appConfig.setBaseUrl("http://localhost:8081");
         appConfig.setSiteUrl("http://localhost:5174");
-        appConfig.getMail().setFrom("noreply@fireacademy.pl");
+        appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 

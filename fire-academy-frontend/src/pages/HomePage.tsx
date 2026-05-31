@@ -13,15 +13,18 @@ const sections = [
     textTop: '17%',
     overlayClass: 'bg-black/55 group-hover:bg-black/40',
     imgArea: { top: '-10%', bottom: '50%' },
+    bgPosition: 'center',
   },
   {
     key: 'camps',
     to: '/obozy',
-    bg: 'https://images.unsplash.com/photo-1578592391689-0e3d1a1b52b9?w=1920&q=80',
+    // bg: 'https://images.unsplash.com/photo-1578592391689-0e3d1a1b52b9?w=1920&q=80',
+    bg: '/images/posters/przemo-alpinizm.jpeg',
     clipPath: 'polygon(0 31%, 100% 37%, 100% 73%, 0 67%)',
     textTop: '52%',
     overlayClass: 'bg-black/30 group-hover:bg-black/15',
-    imgArea: { top: '15%', bottom: '20%' },
+    imgArea: { top: '-30%', bottom: '-30%', left: '-30%', right: '-30%' },
+    bgPosition: 'center 45%',
   },
   {
     key: 'courses',
@@ -31,6 +34,7 @@ const sections = [
     textTop: '83%',
     overlayClass: 'bg-black/35 group-hover:bg-black/20',
     imgArea: { top: '50%', bottom: '-15%' },
+    bgPosition: 'center',
   },
 ] as const
 
@@ -80,11 +84,14 @@ export function HomePage() {
           style={{ clipPath: section.clipPath }}
         >
           <div
-            className="absolute left-0 right-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+            className="absolute bg-cover transition-transform duration-500 group-hover:scale-110"
             style={{
               backgroundImage: `url(${section.bg})`,
+              backgroundPosition: section.bgPosition,
               top: section.imgArea.top,
               bottom: section.imgArea.bottom,
+              left: 'left' in section.imgArea ? section.imgArea.left : '0',
+              right: 'right' in section.imgArea ? section.imgArea.right : '0',
             }}
           />
           <div className={`absolute inset-0 ${section.overlayClass} transition-colors duration-300`} />

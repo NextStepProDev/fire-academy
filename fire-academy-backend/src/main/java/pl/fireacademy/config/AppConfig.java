@@ -66,7 +66,7 @@ public class AppConfig {
     }
 
     public static class Mail {
-        private String from = "noreply@projekt1.pl";
+        private String from = "noreply@fireworkout.pl";
 
         public String getFrom() {
             return from;

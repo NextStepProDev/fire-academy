@@ -10,4 +10,4 @@ Disallow: /resend-verification
 Disallow: /oauth-callback
 Disallow: /api/
 
-Sitemap: https://fireacademy.pl/sitemap.xml
+Sitemap: https://fireworkout.pl/sitemap.xml

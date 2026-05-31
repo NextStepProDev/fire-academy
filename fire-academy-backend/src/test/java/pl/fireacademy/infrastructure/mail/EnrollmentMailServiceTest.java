@@ -36,7 +36,7 @@ class EnrollmentMailServiceTest {
     @BeforeEach
     void setUp() {
         AppConfig appConfig = new AppConfig();
-        appConfig.getMail().setFrom("noreply@fireacademy.pl");
+        appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         when(msg.get(anyString())).thenReturn("text");

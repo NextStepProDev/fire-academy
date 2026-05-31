@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 
-const SPARRING_BG =
-  'https://images.unsplash.com/photo-1525680996651-0222228be6f0?w=1920&q=80'
+// const SPARRING_BG =
+//   'https://images.unsplash.com/photo-1525680996651-0222228be6f0?w=1920&q=80'
+const SPARRING_BG = '/images/posters/przemo-mma-zwyciestwo.jpeg'
 
 export function HeroIntro({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<'enter' | 'hold' | 'exit'>('enter')
@@ -24,7 +25,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
       }`}
     >
       <div
-        className="absolute inset-0 bg-cover bg-[60%_30%] md:bg-center scale-110"
+        className="absolute inset-0 bg-cover bg-[center_20%] scale-110"
         style={{ backgroundImage: `url(${SPARRING_BG})` }}
       />
 
@@ -34,13 +35,12 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
         <img
           src="/images/logo/logo-white.png"
           alt="Fire Academy"
-          className={`h-28 w-auto drop-shadow-[0_0_30px_rgba(249,115,22,0.6)] md:h-40 transition-all duration-1000 ease-out ${
+          className={`hidden md:block h-40 w-auto drop-shadow-[0_0_30px_rgba(249,115,22,0.6)] transition-all duration-1000 ease-out ${
             phase === 'enter'
               ? '-translate-x-24 opacity-0 scale-75'
               : 'translate-x-0 opacity-100 scale-100'
           }`}
         />
-
         <div className="flex flex-col items-center md:items-start">
           <h1
             className={`text-5xl font-black tracking-[0.25em] text-white uppercase md:text-7xl lg:text-8xl transition-all duration-1000 ease-out delay-200 ${
