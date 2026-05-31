@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Seo } from '../components/seo/Seo'
@@ -23,8 +23,10 @@ const sections = [
     clipPath: 'polygon(0 31%, 100% 37%, 100% 73%, 0 67%)',
     textTop: '52%',
     overlayClass: 'bg-black/30 group-hover:bg-black/15',
-    imgArea: { top: '-30%', bottom: '-30%', left: '-30%', right: '-30%' },
-    bgPosition: 'center 45%',
+    imgArea: { top: '15%', bottom: '20%' },
+    bgPosition: 'center 35%',
+    bgPositionMobile: 'center 20%',
+    imgClass: 'scale-110 group-hover:scale-[1.15]',
   },
   {
     key: 'courses',
@@ -47,9 +49,15 @@ export function HomePage() {
   const { t } = useTranslation('common')
   const [showIntro, setShowIntro] = useState(true)
   const handleIntroComplete = useCallback(() => setShowIntro(false), [])
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full h-screen overflow-hidden bg-surface-950" style={{ height: '100dvh', maxHeight: '-webkit-fill-available' }}>
       <Seo
         title="Fire Academy"
         description="Fire Academy — treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców."
@@ -84,10 +92,10 @@ export function HomePage() {
           style={{ clipPath: section.clipPath }}
         >
           <div
-            className="absolute bg-cover transition-transform duration-500 group-hover:scale-110"
+            className={`absolute bg-cover transition-transform duration-500 ${'imgClass' in section ? section.imgClass : 'group-hover:scale-110'} ${section.key === 'courses' ? 'courses-bg' : ''}`}
             style={{
               backgroundImage: `url(${section.bg})`,
-              backgroundPosition: section.bgPosition,
+              backgroundPosition: section.key === 'camps' && isMobile ? 'center 0%' : section.bgPosition,
               top: section.imgArea.top,
               bottom: section.imgArea.bottom,
               left: 'left' in section.imgArea ? section.imgArea.left : '0',

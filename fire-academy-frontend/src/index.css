@@ -31,3 +31,24 @@ body {
 .dark body {
   @apply bg-surface-950 text-surface-100;
 }
+
+html, body, #root {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+.courses-bg {
+  background-size: auto 70% !important;
+  background-position: center !important;
+}
+
+@media (min-width: 768px) {
+  .courses-bg {
+    background-size: cover !important;
+    background-position: center !important;
+  }
+}

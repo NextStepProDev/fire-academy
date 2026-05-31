@@ -130,7 +130,7 @@ export function EventsPage({ category }: EventsPageProps) {
 
       {/* Rodzaje */}
       <section>
-        <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.rodzaje')}</h2>
+        <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t(`sections.rodzaje_${category}`)}</h2>
         {eventTypesQuery.isLoading ? (
           <LoadingSpinner />
         ) : eventTypesQuery.data?.length ? (

@@ -12,6 +12,9 @@
   "sections": {
     "terminy": "Terminy",
     "rodzaje": "Rodzaje",
+    "rodzaje_TRAINING": "Rodzaje treningów",
+    "rodzaje_CAMP": "Rodzaje obozów",
+    "rodzaje_COURSE": "Rodzaje szkoleń",
     "oNas": "Kadra"
   },
   "event": {

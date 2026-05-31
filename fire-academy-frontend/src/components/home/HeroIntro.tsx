@@ -25,7 +25,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
       }`}
     >
       <div
-        className="absolute inset-0 bg-cover bg-[center_20%] scale-110"
+        className="absolute inset-0 bg-cover bg-[center_20%] scale-125"
         style={{ backgroundImage: `url(${SPARRING_BG})` }}
       />
 
