@@ -102,22 +102,22 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
                   {et.thumbnailUrl ? <img src={et.thumbnailUrl} alt="" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-xs text-surface-600">–</span>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-surface-100">{et.name}</p>
+                  <p className="font-medium text-surface-100 truncate">{et.name}</p>
                   {et.description && <p className="text-sm text-surface-500 truncate">{et.description}</p>}
                 </div>
-                <div className="flex items-center gap-1">
-                  <label className="cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) thumbMut.mutate({ id: et.id, file: e.target.files[0] }) }} />
-                    <span className="px-2 py-1 text-xs bg-surface-800 text-surface-300 rounded hover:bg-surface-700 transition-colors">{t('eventTypes.thumbnail')}</span>
-                  </label>
-                  <button onClick={() => reorderMut.mutate({ id: et.id, dir: 'up' })} disabled={idx === 0} className="p-1 text-surface-400 hover:text-surface-200 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
-                  <button onClick={() => reorderMut.mutate({ id: et.id, dir: 'down' })} disabled={idx === types.length - 1} className="p-1 text-surface-400 hover:text-surface-200 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
-                  <button onClick={() => toggleMut.mutate(et.id)} className={clsx('px-2 py-1 text-xs rounded', et.active ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-500')}>
-                    {et.active ? t('actions.deactivate') : t('actions.activate')}
-                  </button>
-                  <button onClick={() => openEdit(et)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => setDeleteId(et.id)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
-                </div>
+              </div>
+              <div className="flex items-center gap-1 mt-3 flex-wrap">
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) thumbMut.mutate({ id: et.id, file: e.target.files[0] }) }} />
+                  <span className="px-2 py-1 text-xs bg-surface-800 text-surface-300 rounded hover:bg-surface-700 transition-colors">{t('eventTypes.thumbnail')}</span>
+                </label>
+                <button onClick={() => reorderMut.mutate({ id: et.id, dir: 'up' })} disabled={idx === 0} className="p-1 text-surface-400 hover:text-surface-200 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
+                <button onClick={() => reorderMut.mutate({ id: et.id, dir: 'down' })} disabled={idx === types.length - 1} className="p-1 text-surface-400 hover:text-surface-200 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
+                <button onClick={() => toggleMut.mutate(et.id)} className={clsx('px-2 py-1 text-xs rounded', et.active ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-500')}>
+                  {et.active ? t('actions.deactivate') : t('actions.activate')}
+                </button>
+                <button onClick={() => openEdit(et)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteId(et.id)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
               </div>
               {/* Gallery photos */}
               <div className="flex flex-wrap gap-2 mt-3">
