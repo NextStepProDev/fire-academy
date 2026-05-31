@@ -34,16 +34,47 @@ public class AuthMailService {
         String lang = user.getPreferredLanguage();
         String verificationUrl = appConfig.getBaseUrl() + "/verify-email?token=" + token;
         String subject = msg.getForLang("email.verification.subject", lang);
-        String body = buildVerificationEmailBody(lang, user.getFirstName(), verificationUrl);
-        sendEmail(user.getEmail(), subject, body);
+        String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="text-align: center; margin: 28px 0;">
+                            <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
+                        </div>
+                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
+                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
+            """.formatted(
+                msg.getForLang("email.verification.greeting", lang, safeFirstName),
+                msg.getForLang("email.verification.body", lang),
+                msg.getForLang("email.verification.action", lang),
+                verificationUrl,
+                msg.getForLang("email.verification.button", lang),
+                msg.getForLang("email.verification.expiry", lang),
+                msg.getForLang("email.verification.ignore", lang)
+        );
+
+        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
     }
 
     @Async("mailExecutor")
     public void sendWelcomeEmail(User user) {
         String lang = user.getPreferredLanguage();
         String subject = msg.getForLang("email.welcome.subject", lang);
-        String body = buildWelcomeEmailBody(lang, user.getFirstName());
-        sendEmail(user.getEmail(), subject, body);
+        String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+            """.formatted(
+                msg.getForLang("email.welcome.greeting", lang, safeFirstName),
+                msg.getForLang("email.welcome.body", lang),
+                msg.getForLang("email.welcome.see.you", lang)
+        );
+
+        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
     }
 
     @Async("mailExecutor")
@@ -51,16 +82,68 @@ public class AuthMailService {
         String lang = user.getPreferredLanguage();
         String resetUrl = appConfig.getBaseUrl() + "/reset-password?token=" + token;
         String subject = msg.getForLang("email.reset.subject", lang);
-        String body = buildPasswordResetEmailBody(lang, user.getFirstName(), resetUrl);
-        sendEmail(user.getEmail(), subject, body);
+        String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="text-align: center; margin: 28px 0;">
+                            <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
+                        </div>
+                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
+                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
+            """.formatted(
+                msg.getForLang("email.reset.greeting", lang, safeFirstName),
+                msg.getForLang("email.reset.body", lang),
+                msg.getForLang("email.reset.action", lang),
+                resetUrl,
+                msg.getForLang("email.reset.button", lang),
+                msg.getForLang("email.reset.expiry", lang),
+                msg.getForLang("email.reset.ignore", lang)
+        );
+
+        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
     }
 
     @Async("mailExecutor")
     public void sendPasswordChangedNotification(User user) {
         String lang = user.getPreferredLanguage();
         String subject = msg.getForLang("email.password.changed.subject", lang);
-        String body = buildPasswordChangedEmailBody(lang, user.getFirstName());
-        sendEmail(user.getEmail(), subject, body);
+        String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+            """.formatted(
+                msg.getForLang("email.password.changed.greeting", lang, safeFirstName),
+                msg.getForLang("email.password.changed.body", lang),
+                msg.getForLang("email.password.changed.warning", lang)
+        );
+
+        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+    }
+
+    private String brandedTemplate(String content, String lang) {
+        return """
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
+                    <div style="background-color: #292524; padding: 20px 30px; text-align: center; border-bottom: 2px solid #f97316;">
+                        <a href="%s" style="text-decoration: none;">
+                            <h2 style="color: #f97316; margin: 0; font-size: 24px; letter-spacing: 1px;">FIRE ACADEMY</h2>
+                        </a>
+                    </div>
+                    <div style="padding: 30px;">
+                        %s
+                        <hr style="border-color: #4a4a4a; margin: 20px 0;" />
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(siteUrl, content, msg.getForLang("email.footer", lang));
     }
 
     private void sendEmail(String to, String subject, String body) {
@@ -76,107 +159,5 @@ public class AuthMailService {
         } catch (MailException | jakarta.mail.MessagingException e) {
             log.error("Failed to send auth email to: {}", to, e);
         }
-    }
-
-    private String buildVerificationEmailBody(String lang, String firstName, String verificationUrl) {
-        String safeFirstName = HtmlUtils.htmlEscape(firstName);
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="padding: 30px;">
-                        <h1 style="color: #f97316;">%s</h1>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="%s" style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">%s</a>
-                        </div>
-                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
-                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(
-            msg.getForLang("email.verification.greeting", lang, safeFirstName),
-            msg.getForLang("email.verification.body", lang),
-            msg.getForLang("email.verification.action", lang),
-            verificationUrl,
-            msg.getForLang("email.verification.button", lang),
-            msg.getForLang("email.verification.expiry", lang),
-            msg.getForLang("email.verification.ignore", lang)
-        );
-    }
-
-    private String buildWelcomeEmailBody(String lang, String firstName) {
-        String safeFirstName = HtmlUtils.htmlEscape(firstName);
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="padding: 30px;">
-                        <h1 style="color: #f97316;">%s</h1>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(
-            msg.getForLang("email.welcome.greeting", lang, safeFirstName),
-            msg.getForLang("email.welcome.body", lang),
-            msg.getForLang("email.welcome.see.you", lang)
-        );
-    }
-
-    private String buildPasswordResetEmailBody(String lang, String firstName, String resetUrl) {
-        String safeFirstName = HtmlUtils.htmlEscape(firstName);
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="padding: 30px;">
-                        <h1 style="color: #f97316;">%s</h1>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="%s" style="background: linear-gradient(135deg, #f97316, #ea580c); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">%s</a>
-                        </div>
-                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
-                        <p style="font-size: 14px; color: #9ca3af;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(
-            msg.getForLang("email.reset.greeting", lang, safeFirstName),
-            msg.getForLang("email.reset.body", lang),
-            msg.getForLang("email.reset.action", lang),
-            resetUrl,
-            msg.getForLang("email.reset.button", lang),
-            msg.getForLang("email.reset.expiry", lang),
-            msg.getForLang("email.reset.ignore", lang)
-        );
-    }
-
-    private String buildPasswordChangedEmailBody(String lang, String firstName) {
-        String safeFirstName = HtmlUtils.htmlEscape(firstName);
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="padding: 30px;">
-                        <h1 style="color: #f97316;">%s</h1>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(
-            msg.getForLang("email.password.changed.greeting", lang, safeFirstName),
-            msg.getForLang("email.password.changed.body", lang),
-            msg.getForLang("email.password.changed.warning", lang)
-        );
     }
 }
