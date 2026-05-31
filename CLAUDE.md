@@ -2,6 +2,9 @@
 
 Wizytówka klubu treningowego — treningi indywidualne i małe grupy (4–6 osób). Java/Spring Boot backend + React frontend. Dark mode (antracyt/czarny/pomarańczowy), Tailwind 4. Wyłącznie język polski.
 
+**Domena:** `fireworkout.pl` (Cloudflare DNS, SSL)
+**Firma:** FIZJO4LIFE Sp. z o.o., KRS 0001024771, NIP 6282290548
+**Mail:** fireacademy.biz@gmail.com (SMTP Gmail App Password)
 **Wersja:** odczytywana z pliku `VERSION` via `@version@` placeholder w `application.yml`
 
 ---
