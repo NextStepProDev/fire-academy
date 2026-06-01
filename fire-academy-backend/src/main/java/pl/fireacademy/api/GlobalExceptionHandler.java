@@ -45,10 +45,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
         log.warn("Upload size exceeded: {}", e.getMessage());
-        String message = e.getMessage() != null && e.getMessage().contains("request")
-                ? msg.get("request.too.large")
-                : msg.get("file.too.large");
-        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(Map.of("code", "PAYLOAD_TOO_LARGE", "message", message, "timestamp", Instant.now().toString()));
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(Map.of("code", "PAYLOAD_TOO_LARGE", "message", msg.get("file.too.large"), "timestamp", Instant.now().toString()));
     }
 
     @ExceptionHandler(Exception.class)
