@@ -1,5 +1,6 @@
 import { fetchApi } from './client'
 import type { EventCategory, Instructor, EventType, EventInstance, Enrollment } from '../types'
+import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 interface CreateInstructorRequest {
   firstName: string
@@ -72,9 +73,12 @@ export const adminApi = {
     fetchApi<Instructor>(`/admin/instructors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteInstructor: (id: string) =>
     fetchApi<void>(`/admin/instructors/${id}`, { method: 'DELETE' }),
-  uploadInstructorPhoto: (id: string, file: File) => {
+  uploadInstructorPhoto: async (id: string, file: File) => {
+    const error = validateImageFile(file)
+    if (error) throw new Error(error)
+    const compressed = await compressImage(file)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', compressed)
     return fetchApi<Instructor>(`/admin/instructors/${id}/photo`, { method: 'POST', body: formData })
   },
   toggleInstructorActive: (id: string) =>
@@ -91,14 +95,20 @@ export const adminApi = {
     fetchApi<EventType>(`/admin/event-types/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEventType: (id: string) =>
     fetchApi<void>(`/admin/event-types/${id}`, { method: 'DELETE' }),
-  uploadEventTypeThumbnail: (id: string, file: File) => {
+  uploadEventTypeThumbnail: async (id: string, file: File) => {
+    const error = validateImageFile(file)
+    if (error) throw new Error(error)
+    const compressed = await compressImage(file)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', compressed)
     return fetchApi<EventType>(`/admin/event-types/${id}/thumbnail`, { method: 'POST', body: formData })
   },
-  addEventTypePhoto: (id: string, file: File) => {
+  addEventTypePhoto: async (id: string, file: File) => {
+    const error = validateImageFile(file)
+    if (error) throw new Error(error)
+    const compressed = await compressImage(file)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', compressed)
     return fetchApi<EventType>(`/admin/event-types/${id}/photos`, { method: 'POST', body: formData })
   },
   deleteEventTypePhoto: (id: string, photoId: string) =>

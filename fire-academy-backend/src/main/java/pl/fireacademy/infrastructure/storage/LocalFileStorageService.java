@@ -20,9 +20,12 @@ public class LocalFileStorageService implements FileStorageService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".webp");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private final Path rootLocation;
+    private final ImageOptimizer imageOptimizer;
 
-    public LocalFileStorageService(@Value("${app.storage.root:./uploads}") String storageRoot) {
+    public LocalFileStorageService(@Value("${app.storage.root:./uploads}") String storageRoot,
+                                   ImageOptimizer imageOptimizer) {
         this.rootLocation = Path.of(storageRoot);
+        this.imageOptimizer = imageOptimizer;
         try {
             Files.createDirectories(rootLocation);
         } catch (IOException e) {
@@ -46,10 +49,12 @@ public class LocalFileStorageService implements FileStorageService {
         }
 
         try {
-            String filename = UUID.randomUUID() + extension;
+            var optimized = imageOptimizer.optimize(file.getInputStream(), extension);
+            String finalExtension = optimized.extension();
+            String filename = UUID.randomUUID() + finalExtension;
             Path dir = rootLocation.resolve(folder);
             Files.createDirectories(dir);
-            Files.copy(file.getInputStream(), dir.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(optimized.inputStream(), dir.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
             log.info("Stored file: {}/{}", folder, filename);
             return filename;
         } catch (IOException e) {

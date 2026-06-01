@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { useToast } from '../../context/ToastContext'
 import { ChevronUp, ChevronDown, Pencil, Trash2, Plus, X } from 'lucide-react'
 import type { EventCategory, EventType } from '../../types'
 import clsx from 'clsx'
@@ -16,6 +17,7 @@ interface AdminEventTypesProps {
 
 export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const { t } = useTranslation('admin')
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [editItem, setEditItem] = useState<EventType | null>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -53,12 +55,13 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const deleteMut = useMutation({ mutationFn: adminApi.deleteEventType, onSuccess: invalidate })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventTypeActive, onSuccess: invalidate })
   const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderEventType(id, dir), onSuccess: invalidate })
-  const thumbMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadEventTypeThumbnail(id, file), onSuccess: invalidate })
+  const thumbMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadEventTypeThumbnail(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const photoMut = useMutation({
     mutationFn: async ({ id, files }: { id: string; files: File[] }) => {
       for (const file of files) await adminApi.addEventTypePhoto(id, file)
     },
     onSuccess: invalidate,
+    onError: (e: Error) => showToast(e.message, 'error'),
   })
   const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate })
   const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate })
@@ -108,7 +111,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
               </div>
               <div className="flex items-center gap-1 mt-3 flex-wrap">
                 <label className="cursor-pointer">
-                  <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) thumbMut.mutate({ id: et.id, file: e.target.files[0] }) }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) thumbMut.mutate({ id: et.id, file: e.target.files[0] }) }} />
                   <span className="px-2 py-1 text-xs bg-surface-800 text-surface-300 rounded hover:bg-surface-700 transition-colors">{t('eventTypes.thumbnail')}</span>
                 </label>
                 <button onClick={() => reorderMut.mutate({ id: et.id, dir: 'up' })} disabled={idx === 0} className="p-1 text-surface-400 hover:text-surface-200 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
@@ -134,7 +137,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
                   </div>
                 ))}
                 <label className="w-20 h-20 rounded border-2 border-dashed border-surface-700 flex items-center justify-center cursor-pointer hover:border-primary-500 transition-colors">
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files?.length) photoMut.mutate({ id: et.id, files: Array.from(e.target.files) }) }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => { if (e.target.files?.length) photoMut.mutate({ id: et.id, files: Array.from(e.target.files) }) }} />
                   <Plus className="w-5 h-5 text-surface-500" />
                 </label>
               </div>

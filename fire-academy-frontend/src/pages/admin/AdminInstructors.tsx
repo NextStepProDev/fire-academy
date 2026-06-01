@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { useToast } from '../../context/ToastContext'
 import { ChevronUp, ChevronDown, Pencil, Trash2, User } from 'lucide-react'
 import type { EventCategory, Instructor } from '../../types'
 import clsx from 'clsx'
@@ -18,6 +19,7 @@ const ALL_CATEGORIES: { key: EventCategory; labelKey: string }[] = [
 
 export function AdminInstructors() {
   const { t } = useTranslation('admin')
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [editItem, setEditItem] = useState<Instructor | null>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -40,7 +42,7 @@ export function AdminInstructors() {
   const deleteMut = useMutation({ mutationFn: adminApi.deleteInstructor, onSuccess: invalidate })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleInstructorActive, onSuccess: invalidate })
   const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderInstructor(id, dir), onSuccess: invalidate })
-  const photoMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadInstructorPhoto(id, file), onSuccess: invalidate })
+  const photoMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadInstructorPhoto(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
 
   const openCreate = () => { setForm({ firstName: '', lastName: '', bio: '', categories: [] }); setIsCreating(true) }
   const openEdit = (i: Instructor) => { setForm({ firstName: i.firstName, lastName: i.lastName, bio: i.bio ?? '', categories: [...i.categories] }); setEditItem(i) }
@@ -103,7 +105,7 @@ export function AdminInstructors() {
                 <label className="cursor-pointer">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     className="hidden"
                     onChange={e => { if (e.target.files?.[0]) photoMut.mutate({ id: instr.id, file: e.target.files[0] }) }}
                   />

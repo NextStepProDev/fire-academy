@@ -8,6 +8,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.Instant;
 import java.util.Map;
@@ -16,6 +18,11 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final MessageService msg;
+
+    public GlobalExceptionHandler(MessageService msg) {
+        this.msg = msg;
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
@@ -33,6 +40,15 @@ public class GlobalExceptionHandler {
             .map(FieldError::getDefaultMessage)
             .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest().body(Map.of("code", "VALIDATION_ERROR", "message", errors, "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        log.warn("Upload size exceeded: {}", e.getMessage());
+        String message = e.getMessage() != null && e.getMessage().contains("request")
+                ? msg.get("request.too.large")
+                : msg.get("file.too.large");
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(Map.of("code", "PAYLOAD_TOO_LARGE", "message", message, "timestamp", Instant.now().toString()));
     }
 
     @ExceptionHandler(Exception.class)
