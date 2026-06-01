@@ -119,11 +119,11 @@ public class OgController {
     public ResponseEntity<String> homeOg() {
         String siteUrl = appConfig.getSiteUrl();
         String jsonLd = """
-                [{"@context":"https://schema.org","@type":"SportsActivityLocation","name":"Fire Academy","description":"Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.","url":"%s","telephone":"+48534823667"},{"@context":"https://schema.org","@type":"WebSite","name":"Fire Academy","url":"%s","inLanguage":"pl-PL"}]"""
+                [{"@context":"https://schema.org","@type":"SportsActivityLocation","name":"Fire Academy","description":"Treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.","url":"%s","telephone":"+48534823667"},{"@context":"https://schema.org","@type":"WebSite","name":"Fire Academy","url":"%s","inLanguage":"pl-PL"}]"""
                 .formatted(siteUrl, siteUrl);
         return ogResponse(
                 "Fire Academy",
-                "Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.",
+                "Treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.",
                 siteUrl + "/og-default.png",
                 siteUrl,
                 jsonLd

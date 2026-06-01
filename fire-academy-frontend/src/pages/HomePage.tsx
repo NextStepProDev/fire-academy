@@ -60,14 +60,14 @@ export function HomePage() {
     <div className="relative w-full h-screen overflow-hidden bg-surface-950" style={{ height: '100dvh', maxHeight: '-webkit-fill-available' }}>
       <Seo
         title="Fire Academy"
-        description="Fire Academy — treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców."
+        description="Fire Academy — treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych."
         path="/"
         jsonLd={[
           {
             '@context': 'https://schema.org',
             '@type': 'SportsActivityLocation',
             name: 'Fire Academy',
-            description: 'Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.',
+            description: 'Treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.',
             url: window.location.origin,
             image: `${window.location.origin}/og-default.png`,
             telephone: '+48534823667',
