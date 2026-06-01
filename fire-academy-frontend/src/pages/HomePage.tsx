@@ -88,7 +88,7 @@ export function HomePage() {
         <Link
           key={section.key}
           to={section.to}
-          className="absolute inset-0 group"
+          className={`absolute inset-0 group transition-opacity duration-700 ${showIntro ? 'opacity-0' : 'opacity-100'}`}
           style={{ clipPath: section.clipPath }}
         >
           <div
@@ -116,7 +116,7 @@ export function HomePage() {
       {separators.map((clipPath) => (
         <div
           key={clipPath}
-          className="absolute inset-0 bg-primary-500 pointer-events-none z-10"
+          className={`absolute inset-0 bg-primary-500 pointer-events-none z-10 transition-opacity duration-700 ${showIntro ? 'opacity-0' : 'opacity-100'}`}
           style={{ clipPath }}
         />
       ))}
