@@ -12,6 +12,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
+import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.LocalDate;
@@ -25,6 +26,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class EnrollmentMailServiceTest {
+
+    private static final String EVENT_ID = "11111111-1111-1111-1111-111111111111";
 
     @Mock private JavaMailSender mailSender;
     @Mock private AdminEmailConfig adminEmailConfig;
@@ -48,7 +51,7 @@ class EnrollmentMailServiceTest {
     @Test
     void shouldSendEnrollmentConfirmation() {
         service.sendEnrollmentConfirmation("jan@test.com", "Jan", "Trening",
-            LocalDate.of(2026, 5, 30), "Kraków");
+            LocalDate.of(2026, 5, 30), "Kraków", EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -56,7 +59,7 @@ class EnrollmentMailServiceTest {
     @Test
     void shouldSendEnrollmentConfirmationWithoutLocation() {
         service.sendEnrollmentConfirmation("anna@test.com", "Anna", "Obóz",
-            LocalDate.of(2026, 7, 15), null);
+            LocalDate.of(2026, 7, 15), null, EventCategory.CAMP, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -66,7 +69,7 @@ class EnrollmentMailServiceTest {
         when(adminEmailConfig.getAdminEmails()).thenReturn(Set.of("admin@test.com"));
 
         service.sendEnrollmentNotification("Trening", "Jan Kowalski",
-            "jan@test.com", LocalDate.of(2026, 5, 30));
+            "jan@test.com", LocalDate.of(2026, 5, 30), EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -79,7 +82,7 @@ class EnrollmentMailServiceTest {
         );
 
         service.sendEventModificationNotification("jan@test.com", "Jan",
-            "Trening", LocalDate.of(2026, 5, 30), changes);
+            "Trening", LocalDate.of(2026, 5, 30), changes, EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -91,7 +94,7 @@ class EnrollmentMailServiceTest {
         List<FieldChange> changes = List.of(new FieldChange("Cena", "100 PLN", "150 PLN"));
 
         service.sendEventModificationAdminNotification("Trening",
-            LocalDate.of(2026, 5, 30), changes);
+            LocalDate.of(2026, 5, 30), changes, EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender, times(2)).send(mimeMessage);
     }
@@ -99,7 +102,7 @@ class EnrollmentMailServiceTest {
     @Test
     void shouldSendEnrollmentDeletionNotification() {
         service.sendEnrollmentDeletionNotification("jan@test.com", "Jan",
-            "Trening", LocalDate.of(2026, 5, 30));
+            "Trening", LocalDate.of(2026, 5, 30), EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -109,7 +112,7 @@ class EnrollmentMailServiceTest {
         when(adminEmailConfig.getAdminEmails()).thenReturn(Set.of("admin@test.com"));
 
         service.sendEnrollmentDeletionAdminNotification("Trening", "Jan Kowalski",
-            "jan@test.com", LocalDate.of(2026, 5, 30));
+            "jan@test.com", LocalDate.of(2026, 5, 30), EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -117,7 +120,7 @@ class EnrollmentMailServiceTest {
     @Test
     void shouldSendAdminEnrollmentConfirmation() {
         service.sendAdminEnrollmentConfirmation("anna@test.com", "Anna",
-            "Obóz", LocalDate.of(2026, 7, 15), "Zakopane");
+            "Obóz", LocalDate.of(2026, 7, 15), "Zakopane", EventCategory.CAMP, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -127,7 +130,7 @@ class EnrollmentMailServiceTest {
         when(adminEmailConfig.getAdminEmails()).thenReturn(Set.of("admin@test.com"));
 
         service.sendAdminEnrollmentNotification("Obóz", "Anna Nowak",
-            "anna@test.com", LocalDate.of(2026, 7, 15));
+            "anna@test.com", LocalDate.of(2026, 7, 15), EventCategory.CAMP, EVENT_ID);
 
         verify(mailSender).send(mimeMessage);
     }
@@ -138,14 +141,15 @@ class EnrollmentMailServiceTest {
             .when(mailSender).send(any(MimeMessage.class));
 
         assertDoesNotThrow(() -> service.sendEnrollmentConfirmation(
-            "test@test.com", "Test", "Event", LocalDate.now(), null));
+            "test@test.com", "Test", "Event", LocalDate.now(), null, EventCategory.TRAINING, EVENT_ID));
     }
 
     @Test
     void shouldNotSendNotificationWhenNoAdminEmails() {
         when(adminEmailConfig.getAdminEmails()).thenReturn(Set.of());
 
-        service.sendEnrollmentNotification("Trening", "Jan", "jan@test.com", LocalDate.now());
+        service.sendEnrollmentNotification("Trening", "Jan", "jan@test.com",
+            LocalDate.now(), EventCategory.TRAINING, EVENT_ID);
 
         verify(mailSender, never()).send(any(MimeMessage.class));
     }

@@ -134,10 +134,12 @@ public class AdminEventService {
             for (Enrollment enrollment : enrollments) {
                 enrollmentMailService.sendEventModificationNotification(
                         enrollment.getEmail(), enrollment.getFirstName(),
-                        saved.getDisplayName(), saved.getStartDate(), changes);
+                        saved.getDisplayName(), saved.getStartDate(), changes,
+                        saved.getCategory(), saved.getId().toString());
             }
             enrollmentMailService.sendEventModificationAdminNotification(
-                    saved.getDisplayName(), saved.getStartDate(), changes);
+                    saved.getDisplayName(), saved.getStartDate(), changes,
+                    saved.getCategory(), saved.getId().toString());
         }
 
         return toResponse(saved);
@@ -195,5 +197,5 @@ public class AdminEventService {
 
     private static String fmt(Object val) { return val != null ? val.toString() : ""; }
     private static String orEmpty(String val) { return val != null ? val : ""; }
-    private static String fmtPrice(BigDecimal val) { return val != null ? val.toPlainString() + " PLN" : ""; }
+    private static String fmtPrice(BigDecimal val) { return val != null ? val.stripTrailingZeros().toPlainString() + " PLN" : ""; }
 }

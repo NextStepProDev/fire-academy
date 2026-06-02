@@ -174,11 +174,13 @@ public class PublicService {
 
         enrollmentMailService.sendEnrollmentConfirmation(
                 request.email(), request.firstName(),
-                event.getDisplayName(), event.getStartDate(), event.getLocation());
+                event.getDisplayName(), event.getStartDate(), event.getLocation(),
+                event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendEnrollmentNotification(
                 event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
-                request.email(), event.getStartDate());
+                request.email(), event.getStartDate(),
+                event.getCategory(), event.getId().toString());
     }
 }

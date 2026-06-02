@@ -89,9 +89,9 @@ class AdminEnrollmentServiceTest {
 
         assertNotNull(result);
         verify(enrollmentMailService).sendAdminEnrollmentConfirmation(
-            eq("anna@test.com"), eq("Anna"), eq("Trening personalny"), any(), eq("Kraków"));
+            eq("anna@test.com"), eq("Anna"), eq("Trening personalny"), any(), eq("Kraków"), any(), any());
         verify(enrollmentMailService).sendAdminEnrollmentNotification(
-            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"), any());
+            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"), any(), any(), any());
     }
 
     @Test
@@ -113,9 +113,9 @@ class AdminEnrollmentServiceTest {
 
         verify(enrollmentRepository).delete(enrollment);
         verify(enrollmentMailService).sendEnrollmentDeletionNotification(
-            eq("jan@test.com"), eq("Jan"), eq("Trening personalny"), any());
+            eq("jan@test.com"), eq("Jan"), eq("Trening personalny"), any(), any(), any());
         verify(enrollmentMailService).sendEnrollmentDeletionAdminNotification(
-            eq("Trening personalny"), eq("Jan Kowalski"), eq("jan@test.com"), any());
+            eq("Trening personalny"), eq("Jan Kowalski"), eq("jan@test.com"), any(), any(), any());
     }
 
     @Test

@@ -126,24 +126,29 @@ public class AuthMailService {
     }
 
     private String brandedTemplate(String content, String lang) {
+        String logoUrl = siteUrl + "/images/logo/logo-white.png";
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
                 <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #292524; padding: 20px 30px; text-align: center; border-bottom: 2px solid #f97316;">
+                    <div style="background-color: #292524; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f97316;">
                         <a href="%s" style="text-decoration: none;">
-                            <h2 style="color: #f97316; margin: 0; font-size: 24px; letter-spacing: 1px;">FIRE ACADEMY</h2>
+                            <img src="%s" alt="Fire Academy" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
                         </a>
                     </div>
                     <div style="padding: 30px;">
                         %s
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
+                            <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
+                        </p>
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">%s</p>
                     </div>
                 </div>
             </body>
             </html>
-            """.formatted(siteUrl, content, msg.getForLang("email.footer", lang));
+            """.formatted(siteUrl, logoUrl, content, siteUrl,
+                msg.getForLang("email.footer.visit", lang), msg.getForLang("email.footer", lang));
     }
 
     private void sendEmail(String to, String subject, String body) {
