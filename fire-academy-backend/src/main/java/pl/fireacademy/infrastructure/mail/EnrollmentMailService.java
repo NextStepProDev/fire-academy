@@ -49,7 +49,8 @@ public class EnrollmentMailService {
     @Async("mailExecutor")
     public void sendEnrollmentConfirmation(String recipientEmail, String firstName,
                                             String eventTypeName, LocalDate date,
-                                            @Nullable String location) {
+                                            @Nullable String location,
+                                            EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.confirmation.subject");
         String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
@@ -66,6 +67,7 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         %s
+                        %s
                         <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
                         <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
             """.formatted(
@@ -73,6 +75,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.confirmation.body", safeEventTypeName),
                 msg.get("email.enrollment.confirmation.date", dateStr),
                 locationHtml,
+                eventButton(category, eventId),
                 msg.get("email.enrollment.confirmation.footer"),
                 msg.get("email.enrollment.cancel.info")
         );
@@ -82,7 +85,8 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentNotification(String eventTypeName, String participantName,
-                                            String participantEmail, LocalDate date) {
+                                            String participantEmail, LocalDate date,
+                                            EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
         String safeParticipantName = HtmlUtils.htmlEscape(participantName);
         String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
@@ -94,11 +98,13 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
             """.formatted(
                 subject,
                 msg.get("email.enrollment.notification.body", safeEventTypeName),
                 msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr)
+                msg.get("email.enrollment.confirmation.date", dateStr),
+                eventButton(category, eventId)
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
@@ -109,7 +115,8 @@ public class EnrollmentMailService {
     @Async("mailExecutor")
     public void sendAdminEnrollmentConfirmation(String recipientEmail, String firstName,
                                                  String eventTypeName, LocalDate date,
-                                                 @Nullable String location) {
+                                                 @Nullable String location,
+                                                 EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.admin.confirmation.subject");
         String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
@@ -126,6 +133,7 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         %s
+                        %s
                         <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
                         <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
             """.formatted(
@@ -133,6 +141,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.admin.confirmation.body", safeEventTypeName),
                 msg.get("email.enrollment.confirmation.date", dateStr),
                 locationHtml,
+                eventButton(category, eventId),
                 msg.get("email.enrollment.confirmation.footer"),
                 msg.get("email.enrollment.cancel.info")
         );
@@ -142,7 +151,8 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendAdminEnrollmentNotification(String eventTypeName, String participantName,
-                                                 String participantEmail, LocalDate date) {
+                                                 String participantEmail, LocalDate date,
+                                                 EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
         String safeParticipantName = HtmlUtils.htmlEscape(participantName);
         String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
@@ -154,11 +164,13 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
             """.formatted(
                 subject,
                 msg.get("email.enrollment.admin.notification.body", safeEventTypeName),
                 msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr)
+                msg.get("email.enrollment.confirmation.date", dateStr),
+                eventButton(category, eventId)
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
@@ -169,23 +181,11 @@ public class EnrollmentMailService {
     @Async("mailExecutor")
     public void sendEventModificationNotification(String recipientEmail, String firstName,
                                                     String eventName, LocalDate date,
-                                                    List<FieldChange> changes) {
+                                                    List<FieldChange> changes,
+                                                    EventCategory category, String eventId) {
         String subject = msg.get("email.event.modified.subject");
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeEventName = HtmlUtils.htmlEscape(eventName);
-
-        var changesHtml = new StringBuilder();
-        for (var change : changes) {
-            changesHtml.append("""
-                <p style="font-size: 14px; margin: 4px 0;">
-                    <strong>%s:</strong>
-                    <span style="text-decoration: line-through; color: #9ca3af;">%s</span>
-                    → <span style="color: #f97316; font-weight: bold;">%s</span>
-                </p>
-                """.formatted(HtmlUtils.htmlEscape(change.field()),
-                              HtmlUtils.htmlEscape(change.oldValue()),
-                              HtmlUtils.htmlEscape(change.newValue())));
-        }
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -194,13 +194,15 @@ public class EnrollmentMailService {
                             <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">%s</p>
                             %s
                         </div>
+                        %s
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
             """.formatted(
                 msg.get("email.event.modified.greeting", safeFirstName),
                 msg.get("email.event.modified.body", safeEventName, date.format(DATE_FMT)),
                 msg.get("email.event.modified.changes"),
-                changesHtml,
+                renderChanges(changes),
+                eventButton(category, eventId),
                 msg.get("email.event.modified.footer"),
                 msg.get("email.enrollment.cancel.info")
         );
@@ -210,22 +212,10 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEventModificationAdminNotification(String eventName, LocalDate date,
-                                                        List<FieldChange> changes) {
+                                                        List<FieldChange> changes,
+                                                        EventCategory category, String eventId) {
         String safeEventName = HtmlUtils.htmlEscape(eventName);
         String subject = msg.get("email.event.modified.subject");
-
-        var changesHtml = new StringBuilder();
-        for (var change : changes) {
-            changesHtml.append("""
-                <p style="font-size: 14px; margin: 4px 0;">
-                    <strong>%s:</strong>
-                    <span style="text-decoration: line-through; color: #9ca3af;">%s</span>
-                    → <span style="color: #f97316; font-weight: bold;">%s</span>
-                </p>
-                """.formatted(HtmlUtils.htmlEscape(change.field()),
-                              HtmlUtils.htmlEscape(change.oldValue()),
-                              HtmlUtils.htmlEscape(change.newValue())));
-        }
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -234,11 +224,13 @@ public class EnrollmentMailService {
                             <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">%s</p>
                             %s
                         </div>
+                        %s
             """.formatted(
                 subject,
                 msg.get("email.event.modified.admin.body", safeEventName, date.format(DATE_FMT)),
                 msg.get("email.event.modified.changes"),
-                changesHtml
+                renderChanges(changes),
+                eventButton(category, eventId)
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
@@ -248,7 +240,8 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentDeletionNotification(String recipientEmail, String firstName,
-                                                    String eventName, LocalDate date) {
+                                                    String eventName, LocalDate date,
+                                                    EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.deletion.subject");
         String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
@@ -258,11 +251,13 @@ public class EnrollmentMailService {
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
                         <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
             """.formatted(
                 msg.get("email.enrollment.deletion.greeting", safeFirstName),
                 msg.get("email.enrollment.deletion.body", safeEventName, dateStr),
                 msg.get("email.enrollment.confirmation.date", dateStr),
+                eventButton(category, eventId),
                 msg.get("email.enrollment.deletion.footer")
         );
 
@@ -271,7 +266,8 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentDeletionAdminNotification(String eventName, String participantName,
-                                                         String participantEmail, LocalDate date) {
+                                                         String participantEmail, LocalDate date,
+                                                         EventCategory category, String eventId) {
         String safeEventName = HtmlUtils.htmlEscape(eventName);
         String safeParticipantName = HtmlUtils.htmlEscape(participantName);
         String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
@@ -283,11 +279,13 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
             """.formatted(
                 subject,
                 msg.get("email.enrollment.deletion.admin.body", safeEventName, dateStr),
                 msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr)
+                msg.get("email.enrollment.confirmation.date", dateStr),
+                eventButton(category, eventId)
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
@@ -307,9 +305,6 @@ public class EnrollmentMailService {
         String dateStr = date.format(DATE_FMT);
         String safeLocation = location != null ? HtmlUtils.htmlEscape(location) : null;
 
-        String categorySlug = CATEGORY_SLUGS.get(category);
-        String eventUrl = appConfig.getSiteUrl() + "/" + categorySlug + "/termin/" + eventId;
-
         String locationHtml = safeLocation != null
                 ? "<p style=\"font-size: 14px; margin: 4px 0;\"><strong>%s</strong> %s</p>".formatted(
                         msg.get("email.bulk.location"), safeLocation)
@@ -326,9 +321,7 @@ public class EnrollmentMailService {
                             <p style="font-size: 14px; margin: 4px 0;"><strong>%s</strong> %s</p>
                             %s
                         </div>
-                        <div style="text-align: center; margin: 28px 0;">
-                            <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
-                        </div>
+                        %s
                         <p style="font-size: 14px; color: #9ca3af; margin-top: 12px;">%s</p>
             """.formatted(
                 msg.get("email.bulk.greeting", safeFirstName),
@@ -337,33 +330,63 @@ public class EnrollmentMailService {
                 msg.get("email.bulk.event"), safeEventName,
                 msg.get("email.bulk.date"), dateStr,
                 locationHtml,
-                eventUrl,
-                msg.get("email.bulk.button"),
+                eventButton(category, eventId),
                 msg.get("email.enrollment.cancel.info")
         );
 
         sendEmail(recipientEmail, subject, brandedTemplate(content));
     }
 
+    private String renderChanges(List<FieldChange> changes) {
+        var changesHtml = new StringBuilder();
+        for (var change : changes) {
+            changesHtml.append("""
+                <p style="font-size: 14px; margin: 4px 0;">
+                    <strong>%s:</strong>
+                    <span style="text-decoration: line-through; color: #9ca3af;">%s</span>
+                    → <span style="color: #f97316; font-weight: bold;">%s</span>
+                </p>
+                """.formatted(HtmlUtils.htmlEscape(change.field()),
+                              HtmlUtils.htmlEscape(change.oldValue()),
+                              HtmlUtils.htmlEscape(change.newValue())));
+        }
+        return changesHtml.toString();
+    }
+
+    private String eventButton(EventCategory category, String eventId) {
+        String slug = CATEGORY_SLUGS.get(category);
+        String eventUrl = appConfig.getSiteUrl() + "/" + slug + "/termin/" + eventId;
+        return """
+            <div style="text-align: center; margin: 28px 0;">
+                <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
+            </div>
+            """.formatted(eventUrl, msg.get("email.event.view"));
+    }
+
     private String brandedTemplate(String content) {
+        String siteUrl = appConfig.getSiteUrl();
+        String logoUrl = siteUrl + "/images/logo/logo-white.png";
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
                 <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #292524; padding: 20px 30px; text-align: center; border-bottom: 2px solid #f97316;">
+                    <div style="background-color: #292524; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f97316;">
                         <a href="%s" style="text-decoration: none;">
-                            <h2 style="color: #f97316; margin: 0; font-size: 24px; letter-spacing: 1px;">FIRE ACADEMY</h2>
+                            <img src="%s" alt="Fire Academy" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
                         </a>
                     </div>
                     <div style="padding: 30px;">
                         %s
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center;">%s</p>
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
+                            <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
+                        </p>
+                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">%s</p>
                     </div>
                 </div>
             </body>
             </html>
-            """.formatted(appConfig.getSiteUrl(), content, msg.get("email.footer"));
+            """.formatted(siteUrl, logoUrl, content, siteUrl, msg.get("email.footer.visit"), msg.get("email.footer"));
     }
 
     private void sendEmail(String to, String subject, String body) {

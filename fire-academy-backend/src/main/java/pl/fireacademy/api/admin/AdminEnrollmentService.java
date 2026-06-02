@@ -64,12 +64,14 @@ public class AdminEnrollmentService {
 
         enrollmentMailService.sendAdminEnrollmentConfirmation(
                 request.email(), request.firstName(),
-                event.getDisplayName(), event.getStartDate(), event.getLocation());
+                event.getDisplayName(), event.getStartDate(), event.getLocation(),
+                event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendAdminEnrollmentNotification(
                 event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
-                request.email(), event.getStartDate());
+                request.email(), event.getStartDate(),
+                event.getCategory(), event.getId().toString());
 
         return toResponse(saved);
     }
@@ -90,11 +92,13 @@ public class AdminEnrollmentService {
 
         enrollmentMailService.sendEnrollmentDeletionNotification(
                 enrollment.getEmail(), enrollment.getFirstName(),
-                event.getDisplayName(), event.getStartDate());
+                event.getDisplayName(), event.getStartDate(),
+                event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendEnrollmentDeletionAdminNotification(
                 event.getDisplayName(), participantName,
-                enrollment.getEmail(), event.getStartDate());
+                enrollment.getEmail(), event.getStartDate(),
+                event.getCategory(), event.getId().toString());
     }
 
     @Transactional(readOnly = true)
