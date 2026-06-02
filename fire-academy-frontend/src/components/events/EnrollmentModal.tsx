@@ -50,7 +50,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName }: Enrollm
     if (!fields.phone.trim()) errs.phone = t('enroll.phoneRequired')
     else {
       const digits = fields.phone.replace(/\s/g, '')
-      if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) errs.phone = t('enroll.phoneInvalid')
+      if (!/^(\d{9}|\+\d{1,4}\d{9})$/.test(digits)) errs.phone = t('enroll.phoneInvalid')
     }
     if (checkPrivacy && !privacyAccepted) errs.privacy = t('enroll.privacyRequired')
     return errs

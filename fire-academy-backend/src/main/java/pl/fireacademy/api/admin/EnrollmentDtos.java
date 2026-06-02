@@ -31,10 +31,10 @@ public final class EnrollmentDtos {
 
     public record AdminEnrollRequest(
             @NotNull UUID eventId,
-            @NotBlank @Size(max = 36, message = "{validation.firstname.size}") String firstName,
-            @NotBlank @Size(max = 36, message = "{validation.lastname.size}") String lastName,
+            @NotBlank @Size(min = 3, max = 36, message = "{validation.firstname.size}") String firstName,
+            @NotBlank @Size(min = 3, max = 36, message = "{validation.lastname.size}") String lastName,
             @Email @NotBlank String email,
-            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{2}\\d{9})$", message = "{validation.phone.format}") String phone,
+            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{1,4}\\d{9})$", message = "{validation.phone.format}") String phone,
             @Nullable @Size(max = 2000, message = "{validation.note.size}") String note
     ) {}
 

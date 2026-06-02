@@ -8,8 +8,16 @@ export function validateName(name: string): string | null {
 }
 
 export function validatePhone(phone: string): string | null {
-  if (!/^\+[0-9]{1,4}[0-9]{9}$/.test(phone)) {
+  const normalized = phone.replace(/\s/g, '')
+  if (!/^(\d{9}|\+\d{1,4}\d{9})$/.test(normalized)) {
     return i18n.t('validation.phoneInvalid', { ns: 'errors' })
+  }
+  return null
+}
+
+export function validateEmail(email: string): string | null {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return i18n.t('validation.emailInvalid', { ns: 'errors' })
   }
   return null
 }

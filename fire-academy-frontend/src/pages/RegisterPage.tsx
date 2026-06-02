@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { registerUser } from '../api/auth'
-import { validatePassword, validatePhone, validateName } from '../utils/validation'
+import { validatePassword, validatePhone, validateName, validateEmail } from '../utils/validation'
 import { Button } from '../components/ui/Button'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
@@ -35,6 +35,8 @@ export function RegisterPage() {
     const lnErr = validateName(form.lastName)
     if (lnErr) { setLastNameError(lnErr); return lnErr }
     setLastNameError(null)
+    const emailErr = validateEmail(form.email)
+    if (emailErr) return emailErr
     const phoneErr = validatePhone(form.phone)
     if (phoneErr) { setPhoneError(phoneErr); return phoneErr }
     setPhoneError(null)
@@ -58,7 +60,7 @@ export function RegisterPage() {
         password: form.password,
         firstName: form.firstName,
         lastName: form.lastName,
-        phone: form.phone,
+        phone: form.phone.replace(/\s/g, ''),
         preferredLanguage: i18n.language,
       })
       setSuccess(true)

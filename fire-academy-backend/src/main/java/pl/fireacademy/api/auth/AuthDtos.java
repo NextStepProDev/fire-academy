@@ -11,7 +11,7 @@ public final class AuthDtos {
         @NotBlank(message = "{validation.password.required}") @Size(min = 8, max = 100, message = "{validation.password.size}") String password,
         @NotBlank(message = "{validation.firstname.required}") @Size(min = 3, max = 36, message = "{validation.firstname.size}") String firstName,
         @NotBlank(message = "{validation.lastname.required}") @Size(min = 3, max = 36, message = "{validation.lastname.size}") String lastName,
-        @Nullable String phone,
+        @Nullable @Pattern(regexp = "^(\\d{9}|\\+\\d{1,4}\\d{9})$", message = "{validation.phone.format}") String phone,
         @Nullable String preferredLanguage
     ) {}
 
