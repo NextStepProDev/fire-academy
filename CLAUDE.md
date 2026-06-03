@@ -136,6 +136,9 @@ Aplikacja wspiera wyłącznie **język polski**. Backend: `messages.properties` 
 - Frontend (Vite): 5174
 - MailHog SMTP: 1026, Web UI: 8026
 
+### Serwer produkcyjny (Oracle Always Free, 1 GB RAM)
+- **Swap 2 GB — krytyczny przy 1 GB RAM (bez tego OOM).** Przy pierwszym deploy uruchomić raz: `sudo bash setup-swap.sh` (skrypt w `fire-academy-hub/`, idempotentny: 2 GB `/swapfile`, swappiness 10, utrwalone w fstab + sysctl)
+
 ### CI/CD (GitHub Actions)
 - `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
