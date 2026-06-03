@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react'
 
-// const SPARRING_BG =
-//   'https://images.unsplash.com/photo-1525680996651-0222228be6f0?w=1920&q=80'
 const SPARRING_BG = '/images/posters/przemo-mma-zwyciestwo.jpeg'
 
 export function HeroIntro({ onComplete }: { onComplete: () => void }) {
-  const [phase, setPhase] = useState<'enter' | 'hold' | 'exit'>('enter')
+  const [phase, setPhase] = useState<'enter' | 'clash' | 'exit'>('enter')
 
   useEffect(() => {
-    const enterTimer = setTimeout(() => setPhase('hold'), 100)
+    const clashTimer = setTimeout(() => setPhase('clash'), 80)
     const exitTimer = setTimeout(() => setPhase('exit'), 3100)
     const doneTimer = setTimeout(onComplete, 3800)
     return () => {
-      clearTimeout(enterTimer)
+      clearTimeout(clashTimer)
       clearTimeout(exitTimer)
       clearTimeout(doneTimer)
     }
   }, [onComplete])
 
+  const met = phase !== 'enter'
+
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-700 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden transition-opacity duration-700 ${
         phase === 'exit' ? 'opacity-0' : 'opacity-100'
       }`}
     >
@@ -28,51 +28,59 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
         className="absolute inset-0 bg-cover bg-[center_20%] scale-125"
         style={{ backgroundImage: `url(${SPARRING_BG})` }}
       />
+      <div className="absolute inset-0 bg-black/55" />
 
-      <div className="absolute inset-0 bg-black/45" />
-
-      <div className="relative z-10 flex flex-col items-center gap-6 md:flex-row md:gap-10">
-        <img
-          src="/images/logo/logo-white.png"
-          alt="Fire Academy"
-          className={`hidden md:block h-40 w-auto drop-shadow-[0_0_30px_rgba(249,115,22,0.6)] transition-all duration-1000 ease-out ${
-            phase === 'enter'
-              ? '-translate-x-24 opacity-0 scale-75'
-              : 'translate-x-0 opacity-100 scale-100'
-          }`}
+      {/* Błysk ognia w momencie zderzenia logotypów */}
+      {met && (
+        <div
+          className="intro-burst pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[60vmin] rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(249,115,22,0.95) 0%, rgba(249,115,22,0.35) 35%, rgba(249,115,22,0) 65%)',
+          }}
         />
-        <div className="flex flex-col items-center md:items-start">
-          <h1
-            className={`text-5xl font-black tracking-[0.25em] text-white uppercase md:text-7xl lg:text-8xl transition-all duration-1000 ease-out delay-200 ${
-              phase === 'enter'
-                ? 'translate-x-24 opacity-0'
-                : 'translate-x-0 opacity-100'
+      )}
+
+      <div className="relative z-10 flex flex-col items-center gap-8">
+        <div className={`flex items-center justify-center gap-5 md:gap-8 ${met ? 'intro-glow' : ''}`}>
+          {/* ACADEMY FIRE — wlatuje z lewej */}
+          <img
+            src="/images/logo/logo-academy-fire-aligned.png"
+            alt="Fire Academy"
+            className={`h-32 w-auto md:h-44 transition-all duration-[700ms] ease-out ${
+              met ? 'translate-x-0 opacity-100' : '-translate-x-[60vw] opacity-0'
             }`}
-          >
-            <span className="text-primary-400">FIRE</span>
-          </h1>
-          <h1
-            className={`text-5xl font-black tracking-[0.25em] text-white uppercase md:text-7xl lg:text-8xl transition-all duration-1000 ease-out delay-400 ${
-              phase === 'enter'
-                ? 'translate-x-24 opacity-0'
-                : 'translate-x-0 opacity-100'
+          />
+
+          {/* Separator — wskakuje gdy się spotkają */}
+          <span
+            className={`h-20 w-[3px] origin-center rounded-full bg-white/45 transition-all duration-300 ease-out md:h-28 ${
+              met ? 'scale-y-100 opacity-100 delay-[650ms]' : 'scale-y-0 opacity-0'
             }`}
-          >
-            ACADEMY
-          </h1>
-          <p
-            className={`mt-3 text-lg tracking-[0.5em] text-primary-300/80 uppercase md:text-xl transition-all duration-700 ease-out delay-700 ${
-              phase === 'enter' ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
+          />
+
+          {/* FIRE CAMP — wlatuje z prawej */}
+          <img
+            src="/images/logo/logo-fire-camp-aligned.png"
+            alt="Fire Camp"
+            className={`h-32 w-auto md:h-44 transition-all duration-[700ms] ease-out ${
+              met ? 'translate-x-0 opacity-100' : 'translate-x-[60vw] opacity-0'
             }`}
-          >
-            Trenuj z ogniem
-          </p>
+          />
         </div>
+
+        <p
+          className={`text-lg tracking-[0.5em] text-primary-300/90 uppercase md:text-xl transition-all duration-700 ease-out ${
+            met ? 'translate-y-0 opacity-100 delay-[1100ms]' : 'translate-y-4 opacity-0'
+          }`}
+        >
+          Trenuj z ogniem
+        </p>
       </div>
 
       <div
         className={`absolute bottom-0 left-0 h-1 bg-primary-500 transition-all ease-linear ${
-          phase === 'enter' ? 'w-0 duration-0' : 'w-full duration-3500'
+          phase === 'enter' ? 'w-0 duration-0' : 'w-full duration-[3500ms]'
         }`}
       />
     </div>
