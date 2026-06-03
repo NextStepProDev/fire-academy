@@ -158,7 +158,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.description')}</label>
-            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={12} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y" />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>

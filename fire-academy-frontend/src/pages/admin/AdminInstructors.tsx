@@ -143,7 +143,7 @@ export function AdminInstructors() {
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('kadra.bio')}</label>
-            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={4} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={16} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y" />
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-2">{t('kadra.categories')}</label>
