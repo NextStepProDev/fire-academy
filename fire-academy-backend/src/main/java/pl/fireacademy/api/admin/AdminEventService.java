@@ -14,7 +14,6 @@ import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -130,15 +129,16 @@ public class AdminEventService {
         var saved = eventRepository.save(event);
 
         if (!changes.isEmpty()) {
+            var schedule = EnrollmentMailService.formatSchedule(saved);
             var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(id);
             for (Enrollment enrollment : enrollments) {
                 enrollmentMailService.sendEventModificationNotification(
                         enrollment.getEmail(), enrollment.getFirstName(),
-                        saved.getDisplayName(), saved.getStartDate(), changes,
+                        saved.getDisplayName(), schedule, changes,
                         saved.getCategory(), saved.getId().toString());
             }
             enrollmentMailService.sendEventModificationAdminNotification(
-                    saved.getDisplayName(), saved.getStartDate(), changes,
+                    saved.getDisplayName(), schedule, changes,
                     saved.getCategory(), saved.getId().toString());
         }
 

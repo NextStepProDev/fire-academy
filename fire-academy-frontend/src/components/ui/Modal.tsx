@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface ModalProps {
   isOpen: boolean
@@ -8,11 +9,64 @@ interface ModalProps {
   children: ReactNode
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  const { t } = useTranslation('common')
+  const titleId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // onClose w ref, by efekt nie restartował przy każdej nowej referencji callbacku
+  const onCloseRef = useRef(onClose)
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    document.body.style.overflow = 'hidden'
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
+    // Przenieś fokus do modala po otwarciu
+    const panel = panelRef.current
+    const first = panel?.querySelector<HTMLElement>(FOCUSABLE)
+    ;(first ?? panel)?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !panel) return
+
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+      if (focusable.length === 0) {
+        e.preventDefault()
+        panel.focus()
+        return
+      }
+      const firstEl = focusable[0]
+      const lastEl = focusable[focusable.length - 1]
+      const active = document.activeElement
+
+      if (e.shiftKey && (active === firstEl || active === panel)) {
+        e.preventDefault()
+        lastEl.focus()
+      } else if (!e.shiftKey && active === lastEl) {
+        e.preventDefault()
+        firstEl.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = ''
+      // Przywróć fokus na element wyzwalający
+      previouslyFocused?.focus?.()
+    }
   }, [isOpen])
 
   if (!isOpen) return null
@@ -20,10 +74,21 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-surface-900 rounded-xl border border-surface-700 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative bg-surface-900 rounded-xl border border-surface-700 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto focus:outline-none"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-surface-800">
-          <h2 className="text-lg font-semibold text-surface-100">{title}</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-surface-200 transition-colors">
+          <h2 id={titleId} className="text-lg font-semibold text-surface-100">{title}</h2>
+          <button
+            onClick={onClose}
+            aria-label={t('actions.close')}
+            className="text-surface-400 hover:text-surface-200 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>

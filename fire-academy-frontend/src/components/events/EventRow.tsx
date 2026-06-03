@@ -2,7 +2,7 @@ import { MapPin, Calendar, Users, Phone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../ui/Button'
 import { ShareButton } from '../ui/ShareButton'
-import { formatDateRange } from '../../utils/dates'
+import { formatSchedule } from '../../utils/dates'
 import type { EventInstance } from '../../types'
 
 interface EventRowProps {
@@ -32,8 +32,7 @@ export function EventRow({ event, onEnroll, onDetails, shareUrl }: EventRowProps
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-surface-400">
           <span className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4" />
-            {formatDateRange(event.startDate, event.endDate)}
-            {event.startTime ? `, ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
+            {formatSchedule(event.startDate, event.endDate, event.startTime, event.endTime)}
           </span>
           {event.location && (
             <span className="flex items-center gap-1.5">

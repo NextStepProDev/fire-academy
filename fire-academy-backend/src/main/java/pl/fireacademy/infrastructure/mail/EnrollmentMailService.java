@@ -15,9 +15,11 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
 
+import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.event.EventCategory;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,7 @@ public class EnrollmentMailService {
 
     private static final Logger log = LoggerFactory.getLogger(EnrollmentMailService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final Map<EventCategory, String> CATEGORY_SLUGS = Map.of(
             EventCategory.TRAINING, "treningi",
             EventCategory.CAMP, "obozy",
@@ -48,11 +51,10 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentConfirmation(String recipientEmail, String firstName,
-                                            String eventTypeName, LocalDate date,
+                                            String eventTypeName, String schedule,
                                             @Nullable String location,
                                             EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.confirmation.subject");
-        String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
         String safeLocation = location != null ? HtmlUtils.htmlEscape(location) : null;
@@ -73,7 +75,7 @@ public class EnrollmentMailService {
             """.formatted(
                 msg.get("email.enrollment.confirmation.greeting", safeFirstName),
                 msg.get("email.enrollment.confirmation.body", safeEventTypeName),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.confirmation.date", schedule),
                 locationHtml,
                 eventButton(category, eventId),
                 msg.get("email.enrollment.confirmation.footer"),
@@ -85,25 +87,28 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentNotification(String eventTypeName, String participantName,
-                                            String participantEmail, LocalDate date,
+                                            String participantEmail, String participantPhone,
+                                            @Nullable String note, String schedule,
                                             EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
-        String safeParticipantName = HtmlUtils.htmlEscape(participantName);
-        String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
         String subject = msg.get("email.enrollment.notification.subject", safeEventTypeName);
-        String dateStr = date.format(DATE_FMT);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
                         %s
             """.formatted(
                 subject,
                 msg.get("email.enrollment.notification.body", safeEventTypeName),
-                msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.notification.participant",
+                        HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
+                msg.get("email.enrollment.notification.phone", HtmlUtils.htmlEscape(participantPhone)),
+                msg.get("email.enrollment.confirmation.date", schedule),
+                noteBlock(note),
                 eventButton(category, eventId)
         );
 
@@ -114,11 +119,10 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendAdminEnrollmentConfirmation(String recipientEmail, String firstName,
-                                                 String eventTypeName, LocalDate date,
+                                                 String eventTypeName, String schedule,
                                                  @Nullable String location,
                                                  EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.admin.confirmation.subject");
-        String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
         String safeLocation = location != null ? HtmlUtils.htmlEscape(location) : null;
@@ -139,7 +143,7 @@ public class EnrollmentMailService {
             """.formatted(
                 msg.get("email.enrollment.admin.confirmation.greeting", safeFirstName),
                 msg.get("email.enrollment.admin.confirmation.body", safeEventTypeName),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.confirmation.date", schedule),
                 locationHtml,
                 eventButton(category, eventId),
                 msg.get("email.enrollment.confirmation.footer"),
@@ -151,25 +155,28 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendAdminEnrollmentNotification(String eventTypeName, String participantName,
-                                                 String participantEmail, LocalDate date,
+                                                 String participantEmail, String participantPhone,
+                                                 @Nullable String note, String schedule,
                                                  EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
-        String safeParticipantName = HtmlUtils.htmlEscape(participantName);
-        String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
         String subject = msg.get("email.enrollment.admin.notification.subject", safeEventTypeName);
-        String dateStr = date.format(DATE_FMT);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        %s
                         %s
             """.formatted(
                 subject,
                 msg.get("email.enrollment.admin.notification.body", safeEventTypeName),
-                msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.notification.participant",
+                        HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
+                msg.get("email.enrollment.notification.phone", HtmlUtils.htmlEscape(participantPhone)),
+                msg.get("email.enrollment.confirmation.date", schedule),
+                noteBlock(note),
                 eventButton(category, eventId)
         );
 
@@ -180,7 +187,7 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEventModificationNotification(String recipientEmail, String firstName,
-                                                    String eventName, LocalDate date,
+                                                    String eventName, String schedule,
                                                     List<FieldChange> changes,
                                                     EventCategory category, String eventId) {
         String subject = msg.get("email.event.modified.subject");
@@ -199,7 +206,7 @@ public class EnrollmentMailService {
                         <p style="font-size: 14px; line-height: 1.6; color: #9ca3af; margin-top: 12px;">%s</p>
             """.formatted(
                 msg.get("email.event.modified.greeting", safeFirstName),
-                msg.get("email.event.modified.body", safeEventName, date.format(DATE_FMT)),
+                msg.get("email.event.modified.body", safeEventName, schedule),
                 msg.get("email.event.modified.changes"),
                 renderChanges(changes),
                 eventButton(category, eventId),
@@ -211,7 +218,7 @@ public class EnrollmentMailService {
     }
 
     @Async("mailExecutor")
-    public void sendEventModificationAdminNotification(String eventName, LocalDate date,
+    public void sendEventModificationAdminNotification(String eventName, String schedule,
                                                         List<FieldChange> changes,
                                                         EventCategory category, String eventId) {
         String safeEventName = HtmlUtils.htmlEscape(eventName);
@@ -227,7 +234,7 @@ public class EnrollmentMailService {
                         %s
             """.formatted(
                 subject,
-                msg.get("email.event.modified.admin.body", safeEventName, date.format(DATE_FMT)),
+                msg.get("email.event.modified.admin.body", safeEventName, schedule),
                 msg.get("email.event.modified.changes"),
                 renderChanges(changes),
                 eventButton(category, eventId)
@@ -240,10 +247,9 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentDeletionNotification(String recipientEmail, String firstName,
-                                                    String eventName, LocalDate date,
+                                                    String eventName, String schedule,
                                                     EventCategory category, String eventId) {
         String subject = msg.get("email.enrollment.deletion.subject");
-        String dateStr = date.format(DATE_FMT);
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeEventName = HtmlUtils.htmlEscape(eventName);
 
@@ -255,8 +261,8 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">%s</p>
             """.formatted(
                 msg.get("email.enrollment.deletion.greeting", safeFirstName),
-                msg.get("email.enrollment.deletion.body", safeEventName, dateStr),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.deletion.body", safeEventName, schedule),
+                msg.get("email.enrollment.confirmation.date", schedule),
                 eventButton(category, eventId),
                 msg.get("email.enrollment.deletion.footer")
         );
@@ -266,13 +272,12 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendEnrollmentDeletionAdminNotification(String eventName, String participantName,
-                                                         String participantEmail, LocalDate date,
+                                                         String participantEmail, String schedule,
                                                          EventCategory category, String eventId) {
         String safeEventName = HtmlUtils.htmlEscape(eventName);
         String safeParticipantName = HtmlUtils.htmlEscape(participantName);
         String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
         String subject = msg.get("email.enrollment.deletion.admin.subject", safeEventName);
-        String dateStr = date.format(DATE_FMT);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -282,9 +287,9 @@ public class EnrollmentMailService {
                         %s
             """.formatted(
                 subject,
-                msg.get("email.enrollment.deletion.admin.body", safeEventName, dateStr),
+                msg.get("email.enrollment.deletion.admin.body", safeEventName, schedule),
                 msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
-                msg.get("email.enrollment.confirmation.date", dateStr),
+                msg.get("email.enrollment.confirmation.date", schedule),
                 eventButton(category, eventId)
         );
 
@@ -295,19 +300,26 @@ public class EnrollmentMailService {
 
     @Async("mailExecutor")
     public void sendBulkEventMessage(String recipientEmail, String firstName,
-                                      String eventName, LocalDate date,
+                                      String eventName, String schedule,
                                       @Nullable String location, String message,
+                                      @Nullable String senderName,
                                       EventCategory category, String eventId) {
         String subject = eventName + " — " + msg.get("email.bulk.subject");
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeEventName = HtmlUtils.htmlEscape(eventName);
         String safeMessage = HtmlUtils.htmlEscape(message).replace("\n", "<br/>");
-        String dateStr = date.format(DATE_FMT);
         String safeLocation = location != null ? HtmlUtils.htmlEscape(location) : null;
 
         String locationHtml = safeLocation != null
                 ? "<p style=\"font-size: 14px; margin: 4px 0;\"><strong>%s</strong> %s</p>".formatted(
                         msg.get("email.bulk.location"), safeLocation)
+                : "";
+
+        String signatureHtml = (senderName != null && !senderName.isBlank())
+                ? """
+                  <p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0;">%s<br/><strong>%s</strong><br/>%s</p>
+                  """.formatted(msg.get("email.bulk.signature"),
+                                HtmlUtils.htmlEscape(senderName), msg.get("email.footer"))
                 : "";
 
         String content = """
@@ -316,6 +328,7 @@ public class EnrollmentMailService {
                         <div style="background-color: #3d3a37; border-left: 4px solid #f97316; border-radius: 8px; padding: 20px; margin: 24px 0;">
                             <p style="font-size: 16px; line-height: 1.8; margin: 0; color: #e0e0e0;">%s</p>
                         </div>
+                        %s
                         <div style="background-color: #292524; border-radius: 8px; padding: 16px; margin: 24px 0;">
                             <p style="font-size: 14px; margin: 4px 0;"><strong>%s</strong> %s</p>
                             <p style="font-size: 14px; margin: 4px 0;"><strong>%s</strong> %s</p>
@@ -327,14 +340,47 @@ public class EnrollmentMailService {
                 msg.get("email.bulk.greeting", safeFirstName),
                 msg.get("email.bulk.intro", safeEventName),
                 safeMessage,
+                signatureHtml,
                 msg.get("email.bulk.event"), safeEventName,
-                msg.get("email.bulk.date"), dateStr,
+                msg.get("email.bulk.date"), schedule,
                 locationHtml,
                 eventButton(category, eventId),
                 msg.get("email.enrollment.cancel.info")
         );
 
         sendEmail(recipientEmail, subject, brandedTemplate(content));
+    }
+
+    /**
+     * Formatuje termin wydarzenia jako jeden ciągły blok „od początku do końca".
+     * <p>
+     * Wielodniowe: godzina jest przyklejona do swojej daty (początek pierwszego dnia → koniec
+     * ostatniego), żeby nie sugerować „codziennie w tych godzinach" — np.
+     * „15.07.2026, 09:00 – 18.07.2026, 16:00". Jednodniowe: „30.05.2026, 10:00–11:30".
+     * <p>
+     * Wywoływane w obrębie transakcji (przed granicą @Async), żeby uniknąć lazy-loadingu odłączonej encji.
+     */
+    public static String formatSchedule(Event event) {
+        LocalDate start = event.getStartDate();
+        LocalDate end = event.getEndDate();
+        LocalTime startTime = event.getStartTime();
+        LocalTime endTime = event.getEndTime();
+
+        boolean multiDay = end != null && !end.equals(start);
+        if (multiDay) {
+            String from = start.format(DATE_FMT) + (startTime != null ? ", " + startTime.format(TIME_FMT) : "");
+            String to = end.format(DATE_FMT) + (endTime != null ? ", " + endTime.format(TIME_FMT) : "");
+            return from + " – " + to;
+        }
+
+        String date = start.format(DATE_FMT);
+        if (startTime != null && endTime != null) {
+            return date + ", " + startTime.format(TIME_FMT) + "–" + endTime.format(TIME_FMT);
+        }
+        if (startTime != null) {
+            return date + ", " + startTime.format(TIME_FMT);
+        }
+        return date;
     }
 
     private String renderChanges(List<FieldChange> changes) {
@@ -351,6 +397,20 @@ public class EnrollmentMailService {
                               HtmlUtils.htmlEscape(change.newValue())));
         }
         return changesHtml.toString();
+    }
+
+    private String noteBlock(@Nullable String note) {
+        if (note == null || note.isBlank()) {
+            return "";
+        }
+        return """
+            <div style="background-color: #3d3a37; border-left: 4px solid #f97316; border-radius: 8px; padding: 14px 18px; margin: 16px 0;">
+                <p style="font-size: 14px; font-weight: bold; margin: 0 0 6px;">%s</p>
+                <p style="font-size: 15px; line-height: 1.6; margin: 0; color: #e0e0e0;">%s</p>
+            </div>
+            """.formatted(
+                msg.get("email.enrollment.notification.note"),
+                HtmlUtils.htmlEscape(note).replace("\n", "<br/>"));
     }
 
     private String eventButton(EventCategory category, String eventId) {

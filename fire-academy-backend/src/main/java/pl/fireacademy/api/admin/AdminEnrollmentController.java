@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.EnrollmentDtos.*;
+import pl.fireacademy.config.CurrentUserId;
 import pl.fireacademy.domain.event.EventCategory;
 
 import java.util.List;
@@ -52,7 +53,7 @@ public class AdminEnrollmentController {
     }
 
     @PostMapping("/bulk-email")
-    public BulkEmailResponse sendBulkEmail(@Valid @RequestBody BulkEmailRequest request) {
-        return service.sendBulkEmail(request);
+    public BulkEmailResponse sendBulkEmail(@CurrentUserId UUID adminId, @Valid @RequestBody BulkEmailRequest request) {
+        return service.sendBulkEmail(adminId, request);
     }
 }

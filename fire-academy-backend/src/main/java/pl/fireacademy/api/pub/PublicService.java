@@ -172,15 +172,17 @@ public class PublicService {
                 request.email(), request.phone(), request.note(), false);
         enrollmentRepository.save(enrollment);
 
+        String schedule = EnrollmentMailService.formatSchedule(event);
+
         enrollmentMailService.sendEnrollmentConfirmation(
                 request.email(), request.firstName(),
-                event.getDisplayName(), event.getStartDate(), event.getLocation(),
+                event.getDisplayName(), schedule, event.getLocation(),
                 event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendEnrollmentNotification(
                 event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
-                request.email(), event.getStartDate(),
+                request.email(), request.phone(), request.note(), schedule,
                 event.getCategory(), event.getId().toString());
     }
 }

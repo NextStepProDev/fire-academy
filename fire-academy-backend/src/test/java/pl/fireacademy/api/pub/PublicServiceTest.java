@@ -188,7 +188,8 @@ class PublicServiceTest {
         verify(enrollmentMailService).sendEnrollmentConfirmation(
             eq("anna@example.com"), eq("Anna"), eq("Trening personalny"), any(), any(), any(), any());
         verify(enrollmentMailService).sendEnrollmentNotification(
-            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@example.com"), any(), any(), any());
+            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@example.com"),
+            any(), any(), any(), any(), any());
     }
 
     @Test
