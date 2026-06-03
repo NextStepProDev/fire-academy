@@ -82,7 +82,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content));
+        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
     }
 
     @Async("mailExecutor")
@@ -113,7 +113,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content));
+            sendEmail(adminEmail, subject, brandedTemplate(content, category));
         }
     }
 
@@ -150,7 +150,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content));
+        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
     }
 
     @Async("mailExecutor")
@@ -181,7 +181,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content));
+            sendEmail(adminEmail, subject, brandedTemplate(content, category));
         }
     }
 
@@ -214,7 +214,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content));
+        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
     }
 
     @Async("mailExecutor")
@@ -241,7 +241,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content));
+            sendEmail(adminEmail, subject, brandedTemplate(content, category));
         }
     }
 
@@ -267,7 +267,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.deletion.footer")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content));
+        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
     }
 
     @Async("mailExecutor")
@@ -294,7 +294,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content));
+            sendEmail(adminEmail, subject, brandedTemplate(content, category));
         }
     }
 
@@ -348,7 +348,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content));
+        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
     }
 
     /**
@@ -423,16 +423,19 @@ public class EnrollmentMailService {
             """.formatted(eventUrl, msg.get("email.event.view"));
     }
 
-    private String brandedTemplate(String content) {
+    private String brandedTemplate(String content, EventCategory category) {
         String siteUrl = appConfig.getSiteUrl();
-        String logoUrl = siteUrl + "/images/logo/logo-white.png";
+        // Logo FIRE CAMP tylko dla obozów; pozostałe sekcje (treningi/szkolenia) → ACADEMY FIRE.
+        boolean camp = category == EventCategory.CAMP;
+        String logoUrl = siteUrl + (camp ? "/images/logo/logo-white.png" : "/images/logo/logo-academy-fire-white.png");
+        String logoAlt = camp ? "Fire Camp" : "Fire Academy";
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
                 <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
                     <div style="background-color: #292524; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f97316;">
                         <a href="%s" style="text-decoration: none;">
-                            <img src="%s" alt="Fire Academy" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
+                            <img src="%s" alt="%s" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
                         </a>
                     </div>
                     <div style="padding: 30px;">
@@ -446,7 +449,7 @@ public class EnrollmentMailService {
                 </div>
             </body>
             </html>
-            """.formatted(siteUrl, logoUrl, content, siteUrl, msg.get("email.footer.visit"), msg.get("email.footer"));
+            """.formatted(siteUrl, logoUrl, logoAlt, content, siteUrl, msg.get("email.footer.visit"), msg.get("email.footer"));
     }
 
     private void sendEmail(String to, String subject, String body) {

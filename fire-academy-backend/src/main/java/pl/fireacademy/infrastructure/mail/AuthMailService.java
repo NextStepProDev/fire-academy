@@ -124,7 +124,8 @@ public class AuthMailService {
     }
 
     private String brandedTemplate(String content, String lang) {
-        String logoUrl = siteUrl + "/images/logo/logo-white.png";
+        // Maile kontowe nie są przypisane do sekcji → ogólne logo ACADEMY FIRE (nie obozowe FIRE CAMP).
+        String logoUrl = siteUrl + "/images/logo/logo-academy-fire-white.png";
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
