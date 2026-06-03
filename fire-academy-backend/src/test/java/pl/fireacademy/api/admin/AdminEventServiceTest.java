@@ -179,9 +179,9 @@ class AdminEventServiceTest {
         service.update(eventId, request);
 
         verify(enrollmentMailService).sendEventModificationNotification(
-            eq("user@test.com"), eq("Jan"), anyString(), any(LocalDate.class), anyList(), any(), any());
+            eq("user@test.com"), eq("Jan"), anyString(), anyString(), anyList(), any(), any());
         verify(enrollmentMailService).sendEventModificationAdminNotification(
-            anyString(), any(LocalDate.class), anyList(), any(), any());
+            anyString(), anyString(), anyList(), any(), any());
     }
 
     @Test

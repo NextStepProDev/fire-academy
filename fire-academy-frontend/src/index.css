@@ -29,6 +29,14 @@ body {
   @apply bg-surface-950 text-surface-100 antialiased;
 }
 
+@layer base {
+  /* Widoczny wskaźnik fokusu dla nawigacji klawiaturą (Button definiuje własny per-wariant) */
+  :focus-visible {
+    outline: 2px solid var(--color-primary-400);
+    outline-offset: 2px;
+  }
+}
+
 .dark body {
   @apply bg-surface-950 text-surface-100;
 }

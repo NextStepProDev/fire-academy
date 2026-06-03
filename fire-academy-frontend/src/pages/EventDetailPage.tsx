@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone } from 'lucide-react'
 import { publicApi } from '../api/public'
 import { slugToCategory } from '../utils/categorySlug'
-import { formatDateRange } from '../utils/dates'
+import { formatDateRange, formatSchedule } from '../utils/dates'
 import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
@@ -60,13 +60,10 @@ export function EventDetailPage() {
   const shareUrl = `/${categorySlug}/termin/${id}`
 
   const dateStr = formatDateRange(event.startDate, event.endDate)
-  const timeStr = event.startTime
-    ? `${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}`
-    : null
+  const scheduleStr = formatSchedule(event.startDate, event.endDate, event.startTime, event.endTime)
 
   const seoDescription = [
-    dateStr,
-    timeStr,
+    scheduleStr,
     event.location,
     event.price != null ? `${event.price} PLN` : null,
     event.description,
@@ -144,7 +141,7 @@ export function EventDetailPage() {
         <div className="flex flex-wrap gap-x-6 gap-y-3 text-surface-300">
           <span className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary-500" />
-            {dateStr}{timeStr ? `, ${timeStr}` : ''}
+            {scheduleStr}
           </span>
           {event.location && (
             <span className="flex items-center gap-2">

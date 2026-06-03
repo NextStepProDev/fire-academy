@@ -12,6 +12,7 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventRepository;
+import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
@@ -30,6 +31,7 @@ class AdminEnrollmentServiceTest {
 
     @Mock private EnrollmentRepository enrollmentRepository;
     @Mock private EventRepository eventRepository;
+    @Mock private UserRepository userRepository;
     @Mock private EnrollmentMailService enrollmentMailService;
     @Mock private MessageService msg;
 
@@ -91,7 +93,8 @@ class AdminEnrollmentServiceTest {
         verify(enrollmentMailService).sendAdminEnrollmentConfirmation(
             eq("anna@test.com"), eq("Anna"), eq("Trening personalny"), any(), eq("Kraków"), any(), any());
         verify(enrollmentMailService).sendAdminEnrollmentNotification(
-            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"), any(), any(), any());
+            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"),
+            any(), any(), any(), any(), any());
     }
 
     @Test

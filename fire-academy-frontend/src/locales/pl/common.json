@@ -37,6 +37,9 @@
     "copyLink": "Kopiuj link",
     "copied": "Skopiowano!"
   },
+  "actions": {
+    "close": "Zamknij"
+  },
   "footer": {
     "copyright": "© {{year}} Fire Academy. Wszelkie prawa zastrzeżone.",
     "description": "Treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.",
