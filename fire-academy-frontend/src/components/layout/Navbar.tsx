@@ -133,11 +133,11 @@ export function Navbar() {
           )}
 
           <button
-            className="md:hidden text-surface-300 active:scale-90 transition-transform duration-150"
+            className="md:hidden -mr-2 p-2 text-surface-300 active:scale-90 transition-transform duration-150"
             aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-6 h-6 pointer-events-none" /> : <Menu className="w-6 h-6 pointer-events-none" />}
           </button>
         </div>
       </div>
