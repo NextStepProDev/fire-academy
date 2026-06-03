@@ -1,7 +1,10 @@
 package pl.fireacademy.api;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
@@ -64,6 +67,33 @@ class GlobalExceptionHandlerTest {
         assertNotNull(body);
         assertEquals("CONFLICT", body.get("code"));
     }
+
+    @Test
+    void shouldReturn400WhenRequiredParameterMissing() {
+        var ex = new MissingServletRequestParameterException("category", "EventCategory");
+
+        var response = handler.handleBadRequestParam(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("BAD_REQUEST", body.get("code"));
+        assertNotNull(body.get("timestamp"));
+    }
+
+    @Test
+    void shouldReturn400WhenParameterTypeMismatch() {
+        var ex = new MethodArgumentTypeMismatchException("FOO", EventCategoryStub.class, "category", mock(MethodParameter.class), new IllegalArgumentException("bad enum"));
+
+        var response = handler.handleBadRequestParam(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("BAD_REQUEST", body.get("code"));
+    }
+
+    private enum EventCategoryStub { CAMP }
 
     @Test
     void shouldReturn500ForUnexpectedException() {
