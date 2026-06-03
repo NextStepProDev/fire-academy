@@ -13,9 +13,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div>
             <img
-              src="/images/logo/logo-white.png"
-              alt="Fire Academy"
-              className="h-10 mb-4"
+              src="/images/logo/logo-academy-camp-lockup.png"
+              alt="Fire Academy · Fire Camp"
+              className="h-14 mb-4"
             />
             <p className="text-sm text-surface-400 leading-relaxed">
               {t('footer.description')}
