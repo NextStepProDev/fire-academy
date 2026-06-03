@@ -35,10 +35,15 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') prev()
       else if (e.key === 'ArrowRight') next()
-      else if (e.key === 'Escape') setLightboxIndex(null)
+      else if (e.key === 'Escape') {
+        // Przechwyć Escape, by nie zamknąć też modala pod spodem
+        e.stopImmediatePropagation()
+        setLightboxIndex(null)
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    // Faza przechwytywania — uruchamia się przed handlerem Escape w Modal
+    document.addEventListener('keydown', handler, true)
+    return () => document.removeEventListener('keydown', handler, true)
   }, [lightboxIndex, prev, next])
 
   if (!eventType) return null

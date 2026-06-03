@@ -39,7 +39,6 @@ public class AuthMailService {
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         <div style="text-align: center; margin: 28px 0;">
                             <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
                         </div>
@@ -48,7 +47,6 @@ public class AuthMailService {
             """.formatted(
                 msg.getForLang("email.verification.greeting", lang, safeFirstName),
                 msg.getForLang("email.verification.body", lang),
-                msg.getForLang("email.verification.action", lang),
                 verificationUrl,
                 msg.getForLang("email.verification.button", lang),
                 msg.getForLang("email.verification.expiry", lang),

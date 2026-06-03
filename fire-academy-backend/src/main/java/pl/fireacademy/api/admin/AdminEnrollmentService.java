@@ -10,6 +10,7 @@ import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventRepository;
+import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
@@ -22,15 +23,18 @@ public class AdminEnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
     private final EventRepository eventRepository;
+    private final UserRepository userRepository;
     private final EnrollmentMailService enrollmentMailService;
     private final MessageService msg;
 
     public AdminEnrollmentService(EnrollmentRepository enrollmentRepository,
                                   EventRepository eventRepository,
+                                  UserRepository userRepository,
                                   EnrollmentMailService enrollmentMailService,
                                   MessageService msg) {
         this.enrollmentRepository = enrollmentRepository;
         this.eventRepository = eventRepository;
+        this.userRepository = userRepository;
         this.enrollmentMailService = enrollmentMailService;
         this.msg = msg;
     }
@@ -62,15 +66,17 @@ public class AdminEnrollmentService {
                 request.email(), request.phone(), request.note(), true);
         var saved = enrollmentRepository.save(enrollment);
 
+        String schedule = EnrollmentMailService.formatSchedule(event);
+
         enrollmentMailService.sendAdminEnrollmentConfirmation(
                 request.email(), request.firstName(),
-                event.getDisplayName(), event.getStartDate(), event.getLocation(),
+                event.getDisplayName(), schedule, event.getLocation(),
                 event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendAdminEnrollmentNotification(
                 event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
-                request.email(), event.getStartDate(),
+                request.email(), request.phone(), request.note(), schedule,
                 event.getCategory(), event.getId().toString());
 
         return toResponse(saved);
@@ -87,17 +93,18 @@ public class AdminEnrollmentService {
 
         var event = enrollment.getEvent();
         var participantName = enrollment.getFirstName() + " " + enrollment.getLastName();
+        var schedule = EnrollmentMailService.formatSchedule(event);
 
         enrollmentRepository.delete(enrollment);
 
         enrollmentMailService.sendEnrollmentDeletionNotification(
                 enrollment.getEmail(), enrollment.getFirstName(),
-                event.getDisplayName(), event.getStartDate(),
+                event.getDisplayName(), schedule,
                 event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendEnrollmentDeletionAdminNotification(
                 event.getDisplayName(), participantName,
-                enrollment.getEmail(), event.getStartDate(),
+                enrollment.getEmail(), schedule,
                 event.getCategory(), event.getId().toString());
     }
 
@@ -109,7 +116,7 @@ public class AdminEnrollmentService {
     }
 
     @Transactional(readOnly = true)
-    public EnrollmentDtos.BulkEmailResponse sendBulkEmail(EnrollmentDtos.BulkEmailRequest request) {
+    public EnrollmentDtos.BulkEmailResponse sendBulkEmail(UUID adminId, EnrollmentDtos.BulkEmailRequest request) {
         var event = eventRepository.findById(request.eventId())
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
 
@@ -125,11 +132,17 @@ public class AdminEnrollmentService {
             throw new IllegalStateException(msg.get("email.bulk.no.enrollments"));
         }
 
+        String senderName = adminId == null ? null : userRepository.findById(adminId)
+                .map(u -> (u.getFirstName() + " " + u.getLastName()).trim())
+                .filter(name -> !name.isBlank())
+                .orElse(null);
+
+        var schedule = EnrollmentMailService.formatSchedule(event);
         for (var enrollment : recipients) {
             enrollmentMailService.sendBulkEventMessage(
                     enrollment.getEmail(), enrollment.getFirstName(),
-                    event.getDisplayName(), event.getStartDate(),
-                    event.getLocation(), request.message(),
+                    event.getDisplayName(), schedule,
+                    event.getLocation(), request.message(), senderName,
                     event.getCategory(), event.getId().toString());
         }
 
