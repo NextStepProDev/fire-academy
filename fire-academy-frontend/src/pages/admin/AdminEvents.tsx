@@ -202,16 +202,18 @@ function EventCard({
                           {en.addedByAdmin && <span className="ml-2 px-1.5 py-0.5 text-xs bg-surface-800 text-surface-400 rounded">admin</span>}
                         </td>
                         <td className="py-2.5">
-                          <div className="flex items-center gap-1">
-                            {en.note && (
-                              <button
-                                onClick={() => setExpandedNote(expandedNote === en.id ? null : en.id)}
-                                className={`p-1 ${expandedNote === en.id ? 'text-primary-400' : 'text-surface-400 hover:text-primary-400'}`}
-                                title={t('enrollments.note')}
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                              </button>
-                            )}
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="w-6 flex justify-center">
+                              {en.note && (
+                                <button
+                                  onClick={() => setExpandedNote(expandedNote === en.id ? null : en.id)}
+                                  className={`p-1 ${expandedNote === en.id ? 'text-primary-400' : 'text-surface-400 hover:text-primary-400'}`}
+                                  title={t('enrollments.note')}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                </button>
+                              )}
+                            </span>
                             <button onClick={() => setEnrollDeleteId(en.id)} className="p-1 text-surface-400 hover:text-rose-400">
                               <Trash2 className="w-4 h-4" />
                             </button>
