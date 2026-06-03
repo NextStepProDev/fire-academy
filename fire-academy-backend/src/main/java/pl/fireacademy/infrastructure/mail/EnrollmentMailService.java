@@ -91,7 +91,8 @@ public class EnrollmentMailService {
                                             @Nullable String note, String schedule,
                                             EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
-        String subject = msg.get("email.enrollment.notification.subject", safeEventTypeName);
+        String subject = msg.get("email.enrollment.notification.subject", eventTypeName);
+        String heading = msg.get("email.enrollment.notification.subject", safeEventTypeName);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -102,7 +103,7 @@ public class EnrollmentMailService {
                         %s
                         %s
             """.formatted(
-                subject,
+                heading,
                 msg.get("email.enrollment.notification.body", safeEventTypeName),
                 msg.get("email.enrollment.notification.participant",
                         HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
@@ -159,7 +160,8 @@ public class EnrollmentMailService {
                                                  @Nullable String note, String schedule,
                                                  EventCategory category, String eventId) {
         String safeEventTypeName = HtmlUtils.htmlEscape(eventTypeName);
-        String subject = msg.get("email.enrollment.admin.notification.subject", safeEventTypeName);
+        String subject = msg.get("email.enrollment.admin.notification.subject", eventTypeName);
+        String heading = msg.get("email.enrollment.admin.notification.subject", safeEventTypeName);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -170,7 +172,7 @@ public class EnrollmentMailService {
                         %s
                         %s
             """.formatted(
-                subject,
+                heading,
                 msg.get("email.enrollment.admin.notification.body", safeEventTypeName),
                 msg.get("email.enrollment.notification.participant",
                         HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
@@ -277,7 +279,8 @@ public class EnrollmentMailService {
         String safeEventName = HtmlUtils.htmlEscape(eventName);
         String safeParticipantName = HtmlUtils.htmlEscape(participantName);
         String safeParticipantEmail = HtmlUtils.htmlEscape(participantEmail);
-        String subject = msg.get("email.enrollment.deletion.admin.subject", safeEventName);
+        String subject = msg.get("email.enrollment.deletion.admin.subject", eventName);
+        String heading = msg.get("email.enrollment.deletion.admin.subject", safeEventName);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
@@ -286,7 +289,7 @@ public class EnrollmentMailService {
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
                         %s
             """.formatted(
-                subject,
+                heading,
                 msg.get("email.enrollment.deletion.admin.body", safeEventName, schedule),
                 msg.get("email.enrollment.notification.participant", safeParticipantName, safeParticipantEmail),
                 msg.get("email.enrollment.confirmation.date", schedule),
