@@ -8,13 +8,31 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
   useEffect(() => {
     const clashTimer = setTimeout(() => setPhase('clash'), 80)
     const exitTimer = setTimeout(() => setPhase('exit'), 3100)
-    const doneTimer = setTimeout(onComplete, 3800)
     return () => {
       clearTimeout(clashTimer)
       clearTimeout(exitTimer)
-      clearTimeout(doneTimer)
     }
-  }, [onComplete])
+  }, [])
+
+  // Zakończ po animacji zaniku (700 ms) — niezależnie czy faza wyjścia
+  // nastąpiła naturalnie, czy przez pominięcie klawiszem.
+  useEffect(() => {
+    if (phase !== 'exit') return
+    const doneTimer = setTimeout(onComplete, 700)
+    return () => clearTimeout(doneTimer)
+  }, [phase, onComplete])
+
+  // Pominięcie intro klawiszem (Escape / Enter / Spacja).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        setPhase('exit')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const met = phase !== 'enter'
 
