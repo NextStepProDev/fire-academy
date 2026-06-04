@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.InstructorDtos.*;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.instructor.Instructor;
@@ -115,7 +116,7 @@ class AdminInstructorServiceTest {
         when(instructorRepository.findById(instructorId)).thenReturn(Optional.empty());
         when(msg.get("instructor.not.found")).thenReturn("Nie znaleziono");
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NotFoundException.class,
             () -> service.update(instructorId, new UpdateInstructorRequest("A", "B", null, Set.of(EventCategory.TRAINING))));
     }
 

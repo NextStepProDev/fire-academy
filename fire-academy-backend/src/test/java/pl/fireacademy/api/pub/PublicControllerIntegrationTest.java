@@ -72,7 +72,7 @@ class PublicControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldReturn400ForInactiveInstructor() throws Exception {
+    void shouldReturn404ForInactiveInstructor() throws Exception {
         Instructor instructor = new Instructor("Inactive", "Instructor");
         instructor.setCategories(Set.of(EventCategory.TRAINING));
         instructor.setActive(false);
@@ -80,7 +80,7 @@ class PublicControllerIntegrationTest extends BaseIntegrationTest {
         instructor = instructorRepository.save(instructor);
 
         mockMvc.perform(get("/api/public/instructors/" + instructor.getId()))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isNotFound());
     }
 
     @Test

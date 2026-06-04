@@ -4,6 +4,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EventDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
@@ -61,7 +62,7 @@ public class AdminEventService {
 
         if (request.eventTypeId() != null) {
             var eventType = eventTypeRepository.findById(request.eventTypeId())
-                    .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+                    .orElseThrow(() -> new NotFoundException(msg.get("eventtype.not.found")));
             event = new Event(request.category(), eventType, request.startDate());
         } else if (request.customName() != null && !request.customName().isBlank()) {
             event = new Event(request.category(), request.customName(), request.startDate());
@@ -95,7 +96,7 @@ public class AdminEventService {
         String oldName = event.getDisplayName();
         if (request.eventTypeId() != null) {
             var eventType = eventTypeRepository.findById(request.eventTypeId())
-                    .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+                    .orElseThrow(() -> new NotFoundException(msg.get("eventtype.not.found")));
             event.setEventType(eventType);
             addChange(changes, msg.get("email.change.name"), oldName, eventType.getName());
         } else if (request.customName() != null && !request.customName().isBlank()) {
@@ -172,7 +173,7 @@ public class AdminEventService {
 
     private Event findOrThrow(UUID id) {
         return eventRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
     }
 
     private EventResponse toResponse(Event e) {

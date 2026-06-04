@@ -4,6 +4,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
@@ -100,7 +101,7 @@ public class PublicService {
     public InstructorCard getInstructorById(UUID id) {
         var i = instructorRepository.findById(id)
                 .filter(Instructor::isActive)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("instructor.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("instructor.not.found")));
         return new InstructorCard(
                 i.getId(), i.getFirstName(), i.getLastName(), i.getBio(),
                 i.getPhotoFilename() != null ? "/api/files/instructors/" + i.getPhotoFilename() : null
@@ -112,7 +113,7 @@ public class PublicService {
     public EventTypeCard getEventTypeById(UUID id) {
         var et = eventTypeRepository.findById(id)
                 .filter(EventType::isActive)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("eventtype.not.found")));
         return new EventTypeCard(
                 et.getId(), et.getName(), et.getDescription(),
                 et.getThumbnailFilename() != null ? "/api/files/eventtypes/" + et.getThumbnailFilename() : null,
@@ -127,7 +128,7 @@ public class PublicService {
     public EventCard getEventById(UUID id) {
         var event = eventRepository.findById(id)
                 .filter(Event::isActive)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
         long enrolled = enrollmentRepository.countByEventId(event.getId());
         Integer max = event.getMaxParticipants();
         int available = max != null ? Math.max(0, max - (int) enrolled) : -1;
@@ -143,7 +144,7 @@ public class PublicService {
     @Transactional
     public void enroll(UUID eventId, EnrollRequest request) {
         var event = eventRepository.findByIdForUpdate(eventId)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
 
         if (!event.isActive()) {
             throw new IllegalStateException(msg.get("enrollment.event.inactive"));

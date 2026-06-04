@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
         this.msg = msg;
     }
 
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("code", "NOT_FOUND", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", e.getMessage(), "timestamp", Instant.now().toString()));

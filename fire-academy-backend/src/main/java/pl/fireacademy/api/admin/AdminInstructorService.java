@@ -5,6 +5,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.InstructorDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.instructor.Instructor;
@@ -119,7 +120,7 @@ public class AdminInstructorService {
         for (int i = 0; i < all.size(); i++) {
             if (all.get(i).getId().equals(id)) { idx = i; break; }
         }
-        if (idx < 0) throw new IllegalArgumentException(msg.get("instructor.not.found"));
+        if (idx < 0) throw new NotFoundException(msg.get("instructor.not.found"));
 
         int swapIdx = "up".equals(direction) ? idx - 1 : idx + 1;
         if (swapIdx < 0 || swapIdx >= all.size()) return;
@@ -135,7 +136,7 @@ public class AdminInstructorService {
 
     private Instructor findOrThrow(UUID id) {
         return instructorRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("instructor.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("instructor.not.found")));
     }
 
     private InstructorResponse toResponse(Instructor i) {

@@ -4,6 +4,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EnrollmentDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
@@ -60,7 +61,7 @@ public class AdminEnrollmentService {
     @Transactional
     public EnrollmentResponse adminEnroll(AdminEnrollRequest request) {
         var event = eventRepository.findById(request.eventId())
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
 
         var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
                 request.email(), request.phone(), request.note(), true);
@@ -89,7 +90,7 @@ public class AdminEnrollmentService {
     @Transactional
     public void delete(UUID id) {
         var enrollment = enrollmentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("enrollment.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("enrollment.not.found")));
 
         var event = enrollment.getEvent();
         var participantName = enrollment.getFirstName() + " " + enrollment.getLastName();
@@ -118,7 +119,7 @@ public class AdminEnrollmentService {
     @Transactional(readOnly = true)
     public EnrollmentDtos.BulkEmailResponse sendBulkEmail(UUID adminId, EnrollmentDtos.BulkEmailRequest request) {
         var event = eventRepository.findById(request.eventId())
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("event.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
 
         var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(event.getId());
 

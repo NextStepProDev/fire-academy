@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EnrollmentDtos.*;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
@@ -105,7 +106,7 @@ class AdminEnrollmentServiceTest {
         when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
         when(msg.get("event.not.found")).thenReturn("Nie znaleziono");
 
-        assertThrows(IllegalArgumentException.class, () -> service.adminEnroll(request));
+        assertThrows(NotFoundException.class, () -> service.adminEnroll(request));
     }
 
     @Test
@@ -126,7 +127,7 @@ class AdminEnrollmentServiceTest {
         when(enrollmentRepository.findById(enrollmentId)).thenReturn(Optional.empty());
         when(msg.get("enrollment.not.found")).thenReturn("Nie znaleziono");
 
-        assertThrows(IllegalArgumentException.class, () -> service.delete(enrollmentId));
+        assertThrows(NotFoundException.class, () -> service.delete(enrollmentId));
     }
 
     @Test

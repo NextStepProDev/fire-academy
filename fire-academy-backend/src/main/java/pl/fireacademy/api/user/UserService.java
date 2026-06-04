@@ -3,6 +3,7 @@ package pl.fireacademy.api.user;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
@@ -30,14 +31,14 @@ public class UserService {
 
     public UserDtos.UserResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("error.user.not.found")));
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         return toResponse(user);
     }
 
     @Transactional
     public UserDtos.UserResponse updateMe(UUID userId, UserDtos.UpdateUserRequest request) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("error.user.not.found")));
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setPhone(request.phone());
@@ -49,7 +50,7 @@ public class UserService {
     @Transactional
     public void changePassword(UUID userId, UserDtos.ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("error.user.not.found")));
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         if (user.getPasswordHash() == null) {
             throw new IllegalStateException(msg.get("user.password.oauth"));
         }
@@ -64,7 +65,7 @@ public class UserService {
     @Transactional
     public void deleteMe(UUID userId, UserDtos.DeleteAccountRequest request) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("error.user.not.found")));
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         if (user.getPasswordHash() != null) {
             if (request.password() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
                 throw new IllegalArgumentException(msg.get("user.password.invalid"));
@@ -77,7 +78,7 @@ public class UserService {
     @Transactional
     public void updateNotifications(UUID userId, UserDtos.UpdateNotificationsRequest request) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("error.user.not.found")));
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         user.setEmailNotificationsEnabled(request.enabled());
         userRepository.save(user);
         jwtAuthenticationFilter.evictUser(userId);

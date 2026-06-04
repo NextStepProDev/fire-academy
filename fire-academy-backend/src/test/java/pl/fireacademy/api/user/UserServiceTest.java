@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.user.UserDtos.*;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
 import pl.fireacademy.domain.user.User;
@@ -66,7 +67,7 @@ class UserServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
         when(msg.get("error.user.not.found")).thenReturn("Nie znaleziono");
 
-        assertThrows(IllegalArgumentException.class, () -> service.getMe(userId));
+        assertThrows(NotFoundException.class, () -> service.getMe(userId));
     }
 
     @Test

@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EventTypeDtos.*;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -172,7 +173,7 @@ class AdminEventTypeServiceTest {
         when(msg.get("eventtype.photo.not.found")).thenReturn("Zdjęcie nie znalezione");
 
         UUID randomPhotoId = UUID.randomUUID();
-        var ex = assertThrows(IllegalArgumentException.class,
+        var ex = assertThrows(NotFoundException.class,
             () -> service.deletePhoto(eventTypeId, randomPhotoId));
         assertEquals("Zdjęcie nie znalezione", ex.getMessage());
     }

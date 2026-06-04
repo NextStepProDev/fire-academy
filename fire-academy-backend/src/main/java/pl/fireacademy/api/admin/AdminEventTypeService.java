@@ -5,6 +5,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EventTypeDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.event.*;
@@ -136,7 +137,7 @@ public class AdminEventTypeService {
         var photo = et.getPhotos().stream()
                 .filter(p -> p.getId().equals(photoId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.photo.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("eventtype.photo.not.found")));
         fileStorageService.delete(PHOTO_FOLDER, photo.getFilename());
         et.getPhotos().remove(photo);
         eventTypeRepository.save(et);
@@ -207,7 +208,7 @@ public class AdminEventTypeService {
 
     private EventType findOrThrow(UUID id) {
         return eventTypeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(msg.get("eventtype.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("eventtype.not.found")));
     }
 
     private EventTypeResponse toResponse(EventType et) {

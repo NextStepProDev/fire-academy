@@ -26,6 +26,9 @@ public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final Set<String> SUPPORTED_LANGUAGES = Set.of("pl");
+    // Poprawny formatowo hash BCrypt (cost 10) używany wyłącznie do fikcyjnego porównania,
+    // gdy konto nie istnieje — wyrównuje czas odpowiedzi i blokuje enumerację użytkowników.
+    private static final String DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
     private static final Duration EMAIL_VERIFICATION_EXPIRATION = Duration.ofMinutes(15);
     private static final Duration PASSWORD_RESET_EXPIRATION = Duration.ofHours(1);
     private static final Duration RESEND_COOLDOWN = Duration.ofMinutes(1);
@@ -85,8 +88,12 @@ public class AuthService {
 
     @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public AuthTokensResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("auth.login.invalid")));
+        User user = userRepository.findByEmail(request.email()).orElse(null);
+        if (user == null) {
+            // Fikcyjne porównanie, by czas odpowiedzi nie zdradzał istnienia konta.
+            passwordEncoder.matches(request.password(), DUMMY_PASSWORD_HASH);
+            throw new IllegalArgumentException(msg.get("auth.login.invalid"));
+        }
 
         if (user.getPasswordHash() == null) {
             throw new IllegalArgumentException(msg.get("auth.login.oauth"));

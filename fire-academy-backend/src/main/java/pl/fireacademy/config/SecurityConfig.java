@@ -1,5 +1,7 @@
 package pl.fireacademy.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
@@ -16,15 +18,27 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 
+import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final Locale POLISH = Locale.of("pl");
+    // Lokalny mapper do drobnych odpowiedzi błędów — niezależny od konfiguracji Jacksona aplikacji.
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AppConfig appConfig;
@@ -52,13 +66,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        boolean devProfile = Arrays.asList(environment.getActiveProfiles()).contains("dev");
+
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
-                if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                if (devProfile) {
                     auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll();
                 }
@@ -68,7 +84,7 @@ public class SecurityConfig {
                 if (oAuth2UserService != null) {
                     auth.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll();
                 }
-                if (java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+                if (devProfile) {
                     auth.requestMatchers("/api/dev/**").permitAll();
                 }
                 auth.requestMatchers("/og/**").permitAll()
@@ -89,13 +105,11 @@ public class SecurityConfig {
         return http
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
-                    Locale locale = resolveLocaleFromRequest(request);
-                    String message = messageSource.getMessage("error.unauthorized", null, locale);
+                    String message = messageSource.getMessage("error.unauthorized", null, POLISH);
                     writeJsonError(response, 401, "UNAUTHORIZED", message);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    Locale locale = resolveLocaleFromRequest(request);
-                    String message = messageSource.getMessage("error.forbidden", null, locale);
+                    String message = messageSource.getMessage("error.forbidden", null, POLISH);
                     writeJsonError(response, 403, "FORBIDDEN", message);
                 })
             )
@@ -103,7 +117,7 @@ public class SecurityConfig {
                 .contentTypeOptions(contentType -> {})
                 .frameOptions(frame -> frame.deny())
                 .referrerPolicy(referrer -> referrer.policy(
-                    org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 .permissionsPolicyHeader(permissions -> permissions.policy("camera=(), microphone=(), geolocation=()"))
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -111,35 +125,29 @@ public class SecurityConfig {
     }
 
     @Bean
-    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
-        var configuration = new org.springframework.web.cors.CorsConfiguration();
-        var origins = java.util.Arrays.stream(appConfig.getCors().getAllowedOrigins().split(","))
+    public CorsConfigurationSource corsConfigurationSource() {
+        var configuration = new CorsConfiguration();
+        var origins = Arrays.stream(appConfig.getCors().getAllowedOrigins().split(","))
                 .map(String::trim)
                 .toList();
         configuration.setAllowedOriginPatterns(origins);
-        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Accept", "Accept-Language"));
-        configuration.setExposedHeaders(java.util.List.of("Content-Disposition"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Accept-Language"));
+        configuration.setExposedHeaders(List.of("Content-Disposition"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
-        var source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
-    private static void writeJsonError(jakarta.servlet.http.HttpServletResponse response, int status, String code, String message)
-            throws java.io.IOException {
+    private static void writeJsonError(HttpServletResponse response,
+                                       int status, String code, String message) throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        String escaped = message.replace("\\", "\\\\").replace("\"", "\\\"");
-        response.getWriter().write(
-            "{\"code\":\"" + code + "\",\"message\":\"" + escaped + "\",\"timestamp\":\"" + Instant.now() + "\"}"
-        );
-    }
-
-    private static Locale resolveLocaleFromRequest(jakarta.servlet.http.HttpServletRequest request) {
-        return Locale.of("pl");
+        OBJECT_MAPPER.writeValue(response.getWriter(),
+            Map.of("code", code, "message", message, "timestamp", Instant.now().toString()));
     }
 }

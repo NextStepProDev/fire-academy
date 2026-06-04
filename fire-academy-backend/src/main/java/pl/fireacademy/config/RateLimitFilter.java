@@ -1,5 +1,6 @@
 package pl.fireacademy.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.servlet.FilterChain;
@@ -18,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
@@ -36,6 +38,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         .expireAfterWrite(Duration.ofMinutes(1))
         .maximumSize(10_000)
         .build();
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final MessageSource messageSource;
 
@@ -65,9 +69,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(
-                "{\"code\":\"TOO_MANY_REQUESTS\",\"message\":\"" + escapeJson(message) + "\",\"timestamp\":\"" + Instant.now() + "\"}"
-            );
+            OBJECT_MAPPER.writeValue(response.getWriter(),
+                Map.of("code", "TOO_MANY_REQUESTS", "message", message, "timestamp", Instant.now().toString()));
             return;
         }
 
@@ -101,11 +104,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Locale.of("pl");
     }
 
-    private static String escapeJson(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
-
     private String getClientIp(HttpServletRequest request) {
+        // Zakłada zaufane proxy (nginx), które nadpisuje X-Forwarded-For. Bezpośrednio wystawiony
+        // serwis pozwoliłby na spoofing nagłówka i obejście limitu — za odwrotnym proxy jest to OK.
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isEmpty()) {
             return xff.split(",")[0].trim();
