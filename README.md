@@ -70,16 +70,16 @@ Any significant change to a date or removal of an enrollment **automatically not
 
 ## Key features
 
-- ✅ **Live online enrollment** with protection against duplicate sign-ups.
-- 📧 **Transactional emails** — confirmations, change/cancellation notices, bulk mailings.
-- ⏰ **Automatic rules** — enrollment closes 24 hours before the start; past dates are archived.
-- 👥 **Staff profiles** with bio and gallery, assigned to the relevant categories.
-- 🖼️ **Photo galleries** for session types (with server-side image optimization).
-- 🔗 **Social sharing** (Facebook / WhatsApp / copy link) with rich previews — dedicated Open Graph meta tags served to social-media crawlers.
-- 🔍 **SEO** — a sitemap (`sitemap.xml`) and markup for search engines.
-- 🛡️ **GDPR** — anonymization of participant data on request.
-- 🌙 **Dark mode** in the club's visual identity (anthracite / black / orange).
-- 🇵🇱 **Polish-only** — a consistent, single-language interface and communication.
+- **Live online enrollment** with protection against duplicate sign-ups.
+- **Transactional emails** — confirmations, change/cancellation notices, bulk mailings.
+- **Automatic rules** — enrollment closes 24 hours before the start; past dates are archived.
+- **Staff profiles** with bio and gallery, assigned to the relevant categories.
+- **Photo galleries** for session types (with server-side image optimization).
+- **Social sharing** (Facebook / WhatsApp / copy link) with rich previews — dedicated Open Graph meta tags served to social-media crawlers.
+- **SEO** — a sitemap (`sitemap.xml`) and markup for search engines.
+- **GDPR** — anonymization of participant data on request.
+- **Dark mode** in the club's visual identity (anthracite / black / orange).
+- **Polish-only** — a consistent, single-language interface and communication.
 
 ## Security and privacy
 
