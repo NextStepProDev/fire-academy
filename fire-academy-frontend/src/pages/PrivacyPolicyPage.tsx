@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom'
+import { Seo } from '../components/seo/Seo'
 
 const LAST_UPDATED = '29 maja 2026'
 
 export function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-surface-950">
+      <Seo
+        title="Polityka prywatności"
+        description="Polityka prywatności Fire Academy — jakie dane zbieramy, w jakim celu, jak długo je przechowujemy i jakie prawa Ci przysługują."
+        path="/polityka-prywatnosci"
+      />
       <div className="relative overflow-hidden bg-gradient-to-b from-surface-900 to-surface-950 border-b border-surface-800">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-500 rounded-full blur-3xl" />
