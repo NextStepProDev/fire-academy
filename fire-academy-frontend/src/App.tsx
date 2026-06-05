@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
+import { lazyWithReload } from './utils/lazyWithReload'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { HomePage } from './pages/HomePage'
@@ -8,22 +9,22 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { ScrollToTop } from './components/ScrollToTop'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
-const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
-const RegisterPage = lazy(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })))
-const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
-const ResendVerificationPage = lazy(() => import('./pages/ResendVerificationPage').then(m => ({ default: m.ResendVerificationPage })))
-const OAuthCallbackPage = lazy(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
-const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
-const TrainingsPage = lazy(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
-const CampsPage = lazy(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
-const CoursesPage = lazy(() => import('./pages/CoursesPage').then(m => ({ default: m.CoursesPage })))
-const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })))
-const EventTypeDetailPage = lazy(() => import('./pages/EventTypeDetailPage').then(m => ({ default: m.EventTypeDetailPage })))
-const EventDetailPage = lazy(() => import('./pages/EventDetailPage').then(m => ({ default: m.EventDetailPage })))
-const InstructorDetailPage = lazy(() => import('./pages/InstructorDetailPage').then(m => ({ default: m.InstructorDetailPage })))
+const LoginPage = lazyWithReload(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
+const RegisterPage = lazyWithReload(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })))
+const VerifyEmailPage = lazyWithReload(() => import('./pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
+const ForgotPasswordPage = lazyWithReload(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage = lazyWithReload(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
+const ResendVerificationPage = lazyWithReload(() => import('./pages/ResendVerificationPage').then(m => ({ default: m.ResendVerificationPage })))
+const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
+const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
+const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
+const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
+const CoursesPage = lazyWithReload(() => import('./pages/CoursesPage').then(m => ({ default: m.CoursesPage })))
+const PrivacyPolicyPage = lazyWithReload(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })))
+const EventTypeDetailPage = lazyWithReload(() => import('./pages/EventTypeDetailPage').then(m => ({ default: m.EventTypeDetailPage })))
+const EventDetailPage = lazyWithReload(() => import('./pages/EventDetailPage').then(m => ({ default: m.EventDetailPage })))
+const InstructorDetailPage = lazyWithReload(() => import('./pages/InstructorDetailPage').then(m => ({ default: m.InstructorDetailPage })))
 
 const LazyFallback = () => (
   <div className="flex justify-center py-12">
