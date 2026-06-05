@@ -85,10 +85,12 @@ try {
       `    <meta property="og:url" content="${escapeAttr(url)}" />\n`
     html = html.replace('</head>', `${inject}  </head>`)
 
+    // Flat dist/<path>.html so nginx serves /treningi from /treningi.html with no
+    // trailing-slash redirect and the served URL matches the canonical exactly.
     const outFile =
       route.path === '/'
         ? distIndex
-        : join(root, 'dist', route.path.replace(/^\//, ''), 'index.html')
+        : join(root, 'dist', `${route.path.replace(/^\//, '')}.html`)
     mkdirSync(dirname(outFile), { recursive: true })
     writeFileSync(outFile, html, 'utf-8')
     written++
