@@ -143,7 +143,7 @@ export function PrivacyPolicyPage() {
               cały czas istnienia konta. Po jego usunięciu wszystkie dane są trwale i nieodwracalnie usuwane z bazy danych.
             </p>
             <p>
-              <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 24h,
+              <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 15 min,
               reset hasła: 1h, sesja: 7 dni) — usuwane automatycznie po wygaśnięciu przez wbudowany mechanizm czyszczenia.
             </p>
           </div>
