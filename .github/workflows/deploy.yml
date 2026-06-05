@@ -33,21 +33,31 @@ jobs:
         id: compose
         run: echo "content=$(base64 -w 0 fire-academy-hub/docker-compose.prod.yml)" >> $GITHUB_OUTPUT
 
+      - name: Encode nginx.conf
+        id: nginx
+        run: echo "content=$(base64 -w 0 fire-academy-frontend/nginx.conf)" >> $GITHUB_OUTPUT
+
       - name: Deploy to Oracle Cloud VM
         uses: appleboy/ssh-action@v1
         env:
           COMPOSE_B64: ${{ steps.compose.outputs.content }}
+          NGINX_B64: ${{ steps.nginx.outputs.content }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: COMPOSE_B64
+          envs: COMPOSE_B64,NGINX_B64
           script: |
             echo "$COMPOSE_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/docker-compose.prod.yml
+            echo "$NGINX_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/nginx.conf
             cd ${{ secrets.DEPLOY_PATH }}
             export VERSION=${{ steps.version.outputs.version }}
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d
+            # nginx.conf is bind-mounted from the host, so up -d alone won't reload
+            # it when the image tag is unchanged. Validate and hot-reload explicitly.
+            docker compose -f docker-compose.prod.yml exec -T frontend nginx -t
+            docker compose -f docker-compose.prod.yml exec -T frontend nginx -s reload
 
       - name: Verify deployment health
         uses: appleboy/ssh-action@v1
