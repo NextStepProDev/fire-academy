@@ -15,6 +15,8 @@ export function Footer() {
             <img
               src="/images/logo/logo-academy-camp-lockup.png"
               alt="Fire Academy · Fire Camp"
+              loading="lazy"
+              decoding="async"
               className="h-14 mb-4"
             />
             <p className="text-sm text-surface-400 leading-relaxed">

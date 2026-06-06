@@ -102,7 +102,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
             <div key={et.id} className={clsx('bg-surface-900 border border-surface-800 rounded-xl p-4', !et.active && 'opacity-50')}>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-12 rounded bg-surface-800 flex-shrink-0 overflow-hidden">
-                  {et.thumbnailUrl ? <img src={et.thumbnailUrl} alt="" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-xs text-surface-600">–</span>}
+                  {et.thumbnailUrl ? <img src={et.thumbnailUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-xs text-surface-600">–</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-surface-100 truncate">{et.name}</p>
@@ -126,7 +126,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
               <div className="flex flex-wrap gap-2 mt-3">
                 {et.photos.map((p, pi) => (
                   <div key={p.id} className="relative w-20 h-20 rounded bg-surface-800 overflow-hidden group">
-                    <img src={p.url} alt="" className="w-full h-full object-cover" />
+                    <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     <button onClick={() => deletePhotoMut.mutate({ id: et.id, photoId: p.id })} className="absolute top-0.5 right-0.5 p-1 rounded-full bg-black/70 text-rose-400 hover:text-rose-300 hover:bg-black/90 transition-colors">
                       <X className="w-4 h-4" />
                     </button>

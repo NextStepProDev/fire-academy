@@ -85,7 +85,7 @@ export function AdminInstructors() {
               <div className="flex items-center gap-4">
                 <div className={clsx('w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center overflow-hidden flex-shrink-0', !instr.active && 'opacity-50')}>
                   {instr.photoUrl ? (
-                    <img src={instr.photoUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={instr.photoUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <User className="w-6 h-6 text-surface-600" />
                   )}

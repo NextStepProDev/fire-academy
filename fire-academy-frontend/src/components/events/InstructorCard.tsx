@@ -21,6 +21,8 @@ export function InstructorCard({ instructor, onClick, shareUrl }: InstructorCard
             <img
               src={instructor.photoUrl}
               alt={fullName}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (

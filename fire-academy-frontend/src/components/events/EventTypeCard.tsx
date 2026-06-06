@@ -20,6 +20,8 @@ export function EventTypeCard({ eventType, onClick, shareUrl }: EventTypeCardPro
             <img
               src={eventType.thumbnailUrl}
               alt={eventType.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
             />
           ) : (

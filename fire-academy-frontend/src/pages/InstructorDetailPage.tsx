@@ -75,7 +75,7 @@ export function InstructorDetailPage() {
         <div className="flex flex-col sm:flex-row gap-8 items-start">
           <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-2xl overflow-hidden bg-surface-800 flex items-center justify-center shrink-0 mx-auto sm:mx-0">
             {instructor.photoUrl ? (
-              <img src={instructor.photoUrl} alt={fullName} className="w-full h-full object-cover" />
+              <img src={instructor.photoUrl} alt={fullName} decoding="async" className="w-full h-full object-cover" />
             ) : (
               <User className="w-20 h-20 text-surface-600" />
             )}

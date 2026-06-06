@@ -53,7 +53,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
         <div className="space-y-6">
           {eventType.thumbnailUrl && (
             <div className="relative -mx-6 -mt-2 overflow-hidden">
-              <img src={eventType.thumbnailUrl} alt="" className="w-full aspect-square object-cover" />
+              <img src={eventType.thumbnailUrl} alt="" decoding="async" className="w-full aspect-square object-cover" />
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-surface-900 to-transparent" />
             </div>
           )}
@@ -66,7 +66,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
             <div className="grid grid-cols-3 gap-2">
               {photos.map((p, i) => (
                 <button key={p.id} onClick={() => setLightboxIndex(i)} className="aspect-square rounded-lg overflow-hidden bg-surface-800">
-                  <img src={p.url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                  <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                 </button>
               ))}
             </div>
@@ -168,6 +168,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
           <img
             src={photos[lightboxIndex].url}
             alt=""
+            decoding="async"
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
             onClick={e => e.stopPropagation()}
           />

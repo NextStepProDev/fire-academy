@@ -128,7 +128,7 @@ export function EventDetailPage() {
 
         {thumbnail && (
           <div className="relative overflow-hidden rounded-xl">
-            <img src={thumbnail} alt={event.eventTypeName} className="w-full aspect-video object-cover" />
+            <img src={thumbnail} alt={event.eventTypeName} decoding="async" className="w-full aspect-video object-cover" />
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-surface-950 to-transparent" />
           </div>
         )}
