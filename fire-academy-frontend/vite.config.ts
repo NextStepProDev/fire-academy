@@ -43,9 +43,19 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          query: ['@tanstack/react-query'],
+        // Vite 8 bundles with Rolldown, which only accepts the function form of
+        // manualChunks. Order matters: @tanstack before the generic react/* match.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('@tanstack')) return 'query';
+          if (
+            id.includes('react-router') ||
+            id.includes('react-dom') ||
+            id.includes('/react/') ||
+            id.includes('scheduler')
+          ) {
+            return 'vendor';
+          }
         },
       },
     },
