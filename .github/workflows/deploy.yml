@@ -37,7 +37,7 @@ jobs:
         id: nginx
         run: echo "content=$(base64 -w 0 fire-academy-frontend/nginx.conf)" >> $GITHUB_OUTPUT
 
-      - name: Deploy to Oracle Cloud VM
+      - name: Deploy to production VM
         uses: appleboy/ssh-action@v1
         env:
           COMPOSE_B64: ${{ steps.compose.outputs.content }}
