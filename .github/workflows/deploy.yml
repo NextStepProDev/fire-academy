@@ -79,3 +79,36 @@ jobs:
             echo "ERROR: Backend did not become healthy within 4 minutes."
             docker logs --tail 80 fa-backend-prod
             exit 1
+
+      - name: Smoke test public endpoints
+        run: |
+          BASE="https://fireworkout.pl"
+          # Read-only GETs the live frontend actually uses; covers nginx routing
+          # + backend + DB. Public list endpoints require a ?category= param.
+          PATHS=(
+            "/"
+            "/api/public/instructors?category=TRAINING"
+            "/api/public/event-types?category=TRAINING"
+            "/api/public/events?category=TRAINING"
+          )
+          FAILED=0
+          for p in "${PATHS[@]}"; do
+            CODE="000"
+            for attempt in 1 2 3; do
+              CODE=$(curl -sS -m 15 -o /dev/null -w "%{http_code}" "${BASE}${p}" || echo "000")
+              [ "$CODE" = "200" ] && break
+              echo "  ${p} -> HTTP ${CODE} (attempt ${attempt}/3), retrying in 5s..."
+              sleep 5
+            done
+            if [ "$CODE" = "200" ]; then
+              echo "OK   HTTP 200  ${p}"
+            else
+              echo "FAIL HTTP ${CODE}  ${p}"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "ERROR: one or more public endpoints did not return 200 — deploy is unhealthy."
+            exit 1
+          fi
+          echo "Smoke test passed: all public endpoints return 200."
