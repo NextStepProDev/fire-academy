@@ -12,11 +12,11 @@ Wizytówka klubu treningowego — treningi indywidualne i małe grupy (4–6 os�
 ## Stack
 
 ### Backend
-- **Java 25** + **Spring Boot 4.0.2**
-- Spring Security + JWT (jjwt 0.12.6), Spring Data JPA + **PostgreSQL 17**
-- Spring Boot Starter Mail, **Actuator** (health check), Cache + Caffeine, Flyway, DevTools (dev)
-- **JSpecify 1.0.0** (@NullMarked), **springdoc-openapi 2.8.4**
-- **Testcontainers 1.20.4** + JUnit 5
+- **Java 25** + **Spring Boot 4.1.0**
+- Spring Security 7.1 + JWT (jjwt 0.13.0), Spring Data JPA + **PostgreSQL 17**
+- Spring Boot Starter Mail, **Actuator** (health check), Cache + Caffeine, **Flyway 12**, DevTools (dev)
+- **JSpecify 1.0.0** (@NullMarked), **springdoc-openapi 3.0.3**
+- **Testcontainers 1.21.4** + JUnit 5
 
 ### Frontend
 - **React 19.2** + **TypeScript 6.0**, **Vite 8.0**
