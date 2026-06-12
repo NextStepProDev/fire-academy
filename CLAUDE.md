@@ -19,9 +19,10 @@ Wizytówka klubu treningowego — treningi indywidualne i małe grupy (4–6 os�
 - **Testcontainers 1.20.4** + JUnit 5
 
 ### Frontend
-- **React 19.2** + **TypeScript 5.9**, **Vite 7.2**
+- **React 19.2** + **TypeScript 6.0**, **Vite 8.0**
 - **Tailwind CSS 4.1**, **TanStack React Query 5.90**, **React Router 7.13**
-- **date-fns 4.1**, **lucide-react 0.563**, **clsx 2.1**, ESLint 9
+- **date-fns 4.1**, **lucide-react 1.17**, **clsx 2.1**, ESLint 10
+- **i18next 26** + **react-i18next 17**, Vitest 4 + Playwright (E2E)
 
 ### Struktura repozytorium
 ```
