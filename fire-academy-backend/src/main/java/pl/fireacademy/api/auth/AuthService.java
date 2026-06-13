@@ -60,7 +60,7 @@ public class AuthService {
 
     @Transactional
     public MessageResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new IllegalArgumentException(msg.get("auth.email.exists"));
         }
 
@@ -88,7 +88,7 @@ public class AuthService {
 
     @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public AuthTokensResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
         if (user == null) {
             // Fikcyjne porównanie, by czas odpowiedzi nie zdradzał istnienia konta.
             passwordEncoder.matches(request.password(), DUMMY_PASSWORD_HASH);
@@ -159,46 +159,35 @@ public class AuthService {
 
     @Transactional
     public MessageResponse resendVerification(ResendVerificationRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
-        // Return success even if user doesn't exist (security - don't reveal if email exists)
-        if (user == null) {
-            return new MessageResponse(msg.get("auth.resend.success"));
+        // Zawsze ten sam komunikat — nie ujawniamy, czy konto istnieje, jest już zweryfikowane
+        // ani czy trwa cooldown (anti-enumeracja). Mejl wysyłamy tylko, gdy faktycznie trzeba.
+        boolean shouldSend = user != null
+            && !user.isEmailVerified()
+            && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.EMAIL_VERIFICATION, Instant.now().minus(RESEND_COOLDOWN));
+
+        if (shouldSend) {
+            sendVerificationEmail(user);
         }
 
-        if (user.isEmailVerified()) {
-            return new MessageResponse(msg.get("auth.resend.already.verified"));
-        }
-
-        // Check cooldown
-        if (authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.EMAIL_VERIFICATION, Instant.now().minus(RESEND_COOLDOWN))) {
-            throw new IllegalStateException(msg.get("auth.resend.cooldown"));
-        }
-
-        sendVerificationEmail(user);
         return new MessageResponse(msg.get("auth.resend.success"));
     }
 
     @Transactional
     public MessageResponse forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
-        // Return success even if user doesn't exist (security)
-        if (user == null) {
-            return new MessageResponse(msg.get("auth.forgot.success"));
+        // Jednolity komunikat niezależnie od istnienia konta, logowania przez OAuth (brak hasła)
+        // czy cooldownu (anti-enumeracja). Mejl wysyłamy tylko, gdy faktycznie trzeba.
+        boolean shouldSend = user != null
+            && user.getPasswordHash() != null
+            && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.PASSWORD_RESET, Instant.now().minus(RESEND_COOLDOWN));
+
+        if (shouldSend) {
+            sendPasswordResetEmail(user);
         }
 
-        if (user.getPasswordHash() == null) {
-            // User registered via OAuth, no password to reset
-            return new MessageResponse(msg.get("auth.forgot.success"));
-        }
-
-        // Check cooldown
-        if (authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.PASSWORD_RESET, Instant.now().minus(RESEND_COOLDOWN))) {
-            throw new IllegalStateException(msg.get("auth.forgot.cooldown"));
-        }
-
-        sendPasswordResetEmail(user);
         return new MessageResponse(msg.get("auth.forgot.success"));
     }
 
@@ -211,6 +200,9 @@ public class AuthService {
 
         User user = authToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // Reset hasła potwierdza dostęp do skrzynki → zdejmujemy ewentualną blokadę konta
+        // (po 5 nieudanych próbach), żeby użytkownik mógł się od razu zalogować.
+        user.resetFailedLoginAttempts();
         authToken.markAsUsed();
 
         // Invalidate all refresh tokens for this user (force re-login on all devices)
