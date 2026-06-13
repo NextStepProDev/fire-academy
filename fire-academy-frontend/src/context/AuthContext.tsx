@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { authApi } from '../api/client'
 import { loginUser as apiLogin } from '../api/auth'
 import { saveTokens, clearTokens, hasTokens, type AuthTokens } from '../utils/tokenStorage'
+import { useToast } from './ToastContext'
 import type { User } from '../types'
 
 interface AuthContextType {
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const { i18n } = useTranslation()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(() => hasTokens())
@@ -72,10 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTokens()
       setUser(null)
       queryClient.clear()
+      showToast(i18nRef.current.t('sessionExpired', { ns: 'errors' }), 'error')
     }
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)
-  }, [queryClient])
+  }, [queryClient, showToast])
 
   const login = useCallback(async (email: string, password: string) => {
     const tokens = await apiLogin({ email, password })
@@ -83,21 +86,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUser = await authApi.getCurrentUser()
     setUser(currentUser)
     syncLanguage(currentUser.preferredLanguage)
+    showToast(i18nRef.current.t('loggedIn', { ns: 'auth' }))
     return currentUser
-  }, [syncLanguage])
+  }, [syncLanguage, showToast])
 
   const loginWithTokens = useCallback(async (tokens: AuthTokens) => {
     saveTokens(tokens)
     const currentUser = await authApi.getCurrentUser()
     setUser(currentUser)
     syncLanguage(currentUser.preferredLanguage)
-  }, [syncLanguage])
+    showToast(i18nRef.current.t('loggedIn', { ns: 'auth' }))
+  }, [syncLanguage, showToast])
 
   const logout = useCallback(() => {
     authApi.logout()
     setUser(null)
     queryClient.clear()
-  }, [queryClient])
+    showToast(i18nRef.current.t('loggedOut', { ns: 'auth' }))
+  }, [queryClient, showToast])
 
   const value = useMemo<AuthContextType>(() => ({
     user,

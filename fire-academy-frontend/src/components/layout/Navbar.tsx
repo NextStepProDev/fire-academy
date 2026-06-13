@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, LogIn, Menu, User, CalendarCheck, X, ChevronDown } from 'lucide-react'
+import { LogOut, LogIn, Menu, User, X, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
@@ -19,18 +19,23 @@ export function Navbar() {
   const isLinkActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
-  // Logowanie dla użytkowników jest powiązane z zakładką Treningi — punkt wejścia
-  // (ikona logowania / menu zwykłego usera) pokazujemy tylko w tym kontekście.
-  // Admin ma swoje menu widoczne globalnie.
+  // Zalogowany użytkownik widzi swoje menu (avatar + ustawienia + wyloguj) na całej stronie.
+  // Punkt wejścia do logowania dla GOŚCIA jest powiązany z zakładką Treningi — pokazujemy
+  // go tylko w tym kontekście, żeby nie zaśmiecać publicznych stron marketingowych.
   const isTrainingsContext = location.pathname.startsWith('/treningi')
-  const showUserArea = isAuthenticated && (isAdmin || isTrainingsContext)
+  const showUserArea = isAuthenticated
   const showLoginEntry = !isAuthenticated && isTrainingsContext
+
+  // "Ustawienia" w menu avatara podświetlamy, gdy user jest na tej podstronie ("tu jesteś").
+  const isSettingsActive = location.pathname.startsWith('/settings')
 
   const navLinks = [
     { to: '/', label: t('nav.home') },
     { to: '/treningi', label: t('nav.trainings') },
     { to: '/obozy', label: t('nav.camps') },
     { to: '/szkolenia', label: t('nav.courses') },
+    // "Moje konto" — główny cel zalogowanego usera — na stałe w nawbarze (poza adminem).
+    ...(isAuthenticated && !isAdmin ? [{ to: '/moje-konto', label: t('nav.myAccount') }] : []),
     ...(isAdmin ? [{ to: '/admin', label: t('nav.admin') }] : []),
   ]
 
@@ -118,18 +123,15 @@ export function Navbar() {
                       <p className="text-xs text-surface-500 mt-0.5">{user?.email}</p>
                     </div>
                     <div className="py-1">
-                      {!isAdmin && (
-                        <button
-                          onClick={() => navigate('/moje-konto')}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
-                        >
-                          <CalendarCheck className="w-4 h-4" />
-                          {t('nav.myAccount')}
-                        </button>
-                      )}
                       <button
-                        onClick={() => navigate('/settings')}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
+                        onClick={() => { setUserMenuOpen(false); if (!isSettingsActive) navigate('/settings') }}
+                        aria-current={isSettingsActive ? 'page' : undefined}
+                        className={clsx(
+                          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          isSettingsActive
+                            ? 'bg-primary-500/10 text-primary-400 cursor-default'
+                            : 'text-surface-300 hover:bg-surface-800 hover:text-surface-100'
+                        )}
                       >
                         <User className="w-4 h-4" />
                         {t('nav.settings')}
@@ -195,20 +197,14 @@ export function Navbar() {
                     <p className="text-xs text-surface-500">{user?.email}</p>
                   </div>
                 </div>
-                {!isAdmin && (
-                  <Link
-                    to="/moje-konto"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-1 py-2 text-surface-300 text-sm"
-                  >
-                    <CalendarCheck className="w-4 h-4" />
-                    {t('nav.myAccount')}
-                  </Link>
-                )}
                 <Link
                   to="/settings"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-1 py-2 text-surface-300 text-sm"
+                  aria-current={isSettingsActive ? 'page' : undefined}
+                  className={clsx(
+                    'flex items-center gap-3 px-1 py-2 text-sm',
+                    isSettingsActive ? 'text-primary-400 font-medium' : 'text-surface-300'
+                  )}
                 >
                   <User className="w-4 h-4" />
                   {t('nav.settings')}
