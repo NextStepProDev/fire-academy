@@ -17,6 +17,7 @@ const ResetPasswordPage = lazyWithReload(() => import('./pages/ResetPasswordPage
 const ResendVerificationPage = lazyWithReload(() => import('./pages/ResendVerificationPage').then(m => ({ default: m.ResendVerificationPage })))
 const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
 const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
@@ -52,8 +53,12 @@ export default function App() {
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="resend-verification" element={<ResendVerificationPage />} />
             <Route path="oauth-callback" element={<OAuthCallbackPage />} />
-            <Route path="admin/login" element={<LoginPage />} />
-            <Route path="admin/register" element={<RegisterPage />} />
+            <Route path="logowanie" element={<LoginPage />} />
+            <Route path="rejestracja" element={<RegisterPage />} />
+            <Route
+              path="moje-konto"
+              element={<ProtectedRoute><MojeKontoPage /></ProtectedRoute>}
+            />
             <Route
               path="settings"
               element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
@@ -66,8 +71,10 @@ export default function App() {
               path="admin"
               element={<AdminRoute><Navigate to="/admin/kadra" replace /></AdminRoute>}
             />
-            <Route path="login" element={<Navigate to="/admin/login" replace />} />
-            <Route path="register" element={<Navigate to="/admin/register" replace />} />
+            <Route path="login" element={<Navigate to="/logowanie" replace />} />
+            <Route path="register" element={<Navigate to="/rejestracja" replace />} />
+            <Route path="admin/login" element={<Navigate to="/logowanie" replace />} />
+            <Route path="admin/register" element={<Navigate to="/rejestracja" replace />} />
           </Route>
         </Routes>
       </Suspense>

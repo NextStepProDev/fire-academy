@@ -17,6 +17,7 @@ export function RegisterPage() {
     lastName: '',
     phone: '',
   })
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
@@ -40,7 +41,10 @@ export function RegisterPage() {
     const phoneErr = validatePhone(form.phone)
     if (phoneErr) { setPhoneError(phoneErr); return phoneErr }
     setPhoneError(null)
-    return validatePassword(form.password, form.confirmPassword)
+    const passwordErr = validatePassword(form.password, form.confirmPassword)
+    if (passwordErr) return passwordErr
+    if (!acceptedPrivacy) return t('register.privacyRequired')
+    return null
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -80,8 +84,14 @@ export function RegisterPage() {
             </svg>
           </div>
           <h2 className="text-xl font-bold text-surface-100 mb-2">{t('register.successTitle')}</h2>
-          <p className="text-surface-400 mb-6">{t('register.successMessage')}</p>
-          <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
+          <p className="text-surface-300 mb-3">{t('register.successMessage')}</p>
+          <p className="text-sm text-surface-500 mb-6">
+            {t('register.successHint')}{' '}
+            <Link to="/resend-verification" className="text-primary-400 hover:text-primary-300">
+              {t('login.resendVerification')}
+            </Link>
+          </p>
+          <Link to="/logowanie" className="text-primary-400 hover:text-primary-300 font-medium">
             {t('register.goToLogin')}
           </Link>
         </div>
@@ -192,6 +202,23 @@ export function RegisterPage() {
             />
           </div>
 
+          <div className="flex items-start gap-2">
+            <input
+              id="acceptPrivacy"
+              type="checkbox"
+              required
+              checked={acceptedPrivacy}
+              onChange={(e) => { setAcceptedPrivacy(e.target.checked); setError(null) }}
+              className="mt-0.5 h-4 w-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-2 focus:ring-primary-500"
+            />
+            <label htmlFor="acceptPrivacy" className="text-sm text-surface-300">
+              {t('register.acceptPrivacyPrefix')}{' '}
+              <Link to="/polityka-prywatnosci" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
+                {t('register.privacyLink')}
+              </Link>
+            </label>
+          </div>
+
           {error && (
             <p className="text-sm text-rose-400/80">{error}</p>
           )}
@@ -225,7 +252,7 @@ export function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-surface-400">
           {t('register.hasAccount')}{' '}
-          <Link to="/admin/login" className="text-primary-400 hover:text-primary-300">
+          <Link to="/logowanie" className="text-primary-400 hover:text-primary-300">
             {t('register.login')}
           </Link>
         </p>

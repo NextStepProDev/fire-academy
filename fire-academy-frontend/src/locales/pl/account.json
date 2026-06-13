@@ -1,0 +1,25 @@
+{
+  "title": "Moje konto",
+  "greeting": "Cześć, {{name}}!",
+  "profile": {
+    "title": "Twoje dane",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+    "email": "Email",
+    "phone": "Telefon",
+    "noPhone": "—",
+    "edit": "Edytuj dane"
+  },
+  "reservations": {
+    "title": "Moje rezerwacje",
+    "empty": "Nie masz jeszcze żadnych rezerwacji.",
+    "emptyHint": "Wkrótce będziesz mógł zapisywać się na treningi i grupy bezpośrednio tutaj.",
+    "browse": "Przeglądaj treningi"
+  },
+  "banner": {
+    "loggedIn": "Witaj ponownie, {{name}}! Sprawdź swoje rezerwacje.",
+    "myReservations": "Moje rezerwacje",
+    "guest": "Załóż konto lub zaloguj się, aby rezerwować treningi.",
+    "login": "Zaloguj się"
+  }
+}

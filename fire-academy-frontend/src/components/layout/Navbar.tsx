@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, User, X, ChevronDown } from 'lucide-react'
+import { LogOut, LogIn, Menu, User, CalendarCheck, X, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
@@ -18,6 +18,13 @@ export function Navbar() {
 
   const isLinkActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
+
+  // Logowanie dla użytkowników jest powiązane z zakładką Treningi — punkt wejścia
+  // (ikona logowania / menu zwykłego usera) pokazujemy tylko w tym kontekście.
+  // Admin ma swoje menu widoczne globalnie.
+  const isTrainingsContext = location.pathname.startsWith('/treningi')
+  const showUserArea = isAuthenticated && (isAdmin || isTrainingsContext)
+  const showLoginEntry = !isAuthenticated && isTrainingsContext
 
   const navLinks = [
     { to: '/', label: t('nav.home') },
@@ -90,7 +97,7 @@ export function Navbar() {
             ))}
           </div>
 
-          {isAuthenticated && isAdmin && (
+          {showUserArea && (
             <div className="hidden md:flex items-center gap-2">
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -111,6 +118,15 @@ export function Navbar() {
                       <p className="text-xs text-surface-500 mt-0.5">{user?.email}</p>
                     </div>
                     <div className="py-1">
+                      {!isAdmin && (
+                        <button
+                          onClick={() => navigate('/moje-konto')}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
+                        >
+                          <CalendarCheck className="w-4 h-4" />
+                          {t('nav.myAccount')}
+                        </button>
+                      )}
                       <button
                         onClick={() => navigate('/settings')}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-surface-300 hover:bg-surface-800 hover:text-surface-100 transition-colors"
@@ -130,6 +146,16 @@ export function Navbar() {
                 )}
               </div>
             </div>
+          )}
+
+          {showLoginEntry && (
+            <Link
+              to="/logowanie"
+              className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-surface-200 hover:bg-surface-800 active:scale-95 transition-all duration-150"
+            >
+              <LogIn className="w-4 h-4" />
+              {t('nav.login')}
+            </Link>
           )}
 
           <button
@@ -158,7 +184,7 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {isAuthenticated && isAdmin && (
+            {showUserArea && (
               <div className="pt-4 border-t border-surface-800 space-y-1">
                 <div className="flex items-center gap-3 px-1 py-2">
                   <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
@@ -169,6 +195,16 @@ export function Navbar() {
                     <p className="text-xs text-surface-500">{user?.email}</p>
                   </div>
                 </div>
+                {!isAdmin && (
+                  <Link
+                    to="/moje-konto"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-1 py-2 text-surface-300 text-sm"
+                  >
+                    <CalendarCheck className="w-4 h-4" />
+                    {t('nav.myAccount')}
+                  </Link>
+                )}
                 <Link
                   to="/settings"
                   onClick={() => setMobileMenuOpen(false)}
@@ -184,6 +220,19 @@ export function Navbar() {
                   <LogOut className="w-4 h-4" />
                   {t('nav.logout')}
                 </button>
+              </div>
+            )}
+
+            {showLoginEntry && (
+              <div className="pt-4 border-t border-surface-800">
+                <Link
+                  to="/logowanie"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-1 py-2 text-surface-200 text-sm font-semibold"
+                >
+                  <LogIn className="w-4 h-4" />
+                  {t('nav.login')}
+                </Link>
               </div>
             )}
           </div>

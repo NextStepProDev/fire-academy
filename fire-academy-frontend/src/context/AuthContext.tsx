@@ -11,7 +11,7 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   isAdmin: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
   loginWithTokens: (tokens: AuthTokens) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUser = await authApi.getCurrentUser()
     setUser(currentUser)
     syncLanguage(currentUser.preferredLanguage)
+    return currentUser
   }, [syncLanguage])
 
   const loginWithTokens = useCallback(async (tokens: AuthTokens) => {
