@@ -42,7 +42,7 @@ export function ResendVerificationPage() {
               </svg>
             </div>
             <p className="text-surface-300 mb-6">{t('resendVerification.successMessage')}</p>
-            <Link to="/admin/login" className="text-primary-400 hover:text-primary-300 font-medium">
+            <Link to="/logowanie" className="text-primary-400 hover:text-primary-300 font-medium">
               {t('resendVerification.backToLogin')}
             </Link>
           </div>
@@ -70,7 +70,7 @@ export function ResendVerificationPage() {
             </Button>
 
             <p className="text-center text-sm text-surface-400">
-              <Link to="/admin/login" className="text-primary-400 hover:text-primary-300">
+              <Link to="/logowanie" className="text-primary-400 hover:text-primary-300">
                 {t('resendVerification.backToLogin')}
               </Link>
             </p>

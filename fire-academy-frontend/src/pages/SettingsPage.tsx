@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -19,12 +20,14 @@ export function SettingsPage() {
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
+  const [showProfileForm, setShowProfileForm] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
 
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -92,6 +95,29 @@ export function SettingsPage() {
     }
   }
 
+  // "Zapisz" / "Anuluj" aktywne tylko, gdy faktycznie coś zmieniono względem zapisanych danych.
+  const isProfileDirty =
+    firstName !== (user?.firstName ?? '') ||
+    lastName !== (user?.lastName ?? '') ||
+    phone !== (user?.phone ?? '')
+
+  const resetProfile = () => {
+    setFirstName(user?.firstName ?? '')
+    setLastName(user?.lastName ?? '')
+    setPhone(user?.phone ?? '')
+    setProfileError(null)
+  }
+
+  const isPasswordDirty =
+    currentPassword !== '' || newPassword !== '' || confirmPassword !== ''
+
+  const resetPasswordForm = () => {
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordError(null)
+  }
+
   const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
 
   return (
@@ -99,8 +125,21 @@ export function SettingsPage() {
       <h1 className="text-2xl font-bold text-surface-100 mb-8">{t('title')}</h1>
 
       <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
-        <h2 className="text-lg font-semibold text-surface-100 mb-4">{t('profile.title')}</h2>
-        <form onSubmit={handleProfileSave} className="space-y-4">
+        <button
+          type="button"
+          onClick={() => {
+            const next = !showProfileForm
+            setShowProfileForm(next)
+            if (!next) resetProfile()
+          }}
+          aria-expanded={showProfileForm}
+          className="w-full flex items-center justify-between text-left cursor-pointer group"
+        >
+          <h2 className="text-lg font-semibold text-surface-100 group-hover:text-primary-300 transition-colors">{t('profile.title')}</h2>
+          <ChevronDown className={`w-5 h-5 text-surface-400 group-hover:text-primary-300 transition-all ${showProfileForm ? 'rotate-180' : ''}`} />
+        </button>
+        {showProfileForm && (
+        <form onSubmit={handleProfileSave} className="space-y-4 mt-4">
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('profile.firstName')}</label>
             <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputClass} required />
@@ -114,14 +153,31 @@ export function SettingsPage() {
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} />
           </div>
           {profileError && <p className="text-sm text-rose-400/80">{profileError}</p>}
-          <Button type="submit" loading={profileLoading}>{t('profile.save')}</Button>
+          <div className="flex gap-3">
+            <Button type="submit" loading={profileLoading} disabled={!isProfileDirty}>{t('profile.save')}</Button>
+            <Button type="button" variant="secondary" onClick={resetProfile} disabled={!isProfileDirty}>{t('profile.cancel')}</Button>
+          </div>
         </form>
+        )}
       </section>
 
       {user?.hasPassword && (
         <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
-          <h2 className="text-lg font-semibold text-surface-100 mb-4">{t('password.title')}</h2>
-          <form onSubmit={handlePasswordChange} className="space-y-4">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !showPasswordForm
+              setShowPasswordForm(next)
+              if (!next) resetPasswordForm()
+            }}
+            aria-expanded={showPasswordForm}
+            className="w-full flex items-center justify-between text-left cursor-pointer group"
+          >
+            <h2 className="text-lg font-semibold text-surface-100 group-hover:text-primary-300 transition-colors">{t('password.title')}</h2>
+            <ChevronDown className={`w-5 h-5 text-surface-400 group-hover:text-primary-300 transition-all ${showPasswordForm ? 'rotate-180' : ''}`} />
+          </button>
+          {showPasswordForm && (
+          <form onSubmit={handlePasswordChange} className="space-y-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.current')}</label>
               <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className={inputClass} required />
@@ -135,8 +191,12 @@ export function SettingsPage() {
               <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} required />
             </div>
             {passwordError && <p className="text-sm text-rose-400/80">{passwordError}</p>}
-            <Button type="submit" loading={passwordLoading}>{t('password.change')}</Button>
+            <div className="flex gap-3">
+              <Button type="submit" loading={passwordLoading} disabled={!isPasswordDirty}>{t('password.change')}</Button>
+              <Button type="button" variant="secondary" onClick={resetPasswordForm} disabled={!isPasswordDirty}>{t('profile.cancel')}</Button>
+            </div>
           </form>
+          )}
         </section>
       )}
 

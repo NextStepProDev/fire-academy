@@ -56,7 +56,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
             user = existingUser.get();
             promoteToAdminIfConfigured(user);
         } else {
-            Optional<User> userByEmail = userRepository.findByEmail(email);
+            Optional<User> userByEmail = userRepository.findByEmailIgnoreCase(email);
             if (userByEmail.isPresent()) {
                 user = userByEmail.get();
                 user.setOauthProvider(provider);

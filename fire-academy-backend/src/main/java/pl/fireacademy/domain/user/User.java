@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -72,8 +73,12 @@ public class User {
 
     protected User() {}
 
+    private static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
+
     public User(String email, String firstName, String lastName, @Nullable String phone) {
-        this.email = email;
+        this.email = normalizeEmail(email);
         this.firstName = firstName;
         this.lastName = lastName;
         this.phone = phone;

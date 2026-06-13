@@ -64,7 +64,7 @@ class AuthServiceTest {
 
     @Test
     void shouldRegisterNewUser() {
-        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(false);
         when(passwordEncoder.encode("Password123")).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail("new@example.com")).thenReturn(false);
         when(jwtService.generateSecureToken()).thenReturn("secure-token");
@@ -88,7 +88,7 @@ class AuthServiceTest {
 
     @Test
     void shouldThrowWhenEmailAlreadyExists() {
-        when(userRepository.existsByEmail("new@example.com")).thenReturn(true);
+        when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(true);
         when(msg.get("auth.email.exists")).thenReturn("Email zajęty");
 
         var ex = assertThrows(IllegalArgumentException.class, () -> authService.register(registerRequest));
@@ -98,7 +98,7 @@ class AuthServiceTest {
 
     @Test
     void shouldAutoPromoteAdminOnRegister() {
-        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(false);
         when(passwordEncoder.encode("Password123")).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail("new@example.com")).thenReturn(true);
         when(jwtService.generateSecureToken()).thenReturn("token");
@@ -115,7 +115,7 @@ class AuthServiceTest {
     @Test
     void shouldDefaultLanguageToPlWhenNull() {
         var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, null);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);
         when(jwtService.generateSecureToken()).thenReturn("t");
@@ -132,7 +132,7 @@ class AuthServiceTest {
     @Test
     void shouldDefaultLanguageToPlWhenUnsupported() {
         var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, "de");
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);
         when(jwtService.generateSecureToken()).thenReturn("t");
@@ -150,7 +150,7 @@ class AuthServiceTest {
 
     @Test
     void shouldLoginSuccessfully() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
         when(jwtService.generateAccessToken(existingUser)).thenReturn("access-jwt");
         when(jwtService.generateRefreshToken(existingUser)).thenReturn("refresh-jwt");
@@ -167,7 +167,7 @@ class AuthServiceTest {
 
     @Test
     void shouldThrowWhenUserNotFound() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.empty());
         when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
 
         var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
@@ -177,7 +177,7 @@ class AuthServiceTest {
     @Test
     void shouldThrowWhenOAuthUserTriesToLoginWithPassword() {
         existingUser.setPasswordHash(null);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(msg.get("auth.login.oauth")).thenReturn("Zaloguj przez OAuth");
 
         var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
@@ -191,7 +191,7 @@ class AuthServiceTest {
         lockedField.setAccessible(true);
         lockedField.set(existingUser, Instant.now().plusSeconds(600));
 
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(msg.get(eq("auth.login.locked"), anyLong())).thenReturn("Konto zablokowane");
 
         var ex = assertThrows(IllegalStateException.class, () -> authService.login(loginRequest));
@@ -200,7 +200,7 @@ class AuthServiceTest {
 
     @Test
     void shouldIncrementFailedAttemptsOnWrongPassword() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
         when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
 
@@ -216,7 +216,7 @@ class AuthServiceTest {
         attemptsField.setAccessible(true);
         attemptsField.set(existingUser, 4);
 
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
         when(msg.get(eq("auth.login.locked"), anyLong())).thenReturn("Konto zablokowane");
 
@@ -227,7 +227,7 @@ class AuthServiceTest {
     @Test
     void shouldThrowWhenEmailNotVerified() {
         existingUser.setEmailVerified(false);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
         when(msg.get("auth.email.not.verified")).thenReturn("Email niezweryfikowany");
 
@@ -241,7 +241,7 @@ class AuthServiceTest {
         attemptsField.setAccessible(true);
         attemptsField.set(existingUser, 3);
 
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
         when(jwtService.generateAccessToken(existingUser)).thenReturn("access");
         when(jwtService.generateRefreshToken(existingUser)).thenReturn("refresh");
@@ -258,7 +258,7 @@ class AuthServiceTest {
     @Test
     void shouldAutoPromoteAdminOnLogin() {
         existingUser.setRole(UserRole.USER);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
         when(adminEmailConfig.isAdminEmail("test@example.com")).thenReturn(true);
         when(jwtService.generateAccessToken(existingUser)).thenReturn("access");
@@ -306,7 +306,7 @@ class AuthServiceTest {
     @Test
     void shouldResendVerificationEmail() {
         existingUser.setEmailVerified(false);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(false);
         when(jwtService.generateSecureToken()).thenReturn("token");
         when(jwtService.hashToken("token")).thenReturn("hash");
@@ -320,7 +320,7 @@ class AuthServiceTest {
 
     @Test
     void shouldReturnSuccessForNonExistentEmailOnResend() {
-        when(userRepository.findByEmail("none@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("none@example.com")).thenReturn(Optional.empty());
         when(msg.get("auth.resend.success")).thenReturn("Wysłano");
 
         MessageResponse result = authService.resendVerification(new ResendVerificationRequest("none@example.com"));
@@ -330,32 +330,38 @@ class AuthServiceTest {
     }
 
     @Test
-    void shouldReturnAlreadyVerifiedMessage() {
+    void shouldReturnGenericSuccessWhenAlreadyVerified() {
+        // Jednolity komunikat (anti-enumeracja) — nie ujawniamy, że konto jest już zweryfikowane,
+        // i nie wysyłamy maila.
         existingUser.setEmailVerified(true);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
-        when(msg.get("auth.resend.already.verified")).thenReturn("Już zweryfikowany");
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(msg.get("auth.resend.success")).thenReturn("Wysłano");
 
         MessageResponse result = authService.resendVerification(new ResendVerificationRequest("test@example.com"));
 
-        assertEquals("Już zweryfikowany", result.message());
+        assertEquals("Wysłano", result.message());
+        verify(authMailService, never()).sendVerificationEmail(any(), any());
     }
 
     @Test
-    void shouldThrowWhenResendCooldownActive() {
+    void shouldReturnGenericSuccessWhenResendCooldownActive() {
+        // Cooldown nie rzuca już błędem — zwraca ten sam sukces, tylko nie wysyła maila.
         existingUser.setEmailVerified(false);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(true);
-        when(msg.get("auth.resend.cooldown")).thenReturn("Poczekaj minutę");
+        when(msg.get("auth.resend.success")).thenReturn("Wysłano");
 
-        assertThrows(IllegalStateException.class,
-            () -> authService.resendVerification(new ResendVerificationRequest("test@example.com")));
+        MessageResponse result = authService.resendVerification(new ResendVerificationRequest("test@example.com"));
+
+        assertEquals("Wysłano", result.message());
+        verify(authMailService, never()).sendVerificationEmail(any(), any());
     }
 
     // --- Forgot Password ---
 
     @Test
     void shouldSendPasswordResetEmail() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.PASSWORD_RESET), any())).thenReturn(false);
         when(jwtService.generateSecureToken()).thenReturn("reset-token");
         when(jwtService.hashToken("reset-token")).thenReturn("reset-hash");
@@ -369,7 +375,7 @@ class AuthServiceTest {
 
     @Test
     void shouldReturnSuccessForNonExistentEmailOnForgotPassword() {
-        when(userRepository.findByEmail("none@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("none@example.com")).thenReturn(Optional.empty());
         when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
 
         MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("none@example.com"));
@@ -381,7 +387,7 @@ class AuthServiceTest {
     @Test
     void shouldReturnSuccessForOAuthUserOnForgotPassword() {
         existingUser.setPasswordHash(null);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
 
         MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
@@ -391,13 +397,16 @@ class AuthServiceTest {
     }
 
     @Test
-    void shouldThrowWhenForgotPasswordCooldownActive() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(existingUser));
+    void shouldReturnGenericSuccessWhenForgotPasswordCooldownActive() {
+        // Cooldown nie rzuca już błędem — zwraca ten sam sukces, tylko nie wysyła maila.
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.PASSWORD_RESET), any())).thenReturn(true);
-        when(msg.get("auth.forgot.cooldown")).thenReturn("Poczekaj");
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
 
-        assertThrows(IllegalStateException.class,
-            () -> authService.forgotPassword(new ForgotPasswordRequest("test@example.com")));
+        MessageResponse result = authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+
+        assertEquals("Wysłano reset", result.message());
+        verify(authMailService, never()).sendPasswordResetEmail(any(), any());
     }
 
     // --- Reset Password ---

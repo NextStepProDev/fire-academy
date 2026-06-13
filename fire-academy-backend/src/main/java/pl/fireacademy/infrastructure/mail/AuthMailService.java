@@ -32,7 +32,7 @@ public class AuthMailService {
     @Async("mailExecutor")
     public void sendVerificationEmail(User user, String token) {
         String lang = user.getPreferredLanguage();
-        String verificationUrl = appConfig.getBaseUrl() + "/verify-email?token=" + token;
+        String verificationUrl = siteUrl + "/verify-email?token=" + token;
         String subject = msg.getForLang("email.verification.subject", lang);
         String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
 
@@ -78,7 +78,7 @@ public class AuthMailService {
     @Async("mailExecutor")
     public void sendPasswordResetEmail(User user, String token) {
         String lang = user.getPreferredLanguage();
-        String resetUrl = appConfig.getBaseUrl() + "/reset-password?token=" + token;
+        String resetUrl = siteUrl + "/reset-password?token=" + token;
         String subject = msg.getForLang("email.reset.subject", lang);
         String safeFirstName = HtmlUtils.htmlEscape(user.getFirstName());
 

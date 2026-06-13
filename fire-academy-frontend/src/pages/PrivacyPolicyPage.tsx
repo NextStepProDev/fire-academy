@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 
-const LAST_UPDATED = '29 maja 2026'
+const LAST_UPDATED = '14 czerwca 2026'
 
 export function PrivacyPolicyPage() {
   return (
@@ -85,7 +85,7 @@ export function PrivacyPolicyPage() {
             ]} />
           </SubSection>
 
-          <SubSection title="Konto administratora (rejestracja e-mail i hasło)">
+          <SubSection title="Konto użytkownika (rejestracja e-mail i hasło)">
             <DataList items={[
               'Imię i nazwisko',
               'Adres e-mail',
@@ -110,7 +110,7 @@ export function PrivacyPolicyPage() {
               basis="Art. 6 ust. 1 lit. b RODO — wykonanie umowy (potwierdzenie zapisu, zmiany w harmonogramie, informacje organizacyjne)"
             />
             <LegalBasis
-              purpose="Obsługa konta administratora"
+              purpose="Obsługa konta użytkownika"
               basis="Art. 6 ust. 1 lit. b RODO — wykonanie umowy"
             />
             <LegalBasis
@@ -139,7 +139,7 @@ export function PrivacyPolicyPage() {
               roszczeń wynikającym z Kodeksu cywilnego.
             </p>
             <p>
-              <span className="text-surface-200 font-medium">Dane konta administratora</span> — przechowywane przez
+              <span className="text-surface-200 font-medium">Dane konta użytkownika</span> — przechowywane przez
               cały czas istnienia konta. Po jego usunięciu wszystkie dane są trwale i nieodwracalnie usuwane z bazy danych.
             </p>
             <p>

@@ -73,6 +73,8 @@ public class UserService {
         }
         authTokenRepository.deleteAllByUserId(userId);
         userRepository.deleteById(userId);
+        // Bez tego usunięty user nadal uwierzytelniałby się z cache filtra JWT przez ~60s.
+        jwtAuthenticationFilter.evictUser(userId);
     }
 
     @Transactional
