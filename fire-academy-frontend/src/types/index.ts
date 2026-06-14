@@ -145,6 +145,82 @@ export interface EventInstance {
   createdAt: string
 }
 
+/** ISO: 1 = poniedziałek … 7 = niedziela */
+export type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+/** Cykliczny slot treningowy — widok admina. */
+export interface TrainingSlot {
+  id: string
+  eventTypeId: string
+  eventTypeName: string
+  instructorId: string | null
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  price: number | null
+  maxParticipants: number
+  displayOrder: number
+  enrolledThisMonth: number
+  active: boolean
+  createdAt: string
+}
+
+/** Cykliczny slot treningowy — widok publiczny (z wolnymi miejscami dla miesiąca). */
+export interface TrainingSlotCard {
+  id: string
+  eventTypeId: string
+  eventTypeName: string
+  instructorId: string | null
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  price: number | null
+  maxParticipants: number
+  availableSpots: number
+}
+
+/** Zarejestrowany użytkownik — wynik wyszukiwarki admina. */
+export interface AdminUserSummary {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
+/** Pozycja rostera admina — jeden zapisany uczestnik na dany miesiąc. */
+export interface TrainingRosterEntry {
+  enrollmentId: string
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  startMonth: string
+  endMonth: string | null
+  indefinite: boolean
+  paid: boolean
+}
+
+/** Subskrypcja zalogowanego użytkownika na slot — widok konta. */
+export interface MyTrainingEnrollment {
+  id: string
+  slotId: string
+  eventTypeId: string
+  eventTypeName: string
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  price: number | null
+  startMonth: string
+  endMonth: string | null
+  billingMonth: string
+  sessionsInBillingMonth: number
+  monthlyAmount: number | null
+}
+
 export interface Enrollment {
   id: string
   eventId: string

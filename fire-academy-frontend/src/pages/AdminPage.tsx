@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
+import { AdminTrainingSlots } from './admin/AdminTrainingSlots'
 import { AdminArchive } from './admin/AdminArchive'
 import { AdminUsers } from './admin/AdminUsers'
 import type { EventCategory } from '../types'
@@ -59,7 +60,9 @@ export function AdminPage() {
 
       {categoryTabs[tab] && (
         <div className="space-y-12">
-          <AdminEvents category={categoryTabs[tab]} />
+          {categoryTabs[tab] === 'TRAINING'
+            ? <AdminTrainingSlots />
+            : <AdminEvents category={categoryTabs[tab]} />}
           <AdminEventTypes category={categoryTabs[tab]} />
         </div>
       )}

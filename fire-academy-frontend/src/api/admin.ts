@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -9,6 +9,22 @@ interface SendUserEmailRequest {
   message: string
   audience: EmailAudience
   userIds?: string[]
+}
+
+interface TrainingSlotRequest {
+  eventTypeId: string
+  instructorId?: string
+  dayOfWeek: number
+  startTime: string
+  endTime?: string
+  price?: number
+  maxParticipants: number
+}
+
+interface AdminAddTrainingEnrollmentRequest {
+  userId: string
+  startMonth: string
+  months?: number
 }
 
 interface CreateInstructorRequest {
@@ -137,6 +153,30 @@ export const adminApi = {
     fetchApi<void>(`/admin/events/${id}?force=${force}`, { method: 'DELETE' }),
   toggleEventActive: (id: string) =>
     fetchApi<EventInstance>(`/admin/events/${id}/toggle-active`, { method: 'PATCH' }),
+
+  // Training slots (cykliczne)
+  getTrainingSlots: (month: string) =>
+    fetchApi<TrainingSlot[]>(`/admin/training-slots?month=${month}`),
+  createTrainingSlot: (data: TrainingSlotRequest) =>
+    fetchApi<TrainingSlot>('/admin/training-slots', { method: 'POST', body: JSON.stringify(data) }),
+  updateTrainingSlot: (id: string, data: TrainingSlotRequest) =>
+    fetchApi<TrainingSlot>(`/admin/training-slots/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTrainingSlot: (id: string) =>
+    fetchApi<void>(`/admin/training-slots/${id}`, { method: 'DELETE' }),
+  toggleTrainingSlotActive: (id: string) =>
+    fetchApi<TrainingSlot>(`/admin/training-slots/${id}/toggle-active`, { method: 'PATCH' }),
+
+  // Training enrollments (roster / zarządzanie)
+  getTrainingRoster: (slotId: string, month: string) =>
+    fetchApi<TrainingRosterEntry[]>(`/admin/training-slots/${slotId}/enrollments?month=${month}`),
+  addTrainingEnrollment: (slotId: string, data: AdminAddTrainingEnrollmentRequest) =>
+    fetchApi<void>(`/admin/training-slots/${slotId}/enrollments`, { method: 'POST', body: JSON.stringify(data) }),
+  removeTrainingEnrollment: (id: string) =>
+    fetchApi<void>(`/admin/training-enrollments/${id}`, { method: 'DELETE' }),
+  setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
+    fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
+  searchUsers: (query: string) =>
+    fetchApi<AdminUserSummary[]>(`/admin/users/search?query=${encodeURIComponent(query)}`),
 
   // Enrollments
   getEnrollmentsByEvent: (eventId: string) =>

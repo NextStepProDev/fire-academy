@@ -1,6 +1,15 @@
 {
   "title": "Moje konto",
   "greeting": "Cześć, {{name}}!",
+  "days": {
+    "1": "Poniedziałek",
+    "2": "Wtorek",
+    "3": "Środa",
+    "4": "Czwartek",
+    "5": "Piątek",
+    "6": "Sobota",
+    "7": "Niedziela"
+  },
   "profile": {
     "title": "Twoje dane",
     "firstName": "Imię",
@@ -22,6 +31,24 @@
     "cancelError": "Nie udało się anulować rezerwacji.",
     "loadError": "Nie udało się wczytać rezerwacji.",
     "noteLabel": "Twoja informacja dla organizatora:"
+  },
+  "trainings": {
+    "title": "Moje treningi",
+    "empty": "Nie masz jeszcze zapisów na treningi.",
+    "emptyHint": "Zapisz się na trening, aby zobaczyć go tutaj.",
+    "browse": "Przeglądaj treningi",
+    "instructor": "Trener: {{name}}",
+    "period": "Od {{from}}",
+    "periodUntil": "Od {{from}} do {{to}}",
+    "indefinite": "na czas nieokreślony",
+    "monthlyAmount": "{{amount}} zł / miesiąc",
+    "monthTotalLabel": "Łącznie do zapłaty za {{month}}:",
+    "billing": "Kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
+    "paymentNote": "Płatne z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
+    "cancel": "Zrezygnuj od kolejnego miesiąca",
+    "cancelConfirmTitle": "Potwierdzenie rezygnacji",
+    "cancelConfirm": "Zrezygnować z tego treningu od kolejnego miesiąca? Zostaniesz zapisany do końca bieżącego miesiąca.",
+    "cancelSuccess": "Rezygnacja przyjęta."
   },
   "banner": {
     "loggedIn": "Witaj ponownie, {{name}}! Sprawdź swoje rezerwacje.",

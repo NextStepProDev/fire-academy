@@ -6,6 +6,9 @@ import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.domain.event.EventCategory;
 
+import org.jspecify.annotations.Nullable;
+
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +39,13 @@ public class PublicController {
     @GetMapping("/events")
     public ResponseEntity<List<EventCard>> getEvents(@RequestParam EventCategory category) {
         return ResponseEntity.ok().cacheControl(LIST_CACHE).body(service.getUpcomingEvents(category));
+    }
+
+    @GetMapping("/training-slots")
+    public ResponseEntity<List<TrainingSlotCard>> getTrainingSlots(
+            @RequestParam(required = false) @Nullable String month) {
+        var ym = (month != null && !month.isBlank()) ? YearMonth.parse(month) : YearMonth.now();
+        return ResponseEntity.ok().cacheControl(LIST_CACHE).body(service.getTrainingSlots(ym));
     }
 
     @GetMapping("/instructors/{id}")

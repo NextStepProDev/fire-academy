@@ -44,4 +44,18 @@ public final class PublicDtos {
             @Nullable Integer maxParticipants,
             int availableSpots
     ) {}
+
+    public record TrainingSlotCard(
+            UUID id,
+            UUID eventTypeId,
+            String eventTypeName,
+            @Nullable UUID instructorId,
+            @Nullable String instructorName,
+            int dayOfWeek,
+            LocalTime startTime,
+            @Nullable LocalTime endTime,
+            @Nullable BigDecimal price,
+            int maxParticipants,
+            int availableSpots
+    ) {}
 }

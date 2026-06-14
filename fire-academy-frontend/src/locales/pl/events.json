@@ -57,5 +57,42 @@
   },
   "noEvents": "Brak nadchodzących terminów",
   "noEventTypes": "Brak dostępnych rodzajów",
-  "noInstructors": "Brak osób w kadrze"
+  "noInstructors": "Brak osób w kadrze",
+  "days": {
+    "1": "Poniedziałek",
+    "2": "Wtorek",
+    "3": "Środa",
+    "4": "Czwartek",
+    "5": "Piątek",
+    "6": "Sobota",
+    "7": "Niedziela"
+  },
+  "slots": {
+    "month": "Miesiąc",
+    "noSlots": "Brak terminów w tym miesiącu",
+    "spotsOf": "Wolne miejsca: {{available}} / {{max}}",
+    "full": "Brak miejsc",
+    "pricePerSession": "{{price}} zł / zajęcia",
+    "enroll": "Zapisz się",
+    "loginToEnroll": "Zaloguj się, aby zapisać",
+    "schedule": "Harmonogram zajęć"
+  },
+  "enrollTraining": {
+    "title": "Zapis na trening",
+    "summary": "{{day}}, {{time}} · {{name}}",
+    "instructor": "Trener: {{name}}",
+    "startMonth": "Miesiąc rozpoczęcia",
+    "duration": "Czas trwania zapisu",
+    "indefinite": "Na czas nieokreślony",
+    "fixed": "Na określoną liczbę miesięcy",
+    "monthsCount": "Liczba miesięcy",
+    "summaryAmount": "Za ten trening w {{month}}: {{amount}} zł ({{sessions}} zajęć × {{price}} zł)",
+    "cumulative": "Razem z Twoimi rezerwacjami na {{month}}: {{amount}} zł",
+    "paymentNote": "Płatność z góry co miesiąc w recepcji, przed pierwszymi zajęciami.",
+    "accountHint": "Łączną kwotę za miesiąc za wszystkie treningi zobaczysz w zakładce „Moje konto\".",
+    "standingNote": "Zapis trzyma Twoje miejsce w kolejnych miesiącach, dopóki nie zrezygnujesz.",
+    "submit": "Potwierdź zapis",
+    "cancel": "Anuluj",
+    "success": "Zapis potwierdzony! Szczegóły znajdziesz na swoim koncie."
+  }
 }
