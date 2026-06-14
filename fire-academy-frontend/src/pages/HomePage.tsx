@@ -77,7 +77,7 @@ export function HomePage() {
               addressRegion: 'śląskie',
               addressCountry: 'PL',
             },
-            areaServed: ['Katowice', 'Podlesie', 'Piotrowice', 'Bażantowo', 'Mikołów', 'Mysłowice'],
+            areaServed: ['Katowice', 'Podlesie', 'Piotrowice', 'Bażantowo'],
             keywords: 'sztuki walki, MMA, kickboxing, boks, zapasy, trening personalny, przygotowanie motoryczne, Katowice',
             '@id': `${window.location.origin}/#organization`,
           },

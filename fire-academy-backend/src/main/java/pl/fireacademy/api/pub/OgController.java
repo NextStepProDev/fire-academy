@@ -119,7 +119,7 @@ public class OgController {
     public ResponseEntity<String> homeOg() {
         String siteUrl = appConfig.getSiteUrl();
         String jsonLd = """
-                [{"@context":"https://schema.org","@type":"SportsActivityLocation","name":"Fire Academy","description":"Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.","url":"%s","telephone":"+48534823667","address":{"@type":"PostalAddress","addressLocality":"Katowice","addressRegion":"śląskie","addressCountry":"PL"},"areaServed":["Katowice","Podlesie","Piotrowice","Bażantowo","Mikołów","Mysłowice"],"keywords":"sztuki walki, MMA, kickboxing, boks, zapasy, trening personalny, przygotowanie motoryczne, Katowice"},{"@context":"https://schema.org","@type":"WebSite","name":"Fire Academy","url":"%s","inLanguage":"pl-PL"}]"""
+                [{"@context":"https://schema.org","@type":"SportsActivityLocation","name":"Fire Academy","description":"Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.","url":"%s","telephone":"+48534823667","address":{"@type":"PostalAddress","addressLocality":"Katowice","addressRegion":"śląskie","addressCountry":"PL"},"areaServed":["Katowice","Podlesie","Piotrowice","Bażantowo"],"keywords":"sztuki walki, MMA, kickboxing, boks, zapasy, trening personalny, przygotowanie motoryczne, Katowice"},{"@context":"https://schema.org","@type":"WebSite","name":"Fire Academy","url":"%s","inLanguage":"pl-PL"}]"""
                 .formatted(siteUrl, siteUrl);
         return ogResponse(
                 "Szkoła sztuk walki Katowice — MMA, kickboxing, boks | Fire Academy",
