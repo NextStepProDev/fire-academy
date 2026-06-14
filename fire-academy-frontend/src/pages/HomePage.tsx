@@ -59,18 +59,26 @@ export function HomePage() {
   return (
     <div className="relative w-full h-screen overflow-hidden bg-surface-950" style={{ height: '100dvh', maxHeight: '-webkit-fill-available' }}>
       <Seo
-        title="Fire Academy"
-        description="Fire Academy — treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych."
+        title="Szkoła sztuk walki Katowice — MMA, kickboxing, boks"
+        description="Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty."
         path="/"
         jsonLd={[
           {
             '@context': 'https://schema.org',
             '@type': 'SportsActivityLocation',
             name: 'Fire Academy',
-            description: 'Treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.',
+            description: 'Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.',
             url: window.location.origin,
             image: `${window.location.origin}/og-default.png`,
             telephone: '+48534823667',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: 'Katowice',
+              addressRegion: 'śląskie',
+              addressCountry: 'PL',
+            },
+            areaServed: ['Katowice', 'Podlesie', 'Piotrowice', 'Bażantowo', 'Mikołów', 'Mysłowice'],
+            keywords: 'sztuki walki, MMA, kickboxing, boks, zapasy, trening personalny, przygotowanie motoryczne, Katowice',
             '@id': `${window.location.origin}/#organization`,
           },
           {

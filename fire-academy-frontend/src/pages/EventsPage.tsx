@@ -59,10 +59,18 @@ export function EventsPage({ category }: EventsPageProps) {
   const titleKey = { CAMP: 'camps.title', COURSE: 'courses.title', TRAINING: 'trainings.title' }[category]
   const pageTitle = t(titleKey)
   const slug = categoryToSlug(category)
+  // SEO <title> decoupled from the visible <h1> (pageTitle stays "Treningi" etc.).
+  // Keep in sync with scripts/prerender.mjs route titles.
+  const seoTitleMap: Record<string, string> = {
+    TRAINING: 'Treningi sztuk walki i przygotowanie motoryczne Katowice',
+    CAMP: 'Obozy sportowe sztuk walki — Katowice i okolice',
+    COURSE: 'Szkolenia i kursy trenerskie sztuk walki',
+  }
+  // Keep in sync with scripts/prerender.mjs route descriptions.
   const descriptionMap: Record<string, string> = {
-    TRAINING: 'Treningi indywidualne i grupowe w Fire Academy. Sprawdź nadchodzące terminy, rodzaje treningów i kadrę instruktorów.',
-    CAMP: 'Obozy sportowe Fire Academy. Sprawdź terminy obozów, programy i dostępne miejsca.',
-    COURSE: 'Szkolenia i kursy Fire Academy. Podnieś swoje umiejętności z doświadczoną kadrą.',
+    TRAINING: 'Treningi sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy. Personalne i małe grupy (4–6 osób), indywidualne podejście i realne efekty.',
+    CAMP: 'Obozy sportowe ze sztuk walki i przygotowania motorycznego z Fire Academy. Sprawdź terminy, programy i dostępne miejsca.',
+    COURSE: 'Szkolenia i kursy trenerskie ze sztuk walki i przygotowania motorycznego. Podnieś kwalifikacje z doświadczoną kadrą Fire Academy.',
   }
 
   const eventsJsonLd = (eventsQuery.data ?? []).map(event => ({
@@ -92,7 +100,7 @@ export function EventsPage({ category }: EventsPageProps) {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
       <Seo
-        title={pageTitle}
+        title={seoTitleMap[category]}
         description={descriptionMap[category]}
         path={`/${slug}`}
         jsonLd={eventsJsonLd.length > 0 ? eventsJsonLd : undefined}

@@ -12,8 +12,9 @@
 // <link rel="canonical"> + <meta property="og:url">. Body stays SPA-rendered.
 //
 // Meta mirrors what <Seo> (src/components/seo/Seo.tsx) sets on each page so the raw
-// HTML matches the post-hydration DOM (no title flicker / mismatch). Listing titles
-// are read from the i18n events namespace; descriptions mirror EventsPage.descriptionMap.
+// HTML matches the post-hydration DOM (no title flicker / mismatch). Listing titles +
+// descriptions mirror EventsPage.seoTitleMap / descriptionMap (SEO copy, not the visible
+// <h1>); the home title mirrors HomePage's <Seo title>.
 //
 // Single language (pl) -> no hreflang. Resilient: any failure logs a warning and
 // keeps the SPA fallback (exit code stays 0 so the build never breaks).
@@ -24,8 +25,10 @@ import { fileURLToPath } from 'node:url'
 
 const SITE_NAME = 'Fire Academy'
 const BASE_URL = 'https://fireworkout.pl'
+// Mirrors HomePage's <Seo title> (brand suffix appended below) + Seo.tsx DEFAULT_DESCRIPTION.
+const HOME_TITLE = 'Szkoła sztuk walki Katowice — MMA, kickboxing, boks'
 const DEFAULT_DESCRIPTION =
-  'Fire Academy — treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.'
+  'Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
@@ -45,14 +48,14 @@ function escapeText(s) {
 
 try {
   const template = readFileSync(distIndex, 'utf-8')
-  const events = JSON.parse(readFileSync(join(root, 'src', 'locales', 'pl', 'events.json'), 'utf-8'))
 
-  // Descriptions mirror src/pages/EventsPage.tsx descriptionMap — keep in sync.
+  // Titles + descriptions mirror src/pages/EventsPage.tsx seoTitleMap / descriptionMap
+  // and HomePage's <Seo> — keep in sync.
   const routes = [
-    { path: '/', title: SITE_NAME, description: DEFAULT_DESCRIPTION },
-    { path: '/treningi', title: events.trainings.title, description: 'Treningi indywidualne i grupowe w Fire Academy. Sprawdź nadchodzące terminy, rodzaje treningów i kadrę instruktorów.' },
-    { path: '/obozy', title: events.camps.title, description: 'Obozy sportowe Fire Academy. Sprawdź terminy obozów, programy i dostępne miejsca.' },
-    { path: '/szkolenia', title: events.courses.title, description: 'Szkolenia i kursy Fire Academy. Podnieś swoje umiejętności z doświadczoną kadrą.' },
+    { path: '/', title: HOME_TITLE, description: DEFAULT_DESCRIPTION },
+    { path: '/treningi', title: 'Treningi sztuk walki i przygotowanie motoryczne Katowice', description: 'Treningi sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy. Personalne i małe grupy (4–6 osób), indywidualne podejście i realne efekty.' },
+    { path: '/obozy', title: 'Obozy sportowe sztuk walki — Katowice i okolice', description: 'Obozy sportowe ze sztuk walki i przygotowania motorycznego z Fire Academy. Sprawdź terminy, programy i dostępne miejsca.' },
+    { path: '/szkolenia', title: 'Szkolenia i kursy trenerskie sztuk walki', description: 'Szkolenia i kursy trenerskie ze sztuk walki i przygotowania motorycznego. Podnieś kwalifikacje z doświadczoną kadrą Fire Academy.' },
     { path: '/polityka-prywatnosci', title: 'Polityka prywatności', description: 'Polityka prywatności Fire Academy — jakie dane zbieramy, w jakim celu, jak długo je przechowujemy i jakie prawa Ci przysługują.' },
   ]
 

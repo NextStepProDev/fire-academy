@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 
 const SITE_NAME = 'Fire Academy'
-const DEFAULT_DESCRIPTION = 'Fire Academy — treningi indywidualne i małe grupy, obozy sportowe oraz szkolenia — od sztuk walki po kursy trenerskie. Dla początkujących i zaawansowanych.'
+const DEFAULT_DESCRIPTION = 'Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.'
 const DEFAULT_IMAGE = '/og-default.png'
 
 export interface Breadcrumb {
