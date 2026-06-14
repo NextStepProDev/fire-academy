@@ -108,6 +108,7 @@ jobs:
             "/api/public/instructors?category=TRAINING"
             "/api/public/event-types?category=TRAINING"
             "/api/public/events?category=TRAINING"
+            "/api/public/training-slots"
           )
           FAILED=0
           for p in "${PATHS[@]}"; do

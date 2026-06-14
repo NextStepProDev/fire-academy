@@ -8,9 +8,11 @@ interface TrainingSlotCardProps {
   slot: TrainingSlotCardType
   isAuthenticated: boolean
   onEnroll: () => void
+  onOpenType?: () => void
+  onOpenInstructor?: () => void
 }
 
-export function TrainingSlotCard({ slot, isAuthenticated, onEnroll }: TrainingSlotCardProps) {
+export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, onOpenInstructor }: TrainingSlotCardProps) {
   const { t } = useTranslation('events')
   const isFull = slot.availableSpots <= 0
   const time = `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`
@@ -18,11 +20,23 @@ export function TrainingSlotCard({ slot, isAuthenticated, onEnroll }: TrainingSl
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
       <div className="flex-1 min-w-0 space-y-1">
-        <h4 className="font-semibold text-surface-100">{slot.eventTypeName}</h4>
+        {onOpenType ? (
+          <button onClick={onOpenType} className="font-semibold text-surface-100 hover:text-primary-400 transition-colors text-left">
+            {slot.eventTypeName}
+          </button>
+        ) : (
+          <h4 className="font-semibold text-surface-100">{slot.eventTypeName}</h4>
+        )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-400">
           <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{time}</span>
           {slot.instructorName && (
-            <span className="flex items-center gap-1.5"><UserIcon className="w-4 h-4" />{slot.instructorName}</span>
+            onOpenInstructor ? (
+              <button onClick={onOpenInstructor} className="flex items-center gap-1.5 hover:text-primary-400 transition-colors">
+                <UserIcon className="w-4 h-4" />{slot.instructorName}
+              </button>
+            ) : (
+              <span className="flex items-center gap-1.5"><UserIcon className="w-4 h-4" />{slot.instructorName}</span>
+            )
           )}
           <span className="flex items-center gap-1.5">
             <Users className="w-4 h-4" />

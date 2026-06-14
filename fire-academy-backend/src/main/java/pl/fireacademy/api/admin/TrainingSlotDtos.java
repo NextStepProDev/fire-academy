@@ -1,7 +1,9 @@
 package pl.fireacademy.api.admin;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import org.jspecify.annotations.Nullable;
@@ -10,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.UUID;
 
 public final class TrainingSlotDtos {
@@ -46,6 +49,21 @@ public final class TrainingSlotDtos {
     public record UpdateTrainingSlotRequest(
             @NotNull UUID eventTypeId,
             @Nullable UUID instructorId,
+            @NotNull @Min(1) @Max(7) Integer dayOfWeek,
+            @NotNull LocalTime startTime,
+            @Nullable LocalTime endTime,
+            @Nullable @PositiveOrZero BigDecimal price,
+            @NotNull @Min(1) Integer maxParticipants
+    ) {}
+
+    /** Zbiorcze tworzenie wielu slotów jednego rodzaju z tym samym trenerem (różne dni/godziny). */
+    public record BatchCreateTrainingSlotRequest(
+            @NotNull UUID eventTypeId,
+            @Nullable UUID instructorId,
+            @NotEmpty @Valid List<SlotRow> slots
+    ) {}
+
+    public record SlotRow(
             @NotNull @Min(1) @Max(7) Integer dayOfWeek,
             @NotNull LocalTime startTime,
             @Nullable LocalTime endTime,

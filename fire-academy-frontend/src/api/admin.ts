@@ -27,6 +27,20 @@ interface AdminAddTrainingEnrollmentRequest {
   months?: number
 }
 
+interface TrainingSlotRow {
+  dayOfWeek: number
+  startTime: string
+  endTime?: string
+  price?: number
+  maxParticipants: number
+}
+
+interface BatchCreateTrainingSlotsRequest {
+  eventTypeId: string
+  instructorId?: string
+  slots: TrainingSlotRow[]
+}
+
 interface CreateInstructorRequest {
   firstName: string
   lastName: string
@@ -159,6 +173,8 @@ export const adminApi = {
     fetchApi<TrainingSlot[]>(`/admin/training-slots?month=${month}`),
   createTrainingSlot: (data: TrainingSlotRequest) =>
     fetchApi<TrainingSlot>('/admin/training-slots', { method: 'POST', body: JSON.stringify(data) }),
+  createTrainingSlotsBatch: (data: BatchCreateTrainingSlotsRequest) =>
+    fetchApi<TrainingSlot[]>('/admin/training-slots/batch', { method: 'POST', body: JSON.stringify(data) }),
   updateTrainingSlot: (id: string, data: TrainingSlotRequest) =>
     fetchApi<TrainingSlot>(`/admin/training-slots/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTrainingSlot: (id: string) =>

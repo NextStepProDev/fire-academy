@@ -135,9 +135,8 @@ export function EventTypeDetailPage() {
         </Link>
 
         {et.thumbnailUrl && (
-          <div className="relative overflow-hidden rounded-xl">
-            <img src={et.thumbnailUrl} alt={et.name} decoding="async" className="w-full aspect-video object-cover" />
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-surface-950 to-transparent" />
+          <div className="aspect-square overflow-hidden rounded-xl bg-surface-800 max-w-md mx-auto">
+            <img src={et.thumbnailUrl} alt={et.name} decoding="async" className="w-full h-full object-cover" />
           </div>
         )}
 

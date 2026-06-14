@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
-import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X } from 'lucide-react'
+import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 
@@ -24,7 +24,20 @@ const emptyForm = {
   maxParticipants: '',
 }
 
+type SlotRowForm = { dayOfWeek: number; startTime: string; endTime: string; maxParticipants: string; price: string }
+const emptyRow = (): SlotRowForm => ({ dayOfWeek: 1, startTime: '', endTime: '', maxParticipants: '', price: '' })
+const emptyCreate = () => ({ eventTypeId: '', instructorId: '', rows: [emptyRow()] })
+
 const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
+
+// Klasa pola formularza.
+// `error` (czerwone obramowanie) zapalamy DOPIERO po próbie zapisu, gdy wymagane pole jest puste.
+// `paleEmpty` (dla pól time) — gdy pusto, przykładowa godzina jest blada, żeby nie wyglądała jak wpisana.
+const fieldClass = (error?: boolean, paleEmpty?: boolean) => clsx(
+  'w-full px-3 py-2 bg-surface-800 rounded-lg border focus:outline-none focus:ring-2 transition-colors',
+  error ? 'border-rose-500 focus:ring-rose-500' : 'border-surface-700 focus:ring-primary-500',
+  paleEmpty ? 'text-surface-500' : 'text-surface-100',
+)
 
 function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
   slot: TrainingSlot
@@ -264,6 +277,9 @@ export function AdminTrainingSlots() {
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [createForm, setCreateForm] = useState(emptyCreate())
+  const [showCreateErrors, setShowCreateErrors] = useState(false)
+  const [showEditErrors, setShowEditErrors] = useState(false)
 
   const { data: slots, isLoading } = useQuery({
     queryKey: ['admin', 'training-slots', month],
@@ -296,7 +312,17 @@ export function AdminTrainingSlots() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => adminApi.createTrainingSlot(buildPayload()),
+    mutationFn: () => adminApi.createTrainingSlotsBatch({
+      eventTypeId: createForm.eventTypeId,
+      instructorId: createForm.instructorId || undefined,
+      slots: createForm.rows.map(r => ({
+        dayOfWeek: Number(r.dayOfWeek),
+        startTime: r.startTime,
+        endTime: r.endTime || undefined,
+        price: r.price ? Number(r.price) : undefined,
+        maxParticipants: Number(r.maxParticipants),
+      })),
+    }),
     onSuccess: () => { invalidate(); setIsCreating(false) },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
@@ -312,7 +338,18 @@ export function AdminTrainingSlots() {
   })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleTrainingSlotActive, onSuccess: invalidate })
 
-  const openCreate = () => { setForm(emptyForm); setIsCreating(true) }
+  const openCreate = () => { setCreateForm(emptyCreate()); setShowCreateErrors(false); setIsCreating(true) }
+  const handleCreate = () => {
+    if (!createValid) { setShowCreateErrors(true); return }
+    createMut.mutate()
+  }
+  const addRow = () => setCreateForm(f => ({ ...f, rows: [...f.rows, { ...f.rows[f.rows.length - 1] }] }))
+  const removeRow = (i: number) => setCreateForm(f => ({ ...f, rows: f.rows.filter((_, idx) => idx !== i) }))
+  const updateRow = (i: number, patch: Partial<SlotRowForm>) =>
+    setCreateForm(f => ({ ...f, rows: f.rows.map((r, idx) => idx === i ? { ...r, ...patch } : r) }))
+  const createValid = !!createForm.eventTypeId &&
+    createForm.rows.every(r => r.startTime && Number(r.maxParticipants) > 0)
+
   const openEdit = (s: TrainingSlot) => {
     setForm({
       eventTypeId: s.eventTypeId,
@@ -323,15 +360,16 @@ export function AdminTrainingSlots() {
       price: s.price?.toString() ?? '',
       maxParticipants: s.maxParticipants.toString(),
     })
+    setShowEditErrors(false)
     setEditItem(s)
   }
-  const closeForm = () => { setIsCreating(false); setEditItem(null) }
+  const closeForm = () => { setIsCreating(false); setEditItem(null); setShowCreateErrors(false); setShowEditErrors(false) }
 
   const isValid = form.eventTypeId && form.startTime && Number(form.maxParticipants) > 0
   const handleSave = () => {
-    if (!isValid) return
-    if (editItem) updateMut.mutate(editItem.id)
-    else createMut.mutate()
+    if (!editItem) return
+    if (!isValid) { setShowEditErrors(true); return }
+    updateMut.mutate(editItem.id)
   }
 
   if (isLoading) return <LoadingSpinner />
@@ -380,11 +418,12 @@ export function AdminTrainingSlots() {
         </div>
       )}
 
-      <Modal isOpen={isCreating || !!editItem} onClose={closeForm} title={editItem ? t('trainingSlots.editTitle') : t('trainingSlots.createTitle')}>
+      {/* Edycja pojedynczego slotu */}
+      <Modal isOpen={!!editItem} onClose={closeForm} title={t('trainingSlots.editTitle')}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.eventType')}</label>
-            <select value={form.eventTypeId} onChange={e => setForm(f => ({ ...f, eventTypeId: e.target.value }))} className={inputClass}>
+            <select value={form.eventTypeId} onChange={e => setForm(f => ({ ...f, eventTypeId: e.target.value }))} className={fieldClass(showEditErrors && !form.eventTypeId)}>
               <option value="">{t('trainingSlots.selectEventType')}</option>
               {eventTypes?.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
             </select>
@@ -405,17 +444,17 @@ export function AdminTrainingSlots() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.startTime')}</label>
-              <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className={inputClass} />
+              <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className={fieldClass(showEditErrors && !form.startTime, !form.startTime)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.endTime')}</label>
-              <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className={inputClass} />
+              <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className={fieldClass(false, !form.endTime)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.maxParticipants')}</label>
-              <input type="number" min={1} value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className={inputClass} />
+              <input type="number" min={1} value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className={fieldClass(showEditErrors && !(Number(form.maxParticipants) > 0))} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.price')}</label>
@@ -424,7 +463,71 @@ export function AdminTrainingSlots() {
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={closeForm}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleSave} disabled={!isValid} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={updateMut.isPending}>{t('actions.save')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Tworzenie wielu slotów naraz (jeden rodzaj + trener, wiele dni) */}
+      <Modal isOpen={isCreating} onClose={closeForm} title={t('trainingSlots.createTitle')}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.eventType')}</label>
+            <select value={createForm.eventTypeId} onChange={e => setCreateForm(f => ({ ...f, eventTypeId: e.target.value }))} className={fieldClass(showCreateErrors && !createForm.eventTypeId)}>
+              <option value="">{t('trainingSlots.selectEventType')}</option>
+              {eventTypes?.map(et => <option key={et.id} value={et.id}>{et.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.instructor')}</label>
+            <select value={createForm.instructorId} onChange={e => setCreateForm(f => ({ ...f, instructorId: e.target.value }))} className={inputClass}>
+              <option value="">{t('trainingSlots.noInstructor')}</option>
+              {trainingInstructors.map(i => <option key={i.id} value={i.id}>{i.firstName} {i.lastName}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-3">
+            {createForm.rows.map((r, i) => (
+              <div key={i} className="border border-surface-700 rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-surface-400">{t('trainingSlots.dayOfWeek')} {i + 1}</span>
+                  {createForm.rows.length > 1 && (
+                    <button onClick={() => removeRow(i)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
+                  )}
+                </div>
+                <select value={r.dayOfWeek} onChange={e => updateRow(i, { dayOfWeek: Number(e.target.value) })} className={inputClass}>
+                  {DAYS.map(d => <option key={d} value={d}>{t(`days.${d}`)}</option>)}
+                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-surface-400 mb-1">{t('trainingSlots.startTime')}</label>
+                    <input type="time" value={r.startTime} onChange={e => updateRow(i, { startTime: e.target.value })} className={fieldClass(showCreateErrors && !r.startTime, !r.startTime)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-surface-400 mb-1">{t('trainingSlots.endTime')}</label>
+                    <input type="time" value={r.endTime} onChange={e => updateRow(i, { endTime: e.target.value })} className={fieldClass(false, !r.endTime)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-surface-400 mb-1">{t('trainingSlots.maxParticipants')}</label>
+                    <input type="number" min={1} value={r.maxParticipants} onChange={e => updateRow(i, { maxParticipants: e.target.value })} className={fieldClass(showCreateErrors && !(Number(r.maxParticipants) > 0))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-surface-400 mb-1">{t('trainingSlots.price')}</label>
+                    <input type="number" step="0.01" min={0} value={r.price} onChange={e => updateRow(i, { price: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button onClick={addRow} className="w-full py-2 border border-dashed border-surface-700 rounded-lg text-sm text-surface-300 hover:border-primary-500 hover:text-surface-100 transition-colors flex items-center justify-center gap-1.5">
+              <Plus className="w-4 h-4" /> {t('trainingSlots.addDay')}
+            </button>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={closeForm}>{t('actions.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={handleCreate} loading={createMut.isPending}>{t('trainingSlots.saveAll')}</Button>
           </div>
         </div>
       </Modal>

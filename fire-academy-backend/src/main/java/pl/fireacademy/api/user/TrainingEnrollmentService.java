@@ -121,10 +121,14 @@ public class TrainingEnrollmentService {
         );
     }
 
-    /** Liczba wystąpień danego dnia tygodnia (ISO 1–7) w miesiącu. */
+    /**
+     * Liczba zajęć danego dnia tygodnia (ISO 1–7) do opłacenia w miesiącu:
+     * dla bieżącego miesiąca liczona od DZIŚ do końca (pozostałe), dla przyszłych — wszystkie.
+     */
     static int sessionsInMonth(int isoDayOfWeek, YearMonth month) {
+        int fromDay = month.equals(YearMonth.now()) ? LocalDate.now().getDayOfMonth() : 1;
         int count = 0;
-        for (int day = 1; day <= month.lengthOfMonth(); day++) {
+        for (int day = fromDay; day <= month.lengthOfMonth(); day++) {
             if (LocalDate.of(month.getYear(), month.getMonthValue(), day).getDayOfWeek().getValue() == isoDayOfWeek) {
                 count++;
             }

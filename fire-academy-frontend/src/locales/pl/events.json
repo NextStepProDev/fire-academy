@@ -91,6 +91,7 @@
     "paymentNote": "Płatność z góry co miesiąc w recepcji, przed pierwszymi zajęciami.",
     "accountHint": "Łączną kwotę za miesiąc za wszystkie treningi zobaczysz w zakładce „Moje konto\".",
     "standingNote": "Zapis trzyma Twoje miejsce w kolejnych miesiącach, dopóki nie zrezygnujesz.",
+    "fixedNote": "Zapis na {{count}} mies.: od {{from}} do {{to}}. Po tym okresie miejsce zwolni się automatycznie.",
     "submit": "Potwierdź zapis",
     "cancel": "Anuluj",
     "success": "Zapis potwierdzony! Szczegóły znajdziesz na swoim koncie."

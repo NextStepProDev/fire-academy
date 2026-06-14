@@ -35,6 +35,11 @@ public class AdminTrainingSlotController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<List<TrainingSlotResponse>> createBatch(@Valid @RequestBody BatchCreateTrainingSlotRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.createBatch(request));
+    }
+
     @PutMapping("/{id}")
     public TrainingSlotResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateTrainingSlotRequest request) {
         return service.update(id, request);

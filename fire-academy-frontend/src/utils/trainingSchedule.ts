@@ -21,13 +21,19 @@ export function visibleMonths(): string[] {
   return result
 }
 
-/** Liczba wystąpień danego dnia tygodnia (ISO 1–7) w miesiącu 'YYYY-MM'. */
-export function monthlyOccurrences(dayOfWeek: number, month: string): number {
+/**
+ * Liczba zajęć do opłacenia w danym miesiącu:
+ * dla bieżącego miesiąca liczone od DZIŚ do końca (pozostałe), dla przyszłych — wszystkie.
+ */
+export function remainingOccurrences(dayOfWeek: number, month: string): number {
+  const now = new Date()
   const [year, m] = month.split('-').map(Number)
-  const targetJsDay = dayOfWeek === 7 ? 0 : dayOfWeek // JS: 0 = niedziela
+  const isCurrent = year === now.getFullYear() && m === now.getMonth() + 1
+  const targetJsDay = dayOfWeek === 7 ? 0 : dayOfWeek
   const daysInMonth = new Date(year, m, 0).getDate()
+  const fromDay = isCurrent ? now.getDate() : 1
   let count = 0
-  for (let day = 1; day <= daysInMonth; day++) {
+  for (let day = fromDay; day <= daysInMonth; day++) {
     if (new Date(year, m - 1, day).getDay() === targetJsDay) count++
   }
   return count
@@ -37,4 +43,11 @@ export function monthlyOccurrences(dayOfWeek: number, month: string): number {
 export function formatMonth(month: string): string {
   const [year, m] = month.split('-').map(Number)
   return new Date(year, m - 1, 1).toLocaleDateString('pl', { month: 'long', year: 'numeric' })
+}
+
+/** Przesuwa miesiąc 'YYYY-MM' o n miesięcy. */
+export function addMonths(month: string, n: number): string {
+  const [year, m] = month.split('-').map(Number)
+  const d = new Date(year, m - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }

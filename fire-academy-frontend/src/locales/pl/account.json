@@ -46,6 +46,7 @@
     "billing": "Kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
     "paymentNote": "Płatne z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
     "cancel": "Zrezygnuj od kolejnego miesiąca",
+    "endsThisMonth": "Kończy się w tym miesiącu",
     "cancelConfirmTitle": "Potwierdzenie rezygnacji",
     "cancelConfirm": "Zrezygnować z tego treningu od kolejnego miesiąca? Zostaniesz zapisany do końca bieżącego miesiąca.",
     "cancelSuccess": "Rezygnacja przyjęta."

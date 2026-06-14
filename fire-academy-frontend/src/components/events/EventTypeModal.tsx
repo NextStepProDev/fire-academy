@@ -52,9 +52,8 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
       <Modal isOpen={!!eventType} onClose={onClose} size="xl" title={eventType.name}>
         <div className="space-y-6">
           {eventType.thumbnailUrl && (
-            <div className="relative -mx-6 -mt-2 overflow-hidden">
-              <img src={eventType.thumbnailUrl} alt="" decoding="async" className="w-full aspect-square object-cover" />
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-surface-900 to-transparent" />
+            <div className="-mx-6 -mt-2 aspect-square overflow-hidden bg-surface-800">
+              <img src={eventType.thumbnailUrl} alt="" decoding="async" className="w-full h-full object-cover" />
             </div>
           )}
 

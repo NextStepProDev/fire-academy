@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { userApi } from '../../api/user'
 import { useToast } from '../../context/ToastContext'
-import { monthlyOccurrences, formatMonth } from '../../utils/trainingSchedule'
+import { remainingOccurrences, formatMonth, addMonths } from '../../utils/trainingSchedule'
 import type { TrainingSlotCard } from '../../types'
 
 interface TrainingEnrollModalProps {
@@ -43,13 +43,14 @@ export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrol
 
   if (!slot) return null
 
-  const sessions = monthlyOccurrences(slot.dayOfWeek, startMonth)
+  // Cena za pierwszy miesiąc liczona po POZOSTAŁYCH zajęciach (gdy zapis w trakcie miesiąca).
+  const sessions = remainingOccurrences(slot.dayOfWeek, startMonth)
   const amount = slot.price != null ? slot.price * sessions : null
 
   // Suma z dotychczasowymi rezerwacjami użytkownika obejmującymi wybrany miesiąc.
   const existingForMonth = (myEnrollments.data ?? [])
     .filter(e => e.startMonth <= startMonth && (e.endMonth == null || e.endMonth >= startMonth) && e.price != null)
-    .reduce((sum, e) => sum + (e.price! * monthlyOccurrences(e.dayOfWeek, startMonth)), 0)
+    .reduce((sum, e) => sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth)), 0)
   const cumulative = existingForMonth + (amount ?? 0)
 
   const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
@@ -105,7 +106,13 @@ export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrol
             {t('enrollTraining.cumulative', { month: formatMonth(startMonth), amount: cumulative })}
           </p>
         )}
-        <p className="text-xs text-surface-500">{t('enrollTraining.standingNote')}</p>
+        {mode === 'indefinite' ? (
+          <p className="text-xs text-surface-500">{t('enrollTraining.standingNote')}</p>
+        ) : (
+          <p className="text-xs text-surface-500">
+            {t('enrollTraining.fixedNote', { count: months, from: formatMonth(startMonth), to: formatMonth(addMonths(startMonth, months - 1)) })}
+          </p>
+        )}
         <p className="text-xs text-surface-500">{t('enrollTraining.paymentNote')}</p>
         <p className="text-xs text-surface-500">{t('enrollTraining.accountHint')}</p>
 

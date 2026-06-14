@@ -239,10 +239,14 @@ export function MojeKontoPage() {
                         : t('trainings.period', { from: formatMonth(en.startMonth) }) + ' · ' + t('trainings.indefinite')}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setCancelTrainingId(en.id)} className="shrink-0 text-rose-400">
-                    <Trash2 className="w-4 h-4 mr-1.5" />
-                    {t('trainings.cancel')}
-                  </Button>
+                  {(en.endMonth == null || en.endMonth > cm) ? (
+                    <Button variant="ghost" size="sm" onClick={() => setCancelTrainingId(en.id)} className="shrink-0 text-rose-400">
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      {t('trainings.cancel')}
+                    </Button>
+                  ) : (
+                    <span className="shrink-0 text-xs text-surface-500">{t('trainings.endsThisMonth')}</span>
+                  )}
                 </div>
                 {en.monthlyAmount != null && (
                   <p className="text-sm text-primary-400 font-medium mt-3">

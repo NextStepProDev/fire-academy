@@ -18,6 +18,7 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,6 +57,22 @@ public class AdminTrainingSlotService {
         var slot = new TrainingSlot(eventType, request.dayOfWeek(), request.startTime(), request.maxParticipants());
         applyCommon(slot, request.instructorId(), request.endTime(), request.price());
         return toResponse(slotRepository.save(slot), YearMonth.now().toString());
+    }
+
+    @Transactional
+    public List<TrainingSlotResponse> createBatch(BatchCreateTrainingSlotRequest request) {
+        var eventType = resolveTrainingType(request.eventTypeId());
+        var instructor = resolveInstructor(request.instructorId());
+        String month = YearMonth.now().toString();
+        List<TrainingSlotResponse> created = new ArrayList<>();
+        for (var row : request.slots()) {
+            var slot = new TrainingSlot(eventType, row.dayOfWeek(), row.startTime(), row.maxParticipants());
+            slot.setInstructor(instructor);
+            slot.setEndTime(row.endTime());
+            slot.setPrice(row.price());
+            created.add(toResponse(slotRepository.save(slot), month));
+        }
+        return created;
     }
 
     @Transactional

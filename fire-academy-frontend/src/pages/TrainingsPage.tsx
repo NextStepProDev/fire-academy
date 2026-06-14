@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CalendarCheck, LogIn } from 'lucide-react'
+import { CalendarCheck, LogIn, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { publicApi } from '../api/public'
 import { Seo } from '../components/seo/Seo'
@@ -29,6 +29,13 @@ export function TrainingsPage() {
   const [enrollSlot, setEnrollSlot] = useState<TrainingSlot | null>(null)
   const [selectedEventType, setSelectedEventType] = useState<EventType | null>(null)
   const [selectedInstructor, setSelectedInstructor] = useState<Instructor | null>(null)
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set())
+
+  const toggleDay = (day: number) => setExpandedDays(prev => {
+    const next = new Set(prev)
+    if (next.has(day)) next.delete(day); else next.add(day)
+    return next
+  })
 
   const slotsQuery = useQuery({
     queryKey: ['public', 'training-slots', selectedMonth],
@@ -44,6 +51,13 @@ export function TrainingsPage() {
   })
 
   const slots = slotsQuery.data ?? []
+
+  const openType = (eventTypeId: string) => {
+    const et = eventTypesQuery.data?.find(e => e.id === eventTypeId)
+    if (et) setSelectedEventType(et)
+  }
+  const findInstructor = (instructorId: string | null) =>
+    instructorId ? instructorsQuery.data?.find(i => i.id === instructorId) ?? null : null
 
   // Personalized banner — login is tied to trainings (not shown to an admin).
   const banner = isAdmin ? null : isAuthenticated ? (
@@ -103,23 +117,40 @@ export function TrainingsPage() {
         {slotsQuery.isLoading ? (
           <LoadingSpinner />
         ) : slots.length ? (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {DAYS.map(day => {
               const daySlots = slots.filter(s => s.dayOfWeek === day)
               if (!daySlots.length) return null
+              const expanded = expandedDays.has(day)
               return (
                 <div key={day}>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-primary-400 mb-2">{t(`days.${day}`)}</h3>
-                  <div className="space-y-2">
-                    {daySlots.map(slot => (
-                      <TrainingSlotCard
-                        key={slot.id}
-                        slot={slot}
-                        isAuthenticated={isAuthenticated}
-                        onEnroll={() => setEnrollSlot(slot)}
-                      />
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => toggleDay(day)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-surface-900 border border-surface-800 rounded-xl hover:bg-surface-800/50 transition-colors"
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-surface-100">
+                      {expanded ? <ChevronDown className="w-5 h-5 text-primary-400" /> : <ChevronRight className="w-5 h-5 text-surface-400" />}
+                      {t(`days.${day}`)}
+                      <span className="text-sm font-normal text-surface-500">({daySlots.length})</span>
+                    </span>
+                  </button>
+                  {expanded && (
+                    <div className="space-y-2 mt-2">
+                      {daySlots.map(slot => {
+                        const instr = findInstructor(slot.instructorId)
+                        return (
+                          <TrainingSlotCard
+                            key={slot.id}
+                            slot={slot}
+                            isAuthenticated={isAuthenticated}
+                            onEnroll={() => setEnrollSlot(slot)}
+                            onOpenType={() => openType(slot.eventTypeId)}
+                            onOpenInstructor={instr ? () => setSelectedInstructor(instr) : undefined}
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}
