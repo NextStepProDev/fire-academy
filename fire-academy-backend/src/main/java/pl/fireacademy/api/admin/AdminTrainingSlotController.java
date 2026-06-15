@@ -5,9 +5,10 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pl.fireacademy.api.RequestParams;
 import pl.fireacademy.api.admin.TrainingSlotDtos.*;
+import pl.fireacademy.infrastructure.i18n.MessageService;
 
-import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,17 +18,19 @@ public class AdminTrainingSlotController {
 
     private final AdminTrainingSlotService service;
     private final AdminTrainingEnrollmentService enrollmentService;
+    private final MessageService msg;
 
     public AdminTrainingSlotController(AdminTrainingSlotService service,
-                                       AdminTrainingEnrollmentService enrollmentService) {
+                                       AdminTrainingEnrollmentService enrollmentService,
+                                       MessageService msg) {
         this.service = service;
         this.enrollmentService = enrollmentService;
+        this.msg = msg;
     }
 
     @GetMapping
     public List<TrainingSlotResponse> getAll(@RequestParam(required = false) @Nullable String month) {
-        var ym = (month != null && !month.isBlank()) ? YearMonth.parse(month) : YearMonth.now();
-        return service.getAll(ym);
+        return service.getAll(RequestParams.parseMonth(month, msg));
     }
 
     @PostMapping
@@ -99,8 +102,7 @@ public class AdminTrainingSlotController {
     @GetMapping("/{slotId}/enrollments")
     public List<RosterEntry> getRoster(@PathVariable UUID slotId,
                                        @RequestParam(required = false) @Nullable String month) {
-        var ym = (month != null && !month.isBlank()) ? YearMonth.parse(month) : YearMonth.now();
-        return enrollmentService.getRoster(slotId, ym);
+        return enrollmentService.getRoster(slotId, RequestParams.parseMonth(month, msg));
     }
 
     @PostMapping("/{slotId}/enrollments")

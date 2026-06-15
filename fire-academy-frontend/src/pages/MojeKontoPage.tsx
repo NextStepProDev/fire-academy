@@ -213,6 +213,11 @@ export function MojeKontoPage() {
 
         {trainingsQuery.isLoading ? (
           <LoadingSpinner />
+        ) : trainingsQuery.isError ? (
+          <div className="flex flex-col items-center text-center py-8 px-4 rounded-lg border border-dashed border-rose-500/40">
+            <p className="text-surface-300 font-medium">{t('trainings.error')}</p>
+            <Button variant="secondary" size="sm" onClick={() => trainingsQuery.refetch()} className="mt-4">{t('trainings.retry')}</Button>
+          </div>
         ) : trainings.length ? (
           <div className="space-y-4">
             {monthTotal > 0 && (

@@ -35,10 +35,12 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     boolean existsActiveFor(@Param("userId") UUID userId, @Param("slotId") UUID slotId, @Param("month") String month);
 
-    /** Aktywne (niezakończone przed bieżącym miesiącem) subskrypcje użytkownika. */
+    /** Aktywne subskrypcje użytkownika (niezakończone i na nieusuniętych slotach). */
     @Query("""
         SELECT te FROM TrainingEnrollment te
-        WHERE te.user.id = :userId AND (te.endMonth IS NULL OR te.endMonth >= :month)
+        WHERE te.user.id = :userId
+          AND te.slot.deletedAt IS NULL
+          AND (te.endMonth IS NULL OR te.endMonth >= :month)
         ORDER BY te.slot.dayOfWeek ASC, te.slot.startTime ASC
         """)
     List<TrainingEnrollment> findActiveByUser(@Param("userId") UUID userId, @Param("month") String month);

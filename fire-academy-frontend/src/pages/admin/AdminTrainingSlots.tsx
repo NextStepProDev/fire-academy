@@ -69,6 +69,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   const [removeId, setRemoveId] = useState<string | null>(null)
   const [isDeactivating, setIsDeactivating] = useState(false)
   const [deactivateDate, setDeactivateDate] = useState(TODAY_ISO)
+  const [confirmCancelDate, setConfirmCancelDate] = useState<string | null>(null)
   const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1 })
 
   const userSearch = useQuery({
@@ -107,7 +108,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   })
   const paymentMut = useMutation({
     mutationFn: ({ id, paid }: { id: string; paid: boolean }) => adminApi.setTrainingPayment(id, { month, paid }),
-    onSuccess: invalidateRoster,
+    onSuccess: () => { invalidateRoster(); showToast(t('trainingSlots.paymentUpdated'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
@@ -128,7 +129,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   })
   const restoreSessionMut = useMutation({
     mutationFn: (date: string) => adminApi.restoreTrainingSession(slot.id, date),
-    onSuccess: invalidateCancelled,
+    onSuccess: () => { invalidateCancelled(); showToast(t('trainingSlots.sessionRestored'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const deactivateMut = useMutation({
@@ -258,7 +259,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
                   return (
                     <button
                       key={date}
-                      onClick={() => isCancelled ? restoreSessionMut.mutate(date) : cancelSessionMut.mutate(date)}
+                      onClick={() => isCancelled ? restoreSessionMut.mutate(date) : setConfirmCancelDate(date)}
                       disabled={cancelSessionMut.isPending || restoreSessionMut.isPending}
                       className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors',
                         isCancelled
@@ -374,6 +375,16 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!confirmCancelDate}
+        onClose={() => setConfirmCancelDate(null)}
+        onConfirm={() => { if (confirmCancelDate) { cancelSessionMut.mutate(confirmCancelDate); setConfirmCancelDate(null) } }}
+        title={t('trainingSlots.cancelSessionConfirmTitle')}
+        message={t('trainingSlots.cancelSessionConfirm', { date: confirmCancelDate ? fmtDayMonth(confirmCancelDate) : '' })}
+        confirmLabel={t('trainingSlots.cancelSession')}
+        danger
+      />
     </div>
   )
 }
@@ -441,12 +452,12 @@ export function AdminTrainingSlots() {
         maxParticipants: Number(r.maxParticipants),
       })),
     }),
-    onSuccess: () => { invalidate(); setIsCreating(false) },
+    onSuccess: () => { invalidate(); setIsCreating(false); showToast(t('trainingSlots.createSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const updateMut = useMutation({
     mutationFn: (id: string) => adminApi.updateTrainingSlot(id, buildPayload()),
-    onSuccess: () => { invalidate(); setEditItem(null) },
+    onSuccess: () => { invalidate(); setEditItem(null); showToast(t('trainingSlots.updateSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const deleteMut = useMutation({

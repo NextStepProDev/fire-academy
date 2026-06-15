@@ -3,7 +3,9 @@ package pl.fireacademy.api.training;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pl.fireacademy.BaseIntegrationTest;
+import pl.fireacademy.infrastructure.mail.TrainingMailService;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventType;
 import pl.fireacademy.domain.event.EventTypeRepository;
@@ -20,6 +22,8 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -36,6 +40,10 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Autowired private TrainingEnrollmentRepository trainingEnrollmentRepository;
     @Autowired private TrainingSubscriptionExpiryScheduler expiryScheduler;
 
+    /** Mock, by weryfikować wysyłkę maili bez realnego SMTP (i bez @Async po stronie mocka). */
+    @MockitoBean private TrainingMailService trainingMail;
+
+    private static final String USER_EMAIL = "testuser@fireacademy.test";
     private static final String CURRENT = YearMonth.now().toString();
     private static final String NEXT = YearMonth.now().plusMonths(1).toString();
     private static final int DAY = 1; // poniedziałek
@@ -255,6 +263,89 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(CURRENT, slot.getId())); // miejsce natychmiast wolne
     }
 
+    // ── Wiring maili (mock TrainingMailService) ─────────────────────────────
+
+    @Test
+    void shouldSendEnrollmentAndAdminEmailsOnEnroll() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        verify(trainingMail).sendEnrollmentConfirmation(eq(USER_EMAIL), anyString(), any(), any(), any(), any(), anyInt(), any());
+        verify(trainingMail).sendAdminEnrollmentNotification(eq(true), anyString(), eq(USER_EMAIL), any(), anyString(), anyLong(), anyInt());
+    }
+
+    @Test
+    void shouldSendCancellationEmailsOnCancel() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String token = userToken();
+        enroll(token, slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+        mockMvc.perform(delete("/api/user/training-enrollments/" + enrollmentId)
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+        verify(trainingMail).sendCancellationConfirmation(eq(USER_EMAIL), anyString(), any(), any());
+        verify(trainingMail).sendAdminEnrollmentNotification(eq(false), anyString(), eq(USER_EMAIL), any(), anyString(), anyLong(), anyInt());
+    }
+
+    @Test
+    void shouldSendAdminAddedEmailWhenAdminEnrolls() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        createUserAndGetToken("extra@fireacademy.test", "Ekstra", "Osoba", UserRole.USER);
+        UUID extraId = userRepository.findByEmail("extra@fireacademy.test").orElseThrow().getId();
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/enrollments")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + extraId + "\",\"startMonth\":\"" + CURRENT + "\"}"))
+            .andExpect(status().isCreated());
+        verify(trainingMail).sendAdminAddedConfirmation(eq("extra@fireacademy.test"), anyString(), any(), any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void shouldSendAdminRemovedEmailWhenAdminRemoves() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+        mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isNoContent());
+        verify(trainingMail).sendAdminRemoved(eq(USER_EMAIL), anyString(), any());
+    }
+
+    @Test
+    void shouldSendModificationEmailWhenSlotUpdated() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        String etId = slot.getEventType().getId().toString();
+        mockMvc.perform(put("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"eventTypeId\":\"" + etId + "\",\"dayOfWeek\":1,\"startTime\":\"09:00\",\"maxParticipants\":8}"))
+            .andExpect(status().isOk());
+        verify(trainingMail).sendSlotModification(eq(USER_EMAIL), anyString(), any(), any());
+    }
+
+    @Test
+    void shouldHideSoftDeletedSlotFromUserAccount() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String token = userToken();
+        enroll(token, slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isNoContent());
+
+        // po soft-delete slot znika z „Moje rezerwacje"
+        mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldReturn400ForMalformedMonthParam() throws Exception {
+        mockMvc.perform(get("/api/public/training-slots").param("month", "abc"))
+            .andExpect(status().isBadRequest());
+    }
+
     /** Najbliższe wystąpienie dnia slotu (poniedziałek) od dziś — data realnych zajęć. */
     private LocalDate nextSlotDate() {
         LocalDate d = LocalDate.now();
@@ -288,6 +379,8 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$[0].participants.length()").value(1))
             .andExpect(jsonPath("$[0].participants[0].firstName").value("User"))
             .andExpect(jsonPath("$[0].participants[0].email").exists());
+
+        verify(trainingMail).sendSlotDeletion(eq(USER_EMAIL), anyString(), any());
     }
 
     @Test
@@ -303,6 +396,8 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"sessionDate\":\"" + date + "\"}"))
             .andExpect(status().isCreated());
+
+        verify(trainingMail).sendSessionCancelled(eq(USER_EMAIL), anyString(), any(), eq(date));
 
         mockMvc.perform(get("/api/public/training-slots").param("month", month))
             .andExpect(status().isOk())
@@ -342,6 +437,8 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"from\":\"" + LocalDate.now() + "\"}"))
             .andExpect(status().isOk());
+
+        verify(trainingMail).sendSlotDeactivation(eq(USER_EMAIL), anyString(), any(), eq(LocalDate.now()));
 
         mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
             .andExpect(status().isOk())
@@ -394,6 +491,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
         var reloaded = trainingEnrollmentRepository.findById(te.getId()).orElseThrow();
         org.junit.jupiter.api.Assertions.assertTrue(reloaded.isExpiryNotified());
+        verify(trainingMail).sendSubscriptionExpired(eq(USER_EMAIL), anyString(), any());
     }
 
     @Test

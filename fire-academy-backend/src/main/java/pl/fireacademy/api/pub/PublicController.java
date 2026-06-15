@@ -3,12 +3,13 @@ package pl.fireacademy.api.pub;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pl.fireacademy.api.RequestParams;
 import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.domain.event.EventCategory;
+import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import org.jspecify.annotations.Nullable;
 
-import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -21,9 +22,11 @@ public class PublicController {
     private static final CacheControl DETAIL_CACHE = CacheControl.maxAge(300, TimeUnit.SECONDS).cachePublic();
 
     private final PublicService service;
+    private final MessageService msg;
 
-    public PublicController(PublicService service) {
+    public PublicController(PublicService service, MessageService msg) {
         this.service = service;
+        this.msg = msg;
     }
 
     @GetMapping("/instructors")
@@ -44,7 +47,7 @@ public class PublicController {
     @GetMapping("/training-slots")
     public ResponseEntity<List<TrainingSlotCard>> getTrainingSlots(
             @RequestParam(required = false) @Nullable String month) {
-        var ym = (month != null && !month.isBlank()) ? YearMonth.parse(month) : YearMonth.now();
+        var ym = RequestParams.parseMonth(month, msg);
         return ResponseEntity.ok().cacheControl(LIST_CACHE).body(service.getTrainingSlots(ym));
     }
 

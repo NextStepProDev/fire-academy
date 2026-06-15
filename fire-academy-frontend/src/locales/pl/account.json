@@ -46,6 +46,8 @@
     "billing": "Kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
     "paymentNote": "Płatne z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
     "cancelledDates": "Odwołane zajęcia: {{dates}}",
+    "error": "Nie udało się wczytać rezerwacji.",
+    "retry": "Spróbuj ponownie",
     "cancel": "Zrezygnuj od kolejnego miesiąca",
     "endsThisMonth": "Kończy się w tym miesiącu",
     "cancelConfirmTitle": "Potwierdzenie rezygnacji",
