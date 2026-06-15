@@ -3,6 +3,7 @@ package pl.fireacademy.api.user;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.auth.AuthDtos.MessageResponse;
 import pl.fireacademy.config.CurrentUserId;
 
@@ -43,5 +44,15 @@ public class UserController {
     public ResponseEntity<Void> updateNotifications(@CurrentUserId UUID userId, @RequestBody UserDtos.UpdateNotificationsRequest request) {
         userService.updateNotifications(userId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<UserDtos.UserResponse> uploadAvatar(@CurrentUserId UUID userId, @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.uploadAvatar(userId, file));
+    }
+
+    @DeleteMapping("/me/avatar")
+    public ResponseEntity<UserDtos.UserResponse> deleteAvatar(@CurrentUserId UUID userId) {
+        return ResponseEntity.ok(userService.deleteAvatar(userId));
     }
 }

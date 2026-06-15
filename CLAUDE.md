@@ -37,7 +37,7 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V10. Kolejna migracja: V11.**
+**Obecny stan: V11. Kolejna migracja: V12.**
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -51,6 +51,7 @@ VERSION
 | V8 | category + custom_name w events, nullable event_type_id |
 | V9 | note w enrollments (informacja dla organizatora) |
 | V10 | indeksy wydajnościowe: enrollments(event_id, email), events(category, active, start_date) |
+| V11 | avatar_filename w users (zdjęcie profilowe użytkownika, folder `avatars/`) |
 
 ---
 
@@ -60,7 +61,7 @@ VERSION
 `POST /register` · `POST /login` · `POST /logout` · `POST /verify-email?token=` · `POST /resend-verification` · `POST /forgot-password` · `POST /reset-password` · `POST /refresh`
 
 ### User `/api/user` (auth required)
-`GET /me` · `PUT /me` · `PUT /me/password` · `DELETE /me`
+`GET /me` · `PUT /me` · `PUT /me/password` · `DELETE /me` · `PUT /me/notifications` · `PUT /me/language` · `POST /me/avatar` (multipart, kadrowanie po stronie frontu) · `DELETE /me/avatar`
 
 ### Files `/api/files` (public, cached 7 dni)
 `GET /files/{folder}/{filename}` — streaming

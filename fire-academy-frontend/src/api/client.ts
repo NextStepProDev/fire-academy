@@ -189,6 +189,12 @@ export const authApi = {
       method: 'PUT',
       body: JSON.stringify({ firstName, lastName, phone }),
     }),
+  uploadAvatar: (file: Blob) => {
+    const formData = new FormData()
+    formData.append('file', file, 'avatar.jpg')
+    return fetchApi<User>('/user/me/avatar', { method: 'POST', body: formData })
+  },
+  deleteAvatar: () => fetchApi<User>('/user/me/avatar', { method: 'DELETE' }),
 }
 
 export const userApi = authApi

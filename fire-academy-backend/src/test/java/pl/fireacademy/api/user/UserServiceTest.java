@@ -31,6 +31,7 @@ class UserServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private MessageService msg;
     @Mock private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Mock private pl.fireacademy.infrastructure.storage.FileStorageService fileStorageService;
 
     @InjectMocks private UserService service;
 

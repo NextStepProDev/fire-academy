@@ -52,6 +52,10 @@ public class User {
     @Nullable
     private Instant emailVerifiedAt;
 
+    @Column(name = "avatar_filename")
+    @Nullable
+    private String avatarFilename;
+
     @Column(name = "email_notifications_enabled", nullable = false)
     private boolean emailNotificationsEnabled = true;
 
@@ -194,6 +198,15 @@ public class User {
 
     public void setEmailVerifiedAt(@Nullable Instant emailVerifiedAt) {
         this.emailVerifiedAt = emailVerifiedAt;
+    }
+
+    @Nullable
+    public String getAvatarFilename() {
+        return avatarFilename;
+    }
+
+    public void setAvatarFilename(@Nullable String avatarFilename) {
+        this.avatarFilename = avatarFilename;
     }
 
     public void markEmailVerified() {

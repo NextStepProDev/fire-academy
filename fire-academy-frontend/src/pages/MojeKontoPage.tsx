@@ -4,6 +4,7 @@ import { CalendarCheck, Pencil, User as UserIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Seo } from '../components/seo/Seo'
 import { Button } from '../components/ui/Button'
+import { Avatar } from '../components/ui/Avatar'
 
 export function MojeKontoPage() {
   const { t } = useTranslation('account')
@@ -15,9 +16,17 @@ export function MojeKontoPage() {
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-8">
       <Seo title={t('title')} path="/moje-konto" />
 
-      <div>
-        <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{t('title')}</h1>
-        <p className="text-surface-400 mt-2">{t('greeting', { name: user.firstName })}</p>
+      <div className="flex items-center gap-5">
+        <Avatar
+          src={user.avatarUrl}
+          name={user.firstName}
+          className="w-20 h-20"
+          textClassName="text-2xl"
+        />
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{t('title')}</h1>
+          <p className="text-surface-400 mt-2">{t('greeting', { name: user.firstName })}</p>
+        </div>
       </div>
 
       {/* Profil */}

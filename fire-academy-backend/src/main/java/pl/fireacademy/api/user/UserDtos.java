@@ -12,7 +12,7 @@ public final class UserDtos {
                                 @Nullable String phone, String role, boolean isAdmin,
                                 boolean emailVerified, boolean emailNotificationsEnabled,
                                 String preferredLanguage, boolean hasPassword,
-                                boolean oauthLinked, Instant createdAt) {}
+                                boolean oauthLinked, @Nullable String avatarUrl, Instant createdAt) {}
 
     public record UpdateUserRequest(
         @NotBlank @Size(min = 3, max = 100) String firstName,

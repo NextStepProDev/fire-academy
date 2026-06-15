@@ -3,6 +3,7 @@ import { LogOut, LogIn, Menu, User, X, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
+import { Avatar } from '../ui/Avatar'
 import clsx from 'clsx'
 
 export function Navbar() {
@@ -71,8 +72,6 @@ export function Navbar() {
     setUserMenuOpen(false)
   }
 
-  const userInitial = user?.firstName?.charAt(0).toUpperCase() ?? '?'
-
   return (
     <nav className={clsx('bg-surface-900/80 backdrop-blur-sm border-b border-surface-800 sticky top-0 z-50 transition-transform duration-300', navHidden && !mobileMenuOpen && '-translate-y-full')}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -109,9 +108,8 @@ export function Navbar() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-800 active:scale-95 transition-all duration-150"
                 >
-                  <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">{userInitial}</span>
-                  </div>
+                  <Avatar src={user?.avatarUrl} name={user?.firstName} className="w-9 h-9" />
+
                   <span className="text-sm font-medium text-surface-200">{user?.firstName}</span>
                   <ChevronDown className={clsx('w-4 h-4 text-surface-400 transition-transform', userMenuOpen && 'rotate-180')} />
                 </button>
@@ -189,9 +187,8 @@ export function Navbar() {
             {showUserArea && (
               <div className="pt-4 border-t border-surface-800 space-y-1">
                 <div className="flex items-center gap-3 px-1 py-2">
-                  <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center">
-                    <span className="text-sm font-bold text-white">{userInitial}</span>
-                  </div>
+                  <Avatar src={user?.avatarUrl} name={user?.firstName} className="w-9 h-9" />
+
                   <div>
                     <p className="text-sm font-medium text-surface-200">{user?.firstName} {user?.lastName}</p>
                     <p className="text-xs text-surface-500">{user?.email}</p>

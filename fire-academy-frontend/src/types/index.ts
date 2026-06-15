@@ -9,6 +9,7 @@ export interface User {
   emailNotificationsEnabled: boolean
   preferredLanguage: string
   hasPassword: boolean
+  avatarUrl: string | null
   createdAt: string
 }
 

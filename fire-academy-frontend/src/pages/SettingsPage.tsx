@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Camera, ChevronDown, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authApi } from '../api/client'
 import { Button } from '../components/ui/Button'
+import { Avatar } from '../components/ui/Avatar'
+import { AvatarCropper } from '../components/ui/AvatarCropper'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
 
@@ -32,6 +34,51 @@ export function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [avatarRemoving, setAvatarRemoving] = useState(false)
+
+  const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // pozwól wybrać ten sam plik ponownie
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      showToast(t('avatar.invalidType'), 'error')
+      return
+    }
+    setCropSrc(URL.createObjectURL(file))
+  }
+
+  const closeCropper = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+
+  const handleAvatarSave = async (blob: Blob) => {
+    try {
+      await authApi.uploadAvatar(blob)
+      await refreshUser()
+      showToast(t('avatar.saved'))
+      closeCropper()
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+      throw err
+    }
+  }
+
+  const handleAvatarRemove = async () => {
+    setAvatarRemoving(true)
+    try {
+      await authApi.deleteAvatar()
+      await refreshUser()
+      showToast(t('avatar.removed'))
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setAvatarRemoving(false)
+    }
+  }
 
   const handleProfileSave = async (e: FormEvent) => {
     e.preventDefault()
@@ -123,6 +170,52 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-surface-100 mb-8">{t('title')}</h1>
+
+      <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
+        <h2 className="text-lg font-semibold text-surface-100 mb-4">{t('avatar.title')}</h2>
+        <div className="flex items-center gap-5">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={t('avatar.change')}
+            className="relative group rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-surface-900"
+          >
+            <Avatar
+              src={user?.avatarUrl}
+              name={user?.firstName}
+              className="w-24 h-24"
+              textClassName="text-3xl"
+            />
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera className="w-7 h-7 text-white" />
+            </span>
+          </button>
+          <div className="flex flex-col gap-2">
+            <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}>
+              <Camera className="w-4 h-4 mr-1.5" />
+              {user?.avatarUrl ? t('avatar.change') : t('avatar.upload')}
+            </Button>
+            {user?.avatarUrl && (
+              <Button type="button" variant="secondary" onClick={handleAvatarRemove} loading={avatarRemoving}>
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                {t('avatar.remove')}
+              </Button>
+            )}
+            <p className="text-xs text-surface-500">{t('avatar.formatHint')}</p>
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarFileChange}
+          className="hidden"
+        />
+      </section>
+
+      {cropSrc && (
+        <AvatarCropper imageSrc={cropSrc} onCancel={closeCropper} onSave={handleAvatarSave} />
+      )}
 
       <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
         <button
