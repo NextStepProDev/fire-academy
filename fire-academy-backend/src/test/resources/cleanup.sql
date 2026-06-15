@@ -1,3 +1,4 @@
+DELETE FROM training_cancelled_sessions;
 DELETE FROM training_payments;
 DELETE FROM training_enrollments;
 DELETE FROM training_slots;

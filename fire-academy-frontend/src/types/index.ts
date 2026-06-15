@@ -163,6 +163,8 @@ export interface TrainingSlot {
   displayOrder: number
   enrolledThisMonth: number
   active: boolean
+  /** Data (ISO YYYY-MM-DD), od której slot jest zdezaktywowany; null = aktywny. */
+  deactivatedFrom: string | null
   createdAt: string
 }
 
@@ -179,6 +181,35 @@ export interface TrainingSlotCard {
   price: number | null
   maxParticipants: number
   availableSpots: number
+  /** Daty (ISO YYYY-MM-DD) odwołanych pojedynczych zajęć w wybranym miesiącu. */
+  cancelledDates: string[]
+}
+
+/** Odwołane pojedyncze zajęcia slotu (panel admina). */
+export interface CancelledSession {
+  id: string
+  sessionDate: string
+}
+
+/** Usunięty (zarchiwizowany) slot z danymi byłych uczestników. */
+export interface DeletedTrainingSlot {
+  id: string
+  eventTypeName: string
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  deletedAt: string
+  participants: ArchivedParticipant[]
+}
+
+export interface ArchivedParticipant {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  startMonth: string
+  endMonth: string | null
 }
 
 /** Zarejestrowany użytkownik — wynik wyszukiwarki admina. */
@@ -219,6 +250,8 @@ export interface MyTrainingEnrollment {
   billingMonth: string
   sessionsInBillingMonth: number
   monthlyAmount: number | null
+  /** Nadchodzące odwołane zajęcia tego slotu (ISO YYYY-MM-DD). */
+  cancelledDates: string[]
 }
 
 export interface Enrollment {

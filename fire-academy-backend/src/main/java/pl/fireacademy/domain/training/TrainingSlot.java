@@ -7,6 +7,7 @@ import pl.fireacademy.domain.instructor.Instructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -60,6 +61,14 @@ public class TrainingSlot {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Nullable
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Nullable
+    @Column(name = "deactivated_from")
+    private LocalDate deactivatedFrom;
+
     protected TrainingSlot() {}
 
     public TrainingSlot(EventType eventType, int dayOfWeek, LocalTime startTime, int maxParticipants) {
@@ -102,4 +111,9 @@ public class TrainingSlot {
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    @Nullable public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(@Nullable Instant deletedAt) { this.deletedAt = deletedAt; }
+    public boolean isDeleted() { return deletedAt != null; }
+    @Nullable public LocalDate getDeactivatedFrom() { return deactivatedFrom; }
+    public void setDeactivatedFrom(@Nullable LocalDate deactivatedFrom) { this.deactivatedFrom = deactivatedFrom; }
 }

@@ -34,6 +34,7 @@ public final class TrainingEnrollmentDtos {
             @Nullable YearMonth endMonth,
             YearMonth billingMonth,
             int sessionsInBillingMonth,
-            @Nullable BigDecimal monthlyAmount
+            @Nullable BigDecimal monthlyAmount,
+            java.util.List<java.time.LocalDate> cancelledDates
     ) {}
 }

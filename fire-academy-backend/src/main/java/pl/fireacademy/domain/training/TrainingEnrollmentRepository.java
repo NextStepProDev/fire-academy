@@ -53,4 +53,37 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         ORDER BY te.createdAt ASC
         """)
     List<TrainingEnrollment> findCoveringForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
+
+    /**
+     * Aktualni odbiorcy powiadomień o slocie: subskrypcje jeszcze niezakończone
+     * (bezterminowe lub kończące się w/po bieżącym miesiącu, w tym przyszłe). Dla maili D/E.
+     */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        WHERE te.slot.id = :slotId AND (te.endMonth IS NULL OR te.endMonth >= :month)
+        ORDER BY te.createdAt ASC
+        """)
+    List<TrainingEnrollment> findActiveSubscribersForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
+
+    /** Wszyscy kiedykolwiek zapisani na slot (archiwum usuniętego slotu — dane kontaktowe). */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        WHERE te.slot.id = :slotId
+        ORDER BY te.createdAt ASC
+        """)
+    List<TrainingEnrollment> findAllForSlotWithUser(@Param("slotId") UUID slotId);
+
+    /**
+     * Subskrypcje terminowe, które już wygasły (endMonth przed bieżącym miesiącem) i nie dostały
+     * jeszcze maila o zakończeniu. Dla schedulera (mail K). Rezygnacje mają flagę = true → pomijane.
+     */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        JOIN FETCH te.slot
+        WHERE te.endMonth IS NOT NULL AND te.endMonth < :month AND te.expiryNotified = false
+        """)
+    List<TrainingEnrollment> findExpiredNotNotified(@Param("month") String month);
 }

@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
@@ -33,7 +34,12 @@ public final class TrainingSlotDtos {
             int displayOrder,
             long enrolledThisMonth,
             boolean active,
+            @Nullable LocalDate deactivatedFrom,
             Instant createdAt
+    ) {}
+
+    public record DeactivateSlotRequest(
+            @NotNull LocalDate from
     ) {}
 
     public record CreateTrainingSlotRequest(
@@ -94,5 +100,35 @@ public final class TrainingSlotDtos {
     public record SetPaymentRequest(
             @NotNull YearMonth month,
             boolean paid
+    ) {}
+
+    /** Usunięty (zarchiwizowany) slot z danymi byłych uczestników do kontaktu. */
+    public record DeletedSlotResponse(
+            UUID id,
+            String eventTypeName,
+            @Nullable String instructorName,
+            int dayOfWeek,
+            LocalTime startTime,
+            @Nullable LocalTime endTime,
+            Instant deletedAt,
+            List<ArchivedParticipant> participants
+    ) {}
+
+    public record ArchivedParticipant(
+            String firstName,
+            String lastName,
+            String email,
+            String phone,
+            YearMonth startMonth,
+            @Nullable YearMonth endMonth
+    ) {}
+
+    public record CancelledSessionResponse(
+            UUID id,
+            java.time.LocalDate sessionDate
+    ) {}
+
+    public record CancelSessionRequest(
+            @NotNull java.time.LocalDate sessionDate
     ) {}
 }

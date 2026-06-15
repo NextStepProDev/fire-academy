@@ -40,6 +40,9 @@ public class TrainingEnrollment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "expiry_notified", nullable = false)
+    private boolean expiryNotified = false;
+
     protected TrainingEnrollment() {}
 
     public TrainingEnrollment(TrainingSlot slot, User user, YearMonth startMonth, @Nullable YearMonth endMonth) {
@@ -67,4 +70,6 @@ public class TrainingEnrollment {
     @Nullable public YearMonth getEndMonth() { return endMonth != null ? YearMonth.parse(endMonth) : null; }
     public void setEndMonth(@Nullable YearMonth endMonth) { this.endMonth = endMonth != null ? endMonth.toString() : null; }
     public Instant getCreatedAt() { return createdAt; }
+    public boolean isExpiryNotified() { return expiryNotified; }
+    public void setExpiryNotified(boolean expiryNotified) { this.expiryNotified = expiryNotified; }
 }

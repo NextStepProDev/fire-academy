@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
@@ -8,11 +8,27 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
-import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus } from 'lucide-react'
+import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
+const TODAY_ISO = new Date().toISOString().slice(0, 10)
+
+/** Wszystkie daty (ISO) w danym miesiącu wypadające w danym dniu tygodnia (ISO 1–7). */
+function sessionDatesInMonth(month: string, isoDayOfWeek: number): string[] {
+  const [y, m] = month.split('-').map(Number)
+  const out: string[] = []
+  const last = new Date(y, m, 0).getDate()
+  for (let d = 1; d <= last; d++) {
+    const dt = new Date(y, m - 1, d)
+    const iso = dt.getDay() === 0 ? 7 : dt.getDay()
+    if (iso === isoDayOfWeek) out.push(`${month}-${String(d).padStart(2, '0')}`)
+  }
+  return out
+}
+
+const fmtDayMonth = (iso: string) => { const [, m, d] = iso.split('-'); return `${d}.${m}` }
 
 const emptyForm = {
   eventTypeId: '',
@@ -39,12 +55,11 @@ const fieldClass = (error?: boolean, paleEmpty?: boolean) => clsx(
   paleEmpty ? 'text-surface-500' : 'text-surface-100',
 )
 
-function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
+function SlotRow({ slot, month, onEdit, onDelete }: {
   slot: TrainingSlot
   month: string
   onEdit: (s: TrainingSlot) => void
   onDelete: (id: string) => void
-  onToggleActive: (id: string) => void
 }) {
   const { t } = useTranslation('admin')
   const { showToast } = useToast()
@@ -52,6 +67,8 @@ function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
   const [expanded, setExpanded] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [removeId, setRemoveId] = useState<string | null>(null)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [deactivateDate, setDeactivateDate] = useState(TODAY_ISO)
   const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1 })
 
   const userSearch = useQuery({
@@ -94,10 +111,46 @@ function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
+  const cancelledQuery = useQuery({
+    queryKey: ['admin', 'cancelled-sessions', slot.id],
+    queryFn: () => adminApi.getCancelledSessions(slot.id),
+    enabled: expanded,
+  })
+  const cancelledSet = new Set((cancelledQuery.data ?? []).map(c => c.sessionDate))
+  const invalidateCancelled = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-sessions', slot.id] })
+    invalidateCounts()
+  }
+  const cancelSessionMut = useMutation({
+    mutationFn: (date: string) => adminApi.cancelTrainingSession(slot.id, date),
+    onSuccess: () => { invalidateCancelled(); showToast(t('trainingSlots.sessionCancelled'), 'success') },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  const restoreSessionMut = useMutation({
+    mutationFn: (date: string) => adminApi.restoreTrainingSession(slot.id, date),
+    onSuccess: invalidateCancelled,
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  const deactivateMut = useMutation({
+    mutationFn: (date: string) => adminApi.deactivateTrainingSlot(slot.id, date),
+    onSuccess: () => { invalidateCounts(); setIsDeactivating(false); showToast(t('trainingSlots.deactivateSuccess'), 'success') },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  const reactivateMut = useMutation({
+    mutationFn: () => adminApi.reactivateTrainingSlot(slot.id),
+    onSuccess: () => { invalidateCounts(); showToast(t('trainingSlots.reactivateSuccess'), 'success') },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const upcomingDates = useMemo(
+    () => sessionDatesInMonth(month, slot.dayOfWeek).filter(d => d >= TODAY_ISO),
+    [month, slot.dayOfWeek],
+  )
+
   const roster = rosterQuery.data ?? []
 
   return (
-    <div className={clsx('bg-surface-900 border border-surface-800 rounded-xl overflow-hidden', !slot.active && 'opacity-50')}>
+    <div className={clsx('bg-surface-900 border border-surface-800 rounded-xl overflow-hidden', (!slot.active || slot.deactivatedFrom) && 'opacity-60')}>
       <div className="px-4 py-3 flex items-center gap-3">
         <button onClick={() => setExpanded(e => !e)} className="p-0.5 text-surface-400 shrink-0">
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -111,11 +164,23 @@ function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
             {slot.price != null && ` · ${slot.price} PLN`}
             {` · ${t('trainingSlots.roster')}: ${slot.enrolledThisMonth} / ${slot.maxParticipants}`}
           </p>
+          {slot.deactivatedFrom && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-400 mt-0.5">
+              <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+              {t('trainingSlots.inactiveFrom', { date: slot.deactivatedFrom.split('-').reverse().join('.') })}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => onToggleActive(slot.id)} className={clsx('px-2 py-1 text-xs rounded', slot.active ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-500')}>
-            {slot.active ? t('actions.deactivate') : t('actions.activate')}
-          </button>
+          {slot.deactivatedFrom ? (
+            <button onClick={() => reactivateMut.mutate()} className="px-2 py-1 text-xs rounded bg-green-900/30 text-green-400">
+              {t('actions.activate')}
+            </button>
+          ) : (
+            <button onClick={() => { setDeactivateDate(TODAY_ISO); setIsDeactivating(true) }} className="px-2 py-1 text-xs rounded bg-surface-800 text-surface-400 hover:text-amber-400">
+              {t('actions.deactivate')}
+            </button>
+          )}
           <button onClick={() => onEdit(slot)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
           <button onClick={() => onDelete(slot.id)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
         </div>
@@ -178,6 +243,38 @@ function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
               </table>
             </div>
           )}
+
+          {/* Odwoływanie pojedynczych zajęć w wybranym miesiącu */}
+          <div className="mt-4 pt-3 border-t border-surface-800">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-surface-400 mb-2">
+              <CalendarOff className="w-3.5 h-3.5" /> {t('trainingSlots.cancelSessions')}
+            </p>
+            {!upcomingDates.length ? (
+              <p className="text-sm text-surface-500">{t('trainingSlots.noUpcomingSessions')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {upcomingDates.map(date => {
+                  const isCancelled = cancelledSet.has(date)
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => isCancelled ? restoreSessionMut.mutate(date) : cancelSessionMut.mutate(date)}
+                      disabled={cancelSessionMut.isPending || restoreSessionMut.isPending}
+                      className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors',
+                        isCancelled
+                          ? 'bg-amber-900/20 border-amber-700/50 text-amber-400 hover:bg-amber-900/30'
+                          : 'bg-surface-800 border-surface-700 text-surface-300 hover:border-rose-500/60 hover:text-rose-400')}
+                      title={isCancelled ? t('trainingSlots.restoreSession') : t('trainingSlots.cancelSession')}
+                    >
+                      {isCancelled ? <RotateCcw className="w-3.5 h-3.5" /> : <CalendarOff className="w-3.5 h-3.5" />}
+                      {fmtDayMonth(date)}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <p className="text-xs text-surface-500 mt-2">{t('trainingSlots.cancelSessionsHint')}</p>
+          </div>
         </div>
       )}
 
@@ -263,6 +360,20 @@ function SlotRow({ slot, month, onEdit, onDelete, onToggleActive }: {
         confirmLabel={t('trainingSlots.removeParticipant')}
         danger
       />
+
+      <Modal isOpen={isDeactivating} onClose={() => setIsDeactivating(false)} title={t('trainingSlots.deactivateTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400">{t('trainingSlots.deactivateHint')}</p>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.deactivateFrom')}</label>
+            <input type="date" min={TODAY_ISO} value={deactivateDate} onChange={e => setDeactivateDate(e.target.value)} className={inputClass} />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setIsDeactivating(false)}>{t('actions.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={() => deactivateMut.mutate(deactivateDate)} disabled={!deactivateDate} loading={deactivateMut.isPending}>{t('trainingSlots.deactivateConfirm')}</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -280,6 +391,13 @@ export function AdminTrainingSlots() {
   const [createForm, setCreateForm] = useState(emptyCreate())
   const [showCreateErrors, setShowCreateErrors] = useState(false)
   const [showEditErrors, setShowEditErrors] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
+
+  const archiveQuery = useQuery({
+    queryKey: ['admin', 'training-slots', 'deleted'],
+    queryFn: adminApi.getDeletedTrainingSlots,
+    enabled: showArchive,
+  })
 
   const { data: slots, isLoading } = useQuery({
     queryKey: ['admin', 'training-slots', month],
@@ -336,7 +454,6 @@ export function AdminTrainingSlots() {
     onSuccess: invalidate,
     onError: (e: Error) => showToast(e.message, 'error'),
   })
-  const toggleMut = useMutation({ mutationFn: adminApi.toggleTrainingSlotActive, onSuccess: invalidate })
 
   const openCreate = () => { setCreateForm(emptyCreate()); setShowCreateErrors(false); setIsCreating(true) }
   const handleCreate = () => {
@@ -409,7 +526,7 @@ export function AdminTrainingSlots() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-primary-400 mb-2">{t(`days.${day}`)}</h3>
                 <div className="space-y-2">
                   {daySlots.map(s => (
-                    <SlotRow key={s.id} slot={s} month={month} onEdit={openEdit} onDelete={setDeleteId} onToggleActive={id => toggleMut.mutate(id)} />
+                    <SlotRow key={s.id} slot={s} month={month} onEdit={openEdit} onDelete={setDeleteId} />
                   ))}
                 </div>
               </div>
@@ -417,6 +534,70 @@ export function AdminTrainingSlots() {
           })}
         </div>
       )}
+
+      {/* Archiwum usuniętych slotów (dane kontaktowe byłych uczestników) */}
+      <div className="mt-8 border-t border-surface-800 pt-4">
+        <button
+          onClick={() => setShowArchive(s => !s)}
+          className="flex items-center gap-2 text-sm font-semibold text-surface-300 hover:text-surface-100 transition-colors"
+        >
+          <Archive className="w-4 h-4" />
+          {t('trainingSlots.archiveTitle')}
+          {showArchive ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+        {showArchive && (
+          <div className="mt-3">
+            {archiveQuery.isLoading ? (
+              <LoadingSpinner />
+            ) : !archiveQuery.data?.length ? (
+              <p className="text-sm text-surface-500">{t('trainingSlots.archiveEmpty')}</p>
+            ) : (
+              <div className="space-y-3">
+                {archiveQuery.data.map(d => (
+                  <div key={d.id} className="bg-surface-900 border border-surface-800 rounded-xl p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <p className="font-medium text-surface-200">
+                        {t(`days.${d.dayOfWeek}`)} {d.startTime.slice(0, 5)}{d.endTime ? `–${d.endTime.slice(0, 5)}` : ''} · {d.eventTypeName}
+                        {d.instructorName && <span className="text-surface-500"> · {d.instructorName}</span>}
+                      </p>
+                      <span className="text-xs text-surface-500">{t('trainingSlots.archiveDeletedAt', { date: d.deletedAt.slice(0, 10) })}</span>
+                    </div>
+                    {!d.participants.length ? (
+                      <p className="text-sm text-surface-500">{t('trainingSlots.archiveNoParticipants')}</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-surface-800 text-left text-surface-400">
+                              <th className="pb-2 pr-4">{t('enrollments.firstName')}</th>
+                              <th className="pb-2 pr-4">{t('enrollments.email')}</th>
+                              <th className="pb-2 pr-4">{t('enrollments.phone')}</th>
+                              <th className="pb-2 pr-4">{t('trainingSlots.month')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {d.participants.map((p, i) => (
+                              <tr key={i} className="border-b border-surface-800/50">
+                                <td className="py-2 pr-4 text-surface-100">{p.firstName} {p.lastName}</td>
+                                <td className="py-2 pr-4 text-surface-300">{p.email}</td>
+                                <td className="py-2 pr-4 text-surface-300">{p.phone}</td>
+                                <td className="py-2 pr-4 text-surface-500">
+                                  {t('trainingSlots.since', { from: formatMonth(p.startMonth) })}
+                                  {p.endMonth ? ` ${t('trainingSlots.until', { to: formatMonth(p.endMonth) })}` : ` · ${t('trainingSlots.indefinite').toLowerCase()}`}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Edycja pojedynczego slotu */}
       <Modal isOpen={!!editItem} onClose={closeForm} title={t('trainingSlots.editTitle')}>
@@ -536,8 +717,8 @@ export function AdminTrainingSlots() {
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={() => { if (deleteId) { deleteMut.mutate(deleteId); setDeleteId(null) } }}
-        title={t('confirm.deleteTitle')}
-        message={t('confirm.delete')}
+        title={t('trainingSlots.deleteConfirmTitle')}
+        message={t('trainingSlots.deleteConfirm')}
         confirmLabel={t('actions.delete')}
         danger
       />

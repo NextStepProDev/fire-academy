@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Clock, User as UserIcon, Users } from 'lucide-react'
+import { Clock, User as UserIcon, Users, CalendarOff } from 'lucide-react'
 import { Button } from '../ui/Button'
 import type { TrainingSlotCard as TrainingSlotCardType } from '../../types'
 
@@ -16,6 +16,9 @@ export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, 
   const { t } = useTranslation('events')
   const isFull = slot.availableSpots <= 0
   const time = `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`
+  const cancelledLabel = slot.cancelledDates
+    .map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` })
+    .join(', ')
 
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -45,6 +48,12 @@ export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, 
         </div>
         {slot.price != null && (
           <p className="text-primary-400 font-semibold text-sm">{t('slots.pricePerSession', { price: slot.price })}</p>
+        )}
+        {slot.cancelledDates.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-400">
+            <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+            {t('slots.cancelledDates', { dates: cancelledLabel })}
+          </p>
         )}
       </div>
       <div className="sm:ml-auto">

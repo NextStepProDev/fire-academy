@@ -180,6 +180,11 @@ public class AuthMailService {
     private String brandedTemplate(String content, String lang) {
         // Account emails are not tied to a section → the generic ACADEMY FIRE logo (not the camp FIRE CAMP one).
         String logoUrl = siteUrl + "/images/logo/logo-academy-fire-white.png";
+        // Podpis pomijany, gdy treść ma już ciepłe zakończenie („Do zobaczenia", np. powitanie).
+        String signOffHtml = content.toLowerCase().contains("do zobaczenia")
+                ? ""
+                : "<p style=\"font-size: 15px; line-height: 1.6; margin: 24px 0 0;\">%s<br/><strong>%s</strong></p>"
+                        .formatted(msg.getForLang("email.regards", lang), msg.getForLang("email.footer", lang));
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
@@ -191,6 +196,7 @@ public class AuthMailService {
                     </div>
                     <div style="padding: 30px;">
                         %s
+                        %s
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
                         <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
                             <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
@@ -200,7 +206,7 @@ public class AuthMailService {
                 </div>
             </body>
             </html>
-            """.formatted(siteUrl, logoUrl, content, siteUrl,
+            """.formatted(siteUrl, logoUrl, content, signOffHtml, siteUrl,
                 msg.getForLang("email.footer.visit", lang), msg.getForLang("email.footer", lang));
     }
 

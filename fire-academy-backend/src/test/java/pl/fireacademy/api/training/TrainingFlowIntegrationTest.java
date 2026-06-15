@@ -7,10 +7,12 @@ import pl.fireacademy.BaseIntegrationTest;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventType;
 import pl.fireacademy.domain.event.EventTypeRepository;
+import pl.fireacademy.domain.training.TrainingEnrollment;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
 import pl.fireacademy.domain.training.TrainingSlot;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.domain.user.UserRole;
+import pl.fireacademy.infrastructure.scheduler.TrainingSubscriptionExpiryScheduler;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,6 +34,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Autowired private EventTypeRepository eventTypeRepository;
     @Autowired private TrainingSlotRepository trainingSlotRepository;
     @Autowired private TrainingEnrollmentRepository trainingEnrollmentRepository;
+    @Autowired private TrainingSubscriptionExpiryScheduler expiryScheduler;
 
     private static final String CURRENT = YearMonth.now().toString();
     private static final String NEXT = YearMonth.now().plusMonths(1).toString();
@@ -250,6 +253,147 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isNoContent());
 
         org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(CURRENT, slot.getId())); // miejsce natychmiast wolne
+    }
+
+    /** Najbliższe wystąpienie dnia slotu (poniedziałek) od dziś — data realnych zajęć. */
+    private LocalDate nextSlotDate() {
+        LocalDate d = LocalDate.now();
+        while (d.getDayOfWeek().getValue() != DAY) d = d.plusDays(1);
+        return d;
+    }
+
+    @Test
+    void shouldSoftDeleteSlotHideFromPublicAndKeepArchive() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isNoContent());
+
+        // zniknął z katalogu publicznego i z listy admina
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/admin/training-slots").param("month", CURRENT)
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+
+        // ale jest w archiwum z danymi kontaktowymi uczestnika
+        mockMvc.perform(get("/api/admin/training-slots/deleted")
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].participants.length()").value(1))
+            .andExpect(jsonPath("$[0].participants[0].firstName").value("User"))
+            .andExpect(jsonPath("$[0].participants[0].email").exists());
+    }
+
+    @Test
+    void shouldCancelSingleSessionExposeInPublicThenRestore() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/public/training-slots").param("month", month))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].cancelledDates[0]").value(date.toString()));
+
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .param("date", date.toString())
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/public/training-slots").param("month", month))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].cancelledDates.length()").value(0));
+    }
+
+    @Test
+    void shouldRejectCancelSessionOnWrongWeekday() throws Exception {
+        TrainingSlot slot = seedSlot(8); // poniedziałek
+        LocalDate tuesday = LocalDate.now();
+        while (tuesday.getDayOfWeek().getValue() != 2) tuesday = tuesday.plusDays(1);
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + tuesday + "\"}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldHideSlotFromPublicWhenDeactivatedFromToday() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        String admin = adminToken();
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/deactivate")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"from\":\"" + LocalDate.now() + "\"}"))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+
+        // reaktywacja przywraca slot do katalogu
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/reactivate")
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk());
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void shouldKeepSlotVisibleWhenDeactivationIsInFuture() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/deactivate")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"from\":\"" + LocalDate.now().plusMonths(1) + "\"}"))
+            .andExpect(status().isOk());
+
+        // przyszła data dezaktywacji → slot nadal w katalogu (odbywa się do tej daty)
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void shouldRejectDeactivationWithPastDate() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/deactivate")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"from\":\"" + LocalDate.now().minusDays(1) + "\"}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldFlagExpiredSubscriptionViaScheduler() {
+        TrainingSlot slot = seedSlot(8);
+        userToken(); // utwórz standardowego usera
+        var user = userRepository.findById(regularUserId()).orElseThrow();
+        YearMonth past = YearMonth.now().minusMonths(2);
+        TrainingEnrollment te = trainingEnrollmentRepository.save(new TrainingEnrollment(slot, user, past, past));
+        org.junit.jupiter.api.Assertions.assertFalse(te.isExpiryNotified());
+
+        expiryScheduler.notifyExpiredSubscriptions();
+
+        var reloaded = trainingEnrollmentRepository.findById(te.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertTrue(reloaded.isExpiryNotified());
     }
 
     @Test

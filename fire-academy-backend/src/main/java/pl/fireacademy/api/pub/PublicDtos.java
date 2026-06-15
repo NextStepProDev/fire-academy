@@ -56,6 +56,7 @@ public final class PublicDtos {
             @Nullable LocalTime endTime,
             @Nullable BigDecimal price,
             int maxParticipants,
-            int availableSpots
+            int availableSpots,
+            java.util.List<java.time.LocalDate> cancelledDates
     ) {}
 }

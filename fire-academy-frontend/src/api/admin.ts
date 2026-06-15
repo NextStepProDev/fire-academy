@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, DeletedTrainingSlot } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -181,6 +181,10 @@ export const adminApi = {
     fetchApi<void>(`/admin/training-slots/${id}`, { method: 'DELETE' }),
   toggleTrainingSlotActive: (id: string) =>
     fetchApi<TrainingSlot>(`/admin/training-slots/${id}/toggle-active`, { method: 'PATCH' }),
+  deactivateTrainingSlot: (id: string, from: string) =>
+    fetchApi<TrainingSlot>(`/admin/training-slots/${id}/deactivate`, { method: 'POST', body: JSON.stringify({ from }) }),
+  reactivateTrainingSlot: (id: string) =>
+    fetchApi<TrainingSlot>(`/admin/training-slots/${id}/reactivate`, { method: 'POST' }),
 
   // Training enrollments (roster / zarządzanie)
   getTrainingRoster: (slotId: string, month: string) =>
@@ -191,6 +195,18 @@ export const adminApi = {
     fetchApi<void>(`/admin/training-enrollments/${id}`, { method: 'DELETE' }),
   setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
     fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Odwoływanie pojedynczych zajęć
+  getCancelledSessions: (slotId: string) =>
+    fetchApi<CancelledSession[]>(`/admin/training-slots/${slotId}/cancelled-sessions`),
+  cancelTrainingSession: (slotId: string, sessionDate: string) =>
+    fetchApi<void>(`/admin/training-slots/${slotId}/cancel-session`, { method: 'POST', body: JSON.stringify({ sessionDate }) }),
+  restoreTrainingSession: (slotId: string, date: string) =>
+    fetchApi<void>(`/admin/training-slots/${slotId}/cancel-session?date=${date}`, { method: 'DELETE' }),
+
+  // Archiwum usuniętych slotów
+  getDeletedTrainingSlots: () =>
+    fetchApi<DeletedTrainingSlot[]>(`/admin/training-slots/deleted`),
   searchUsers: (query: string) =>
     fetchApi<AdminUserSummary[]>(`/admin/users/search?query=${encodeURIComponent(query)}`),
 

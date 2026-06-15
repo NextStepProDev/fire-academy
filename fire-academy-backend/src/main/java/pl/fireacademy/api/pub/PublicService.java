@@ -10,6 +10,7 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
+import pl.fireacademy.domain.training.TrainingCancelledSessionRepository;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -30,6 +31,7 @@ public class PublicService {
     private final EnrollmentRepository enrollmentRepository;
     private final TrainingSlotRepository trainingSlotRepository;
     private final TrainingEnrollmentRepository trainingEnrollmentRepository;
+    private final TrainingCancelledSessionRepository trainingCancelledSessionRepository;
     private final MessageService msg;
 
     public PublicService(InstructorRepository instructorRepository,
@@ -38,6 +40,7 @@ public class PublicService {
                          EnrollmentRepository enrollmentRepository,
                          TrainingSlotRepository trainingSlotRepository,
                          TrainingEnrollmentRepository trainingEnrollmentRepository,
+                         TrainingCancelledSessionRepository trainingCancelledSessionRepository,
                          MessageService msg) {
         this.instructorRepository = instructorRepository;
         this.eventTypeRepository = eventTypeRepository;
@@ -45,12 +48,13 @@ public class PublicService {
         this.enrollmentRepository = enrollmentRepository;
         this.trainingSlotRepository = trainingSlotRepository;
         this.trainingEnrollmentRepository = trainingEnrollmentRepository;
+        this.trainingCancelledSessionRepository = trainingCancelledSessionRepository;
         this.msg = msg;
     }
 
     @Transactional(readOnly = true)
     public List<TrainingSlotCard> getTrainingSlots(YearMonth month) {
-        var slots = trainingSlotRepository.findByActiveTrueOrderByDayOfWeekAscStartTimeAsc();
+        var slots = trainingSlotRepository.findPublicSlots();
         if (slots.isEmpty()) {
             return List.of();
         }
@@ -58,6 +62,12 @@ public class PublicService {
         Map<UUID, Long> countMap = trainingEnrollmentRepository
                 .countCoveringBySlotIds(slotIds, month.toString()).stream()
                 .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
+
+        // Odwołane pojedyncze zajęcia w obrębie miesiąca (do oznaczenia w grafiku).
+        Map<UUID, List<LocalDate>> cancelledMap = trainingCancelledSessionRepository
+                .findForSlotsInRange(slotIds, month.atDay(1), month.atEndOfMonth()).stream()
+                .collect(Collectors.groupingBy(cs -> cs.getSlot().getId(),
+                        Collectors.mapping(cs -> cs.getSessionDate(), Collectors.toList())));
 
         return slots.stream().map(s -> {
             long taken = countMap.getOrDefault(s.getId(), 0L);
@@ -69,7 +79,8 @@ public class PublicService {
                     instr != null ? instr.getId() : null,
                     instr != null ? instr.getFirstName() + " " + instr.getLastName() : null,
                     s.getDayOfWeek(), s.getStartTime(), s.getEndTime(), s.getPrice(),
-                    s.getMaxParticipants(), available
+                    s.getMaxParticipants(), available,
+                    cancelledMap.getOrDefault(s.getId(), List.of())
             );
         }).toList();
     }

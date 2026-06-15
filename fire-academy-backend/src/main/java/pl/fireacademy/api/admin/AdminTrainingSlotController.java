@@ -56,6 +56,44 @@ public class AdminTrainingSlotController {
         return service.toggleActive(id);
     }
 
+    /** Zaplanowana dezaktywacja od daty (powiadamia zapisanych mailem). */
+    @PostMapping("/{id}/deactivate")
+    public TrainingSlotResponse deactivate(@PathVariable UUID id, @Valid @RequestBody DeactivateSlotRequest request) {
+        return service.deactivate(id, request.from());
+    }
+
+    @PostMapping("/{id}/reactivate")
+    public TrainingSlotResponse reactivate(@PathVariable UUID id) {
+        return service.reactivate(id);
+    }
+
+    /** Archiwum usuniętych slotów wraz z danymi kontaktowymi byłych uczestników. */
+    @GetMapping("/deleted")
+    public List<DeletedSlotResponse> getDeleted() {
+        return service.getDeletedSlots();
+    }
+
+    // --- Odwoływanie pojedynczych zajęć ---
+
+    @GetMapping("/{id}/cancelled-sessions")
+    public List<CancelledSessionResponse> getCancelledSessions(@PathVariable UUID id) {
+        return service.getCancelledSessions(id);
+    }
+
+    @PostMapping("/{id}/cancel-session")
+    public ResponseEntity<Void> cancelSession(@PathVariable UUID id,
+                                              @Valid @RequestBody CancelSessionRequest request) {
+        service.cancelSession(id, request.sessionDate());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{id}/cancel-session")
+    public ResponseEntity<Void> restoreSession(@PathVariable UUID id,
+                                               @RequestParam java.time.LocalDate date) {
+        service.restoreSession(id, date);
+        return ResponseEntity.noContent().build();
+    }
+
     // --- Zarządzanie zapisami (roster) ---
 
     @GetMapping("/{slotId}/enrollments")

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CalendarCheck, Clock, Pencil, User as UserIcon, MapPin, Calendar, X, Trash2 } from 'lucide-react'
+import { CalendarCheck, CalendarOff, Clock, Pencil, User as UserIcon, MapPin, Calendar, X, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { userApi } from '../api/client'
 import { userApi as trainingApi } from '../api/user'
@@ -254,6 +254,14 @@ export function MojeKontoPage() {
                       month: formatMonth(en.billingMonth),
                       amount: en.monthlyAmount,
                       sessions: en.sessionsInBillingMonth,
+                    })}
+                  </p>
+                )}
+                {en.cancelledDates.length > 0 && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-400 mt-2">
+                    <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+                    {t('trainings.cancelledDates', {
+                      dates: en.cancelledDates.map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` }).join(', '),
                     })}
                   </p>
                 )}
