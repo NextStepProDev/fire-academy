@@ -196,6 +196,28 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldAdminEnrollWithoutPhone() throws Exception {
+        Event event = new Event(EventCategory.TRAINING, "Enroll no phone", LocalDate.now().plusDays(14));
+        event.setActive(true);
+        event = eventRepository.save(event);
+
+        mockMvc.perform(post("/api/admin/enrollments")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "eventId": "%s",
+                        "firstName": "Bez",
+                        "lastName": "Telefonu",
+                        "email": "no-phone@test.com"
+                    }
+                    """.formatted(event.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.addedByAdmin").value(true))
+            .andExpect(jsonPath("$.phone").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
     void shouldGetEnrollmentsByCategory() throws Exception {
         mockMvc.perform(get("/api/admin/enrollments/by-category")
                 .param("category", "TRAINING")

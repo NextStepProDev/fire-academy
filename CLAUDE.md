@@ -37,7 +37,8 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V11. Kolejna migracja: V12.**
+**Obecny stan: V16. Kolejna migracja: V17.**
+> ⚠️ V12–V15 są **zarezerwowane przez niezmergowaną gałąź treningową** (`feat/trainings-types-scheduling`) i bywają już zastosowane w bazach dev. Dlatego zmiany na innych gałęziach numerujemy **od V16 w górę** (Flyway dopuszcza lukę po V11), żeby nie kolidować z `training_*`.
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -52,6 +53,8 @@ VERSION
 | V9 | note w enrollments (informacja dla organizatora) |
 | V10 | indeksy wydajnościowe: enrollments(event_id, email), events(category, active, start_date) |
 | V11 | avatar_filename w users (zdjęcie profilowe użytkownika, folder `avatars/`) |
+| V12–V15 | *(zarezerwowane przez gałąź treningową — `training_slots`, `training_payments`, odwołania/dezaktywacja; nie na tej gałęzi)* |
+| V16 | enrollments.phone → nullable (admin może dopisać zalogowanego usera bez numeru; RODO — minimalizacja) |
 
 ---
 
@@ -79,7 +82,10 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 `/instructors` — CRUD + categories (CAMP/COURSE/TRAINING) + photo upload + reorder + toggle active
 `/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
 `/events` — CRUD + `?category=` + toggle active + customName (bez auto-create EventType)
-`/enrollments` — lista + admin-add + delete
+`/enrollments` — lista + admin-add + delete (`DELETE /{id}?notify=` — `notify=false` = ciche usunięcie z archiwum, bez maila o odwołaniu; admin-add ma guard duplikatu `enrollment.already.exists`. **Telefon opcjonalny przy admin-add** — `enrollments.phone` nullable od V16, RODO; zapis publiczny `PublicDtos.EnrollRequest` nadal wymaga telefonu)
+`/users` — `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 30/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `created`} (whitelist, telefon niesortowalny), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`) · `POST /email` (mail do wszystkich lub wybranych, branding+podpis auto) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/promote` (każdy admin) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
+
+> **Super-admin** = e-mail z `ADMIN_EMAIL` (`AdminEmailConfig.isAdminEmail`). `GET /api/user/me` zwraca flagę `superAdmin` (front pokazuje przycisk degradacji tylko jemu). Maile admin→user: `AdminUserMailService` (logo Fire Academy, podpis „Pozdrawiam, Fire Academy", temat bez HTML-escape).
 
 ### Dev `/api/dev` (profil `dev` only)
 `POST /login` · `GET /users`
@@ -99,7 +105,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 | `/kadra/:id` | InstructorDetailPage | Strona szczegółów instruktora (zdjęcie, bio, share) |
 | `/admin/login` | LoginPage | Logowanie admina (ukryte, brak linku na stronie) |
 | `/admin/register` | RegisterPage | Rejestracja admina |
-| `/admin/*` | AdminPage | Panel admina (5 zakładek: kadra, treningi, obozy, szkolenia, zapisy) |
+| `/admin/*` | AdminPage | Panel admina (zakładki: kadra, treningi, obozy, szkolenia, użytkownicy, archiwum, RODO). Zakładka „Użytkownicy": lista (paginacja+sort+wyszukiwanie) → klik w osobę = profil (`AdminUserDetail`: dane podgląd, zapisy bieżące/archiwum, dopisanie do wydarzenia, usuwanie zapisu/wpisu z archiwum) |
 | `/verify-email` | VerifyEmailPage | Weryfikacja email (link z maila) |
 | `/reset-password` | ResetPasswordPage | Reset hasła (link z maila) |
 | `/forgot-password` | ForgotPasswordPage | Formularz zapomniałem hasła |

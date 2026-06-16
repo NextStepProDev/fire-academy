@@ -28,7 +28,8 @@ public class Enrollment {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false, length = 20)
+    @Nullable
+    @Column(length = 20)
     private String phone;
 
     @Nullable
@@ -43,7 +44,7 @@ public class Enrollment {
 
     protected Enrollment() {}
 
-    public Enrollment(Event event, String firstName, String lastName, String email, String phone,
+    public Enrollment(Event event, String firstName, String lastName, String email, @Nullable String phone,
                       @Nullable String note, boolean addedByAdmin) {
         this.event = event;
         this.firstName = firstName;
@@ -76,7 +77,7 @@ public class Enrollment {
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }
-    public String getPhone() { return phone; }
+    @Nullable public String getPhone() { return phone; }
     @Nullable public String getNote() { return note; }
     public boolean isAddedByAdmin() { return addedByAdmin; }
     public Instant getCreatedAt() { return createdAt; }

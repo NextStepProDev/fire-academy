@@ -1,0 +1,401 @@
+import { useMemo, useState, type FormEvent } from 'react'
+import clsx from 'clsx'
+import { useTranslation } from 'react-i18next'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Users, Search, Mail, Trash2, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
+import { adminApi } from '../../api/admin'
+import { Button } from '../../components/ui/Button'
+import { Modal } from '../../components/ui/Modal'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
+import { AdminUserDetail } from './AdminUserDetail'
+import type { AdminUser } from '../../types'
+
+type SortField = 'name' | 'email' | 'role' | 'created'
+type SortDir = 'asc' | 'desc'
+
+export function AdminUsers() {
+  const { t } = useTranslation('admin')
+  const { showToast } = useToast()
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  const isSuperAdmin = user?.superAdmin ?? false
+
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
+  const [sortField, setSortField] = useState<SortField>('created')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [emailMode, setEmailMode] = useState<'selected' | 'all'>('selected')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+
+  const [toDelete, setToDelete] = useState<AdminUser | null>(null)
+
+  const usersQuery = useQuery({
+    queryKey: ['admin-users', search, page, sortField, sortDir],
+    queryFn: () => adminApi.getUsers({ search: search || undefined, page, sort: sortField, direction: sortDir }),
+  })
+
+  const users = usersQuery.data?.content ?? []
+  const totalElements = usersQuery.data?.totalElements ?? 0
+  const totalPages = usersQuery.data?.totalPages ?? 0
+  const allSelected = users.length > 0 && users.every(u => selected.has(u.id))
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+
+  const promoteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.promoteUser(id),
+    onSuccess: () => { showToast(t('users.promoteSuccess')); invalidate() },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const demoteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.demoteUser(id),
+    onSuccess: () => { showToast(t('users.demoteSuccess')); invalidate() },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
+    onSuccess: () => {
+      showToast(t('users.deleteSuccess'))
+      setToDelete(null)
+      setSelected(new Set())
+      invalidate()
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const emailMutation = useMutation({
+    mutationFn: () => adminApi.sendUserEmail({
+      subject: subject.trim(),
+      message: message.trim(),
+      allUsers: emailMode === 'all',
+      userIds: emailMode === 'selected' ? [...selected] : undefined,
+    }),
+    onSuccess: (data) => {
+      showToast(t('users.emailSuccess', { count: data.recipientCount }))
+      setEmailOpen(false)
+      setSubject('')
+      setMessage('')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const selectedCount = selected.size
+
+  const recipientCount = useMemo(
+    () => emailMode === 'all' ? totalElements : selectedCount,
+    [emailMode, totalElements, selectedCount],
+  )
+
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault()
+    setSearch(searchInput.trim())
+    setPage(0)
+    setSelected(new Set())
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(users.map(u => u.id)))
+  }
+
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+    setPage(0)
+  }
+
+  const sortHeader = (field: SortField, label: string) => {
+    const active = sortField === field
+    const Icon = !active ? ChevronsUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown
+    return (
+      <th className="px-4 py-3">
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          aria-label={t('users.sortBy', { column: label })}
+          className={clsx('inline-flex items-center gap-1 hover:text-surface-200', active && 'text-primary-300')}
+        >
+          {label}
+          <Icon className="w-3.5 h-3.5" />
+        </button>
+      </th>
+    )
+  }
+
+  const openEmail = (mode: 'selected' | 'all') => {
+    setEmailMode(mode)
+    setEmailOpen(true)
+  }
+
+  if (selectedUserId) {
+    return <AdminUserDetail userId={selectedUserId} onBack={() => setSelectedUserId(null)} />
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Users className="w-6 h-6 text-primary-500" />
+        <h2 className="text-xl font-semibold text-surface-100">{t('users.title')}</h2>
+      </div>
+
+      <div className="bg-surface-900 border border-surface-800 rounded-xl p-6 mb-6">
+        <form onSubmit={handleSearch} className="flex gap-3">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder={t('users.searchPlaceholder')}
+            className="flex-1 px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <Button type="submit" variant="secondary" loading={usersQuery.isFetching}>
+            <Search className="w-4 h-4 mr-2" />
+            {t('users.search')}
+          </Button>
+        </form>
+
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={selectedCount === 0}
+            onClick={() => openEmail('selected')}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            {t('users.emailSelected', { count: selectedCount })}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={totalElements === 0}
+            onClick={() => openEmail('all')}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            {t('users.emailAll')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-surface-900 border border-surface-800 rounded-xl overflow-hidden">
+        {usersQuery.isError ? (
+          <p className="text-red-400 text-sm p-6">{t('users.loadError')}</p>
+        ) : users.length === 0 ? (
+          <p className="text-surface-500 text-sm p-6">{t('users.noResults')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-800 text-left text-surface-400">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      aria-label={t('users.selectAll')}
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="accent-primary-500"
+                    />
+                  </th>
+                  {sortHeader('name', t('users.name'))}
+                  {sortHeader('email', t('users.email'))}
+                  <th className="px-4 py-3">{t('users.phone')}</th>
+                  {sortHeader('role', t('users.role'))}
+                  {sortHeader('created', t('users.created'))}
+                  <th className="px-4 py-3 text-right">{t('users.actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map(u => {
+                  const isSelf = u.id === user?.id
+                  return (
+                    <tr key={u.id} className="border-b border-surface-800/50">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label={t('users.selectOne', { name: `${u.firstName} ${u.lastName}` })}
+                          checked={selected.has(u.id)}
+                          onChange={() => toggleOne(u.id)}
+                          className="accent-primary-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-surface-100">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedUserId(u.id)}
+                          className="font-medium text-surface-100 hover:text-primary-400 hover:underline text-left"
+                        >
+                          {u.firstName} {u.lastName}
+                        </button>
+                        {!u.emailVerified && (
+                          <span className="ml-2 text-xs text-amber-400">{t('users.unverified')}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-surface-300">{u.email}</td>
+                      <td className="px-4 py-3 text-surface-300">{u.phone ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        {u.role === 'ADMIN' ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-primary-500/15 text-primary-300">
+                            <BadgeCheck className="w-3.5 h-3.5" />
+                            {u.superAdmin ? t('users.superAdmin') : t('users.admin')}
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded-full bg-surface-800 text-surface-400">
+                            {t('users.user')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-surface-500">
+                        {new Date(u.createdAt).toLocaleDateString('pl-PL')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          {u.role === 'USER' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              loading={promoteMutation.isPending && promoteMutation.variables === u.id}
+                              onClick={() => promoteMutation.mutate(u.id)}
+                            >
+                              <ShieldCheck className="w-4 h-4 mr-1" />
+                              {t('users.promote')}
+                            </Button>
+                          )}
+                          {u.role === 'ADMIN' && isSuperAdmin && !u.superAdmin && !isSelf && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              loading={demoteMutation.isPending && demoteMutation.variables === u.id}
+                              onClick={() => demoteMutation.mutate(u.id)}
+                            >
+                              <ShieldMinus className="w-4 h-4 mr-1" />
+                              {t('users.demote')}
+                            </Button>
+                          )}
+                          {!u.superAdmin && !isSelf && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setToDelete(u)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {totalElements > 0 && (
+        <div className="flex items-center justify-between mt-4 text-sm text-surface-400">
+          <span>{t('users.total', { count: totalElements })}</span>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page === 0 || usersQuery.isFetching}
+              onClick={() => setPage(p => Math.max(p - 1, 0))}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              {t('users.prevPage')}
+            </Button>
+            <span>{t('users.pageOf', { page: page + 1, total: Math.max(totalPages, 1) })}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={page >= totalPages - 1 || usersQuery.isFetching}
+              onClick={() => setPage(p => p + 1)}
+            >
+              {t('users.nextPage')}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Modal isOpen={emailOpen} onClose={() => setEmailOpen(false)} title={t('users.emailTitle')}>
+        <form
+          onSubmit={e => { e.preventDefault(); emailMutation.mutate() }}
+          className="space-y-4"
+        >
+          <p className="text-surface-400 text-sm">
+            {t('users.emailRecipients', { count: recipientCount })}
+          </p>
+          <div>
+            <label className="block text-sm text-surface-300 mb-1">{t('users.emailSubject')}</label>
+            <input
+              type="text"
+              value={subject}
+              maxLength={200}
+              required
+              onChange={e => setSubject(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-surface-300 mb-1">{t('users.emailMessage')}</label>
+            <textarea
+              value={message}
+              maxLength={10000}
+              required
+              rows={8}
+              onChange={e => setMessage(e.target.value)}
+              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
+            />
+          </div>
+          <p className="text-xs text-surface-500">{t('users.emailSignatureHint')}</p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEmailOpen(false)}>
+              {t('users.cancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={emailMutation.isPending}
+              disabled={!subject.trim() || !message.trim() || recipientCount === 0}
+            >
+              {t('users.emailSend')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && deleteMutation.mutate(toDelete.id)}
+        title={t('users.deleteTitle')}
+        message={toDelete ? t('users.deleteMessage', { name: `${toDelete.firstName} ${toDelete.lastName}`, email: toDelete.email }) : ''}
+        confirmLabel={t('users.deleteConfirm')}
+        danger
+        loading={deleteMutation.isPending}
+      />
+    </div>
+  )
+}

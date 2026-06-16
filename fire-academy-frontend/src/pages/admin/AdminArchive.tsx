@@ -89,7 +89,7 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
                         <td className="py-2.5 pr-4 text-surface-100">{en.firstName}</td>
                         <td className="py-2.5 pr-4 text-surface-100">{en.lastName}</td>
                         <td className="py-2.5 pr-4 text-surface-300">{en.email}</td>
-                        <td className="py-2.5 pr-4 text-surface-300">{en.phone}</td>
+                        <td className="py-2.5 pr-4 text-surface-300">{en.phone ?? '—'}</td>
                         <td className="py-2.5 pr-4 text-surface-500">
                           {new Date(en.createdAt).toLocaleDateString('pl')}
                           {en.addedByAdmin && <span className="ml-2 px-1.5 py-0.5 text-xs bg-surface-800 text-surface-400 rounded">admin</span>}

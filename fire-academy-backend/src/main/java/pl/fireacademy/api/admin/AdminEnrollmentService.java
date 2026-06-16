@@ -63,8 +63,15 @@ public class AdminEnrollmentService {
         var event = eventRepository.findById(request.eventId())
                 .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
 
+        if (enrollmentRepository.existsByEventIdAndEmail(event.getId(), request.email())) {
+            throw new IllegalStateException(msg.get("enrollment.already.exists"));
+        }
+
+        // Telefon opcjonalny przy dopisywaniu przez admina (RODO) — pusty zapisujemy jako null.
+        String phone = (request.phone() == null || request.phone().isBlank()) ? null : request.phone();
+
         var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
-                request.email(), request.phone(), request.note(), true);
+                request.email(), phone, request.note(), true);
         var saved = enrollmentRepository.save(enrollment);
 
         String schedule = EnrollmentMailService.formatSchedule(event);
@@ -77,7 +84,7 @@ public class AdminEnrollmentService {
         enrollmentMailService.sendAdminEnrollmentNotification(
                 event.getDisplayName(),
                 request.firstName() + " " + request.lastName(),
-                request.email(), request.phone(), request.note(), schedule,
+                request.email(), phone == null ? "—" : phone, request.note(), schedule,
                 event.getCategory(), event.getId().toString());
 
         return toResponse(saved);
@@ -88,7 +95,7 @@ public class AdminEnrollmentService {
             @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
     })
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID id, boolean notify) {
         var enrollment = enrollmentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(msg.get("enrollment.not.found")));
 
@@ -98,20 +105,26 @@ public class AdminEnrollmentService {
 
         enrollmentRepository.delete(enrollment);
 
-        enrollmentMailService.sendEnrollmentDeletionNotification(
-                enrollment.getEmail(), enrollment.getFirstName(),
-                event.getDisplayName(), schedule,
-                event.getCategory(), event.getId().toString());
+        // notify=false dla korekty archiwum (wydarzenie już było) — uczestnik nie dostaje maila o „odwołaniu".
+        if (notify) {
+            enrollmentMailService.sendEnrollmentDeletionNotification(
+                    enrollment.getEmail(), enrollment.getFirstName(),
+                    event.getDisplayName(), schedule,
+                    event.getCategory(), event.getId().toString());
 
-        enrollmentMailService.sendEnrollmentDeletionAdminNotification(
-                event.getDisplayName(), participantName,
-                enrollment.getEmail(), schedule,
-                event.getCategory(), event.getId().toString());
+            enrollmentMailService.sendEnrollmentDeletionAdminNotification(
+                    event.getDisplayName(), participantName,
+                    enrollment.getEmail(), schedule,
+                    event.getCategory(), event.getId().toString());
+        }
     }
 
     @Transactional(readOnly = true)
-    public List<EnrollmentResponse> searchByEmail(String email) {
-        return enrollmentRepository.findByEmailIgnoreCase(email.trim()).stream()
+    public List<EnrollmentResponse> searchByQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return enrollmentRepository.searchByQuery(query.trim()).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -151,8 +164,12 @@ public class AdminEnrollmentService {
     }
 
     @Transactional
-    public EnrollmentDtos.AnonymizeResponse anonymizeByEmail(String email) {
-        var enrollments = enrollmentRepository.findByEmailIgnoreCase(email.trim());
+    public EnrollmentDtos.AnonymizeResponse anonymizeByQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return new EnrollmentDtos.AnonymizeResponse(0);
+        }
+        // Anonimizujemy dokładnie te wpisy, które admin widzi w wynikach wyszukiwania (ta sama fraza).
+        var enrollments = enrollmentRepository.searchByQuery(query.trim());
         enrollments.forEach(Enrollment::anonymize);
         enrollmentRepository.saveAll(enrollments);
         return new EnrollmentDtos.AnonymizeResponse(enrollments.size());

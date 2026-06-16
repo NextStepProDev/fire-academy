@@ -99,6 +99,28 @@ class AdminEnrollmentServiceTest {
     }
 
     @Test
+    void shouldAdminEnrollWithoutPhone() {
+        AdminEnrollRequest request = new AdminEnrollRequest(
+            eventId, "Anna", "Nowak", "anna@test.com", null, null
+        );
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(enrollmentRepository.save(any(Enrollment.class))).thenAnswer(inv -> {
+            Enrollment e = inv.getArgument(0);
+            setId(e, UUID.randomUUID());
+            return e;
+        });
+
+        EnrollmentResponse result = service.adminEnroll(request);
+
+        assertNull(result.phone());
+        // Mail do organizatora dostaje placeholder „—" zamiast null (brak NPE w szablonie).
+        verify(enrollmentMailService).sendAdminEnrollmentNotification(
+            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"),
+            eq("—"), any(), any(), any(), any());
+    }
+
+    @Test
     void shouldThrowWhenAdminEnrollEventNotFound() {
         AdminEnrollRequest request = new AdminEnrollRequest(
             eventId, "Anna", "Nowak", "anna@test.com", "987654321", null
@@ -113,7 +135,7 @@ class AdminEnrollmentServiceTest {
     void shouldDeleteEnrollmentAndSendNotifications() {
         when(enrollmentRepository.findById(enrollmentId)).thenReturn(Optional.of(enrollment));
 
-        service.delete(enrollmentId);
+        service.delete(enrollmentId, true);
 
         verify(enrollmentRepository).delete(enrollment);
         verify(enrollmentMailService).sendEnrollmentDeletionNotification(
@@ -123,37 +145,69 @@ class AdminEnrollmentServiceTest {
     }
 
     @Test
+    void shouldDeleteWithoutNotificationWhenNotifyFalse() {
+        when(enrollmentRepository.findById(enrollmentId)).thenReturn(Optional.of(enrollment));
+
+        service.delete(enrollmentId, false);
+
+        verify(enrollmentRepository).delete(enrollment);
+        // Korekta archiwum — żadnych maili.
+        verifyNoInteractions(enrollmentMailService);
+    }
+
+    @Test
     void shouldThrowWhenDeletingNonExistentEnrollment() {
         when(enrollmentRepository.findById(enrollmentId)).thenReturn(Optional.empty());
         when(msg.get("enrollment.not.found")).thenReturn("Nie znaleziono");
 
-        assertThrows(NotFoundException.class, () -> service.delete(enrollmentId));
+        assertThrows(NotFoundException.class, () -> service.delete(enrollmentId, true));
     }
 
     @Test
-    void shouldSearchByEmail() {
-        when(enrollmentRepository.findByEmailIgnoreCase("jan@test.com")).thenReturn(List.of(enrollment));
+    void shouldThrowWhenAdminEnrollDuplicate() {
+        AdminEnrollRequest request = new AdminEnrollRequest(
+            eventId, "Anna", "Nowak", "anna@test.com", "987654321", null
+        );
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@test.com")).thenReturn(true);
+        when(msg.get("enrollment.already.exists")).thenReturn("Już zapisana");
 
-        List<EnrollmentResponse> result = service.searchByEmail("jan@test.com");
+        assertThrows(IllegalStateException.class, () -> service.adminEnroll(request));
+        verify(enrollmentRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldSearchByQuery() {
+        when(enrollmentRepository.searchByQuery("Jan")).thenReturn(List.of(enrollment));
+
+        List<EnrollmentResponse> result = service.searchByQuery("Jan");
 
         assertEquals(1, result.size());
         assertEquals("Jan", result.getFirst().firstName());
     }
 
     @Test
-    void shouldTrimEmailOnSearch() {
-        when(enrollmentRepository.findByEmailIgnoreCase("jan@test.com")).thenReturn(List.of(enrollment));
+    void shouldTrimQueryOnSearch() {
+        when(enrollmentRepository.searchByQuery("jan@test.com")).thenReturn(List.of(enrollment));
 
-        service.searchByEmail("  jan@test.com  ");
+        service.searchByQuery("  jan@test.com  ");
 
-        verify(enrollmentRepository).findByEmailIgnoreCase("jan@test.com");
+        verify(enrollmentRepository).searchByQuery("jan@test.com");
     }
 
     @Test
-    void shouldAnonymizeByEmail() {
-        when(enrollmentRepository.findByEmailIgnoreCase("jan@test.com")).thenReturn(List.of(enrollment));
+    void shouldReturnEmptyWhenSearchQueryBlank() {
+        List<EnrollmentResponse> result = service.searchByQuery("   ");
 
-        AnonymizeResponse result = service.anonymizeByEmail("jan@test.com");
+        assertTrue(result.isEmpty());
+        verify(enrollmentRepository, never()).searchByQuery(any());
+    }
+
+    @Test
+    void shouldAnonymizeByQuery() {
+        when(enrollmentRepository.searchByQuery("jan@test.com")).thenReturn(List.of(enrollment));
+
+        AnonymizeResponse result = service.anonymizeByQuery("jan@test.com");
 
         assertEquals(1, result.anonymizedCount());
         assertTrue(enrollment.isAnonymized());
@@ -162,9 +216,9 @@ class AdminEnrollmentServiceTest {
 
     @Test
     void shouldReturnZeroWhenNoEnrollmentsToAnonymize() {
-        when(enrollmentRepository.findByEmailIgnoreCase("none@test.com")).thenReturn(List.of());
+        when(enrollmentRepository.searchByQuery("none@test.com")).thenReturn(List.of());
 
-        AnonymizeResponse result = service.anonymizeByEmail("none@test.com");
+        AnonymizeResponse result = service.anonymizeByQuery("none@test.com");
 
         assertEquals(0, result.anonymizedCount());
     }

@@ -8,12 +8,12 @@ import type { Enrollment } from '../../types'
 
 export function AdminRodo() {
   const { t } = useTranslation('admin')
-  const [email, setEmail] = useState('')
+  const [query, setQuery] = useState('')
   const [results, setResults] = useState<Enrollment[] | null>(null)
   const [anonymized, setAnonymized] = useState(false)
 
   const searchMutation = useMutation({
-    mutationFn: (email: string) => adminApi.searchEnrollmentsByEmail(email),
+    mutationFn: (query: string) => adminApi.searchEnrollments(query),
     onSuccess: (data) => {
       setResults(data)
       setAnonymized(false)
@@ -21,23 +21,23 @@ export function AdminRodo() {
   })
 
   const anonymizeMutation = useMutation({
-    mutationFn: (email: string) => adminApi.anonymizeByEmail(email),
+    mutationFn: (query: string) => adminApi.anonymizeEnrollments(query),
     onSuccess: () => {
       setAnonymized(true)
       setResults(null)
-      setEmail('')
+      setQuery('')
     },
   })
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) return
-    searchMutation.mutate(email.trim())
+    if (!query.trim()) return
+    searchMutation.mutate(query.trim())
   }
 
   const handleAnonymize = () => {
-    if (!email.trim() || !results?.length) return
-    anonymizeMutation.mutate(email.trim())
+    if (!query.trim() || !results?.length) return
+    anonymizeMutation.mutate(query.trim())
   }
 
   return (
@@ -54,10 +54,10 @@ export function AdminRodo() {
         <form onSubmit={handleSearch} className="flex gap-3">
           <div className="flex-1">
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={t('rodo.emailPlaceholder')}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={t('rodo.searchPlaceholder')}
               className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
@@ -101,7 +101,7 @@ export function AdminRodo() {
                         <td className="px-4 py-3 text-surface-100">{en.firstName}</td>
                         <td className="px-4 py-3 text-surface-100">{en.lastName}</td>
                         <td className="px-4 py-3 text-surface-300">{en.email}</td>
-                        <td className="px-4 py-3 text-surface-300">{en.phone}</td>
+                        <td className="px-4 py-3 text-surface-300">{en.phone ?? '—'}</td>
                         <td className="px-4 py-3 text-surface-300">{en.eventTypeName}</td>
                         <td className="px-4 py-3 text-surface-500">{en.eventStartDate}</td>
                       </tr>

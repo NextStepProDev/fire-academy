@@ -27,6 +27,20 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     List<Enrollment> findByEmailIgnoreCase(String email);
 
+    /**
+     * Wyszukiwanie RODO po dowolnej frazie — dopasowanie częściowe (LIKE), bez rozróżniania wielkości liter,
+     * po imieniu, nazwisku, pełnym imieniu i nazwisku ("imię nazwisko") oraz adresie e-mail.
+     */
+    @Query("""
+        SELECT e FROM Enrollment e
+        WHERE LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+           OR LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
+           OR LOWER(CONCAT(e.firstName, ' ', e.lastName)) LIKE LOWER(CONCAT('%', :query, '%'))
+           OR LOWER(e.email) LIKE LOWER(CONCAT('%', :query, '%'))
+        ORDER BY e.createdAt DESC
+        """)
+    List<Enrollment> searchByQuery(@Param("query") String query);
+
     @Modifying
     @Query("""
         DELETE FROM Enrollment e WHERE e.event.id IN (

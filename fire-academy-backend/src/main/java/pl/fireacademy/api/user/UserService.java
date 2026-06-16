@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
@@ -24,16 +25,18 @@ public class UserService {
     private final MessageService msg;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final FileStorageService fileStorageService;
+    private final AdminEmailConfig adminEmailConfig;
 
     public UserService(UserRepository userRepository, AuthTokenRepository authTokenRepository,
                        PasswordEncoder passwordEncoder, MessageService msg, JwtAuthenticationFilter jwtAuthenticationFilter,
-                       FileStorageService fileStorageService) {
+                       FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.msg = msg;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.fileStorageService = fileStorageService;
+        this.adminEmailConfig = adminEmailConfig;
     }
 
     public UserDtos.UserResponse getMe(UUID userId) {
@@ -133,6 +136,7 @@ public class UserService {
             user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
             user.getPhone(), user.getRole().name(),
             user.getRole() == pl.fireacademy.domain.user.UserRole.ADMIN,
+            adminEmailConfig.isAdminEmail(user.getEmail()),
             user.isEmailVerified(), user.isEmailNotificationsEnabled(),
             user.getPreferredLanguage(), user.getPasswordHash() != null,
             user.getOauthProvider() != null, avatarUrl, user.getCreatedAt()

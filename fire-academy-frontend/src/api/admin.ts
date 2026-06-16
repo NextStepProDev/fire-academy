@@ -1,6 +1,13 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
+
+interface SendUserEmailRequest {
+  subject: string
+  message: string
+  allUsers: boolean
+  userIds?: string[]
+}
 
 interface CreateInstructorRequest {
   firstName: string
@@ -59,7 +66,7 @@ interface AdminEnrollRequest {
   firstName: string
   lastName: string
   email: string
-  phone: string
+  phone?: string
   note?: string
 }
 
@@ -139,12 +146,33 @@ export const adminApi = {
     fetchApi<Enrollment[]>(`/admin/enrollments/by-category?category=${category}`),
   adminEnroll: (data: AdminEnrollRequest) =>
     fetchApi<Enrollment>('/admin/enrollments', { method: 'POST', body: JSON.stringify(data) }),
-  deleteEnrollment: (id: string) =>
-    fetchApi<void>(`/admin/enrollments/${id}`, { method: 'DELETE' }),
-  searchEnrollmentsByEmail: (email: string) =>
-    fetchApi<Enrollment[]>(`/admin/enrollments/search?email=${encodeURIComponent(email)}`),
-  anonymizeByEmail: (email: string) =>
-    fetchApi<{ anonymizedCount: number }>(`/admin/enrollments/anonymize?email=${encodeURIComponent(email)}`, { method: 'POST' }),
+  deleteEnrollment: (id: string, notify = true) =>
+    fetchApi<void>(`/admin/enrollments/${id}?notify=${notify}`, { method: 'DELETE' }),
+  searchEnrollments: (query: string) =>
+    fetchApi<Enrollment[]>(`/admin/enrollments/search?query=${encodeURIComponent(query)}`),
+  anonymizeEnrollments: (query: string) =>
+    fetchApi<{ anonymizedCount: number }>(`/admin/enrollments/anonymize?query=${encodeURIComponent(query)}`, { method: 'POST' }),
   sendBulkEmail: (data: { eventId: string; message: string }) =>
     fetchApi<{ recipientCount: number }>('/admin/enrollments/bulk-email', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Users
+  getUser: (id: string) =>
+    fetchApi<AdminUserDetail>(`/admin/users/${id}`),
+  getUsers: (params: { search?: string; page?: number; size?: number; sort?: string; direction?: 'asc' | 'desc' } = {}) => {
+    const query = new URLSearchParams()
+    if (params.search) query.set('search', params.search)
+    query.set('page', String(params.page ?? 0))
+    query.set('size', String(params.size ?? 30))
+    query.set('sort', params.sort ?? 'created')
+    query.set('direction', params.direction ?? 'desc')
+    return fetchApi<PagedUsers>(`/admin/users?${query.toString()}`)
+  },
+  sendUserEmail: (data: SendUserEmailRequest) =>
+    fetchApi<{ recipientCount: number }>('/admin/users/email', { method: 'POST', body: JSON.stringify(data) }),
+  deleteUser: (id: string) =>
+    fetchApi<{ freedEnrollments: number; anonymizedEnrollments: number }>(`/admin/users/${id}`, { method: 'DELETE' }),
+  promoteUser: (id: string) =>
+    fetchApi<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
+  demoteUser: (id: string) =>
+    fetchApi<AdminUser>(`/admin/users/${id}/demote`, { method: 'POST' }),
 }

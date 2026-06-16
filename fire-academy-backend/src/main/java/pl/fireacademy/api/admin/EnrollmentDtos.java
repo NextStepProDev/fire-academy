@@ -23,7 +23,7 @@ public final class EnrollmentDtos {
             String firstName,
             String lastName,
             String email,
-            String phone,
+            @Nullable String phone,
             @Nullable String note,
             boolean addedByAdmin,
             Instant createdAt
@@ -34,7 +34,7 @@ public final class EnrollmentDtos {
             @NotBlank @Size(min = 3, max = 36, message = "{validation.firstname.size}") String firstName,
             @NotBlank @Size(min = 3, max = 36, message = "{validation.lastname.size}") String lastName,
             @Email @NotBlank String email,
-            @NotBlank @Pattern(regexp = "^(\\d{9}|\\+\\d{1,4}\\d{9})$", message = "{validation.phone.format}") String phone,
+            @Nullable @Pattern(regexp = "^(\\d{9}|\\+\\d{1,4}\\d{9})$", message = "{validation.phone.format}") String phone,
             @Nullable @Size(max = 2000, message = "{validation.note.size}") String note
     ) {}
 

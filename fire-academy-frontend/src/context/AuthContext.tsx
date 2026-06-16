@@ -12,6 +12,7 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   isAdmin: boolean
+  isSuperAdmin: boolean
   login: (email: string, password: string) => Promise<User>
   loginWithTokens: (tokens: AuthTokens) => Promise<void>
   logout: () => void
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     isAuthenticated: !!user,
     isAdmin: user?.isAdmin ?? false,
+    isSuperAdmin: user?.superAdmin ?? false,
     login,
     loginWithTokens,
     logout,

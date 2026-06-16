@@ -10,6 +10,7 @@ public final class UserDtos {
 
     public record UserResponse(UUID id, String email, String firstName, String lastName,
                                 @Nullable String phone, String role, boolean isAdmin,
+                                boolean superAdmin,
                                 boolean emailVerified, boolean emailNotificationsEnabled,
                                 String preferredLanguage, boolean hasPassword,
                                 boolean oauthLinked, @Nullable String avatarUrl, Instant createdAt) {}

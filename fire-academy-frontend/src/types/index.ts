@@ -6,11 +6,70 @@ export interface User {
   phone: string
   role: 'USER' | 'ADMIN'
   isAdmin: boolean
+  superAdmin: boolean
   emailNotificationsEnabled: boolean
   preferredLanguage: string
   hasPassword: boolean
   avatarUrl: string | null
   createdAt: string
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string | null
+  role: 'USER' | 'ADMIN'
+  isAdmin: boolean
+  superAdmin: boolean
+  emailVerified: boolean
+  emailNotificationsEnabled: boolean
+  createdAt: string
+}
+
+export interface PagedUsers {
+  content: AdminUser[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface UserEnrollment {
+  id: string
+  eventId: string
+  eventName: string
+  category: EventCategory
+  startDate: string
+  endDate: string | null
+  startTime: string | null
+  endTime: string | null
+  location: string | null
+  note: string | null
+  addedByAdmin: boolean
+  past: boolean
+  createdAt: string
+}
+
+export interface AdminUserDetail {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  phone: string | null
+  role: 'USER' | 'ADMIN'
+  isAdmin: boolean
+  superAdmin: boolean
+  emailVerified: boolean
+  emailNotificationsEnabled: boolean
+  preferredLanguage: string
+  hasPassword: boolean
+  oauthLinked: boolean
+  avatarUrl: string | null
+  createdAt: string
+  currentEnrollments: UserEnrollment[]
+  pastEnrollments: UserEnrollment[]
 }
 
 export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'
@@ -71,7 +130,7 @@ export interface Enrollment {
   firstName: string
   lastName: string
   email: string
-  phone: string
+  phone: string | null
   note: string | null
   addedByAdmin: boolean
   createdAt: string

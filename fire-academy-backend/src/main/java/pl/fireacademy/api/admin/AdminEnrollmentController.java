@@ -37,19 +37,20 @@ public class AdminEnrollmentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id,
+                                       @RequestParam(defaultValue = "true") boolean notify) {
+        service.delete(id, notify);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/search")
-    public List<EnrollmentResponse> searchByEmail(@RequestParam String email) {
-        return service.searchByEmail(email);
+    public List<EnrollmentResponse> search(@RequestParam String query) {
+        return service.searchByQuery(query);
     }
 
     @PostMapping("/anonymize")
-    public AnonymizeResponse anonymizeByEmail(@RequestParam String email) {
-        return service.anonymizeByEmail(email);
+    public AnonymizeResponse anonymize(@RequestParam String query) {
+        return service.anonymizeByQuery(query);
     }
 
     @PostMapping("/bulk-email")
