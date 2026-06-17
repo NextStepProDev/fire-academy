@@ -13,8 +13,15 @@
   "reservations": {
     "title": "Moje rezerwacje",
     "empty": "Nie masz jeszcze żadnych rezerwacji.",
-    "emptyHint": "Wkrótce będziesz mógł zapisywać się na treningi i grupy bezpośrednio tutaj.",
-    "browse": "Przeglądaj treningi"
+    "emptyHint": "Zapisz się na obóz lub szkolenie, a Twoje rezerwacje pojawią się tutaj.",
+    "browse": "Przeglądaj wydarzenia",
+    "current": "Aktualne",
+    "past": "Archiwum",
+    "cancel": "Anuluj rezerwację",
+    "cancelConfirm": "Czy na pewno chcesz anulować tę rezerwację?",
+    "cancelError": "Nie udało się anulować rezerwacji.",
+    "loadError": "Nie udało się wczytać rezerwacji.",
+    "noteLabel": "Twoja informacja dla organizatora:"
   },
   "banner": {
     "loggedIn": "Witaj ponownie, {{name}}! Sprawdź swoje rezerwacje.",

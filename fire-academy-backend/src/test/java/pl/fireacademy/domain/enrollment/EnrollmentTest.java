@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.event.EventCategory;
+import pl.fireacademy.domain.user.User;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -39,6 +40,23 @@ class EnrollmentTest {
         assertEquals("000000000", enrollment.getPhone());
         assertNull(enrollment.getNote());
         assertTrue(enrollment.isAnonymized());
+    }
+
+    @Test
+    void shouldCopySnapshotFromUserAndDetachOnAnonymize() {
+        Event event = new Event(EventCategory.CAMP, "Obóz", LocalDate.now().plusDays(7));
+        User user = new User("anna@test.com", "Anna", "Nowak", "500100200");
+        Enrollment e = Enrollment.forUser(event, user, "notka", false);
+
+        assertSame(user, e.getUser());
+        assertEquals("Anna", e.getFirstName());
+        assertEquals("anna@test.com", e.getEmail());
+        assertEquals("500100200", e.getPhone());
+
+        e.anonymize();
+
+        assertNull(e.getUser());
+        assertTrue(e.isAnonymized());
     }
 
     @Test

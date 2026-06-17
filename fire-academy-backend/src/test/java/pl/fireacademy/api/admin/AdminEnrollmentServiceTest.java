@@ -13,6 +13,7 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventRepository;
+import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
@@ -42,6 +43,8 @@ class AdminEnrollmentServiceTest {
     private UUID eventId;
     private Enrollment enrollment;
     private UUID enrollmentId;
+    private User user;
+    private UUID userId;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -49,6 +52,10 @@ class AdminEnrollmentServiceTest {
         event = new Event(EventCategory.TRAINING, "Trening personalny", LocalDate.now().plusDays(7));
         setId(event, eventId);
         event.setLocation("Kraków");
+
+        userId = UUID.randomUUID();
+        user = new User("anna@test.com", "Anna", "Nowak", "987654321");
+        setId(user, userId);
 
         enrollmentId = UUID.randomUUID();
         enrollment = new Enrollment(event, "Jan", "Kowalski", "jan@test.com", "123456789", "Notatka", false);
@@ -77,11 +84,10 @@ class AdminEnrollmentServiceTest {
 
     @Test
     void shouldAdminEnroll() {
-        AdminEnrollRequest request = new AdminEnrollRequest(
-            eventId, "Anna", "Nowak", "anna@test.com", "987654321", "Admin note"
-        );
+        AdminEnrollRequest request = new AdminEnrollRequest(eventId, userId, "Admin note");
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(enrollmentRepository.save(any(Enrollment.class))).thenAnswer(inv -> {
             Enrollment e = inv.getArgument(0);
             setId(e, UUID.randomUUID());
@@ -95,16 +101,17 @@ class AdminEnrollmentServiceTest {
             eq("anna@test.com"), eq("Anna"), eq("Trening personalny"), any(), eq("Kraków"), any(), any());
         verify(enrollmentMailService).sendAdminEnrollmentNotification(
             eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"),
-            any(), any(), any(), any(), any());
+            eq("987654321"), any(), any(), any(), any());
     }
 
     @Test
-    void shouldAdminEnrollWithoutPhone() {
-        AdminEnrollRequest request = new AdminEnrollRequest(
-            eventId, "Anna", "Nowak", "anna@test.com", null, null
-        );
+    void shouldAdminEnrollUserWithoutPhone() throws Exception {
+        User noPhone = new User("anna@test.com", "Anna", "Nowak", null);
+        setId(noPhone, userId);
+        AdminEnrollRequest request = new AdminEnrollRequest(eventId, userId, null);
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(noPhone));
         when(enrollmentRepository.save(any(Enrollment.class))).thenAnswer(inv -> {
             Enrollment e = inv.getArgument(0);
             setId(e, UUID.randomUUID());
@@ -122,9 +129,7 @@ class AdminEnrollmentServiceTest {
 
     @Test
     void shouldThrowWhenAdminEnrollEventNotFound() {
-        AdminEnrollRequest request = new AdminEnrollRequest(
-            eventId, "Anna", "Nowak", "anna@test.com", "987654321", null
-        );
+        AdminEnrollRequest request = new AdminEnrollRequest(eventId, userId, null);
         when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
         when(msg.get("event.not.found")).thenReturn("Nie znaleziono");
 
@@ -165,62 +170,14 @@ class AdminEnrollmentServiceTest {
 
     @Test
     void shouldThrowWhenAdminEnrollDuplicate() {
-        AdminEnrollRequest request = new AdminEnrollRequest(
-            eventId, "Anna", "Nowak", "anna@test.com", "987654321", null
-        );
+        AdminEnrollRequest request = new AdminEnrollRequest(eventId, userId, null);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@test.com")).thenReturn(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(enrollmentRepository.existsByEventIdAndUserId(eventId, userId)).thenReturn(true);
         when(msg.get("enrollment.already.exists")).thenReturn("Już zapisana");
 
         assertThrows(IllegalStateException.class, () -> service.adminEnroll(request));
         verify(enrollmentRepository, never()).save(any());
-    }
-
-    @Test
-    void shouldSearchByQuery() {
-        when(enrollmentRepository.searchByQuery("Jan")).thenReturn(List.of(enrollment));
-
-        List<EnrollmentResponse> result = service.searchByQuery("Jan");
-
-        assertEquals(1, result.size());
-        assertEquals("Jan", result.getFirst().firstName());
-    }
-
-    @Test
-    void shouldTrimQueryOnSearch() {
-        when(enrollmentRepository.searchByQuery("jan@test.com")).thenReturn(List.of(enrollment));
-
-        service.searchByQuery("  jan@test.com  ");
-
-        verify(enrollmentRepository).searchByQuery("jan@test.com");
-    }
-
-    @Test
-    void shouldReturnEmptyWhenSearchQueryBlank() {
-        List<EnrollmentResponse> result = service.searchByQuery("   ");
-
-        assertTrue(result.isEmpty());
-        verify(enrollmentRepository, never()).searchByQuery(any());
-    }
-
-    @Test
-    void shouldAnonymizeByQuery() {
-        when(enrollmentRepository.searchByQuery("jan@test.com")).thenReturn(List.of(enrollment));
-
-        AnonymizeResponse result = service.anonymizeByQuery("jan@test.com");
-
-        assertEquals(1, result.anonymizedCount());
-        assertTrue(enrollment.isAnonymized());
-        verify(enrollmentRepository).saveAll(List.of(enrollment));
-    }
-
-    @Test
-    void shouldReturnZeroWhenNoEnrollmentsToAnonymize() {
-        when(enrollmentRepository.searchByQuery("none@test.com")).thenReturn(List.of());
-
-        AnonymizeResponse result = service.anonymizeByQuery("none@test.com");
-
-        assertEquals(0, result.anonymizedCount());
     }
 
     private static void setId(Object entity, UUID id) throws Exception {

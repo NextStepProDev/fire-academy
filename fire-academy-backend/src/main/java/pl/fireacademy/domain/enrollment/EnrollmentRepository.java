@@ -9,6 +9,7 @@ import pl.fireacademy.domain.event.EventCategory;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
@@ -23,23 +24,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
     @Query("SELECT e FROM Enrollment e JOIN e.event ev WHERE ev.category = :category ORDER BY e.createdAt DESC")
     List<Enrollment> findByEventCategory(EventCategory category);
 
-    boolean existsByEventIdAndEmail(UUID eventId, String email);
+    boolean existsByEventIdAndUserId(UUID eventId, UUID userId);
 
-    List<Enrollment> findByEmailIgnoreCase(String email);
+    List<Enrollment> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    /**
-     * Wyszukiwanie RODO po dowolnej frazie — dopasowanie częściowe (LIKE), bez rozróżniania wielkości liter,
-     * po imieniu, nazwisku, pełnym imieniu i nazwisku ("imię nazwisko") oraz adresie e-mail.
-     */
-    @Query("""
-        SELECT e FROM Enrollment e
-        WHERE LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
-           OR LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
-           OR LOWER(CONCAT(e.firstName, ' ', e.lastName)) LIKE LOWER(CONCAT('%', :query, '%'))
-           OR LOWER(e.email) LIKE LOWER(CONCAT('%', :query, '%'))
-        ORDER BY e.createdAt DESC
-        """)
-    List<Enrollment> searchByQuery(@Param("query") String query);
+    Optional<Enrollment> findByIdAndUserId(UUID id, UUID userId);
 
     @Modifying
     @Query("""

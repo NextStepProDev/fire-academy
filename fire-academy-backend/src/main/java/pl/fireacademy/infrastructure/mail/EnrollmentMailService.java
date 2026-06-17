@@ -301,6 +301,43 @@ public class EnrollmentMailService {
         }
     }
 
+    /**
+     * Jeden zbiorczy mail do organizatorów: uczestnik usunął konto i zwolnił miejsca na przyszłych wydarzeniach.
+     * Wysyłany tylko przy samodzielnym usunięciu konta (przy usunięciu z panelu admin sam zna wynik).
+     * {@code eventLines} to gotowe wiersze „nazwa — termin" (budowane w warstwie aplikacji, w transakcji).
+     */
+    @Async("mailExecutor")
+    public void sendAccountDeletionSeatsFreedNotification(String participantName, String participantEmail,
+                                                          List<String> eventLines) {
+        if (eventLines.isEmpty()) {
+            return;
+        }
+        String subject = msg.get("email.account.deleted.seats.subject");
+        String listHtml = eventLines.stream()
+                .map(line -> "<p style=\"font-size: 15px; line-height: 1.6; margin: 4px 0;\">• %s</p>"
+                        .formatted(HtmlUtils.htmlEscape(line)))
+                .reduce("", String::concat);
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="background-color: #3d3a37; border-left: 4px solid #f97316; border-radius: 8px; padding: 14px 18px; margin: 16px 0;">
+                            %s
+                        </div>
+            """.formatted(
+                subject,
+                msg.get("email.account.deleted.seats.body",
+                        HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
+                listHtml
+        );
+
+        // Branding neutralny (Fire Academy) — lista może obejmować różne kategorie.
+        String body = brandedTemplate(content, EventCategory.TRAINING);
+        for (String adminEmail : adminEmailConfig.getAdminEmails()) {
+            sendEmail(adminEmail, subject, body);
+        }
+    }
+
     @Async("mailExecutor")
     public void sendBulkEventMessage(String recipientEmail, String firstName,
                                       String eventName, String schedule,

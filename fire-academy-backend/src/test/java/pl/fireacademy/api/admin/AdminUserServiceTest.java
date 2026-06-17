@@ -44,6 +44,7 @@ class AdminUserServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private AuthTokenRepository authTokenRepository;
     @Mock private EnrollmentRepository enrollmentRepository;
+    @Mock private pl.fireacademy.domain.enrollment.EnrollmentErasureService enrollmentErasureService;
     @Mock private AdminEmailConfig adminEmailConfig;
     @Mock private AdminUserMailService adminUserMailService;
     @Mock private FileStorageService fileStorageService;
@@ -157,7 +158,7 @@ class AdminUserServiceTest {
         Event pastEv = new Event(EventCategory.CAMP, "Miniony", LocalDate.now().minusDays(10));
         Enrollment f = new Enrollment(future, "Jan", "Kowalski", "jan@test.com", "123456789", null, false);
         Enrollment p = new Enrollment(pastEv, "Jan", "Kowalski", "jan@test.com", "123456789", null, false);
-        when(enrollmentRepository.findByEmailIgnoreCase("jan@test.com")).thenReturn(List.of(f, p));
+        when(enrollmentRepository.findByUserIdOrderByCreatedAtDesc(regularId)).thenReturn(List.of(f, p));
 
         AdminUserDetailResponse detail = service.getDetail(regularId);
 
@@ -213,36 +214,55 @@ class AdminUserServiceTest {
     // --- delete ---
 
     @Test
-    void shouldDeleteUserFreeingFutureAndAnonymizingPastEnrollments() {
+    void shouldDeleteUserDelegatingEnrollmentErasure() {
         UUID adminId = UUID.randomUUID();
         regular.setAvatarFilename("avatar.jpg");
 
-        Event futureEvent = new Event(EventCategory.TRAINING, "Nadchodzący", LocalDate.now().plusDays(5));
-        Event pastEvent = new Event(EventCategory.CAMP, "Archiwalny", LocalDate.now().minusDays(30));
-        Enrollment future = new Enrollment(futureEvent, "Jan", "Kowalski", "jan@test.com", "123456789", null, false);
-        Enrollment past = new Enrollment(pastEvent, "Jan", "Kowalski", "jan@test.com", "123456789", null, false);
-
         when(userRepository.findById(regularId)).thenReturn(Optional.of(regular));
-        when(enrollmentRepository.findByEmailIgnoreCase("jan@test.com")).thenReturn(List.of(future, past));
+        when(enrollmentErasureService.eraseForUser(regularId))
+                .thenReturn(new pl.fireacademy.domain.enrollment.EnrollmentErasureService.ErasureResult(1, 1, java.util.List.of()));
 
-        DeleteUserResponse result = service.delete(adminId, regularId);
+        DeleteUserResponse result = service.delete(adminId, regularId, true);
 
         assertEquals(1, result.freedEnrollments());
         assertEquals(1, result.anonymizedEnrollments());
-        verify(enrollmentRepository).deleteAll(List.of(future));
-        assertTrue(past.isAnonymized());
-        verify(enrollmentRepository).saveAll(List.of(past));
+        // Erasure musi pójść PRZED usunięciem konta (po delete FK wyzeruje user_id).
+        var order = inOrder(enrollmentErasureService, userRepository);
+        order.verify(enrollmentErasureService).eraseForUser(regularId);
+        order.verify(userRepository).delete(regular);
         verify(fileStorageService).delete("avatars", "avatar.jpg");
         verify(authTokenRepository).deleteAllByUserId(regularId);
-        verify(userRepository).delete(regular);
         verify(jwtAuthenticationFilter).evictUser(regularId);
+    }
+
+    @Test
+    void shouldNotifyUserWhenDeletingWithNotify() {
+        when(userRepository.findById(regularId)).thenReturn(Optional.of(regular));
+        when(enrollmentErasureService.eraseForUser(regularId))
+                .thenReturn(new pl.fireacademy.domain.enrollment.EnrollmentErasureService.ErasureResult(0, 0, java.util.List.of()));
+
+        service.delete(UUID.randomUUID(), regularId, true);
+
+        verify(adminUserMailService).sendAccountDeletedNotification(
+                eq(regular.getEmail()), eq(regular.getFirstName()), anyList());
+    }
+
+    @Test
+    void shouldNotNotifyUserWhenNotifyFalse() {
+        when(userRepository.findById(regularId)).thenReturn(Optional.of(regular));
+        when(enrollmentErasureService.eraseForUser(regularId))
+                .thenReturn(new pl.fireacademy.domain.enrollment.EnrollmentErasureService.ErasureResult(0, 0, java.util.List.of()));
+
+        service.delete(UUID.randomUUID(), regularId, false);
+
+        verify(adminUserMailService, never()).sendAccountDeletedNotification(any(), any(), any());
     }
 
     @Test
     void shouldThrowWhenDeletingSelf() {
         when(userRepository.findById(regularId)).thenReturn(Optional.of(regular));
 
-        assertThrows(IllegalStateException.class, () -> service.delete(regularId, regularId));
+        assertThrows(IllegalStateException.class, () -> service.delete(regularId, regularId, true));
         verify(userRepository, never()).delete(any());
     }
 
@@ -252,7 +272,7 @@ class AdminUserServiceTest {
         when(adminEmailConfig.isAdminEmail("admin@fireacademy.test")).thenReturn(true);
         when(userRepository.findById(superAdmin.getId())).thenReturn(Optional.of(superAdmin));
 
-        assertThrows(IllegalStateException.class, () -> service.delete(UUID.randomUUID(), superAdmin.getId()));
+        assertThrows(IllegalStateException.class, () -> service.delete(UUID.randomUUID(), superAdmin.getId(), true));
         verify(userRepository, never()).delete(any());
     }
 
@@ -261,7 +281,7 @@ class AdminUserServiceTest {
         UUID missing = UUID.randomUUID();
         when(userRepository.findById(missing)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> service.delete(UUID.randomUUID(), missing));
+        assertThrows(NotFoundException.class, () -> service.delete(UUID.randomUUID(), missing, true));
     }
 
     // --- promote ---

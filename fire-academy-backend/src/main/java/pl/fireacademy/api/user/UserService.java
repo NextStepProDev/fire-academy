@@ -1,18 +1,24 @@
 package pl.fireacademy.api.user;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.config.AdminEmailConfig;
+import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -21,6 +27,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final AuthTokenRepository authTokenRepository;
+    private final EnrollmentErasureService enrollmentErasureService;
+    private final EnrollmentMailService enrollmentMailService;
     private final PasswordEncoder passwordEncoder;
     private final MessageService msg;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -28,10 +36,13 @@ public class UserService {
     private final AdminEmailConfig adminEmailConfig;
 
     public UserService(UserRepository userRepository, AuthTokenRepository authTokenRepository,
+                       EnrollmentErasureService enrollmentErasureService, EnrollmentMailService enrollmentMailService,
                        PasswordEncoder passwordEncoder, MessageService msg, JwtAuthenticationFilter jwtAuthenticationFilter,
                        FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
+        this.enrollmentErasureService = enrollmentErasureService;
+        this.enrollmentMailService = enrollmentMailService;
         this.passwordEncoder = passwordEncoder;
         this.msg = msg;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -72,6 +83,10 @@ public class UserService {
         jwtAuthenticationFilter.evictUser(userId);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
     @Transactional
     public void deleteMe(UUID userId, UserDtos.DeleteAccountRequest request) {
         User user = userRepository.findById(userId)
@@ -81,6 +96,20 @@ public class UserService {
                 throw new IllegalArgumentException(msg.get("user.password.invalid"));
             }
         }
+        // RODO: przyszłe zapisy zwalniamy, przeszłe anonimizujemy — PRZED skasowaniem konta
+        // (po delete FK wyzeruje user_id i zapisów nie da się odnaleźć). Wspólna logika z panelem admina.
+        var erasure = enrollmentErasureService.eraseForUser(userId);
+
+        // Samodzielna rezygnacja przez usunięcie konta — organizator nie wie inaczej, że zwolniły się
+        // miejsca na przyszłych wydarzeniach. Jeden zbiorczy mail (przy usuwaniu z panelu admin sam zna wynik).
+        if (!erasure.freedEvents().isEmpty()) {
+            List<String> eventLines = erasure.freedEvents().stream()
+                    .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
+                    .toList();
+            enrollmentMailService.sendAccountDeletionSeatsFreedNotification(
+                    user.getFullName(), user.getEmail(), eventLines);
+        }
+
         if (user.getAvatarFilename() != null) {
             fileStorageService.delete(AVATAR_FOLDER, user.getAvatarFilename());
         }

@@ -38,7 +38,6 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const [toDelete, setToDelete] = useState<UserEnrollment | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState('')
-  const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
 
   const userQuery = useQuery({
@@ -73,17 +72,12 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   })
 
   const addMutation = useMutation({
-    mutationFn: () => {
-      const u = userQuery.data!
-      return adminApi.adminEnroll({
+    mutationFn: () =>
+      adminApi.adminEnroll({
         eventId: selectedEventId,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        email: u.email,
-        phone: phone.trim() || undefined,
+        userId,
         note: note.trim() || undefined,
-      })
-    },
+      }),
     onSuccess: () => {
       showToast(t('users.detail.addEnrollmentSuccess'))
       setAddOpen(false)
@@ -107,7 +101,6 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const user = userQuery.data
 
   const openAdd = () => {
-    setPhone(user.phone ?? '')
     setNote('')
     setSelectedEventId('')
     setAddOpen(true)
@@ -218,16 +211,6 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
             {addOpen && eventOptions.length === 0 && !trainingsQuery.isFetching && (
               <p className="text-xs text-surface-500 mt-1">{t('users.detail.noUpcomingEvents')}</p>
             )}
-          </div>
-          <div>
-            <label className="block text-sm text-surface-300 mb-1">{t('users.detail.phoneOptional')}</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            <p className="text-xs text-surface-500 mt-1">{t('users.detail.phoneHint')}</p>
           </div>
           <div>
             <label className="block text-sm text-surface-300 mb-1">{t('users.detail.note')}</label>

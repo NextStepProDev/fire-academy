@@ -43,16 +43,6 @@ public class AdminEnrollmentController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/search")
-    public List<EnrollmentResponse> search(@RequestParam String query) {
-        return service.searchByQuery(query);
-    }
-
-    @PostMapping("/anonymize")
-    public AnonymizeResponse anonymize(@RequestParam String query) {
-        return service.anonymizeByQuery(query);
-    }
-
     @PostMapping("/bulk-email")
     public BulkEmailResponse sendBulkEmail(@CurrentUserId UUID adminId, @Valid @RequestBody BulkEmailRequest request) {
         return service.sendBulkEmail(adminId, request);

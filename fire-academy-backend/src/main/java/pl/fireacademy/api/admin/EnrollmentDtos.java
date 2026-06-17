@@ -1,9 +1,7 @@
 package pl.fireacademy.api.admin;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 
@@ -29,16 +27,12 @@ public final class EnrollmentDtos {
             Instant createdAt
     ) {}
 
+    // Admin dopisuje wyłącznie istniejące konto (wybór użytkownika) — dane osobowe biorą się z konta.
     public record AdminEnrollRequest(
-            @NotNull UUID eventId,
-            @NotBlank @Size(min = 3, max = 36, message = "{validation.firstname.size}") String firstName,
-            @NotBlank @Size(min = 3, max = 36, message = "{validation.lastname.size}") String lastName,
-            @Email @NotBlank String email,
-            @Nullable @Pattern(regexp = "^(\\d{9}|\\+\\d{1,4}\\d{9})$", message = "{validation.phone.format}") String phone,
+            @NotNull(message = "{validation.event.required}") UUID eventId,
+            @NotNull(message = "{validation.user.required}") UUID userId,
             @Nullable @Size(max = 2000, message = "{validation.note.size}") String note
     ) {}
-
-    public record AnonymizeResponse(int anonymizedCount) {}
 
     public record BulkEmailRequest(
             @NotNull UUID eventId,

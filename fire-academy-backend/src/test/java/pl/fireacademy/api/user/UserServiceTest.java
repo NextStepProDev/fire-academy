@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +29,8 @@ class UserServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private AuthTokenRepository authTokenRepository;
+    @Mock private pl.fireacademy.domain.enrollment.EnrollmentErasureService enrollmentErasureService;
+    @Mock private pl.fireacademy.infrastructure.mail.EnrollmentMailService enrollmentMailService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private MessageService msg;
     @Mock private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -119,10 +122,16 @@ class UserServiceTest {
             () -> service.changePassword(userId, new ChangePasswordRequest("wrong", "new12345")));
     }
 
+    private static pl.fireacademy.domain.enrollment.EnrollmentErasureService.ErasureResult erasure(
+            int freed, int anonymized, java.util.List<pl.fireacademy.domain.event.Event> freedEvents) {
+        return new pl.fireacademy.domain.enrollment.EnrollmentErasureService.ErasureResult(freed, anonymized, freedEvents);
+    }
+
     @Test
     void shouldDeleteAccountWithPasswordVerification() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(enrollmentErasureService.eraseForUser(userId)).thenReturn(erasure(0, 0, java.util.List.of()));
 
         service.deleteMe(userId, new DeleteAccountRequest("Password123"));
 
@@ -131,14 +140,47 @@ class UserServiceTest {
     }
 
     @Test
+    void shouldAnonymizeEnrollmentsBeforeDeletingAccount() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(enrollmentErasureService.eraseForUser(userId)).thenReturn(erasure(0, 0, java.util.List.of()));
+
+        service.deleteMe(userId, new DeleteAccountRequest("Password123"));
+
+        // RODO: kasowanie zapisów (przyszłe usuń, przeszłe anonimizuj) MUSI pójść przed delete konta —
+        // po skasowaniu usera FK wyzeruje user_id i zapisów nie da się odnaleźć.
+        var order = inOrder(enrollmentErasureService, userRepository);
+        order.verify(enrollmentErasureService).eraseForUser(userId);
+        order.verify(userRepository).deleteById(userId);
+    }
+
+    @Test
     void shouldDeleteOAuthAccountWithoutPassword() {
         user.setPasswordHash(null);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(enrollmentErasureService.eraseForUser(userId)).thenReturn(erasure(0, 0, java.util.List.of()));
 
         service.deleteMe(userId, new DeleteAccountRequest(null));
 
         verify(authTokenRepository).deleteAllByUserId(userId);
         verify(userRepository).deleteById(userId);
+        // Brak przyszłych miejsc → żadnego maila do organizatora.
+        verifyNoInteractions(enrollmentMailService);
+    }
+
+    @Test
+    void shouldNotifyOrganizerWhenSelfDeleteFreesFutureSeats() {
+        var event = new pl.fireacademy.domain.event.Event(
+                pl.fireacademy.domain.event.EventCategory.CAMP, "Obóz letni", java.time.LocalDate.now().plusDays(7));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
+        when(enrollmentErasureService.eraseForUser(userId)).thenReturn(erasure(1, 0, java.util.List.of(event)));
+
+        service.deleteMe(userId, new DeleteAccountRequest("Password123"));
+
+        verify(enrollmentMailService).sendAccountDeletionSeatsFreedNotification(
+                eq(user.getFullName()), eq(user.getEmail()),
+                argThat(lines -> lines.size() == 1 && lines.getFirst().startsWith("Obóz letni")));
     }
 
     @Test

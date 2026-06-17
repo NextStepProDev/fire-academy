@@ -14,6 +14,7 @@ import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
 import pl.fireacademy.domain.enrollment.Enrollment;
+import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.user.User;
@@ -21,6 +22,7 @@ import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.domain.user.UserRole;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.AdminUserMailService;
+import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
@@ -40,6 +42,7 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final AuthTokenRepository authTokenRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentErasureService enrollmentErasureService;
     private final AdminEmailConfig adminEmailConfig;
     private final AdminUserMailService adminUserMailService;
     private final FileStorageService fileStorageService;
@@ -49,6 +52,7 @@ public class AdminUserService {
     public AdminUserService(UserRepository userRepository,
                             AuthTokenRepository authTokenRepository,
                             EnrollmentRepository enrollmentRepository,
+                            EnrollmentErasureService enrollmentErasureService,
                             AdminEmailConfig adminEmailConfig,
                             AdminUserMailService adminUserMailService,
                             FileStorageService fileStorageService,
@@ -57,6 +61,7 @@ public class AdminUserService {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.enrollmentErasureService = enrollmentErasureService;
         this.adminEmailConfig = adminEmailConfig;
         this.adminUserMailService = adminUserMailService;
         this.fileStorageService = fileStorageService;
@@ -100,7 +105,7 @@ public class AdminUserService {
         LocalDate today = LocalDate.now();
         List<UserEnrollmentResponse> current = new ArrayList<>();
         List<UserEnrollmentResponse> past = new ArrayList<>();
-        for (Enrollment e : enrollmentRepository.findByEmailIgnoreCase(user.getEmail())) {
+        for (Enrollment e : enrollmentRepository.findByUserIdOrderByCreatedAtDesc(user.getId())) {
             Event event = e.getEvent();
             LocalDate effectiveEnd = event.getEndDate() != null ? event.getEndDate() : event.getStartDate();
             boolean isPast = effectiveEnd.isBefore(today);
@@ -157,7 +162,7 @@ public class AdminUserService {
             @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
     })
     @Transactional
-    public DeleteUserResponse delete(UUID adminId, UUID targetId) {
+    public DeleteUserResponse delete(UUID adminId, UUID targetId, boolean notify) {
         User target = userRepository.findById(targetId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
@@ -168,27 +173,18 @@ public class AdminUserService {
             throw new IllegalStateException(msg.get("error.user.cannot.delete.superadmin"));
         }
 
-        // Zapisy są powiązane mailem (nie kluczem obcym). Przyszłe zwalniamy (miejsce wraca do puli),
-        // przeszłe anonimizujemy (archiwum zostaje bez danych osobowych).
-        LocalDate today = LocalDate.now();
-        List<Enrollment> enrollments = enrollmentRepository.findByEmailIgnoreCase(target.getEmail());
-        List<Enrollment> future = new ArrayList<>();
-        List<Enrollment> past = new ArrayList<>();
-        for (Enrollment enrollment : enrollments) {
-            Event event = enrollment.getEvent();
-            LocalDate eventEnd = event.getEndDate() != null ? event.getEndDate() : event.getStartDate();
-            if (!eventEnd.isBefore(today)) {
-                future.add(enrollment);
-            } else {
-                past.add(enrollment);
-            }
-        }
-        if (!future.isEmpty()) {
-            enrollmentRepository.deleteAll(future);
-        }
-        if (!past.isEmpty()) {
-            past.forEach(Enrollment::anonymize);
-            enrollmentRepository.saveAll(past);
+        // Zapisy: przyszłe zwalniamy (miejsce wraca do puli), przeszłe anonimizujemy (archiwum bez PII,
+        // user_id → NULL). Wspólna logika z samodzielnym usunięciem konta — przed skasowaniem usera.
+        var erasure = enrollmentErasureService.eraseForUser(targetId);
+
+        // Powiadomienie usera o usunięciu konta (opcjonalne — admin decyduje; np. dla RODO/realnej osoby tak,
+        // dla kont testowych/spamu nie). Dane i lista zwolnionych rezerwacji złapane przed delete.
+        if (notify) {
+            List<String> cancelled = erasure.freedEvents().stream()
+                    .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
+                    .toList();
+            adminUserMailService.sendAccountDeletedNotification(
+                    target.getEmail(), target.getFirstName(), cancelled);
         }
 
         if (target.getAvatarFilename() != null) {
@@ -199,7 +195,7 @@ public class AdminUserService {
         // Bez evict usunięty/odświeżony user nadal uwierzytelniałby się z cache filtra JWT przez ~60s.
         jwtAuthenticationFilter.evictUser(targetId);
 
-        return new DeleteUserResponse(future.size(), past.size());
+        return new DeleteUserResponse(erasure.freed(), erasure.anonymized());
     }
 
     @Transactional

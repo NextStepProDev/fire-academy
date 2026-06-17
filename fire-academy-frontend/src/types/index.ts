@@ -52,6 +52,28 @@ export interface UserEnrollment {
   createdAt: string
 }
 
+// Zapis własny zalogowanego użytkownika („Moje rezerwacje"). Dane uczestnika pochodzą z konta.
+export interface MyEnrollment {
+  id: string
+  eventId: string
+  eventName: string
+  category: EventCategory
+  startDate: string
+  endDate: string | null
+  startTime: string | null
+  endTime: string | null
+  location: string | null
+  note: string | null
+  past: boolean
+  canCancel: boolean
+  createdAt: string
+}
+
+export interface MyEnrollments {
+  current: MyEnrollment[]
+  past: MyEnrollment[]
+}
+
 export interface AdminUserDetail {
   id: string
   email: string

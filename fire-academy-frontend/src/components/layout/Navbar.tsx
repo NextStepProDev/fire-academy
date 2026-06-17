@@ -21,11 +21,10 @@ export function Navbar() {
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
   // Zalogowany użytkownik widzi swoje menu (avatar + ustawienia + wyloguj) na całej stronie.
-  // Punkt wejścia do logowania dla GOŚCIA jest powiązany z zakładką Treningi — pokazujemy
-  // go tylko w tym kontekście, żeby nie zaśmiecać publicznych stron marketingowych.
-  const isTrainingsContext = location.pathname.startsWith('/treningi')
+  // Zapis na wydarzenia wymaga konta, więc punkt wejścia do logowania pokazujemy GOŚCIOWI
+  // na każdej zakładce (treningi/obozy/szkolenia i pozostałe).
   const showUserArea = isAuthenticated
-  const showLoginEntry = !isAuthenticated && isTrainingsContext
+  const showLoginEntry = !isAuthenticated
 
   // "Ustawienia" w menu avatara podświetlamy, gdy user jest na tej podstronie ("tu jesteś").
   const isSettingsActive = location.pathname.startsWith('/settings')

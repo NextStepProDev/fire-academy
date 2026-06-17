@@ -1,19 +1,16 @@
 package pl.fireacademy.api.pub;
 
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.config.CacheConfig;
-import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
-import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,20 +25,17 @@ public class PublicService {
     private final EventTypeRepository eventTypeRepository;
     private final EventRepository eventRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final EnrollmentMailService enrollmentMailService;
     private final MessageService msg;
 
     public PublicService(InstructorRepository instructorRepository,
                          EventTypeRepository eventTypeRepository,
                          EventRepository eventRepository,
                          EnrollmentRepository enrollmentRepository,
-                         EnrollmentMailService enrollmentMailService,
                          MessageService msg) {
         this.instructorRepository = instructorRepository;
         this.eventTypeRepository = eventTypeRepository;
         this.eventRepository = eventRepository;
         this.enrollmentRepository = enrollmentRepository;
-        this.enrollmentMailService = enrollmentMailService;
         this.msg = msg;
     }
 
@@ -138,52 +132,5 @@ public class PublicService {
                 event.getStartDate(), event.getEndDate(), event.getStartTime(), event.getEndTime(), event.getLocation(),
                 event.getPrice(), max, available
         );
-    }
-
-    @CacheEvict(value = {CacheConfig.EVENTS, CacheConfig.EVENT}, allEntries = true)
-    @Transactional
-    public void enroll(UUID eventId, EnrollRequest request) {
-        var event = eventRepository.findByIdForUpdate(eventId)
-                .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
-
-        if (!event.isActive()) {
-            throw new IllegalStateException(msg.get("enrollment.event.inactive"));
-        }
-
-        var startDateTime = event.getStartTime() != null
-                ? event.getStartDate().atTime(event.getStartTime())
-                : event.getStartDate().atStartOfDay();
-        if (java.time.LocalDateTime.now().plusHours(24).isAfter(startDateTime)) {
-            throw new IllegalStateException(msg.get("enrollment.too.late"));
-        }
-
-        if (enrollmentRepository.existsByEventIdAndEmail(eventId, request.email())) {
-            throw new IllegalStateException(msg.get("enrollment.duplicate"));
-        }
-
-        Integer max = event.getMaxParticipants();
-        if (max != null) {
-            long enrolled = enrollmentRepository.countByEventId(eventId);
-            if (enrolled >= max) {
-                throw new IllegalStateException(msg.get("enrollment.event.full"));
-            }
-        }
-
-        var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
-                request.email(), request.phone(), request.note(), false);
-        enrollmentRepository.save(enrollment);
-
-        String schedule = EnrollmentMailService.formatSchedule(event);
-
-        enrollmentMailService.sendEnrollmentConfirmation(
-                request.email(), request.firstName(),
-                event.getDisplayName(), schedule, event.getLocation(),
-                event.getCategory(), event.getId().toString());
-
-        enrollmentMailService.sendEnrollmentNotification(
-                event.getDisplayName(),
-                request.firstName() + " " + request.lastName(),
-                request.email(), request.phone(), request.note(), schedule,
-                event.getCategory(), event.getId().toString());
     }
 }

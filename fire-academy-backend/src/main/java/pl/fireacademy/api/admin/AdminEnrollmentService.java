@@ -63,28 +63,26 @@ public class AdminEnrollmentService {
         var event = eventRepository.findById(request.eventId())
                 .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
 
-        if (enrollmentRepository.existsByEventIdAndEmail(event.getId(), request.email())) {
+        var user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new NotFoundException(msg.get("enrollment.user.not.found")));
+
+        if (enrollmentRepository.existsByEventIdAndUserId(event.getId(), user.getId())) {
             throw new IllegalStateException(msg.get("enrollment.already.exists"));
         }
 
-        // Telefon opcjonalny przy dopisywaniu przez admina (RODO) — pusty zapisujemy jako null.
-        String phone = (request.phone() == null || request.phone().isBlank()) ? null : request.phone();
-
-        var enrollment = new Enrollment(event, request.firstName(), request.lastName(),
-                request.email(), phone, request.note(), true);
-        var saved = enrollmentRepository.save(enrollment);
+        String note = (request.note() == null || request.note().isBlank()) ? null : request.note();
+        var saved = enrollmentRepository.save(Enrollment.forUser(event, user, note, true));
 
         String schedule = EnrollmentMailService.formatSchedule(event);
 
         enrollmentMailService.sendAdminEnrollmentConfirmation(
-                request.email(), request.firstName(),
+                user.getEmail(), user.getFirstName(),
                 event.getDisplayName(), schedule, event.getLocation(),
                 event.getCategory(), event.getId().toString());
 
         enrollmentMailService.sendAdminEnrollmentNotification(
-                event.getDisplayName(),
-                request.firstName() + " " + request.lastName(),
-                request.email(), phone == null ? "—" : phone, request.note(), schedule,
+                event.getDisplayName(), user.getFullName(),
+                user.getEmail(), user.getPhone() == null ? "—" : user.getPhone(), note, schedule,
                 event.getCategory(), event.getId().toString());
 
         return toResponse(saved);
@@ -120,16 +118,6 @@ public class AdminEnrollmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<EnrollmentResponse> searchByQuery(String query) {
-        if (query == null || query.isBlank()) {
-            return List.of();
-        }
-        return enrollmentRepository.searchByQuery(query.trim()).stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
     public EnrollmentDtos.BulkEmailResponse sendBulkEmail(UUID adminId, EnrollmentDtos.BulkEmailRequest request) {
         var event = eventRepository.findById(request.eventId())
                 .orElseThrow(() -> new NotFoundException(msg.get("event.not.found")));
@@ -161,18 +149,6 @@ public class AdminEnrollmentService {
         }
 
         return new EnrollmentDtos.BulkEmailResponse(recipients.size());
-    }
-
-    @Transactional
-    public EnrollmentDtos.AnonymizeResponse anonymizeByQuery(String query) {
-        if (query == null || query.isBlank()) {
-            return new EnrollmentDtos.AnonymizeResponse(0);
-        }
-        // Anonimizujemy dokładnie te wpisy, które admin widzi w wynikach wyszukiwania (ta sama fraza).
-        var enrollments = enrollmentRepository.searchByQuery(query.trim());
-        enrollments.forEach(Enrollment::anonymize);
-        enrollmentRepository.saveAll(enrollments);
-        return new EnrollmentDtos.AnonymizeResponse(enrollments.size());
     }
 
     private EnrollmentResponse toResponse(Enrollment e) {
