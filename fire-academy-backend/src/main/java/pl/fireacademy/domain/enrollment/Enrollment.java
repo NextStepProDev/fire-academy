@@ -3,6 +3,7 @@ package pl.fireacademy.domain.enrollment;
 import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.event.Event;
+import pl.fireacademy.domain.user.User;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -18,6 +19,14 @@ public class Enrollment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
+
+    // Konto, z którego pochodzi zapis. Nullable wyłącznie po to, by usunięcie/anonimizacja konta
+    // mogło je wyzerować (FK ON DELETE SET NULL) — w normalnym obrocie zawsze ustawione.
+    // Dane osobowe poniżej to snapshot z chwili zapisu (roster czytelny nawet po usunięciu konta).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @Nullable
+    private User user;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
@@ -55,6 +64,17 @@ public class Enrollment {
         this.addedByAdmin = addedByAdmin;
     }
 
+    /**
+     * Tworzy zapis powiązany z kontem. Dane osobowe są kopiowane z konta jako snapshot
+     * (źródło prawdy PII pozostaje w {@code users}; snapshot służy czytelności rostera po usunięciu konta).
+     */
+    public static Enrollment forUser(Event event, User user, @Nullable String note, boolean addedByAdmin) {
+        Enrollment e = new Enrollment(event, user.getFirstName(), user.getLastName(),
+                user.getEmail(), user.getPhone(), note, addedByAdmin);
+        e.user = user;
+        return e;
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();
@@ -66,6 +86,7 @@ public class Enrollment {
         this.email = "anonimowy-" + id + "@usuniety.rodo";
         this.phone = "000000000";
         this.note = null;
+        this.user = null;
     }
 
     public boolean isAnonymized() {
@@ -74,6 +95,8 @@ public class Enrollment {
 
     public UUID getId() { return id; }
     public Event getEvent() { return event; }
+    @Nullable public User getUser() { return user; }
+    public void setUser(@Nullable User user) { this.user = user; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }

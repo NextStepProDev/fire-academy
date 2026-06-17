@@ -34,6 +34,7 @@
     "deleteTitle": "Usuń konto użytkownika",
     "deleteMessage": "Czy na pewno chcesz usunąć konto {{name}} ({{email}})? Zapisy na nadchodzące wydarzenia zostaną usunięte (zwolnią miejsce), a archiwalne zanonimizowane. Tej operacji nie można cofnąć.",
     "deleteConfirm": "Usuń konto",
+    "deleteNotify": "Powiadom użytkownika e-mailem o usunięciu konta (i ewentualnym anulowaniu jego przyszłych rezerwacji)",
     "deleteSuccess": "Konto użytkownika zostało usunięte.",
     "total": "Łącznie: {{count}}",
     "pageOf": "Strona {{page}} z {{total}}",
@@ -149,18 +150,6 @@
     "categoryCourse": "Szkolenia",
     "noItems": "Brak archiwalnych terminów"
   },
-  "rodo": {
-    "title": "Ochrona danych (RODO)",
-    "description": "Wyszukaj osobę po imieniu, nazwisku, adresie e-mail lub dowolnej frazie, aby zobaczyć wszystkie jej zapisy w systemie. Możesz zanonimizować dane uczestnika — dane osobowe zostaną zastąpione, ale wpis pozostanie w archiwum dla celów statystycznych.",
-    "searchPlaceholder": "Wpisz imię, nazwisko, e-mail lub frazę...",
-    "search": "Szukaj",
-    "event": "Wydarzenie",
-    "eventDate": "Data wydarzenia",
-    "noResults": "Nie znaleziono zapisów dla podanej frazy.",
-    "anonymizeWarning": "Anonimizacja {{count}} zapisów — dane osobowe zostaną trwale zastąpione.",
-    "anonymizeAll": "Anonimizuj wszystkie",
-    "anonymizeSuccess": "Zanonimizowano {{count}} zapisów. Dane osobowe zostały trwale usunięte."
-  },
   "enrollments": {
     "title": "Zapisy",
     "selectEvent": "Wybierz termin",
@@ -179,13 +168,9 @@
     "noItems": "Brak zapisów",
     "summary": "{{count}} / {{max}} zapisanych",
     "summaryNoLimit": "{{count}} zapisanych",
-    "firstNameRequired": "Imię jest wymagane",
-    "lastNameRequired": "Nazwisko jest wymagane",
-    "nameMinLength": "Minimum 3 znaki",
-    "emailRequired": "Email jest wymagany",
-    "emailInvalid": "Nieprawidłowy format email",
-    "phoneRequired": "Numer telefonu jest wymagany",
-    "phoneInvalid": "Nieprawidłowy format (9 cyfr lub +XX i 9 cyfr)"
+    "selectUser": "Wybierz użytkownika",
+    "searchUserPlaceholder": "Szukaj po imieniu, nazwisku lub mailu…",
+    "noUsers": "Brak pasujących użytkowników"
   },
   "bulkEmail": {
     "title": "Wyślij wiadomość do uczestników",

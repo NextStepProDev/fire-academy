@@ -1,18 +1,30 @@
 package pl.fireacademy.api.user;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import pl.fireacademy.BaseIntegrationTest;
+import pl.fireacademy.domain.enrollment.Enrollment;
+import pl.fireacademy.domain.enrollment.EnrollmentRepository;
+import pl.fireacademy.domain.event.Event;
+import pl.fireacademy.domain.event.EventCategory;
+import pl.fireacademy.domain.event.EventRepository;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRole;
 
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class UserControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder(12);
+
+    @Autowired private EventRepository eventRepository;
+    @Autowired private EnrollmentRepository enrollmentRepository;
 
     @Test
     void shouldGetCurrentUserProfile() throws Exception {
@@ -102,6 +114,36 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"password\":\"DeleteMe123\"}"))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldAnonymizeHistoryAndFreeFutureWhenSelfDeletingAccount() throws Exception {
+        User user = new User("erase-it@test.com", "Jan", "Kowalski", "123456789");
+        user.setPasswordHash(ENCODER.encode("DeleteMe123"));
+        user.setRole(UserRole.USER);
+        user.markEmailVerified();
+        userRepository.save(user);
+        String token = jwtService.generateAccessToken(user);
+
+        Event futureEvent = eventRepository.save(
+                new Event(EventCategory.CAMP, "Przyszły obóz", LocalDate.now().plusDays(10)));
+        Event pastEvent = eventRepository.save(
+                new Event(EventCategory.COURSE, "Minione szkolenie", LocalDate.now().minusDays(20)));
+        Enrollment future = enrollmentRepository.save(Enrollment.forUser(futureEvent, user, null, false));
+        Enrollment past = enrollmentRepository.save(Enrollment.forUser(pastEvent, user, "notka", false));
+
+        mockMvc.perform(delete("/api/user/me")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"DeleteMe123\"}"))
+            .andExpect(status().isNoContent());
+
+        // Konto usunięte, przyszły zapis skasowany (miejsce wolne), przeszły zanonimizowany i odłączony.
+        assertTrue(userRepository.findById(user.getId()).isEmpty());
+        assertTrue(enrollmentRepository.findById(future.getId()).isEmpty());
+        Enrollment archived = enrollmentRepository.findById(past.getId()).orElseThrow();
+        assertTrue(archived.isAnonymized());
+        assertNull(archived.getUser());
     }
 
     @Test

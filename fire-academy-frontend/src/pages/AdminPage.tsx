@@ -5,7 +5,6 @@ import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminArchive } from './admin/AdminArchive'
-import { AdminRodo } from './admin/AdminRodo'
 import { AdminUsers } from './admin/AdminUsers'
 import type { EventCategory } from '../types'
 
@@ -22,7 +21,6 @@ const tabs = [
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
   { key: 'uzytkownicy', ns: 'admin.tabs.users' },
   { key: 'archiwum', ns: 'admin.tabs.archive' },
-  { key: 'rodo', ns: 'admin.tabs.rodo' },
 ] as const
 
 const validTabs: Set<string> = new Set(tabs.map(item => item.key))
@@ -68,7 +66,6 @@ export function AdminPage() {
 
       {tab === 'uzytkownicy' && <AdminUsers />}
       {tab === 'archiwum' && <AdminArchive />}
-      {tab === 'rodo' && <AdminRodo />}
     </div>
   )
 }

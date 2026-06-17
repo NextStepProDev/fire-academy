@@ -9,6 +9,7 @@ export interface RegisterRequest {
   lastName: string
   phone: string
   preferredLanguage?: string
+  acceptedPrivacy: boolean
 }
 
 export interface LoginRequest {

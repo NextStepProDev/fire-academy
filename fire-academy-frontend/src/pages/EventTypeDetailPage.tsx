@@ -11,6 +11,7 @@ import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useEnrollGuard } from '../hooks/useEnrollGuard'
 
 export function EventTypeDetailPage() {
   const { categorySlug, id } = useParams<{ categorySlug: string; id: string }>()
@@ -21,6 +22,7 @@ export function EventTypeDetailPage() {
   const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
   const [enrollEventName, setEnrollEventName] = useState('')
   const touchStart = useRef<number | null>(null)
+  const guardEnroll = useEnrollGuard()
 
   const eventTypeQuery = useQuery({
     queryKey: ['public', 'event-type', id],
@@ -211,10 +213,10 @@ export function EventTypeDetailPage() {
                       <Button
                         variant="primary"
                         size="sm"
-                        onClick={() => {
+                        onClick={() => guardEnroll(() => {
                           setEnrollEventId(event.id)
                           setEnrollEventName(event.eventTypeName)
-                        }}
+                        })}
                       >
                         {t('event.enroll')}
                       </Button>

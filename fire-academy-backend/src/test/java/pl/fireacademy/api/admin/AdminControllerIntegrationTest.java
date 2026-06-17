@@ -9,10 +9,13 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
+import pl.fireacademy.domain.user.User;
+import pl.fireacademy.domain.user.UserRole;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -179,42 +182,50 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         event.setActive(true);
         event = eventRepository.save(event);
 
+        UUID userId = createUser("admin-added@test.com", "Admin", "Added", "111222333");
+
         mockMvc.perform(post("/api/admin/enrollments")
                 .header("Authorization", "Bearer " + adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                         "eventId": "%s",
-                        "firstName": "Admin",
-                        "lastName": "Added",
-                        "email": "admin-added@test.com",
-                        "phone": "111222333"
+                        "userId": "%s"
                     }
-                    """.formatted(event.getId())))
+                    """.formatted(event.getId(), userId)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.addedByAdmin").value(true));
+            .andExpect(jsonPath("$.addedByAdmin").value(true))
+            .andExpect(jsonPath("$.email").value("admin-added@test.com"));
     }
 
     @Test
-    void shouldAdminEnrollWithoutPhone() throws Exception {
+    void shouldAdminEnrollUserWithoutPhone() throws Exception {
         Event event = new Event(EventCategory.TRAINING, "Enroll no phone", LocalDate.now().plusDays(14));
         event.setActive(true);
         event = eventRepository.save(event);
 
+        UUID userId = createUser("no-phone@test.com", "Bez", "Telefonu", null);
+
         mockMvc.perform(post("/api/admin/enrollments")
                 .header("Authorization", "Bearer " + adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                         "eventId": "%s",
-                        "firstName": "Bez",
-                        "lastName": "Telefonu",
-                        "email": "no-phone@test.com"
+                        "userId": "%s"
                     }
-                    """.formatted(event.getId())))
+                    """.formatted(event.getId(), userId)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.addedByAdmin").value(true))
             .andExpect(jsonPath("$.phone").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    private UUID createUser(String email, String firstName, String lastName, String phone) {
+        User u = new User(email, firstName, lastName, phone);
+        u.setPasswordHash("$2a$12$dummyhash");
+        u.setRole(UserRole.USER);
+        u.markEmailVerified();
+        return userRepository.save(u).getId();
     }
 
     @Test

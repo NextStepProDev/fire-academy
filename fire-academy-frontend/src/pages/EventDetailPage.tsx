@@ -11,6 +11,7 @@ import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useEnrollGuard } from '../hooks/useEnrollGuard'
 
 function isWithin24h(startDate: string, startTime: string | null): boolean {
   const dt = startTime
@@ -25,6 +26,7 @@ export function EventDetailPage() {
   const category = categorySlug ? slugToCategory(categorySlug) : undefined
 
   const [enrollOpen, setEnrollOpen] = useState(false)
+  const guardEnroll = useEnrollGuard()
 
   const eventQuery = useQuery({
     queryKey: ['public', 'event', id],
@@ -187,7 +189,7 @@ export function EventDetailPage() {
               </a>
             </div>
           ) : (
-            <Button variant="primary" size="lg" onClick={() => setEnrollOpen(true)}>
+            <Button variant="primary" size="lg" onClick={() => guardEnroll(() => setEnrollOpen(true))}>
               {t('event.enroll')}
             </Button>
           )}

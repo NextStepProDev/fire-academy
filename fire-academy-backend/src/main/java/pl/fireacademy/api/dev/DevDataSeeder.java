@@ -53,15 +53,14 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final int FUTURE_COURSES = 6;
     private static final int PAST_COURSES = 8;
 
-    // Dane uczestników do zapisów (denormalizowane w enrollments). Pokrywają się z kontami z seedUsers().
-    private record Participant(String firstName, String lastName, String email, @Nullable String phone) {}
-
-    private static final List<Participant> PEOPLE = List.of(
-            new Participant("Jan", "Kowalski", "jan@dev.pl", "500100100"),
-            new Participant("Anna", "Nowak", "anna@dev.pl", "500100200"),
-            new Participant("Piotr", "Wiśniewski", "piotr@dev.pl", null),
-            new Participant("Katarzyna", "Lewandowska", "kasia@dev.pl", "500100400"),
-            new Participant("Marek", "Zieliński", "marek@dev.pl", "500100500")
+    // Maile uczestników zapisów — każdy odpowiada kontu z seedUsers() (zapis wymaga konta).
+    // Dane osobowe w zapisie to snapshot kopiowany z konta przez Enrollment.forUser().
+    private static final List<String> PEOPLE = List.of(
+            "jan@dev.pl",
+            "anna@dev.pl",
+            "piotr@dev.pl",   // bez telefonu — testuje blokadę zapisu z konta
+            "kasia@dev.pl",
+            "marek@dev.pl"
     );
 
     private final UserRepository userRepository;
@@ -191,7 +190,7 @@ public class DevDataSeeder implements CommandLineRunner {
         // Bieżące (dla rosterów i sekcji „aktualne" w profilu)
         enrollPeople(camps.get(0), 1, 3);                            // Anna, Kasia
         enrollPeople(camps.get(1), 0, 4, 1);                         // Jan, Marek, Anna
-        enroll(courses.get(0), PEOPLE.get(2), "Bez numeru telefonu");// Piotr (bez telefonu)
+        enroll(courses.get(0), PEOPLE.get(2), "Bez numeru telefonu");// Piotr (konto bez telefonu)
         enrollPeople(courses.get(1), 1);                             // Anna
 
         // Archiwalne — WIĘKSZOŚĆ z zapisami, część z kilkoma osobami (kilka zostaje pustych dla realizmu)
@@ -284,12 +283,10 @@ public class DevDataSeeder implements CommandLineRunner {
         }
     }
 
-    private void enroll(Event event, Participant p, @Nullable String note) {
-        enroll(event, p.firstName(), p.lastName(), p.email(), p.phone(), note);
-    }
-
-    private void enroll(Event event, String firstName, String lastName,
-                        String email, @Nullable String phone, @Nullable String note) {
-        enrollmentRepository.save(new Enrollment(event, firstName, lastName, email, phone, note, true));
+    // Zapis = konto użytkownika. Snapshot danych osobowych kopiuje Enrollment.forUser() z konta.
+    private void enroll(Event event, String email, @Nullable String note) {
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new IllegalStateException("DEV-SEEDER: brak konta dla zapisu " + email));
+        enrollmentRepository.save(Enrollment.forUser(event, user, note, true));
     }
 }

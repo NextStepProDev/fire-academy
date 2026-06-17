@@ -29,7 +29,8 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         "email": "newuser-register@test.com",
                         "password": "StrongPass123",
                         "firstName": "Jan",
-                        "lastName": "Kowalski"
+                        "lastName": "Kowalski",
+                        "acceptedPrivacy": true
                     }
                     """))
             .andExpect(status().isOk())
@@ -43,14 +44,14 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
-                {"email":"dup@test.com","password":"StrongPass123","firstName":"Jan","lastName":"Kowalski"}
+                {"email":"dup@test.com","password":"StrongPass123","firstName":"Jan","lastName":"Kowalski","acceptedPrivacy":true}
                 """))
             .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/auth/register")
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
-                {"email":"dup@test.com","password":"StrongPass123","firstName":"Anna","lastName":"Nowak"}
+                {"email":"dup@test.com","password":"StrongPass123","firstName":"Anna","lastName":"Nowak","acceptedPrivacy":true}
                 """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
@@ -61,7 +62,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"email":"invalid","password":"short","firstName":"","lastName":""}
+                    {"email":"invalid","password":"short","firstName":"","lastName":"","acceptedPrivacy":true}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
@@ -194,7 +195,8 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                         "email": "admin@fireacademy.test",
                         "password": "AdminPass123",
                         "firstName": "Admin",
-                        "lastName": "Fire"
+                        "lastName": "Fire",
+                        "acceptedPrivacy": true
                     }
                     """))
             .andExpect(status().isOk());

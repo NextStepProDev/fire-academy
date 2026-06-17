@@ -1,10 +1,12 @@
 package pl.fireacademy.api.user;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.auth.AuthDtos.MessageResponse;
+import pl.fireacademy.api.user.UserEnrollmentDtos.MyEnrollmentsResponse;
 import pl.fireacademy.config.CurrentUserId;
 
 import java.util.UUID;
@@ -13,9 +15,11 @@ import java.util.UUID;
 @RequestMapping("/api/user")
 public class UserController {
     private final UserService userService;
+    private final UserEnrollmentService userEnrollmentService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserEnrollmentService userEnrollmentService) {
         this.userService = userService;
+        this.userEnrollmentService = userEnrollmentService;
     }
 
     @GetMapping("/me")
@@ -54,5 +58,24 @@ public class UserController {
     @DeleteMapping("/me/avatar")
     public ResponseEntity<UserDtos.UserResponse> deleteAvatar(@CurrentUserId UUID userId) {
         return ResponseEntity.ok(userService.deleteAvatar(userId));
+    }
+
+    @PostMapping("/enrollments")
+    public ResponseEntity<MessageResponse> enroll(@CurrentUserId UUID userId,
+                                                  @Valid @RequestBody UserEnrollmentDtos.EnrollRequest request) {
+        userEnrollmentService.enroll(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new MessageResponse("Zapis potwierdzony. Sprawdź swoją skrzynkę email."));
+    }
+
+    @GetMapping("/enrollments")
+    public ResponseEntity<MyEnrollmentsResponse> getMyEnrollments(@CurrentUserId UUID userId) {
+        return ResponseEntity.ok(userEnrollmentService.getMyEnrollments(userId));
+    }
+
+    @DeleteMapping("/enrollments/{id}")
+    public ResponseEntity<Void> cancelEnrollment(@CurrentUserId UUID userId, @PathVariable UUID id) {
+        userEnrollmentService.cancelMyEnrollment(userId, id);
+        return ResponseEntity.noContent().build();
     }
 }

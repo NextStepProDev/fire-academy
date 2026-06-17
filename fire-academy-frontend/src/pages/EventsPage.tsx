@@ -12,6 +12,7 @@ import { EnrollmentModal } from '../components/events/EnrollmentModal'
 import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { categoryToSlug } from '../utils/categorySlug'
+import { useEnrollGuard } from '../hooks/useEnrollGuard'
 import type { EventCategory, Instructor, EventType, EventInstance } from '../types'
 
 interface EventsPageProps {
@@ -25,6 +26,14 @@ export function EventsPage({ category }: EventsPageProps) {
   const [descriptionEvent, setDescriptionEvent] = useState<EventInstance | null>(null)
   const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
   const [enrollEventName, setEnrollEventName] = useState('')
+  const guardEnroll = useEnrollGuard()
+
+  // Zapis wymaga konta — gość trafia na logowanie, zalogowany otwiera modal potwierdzenia.
+  const openEnroll = (eventId: string, eventName: string) =>
+    guardEnroll(() => {
+      setEnrollEventId(eventId)
+      setEnrollEventName(eventName)
+    })
 
   const eventsQuery = useQuery({
     queryKey: ['public', 'events', category],
@@ -122,10 +131,7 @@ export function EventsPage({ category }: EventsPageProps) {
               <EventRow
                 key={event.id}
                 event={event}
-                onEnroll={() => {
-                  setEnrollEventId(event.id)
-                  setEnrollEventName(event.eventTypeName)
-                }}
+                onEnroll={() => openEnroll(event.id, event.eventTypeName)}
                 onDetails={hasDetails(event) ? () => handleDetails(event) : undefined}
                 shareUrl={`/${slug}/termin/${event.id}`}
               />
@@ -174,8 +180,7 @@ export function EventsPage({ category }: EventsPageProps) {
         events={eventsQuery.data?.filter(e => e.eventTypeId === selectedEventType?.id) ?? []}
         onEnroll={(eventId, eventName) => {
           setSelectedEventType(null)
-          setEnrollEventId(eventId)
-          setEnrollEventName(eventName)
+          openEnroll(eventId, eventName)
         }}
         onClose={() => setSelectedEventType(null)}
       />

@@ -62,6 +62,10 @@ public class User {
     @Column(name = "preferred_language", nullable = false)
     private String preferredLanguage = "pl";
 
+    @Column(name = "privacy_accepted_at")
+    @Nullable
+    private Instant privacyAcceptedAt;
+
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
 
@@ -232,6 +236,15 @@ public class User {
 
     public void setPreferredLanguage(String preferredLanguage) {
         this.preferredLanguage = preferredLanguage;
+    }
+
+    @Nullable
+    public Instant getPrivacyAcceptedAt() {
+        return privacyAcceptedAt;
+    }
+
+    public void setPrivacyAcceptedAt(@Nullable Instant privacyAcceptedAt) {
+        this.privacyAcceptedAt = privacyAcceptedAt;
     }
 
     public int getFailedLoginAttempts() {

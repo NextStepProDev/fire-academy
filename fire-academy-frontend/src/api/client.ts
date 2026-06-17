@@ -1,5 +1,5 @@
 import i18n from '../i18n'
-import type { User } from '../types'
+import type { User, MyEnrollments } from '../types'
 import {
   getAccessToken,
   getRefreshToken,
@@ -195,6 +195,14 @@ export const authApi = {
     return fetchApi<User>('/user/me/avatar', { method: 'POST', body: formData })
   },
   deleteAvatar: () => fetchApi<User>('/user/me/avatar', { method: 'DELETE' }),
+  enroll: (eventId: string, note?: string) =>
+    fetchApi<{ message: string }>('/user/enrollments', {
+      method: 'POST',
+      body: JSON.stringify({ eventId, note: note?.trim() || null }),
+    }),
+  getMyEnrollments: () => fetchApi<MyEnrollments>('/user/enrollments'),
+  cancelEnrollment: (id: string) =>
+    fetchApi<void>(`/user/enrollments/${id}`, { method: 'DELETE' }),
 }
 
 export const userApi = authApi

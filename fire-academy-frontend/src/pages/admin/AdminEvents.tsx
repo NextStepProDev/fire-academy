@@ -31,9 +31,9 @@ function EventCard({
   const [expandedNote, setExpandedNote] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [enrollDeleteId, setEnrollDeleteId] = useState<string | null>(null)
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', note: '' })
-  const [enrollErrors, setEnrollErrors] = useState<Record<string, string>>({})
-  const [enrollTouched, setEnrollTouched] = useState<Set<string>>(new Set())
+  const [userSearch, setUserSearch] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [note, setNote] = useState('')
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [emailMessage, setEmailMessage] = useState('')
   const [emailConfirm, setEmailConfirm] = useState(false)
@@ -47,14 +47,19 @@ function EventCard({
 
   const enrollCount = enrollments?.length ?? 0
 
+  // Zapis = istniejące konto. Admin wyszukuje użytkownika i wybiera go z listy.
+  const usersQuery = useQuery({
+    queryKey: ['admin', 'users', 'enroll-search', userSearch],
+    queryFn: () => adminApi.getUsers({ search: userSearch.trim() || undefined, size: 10 }),
+    enabled: isAdding,
+    staleTime: 30_000,
+  })
+
   const addMut = useMutation({
     mutationFn: () => adminApi.adminEnroll({
       eventId: event.id,
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone.replace(/\s/g, ''),
-      note: form.note.trim() || undefined,
+      userId: selectedUserId,
+      note: note.trim() || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', event.id] })
@@ -88,41 +93,12 @@ function EventCard({
     ? new Set(enrollments.filter(e => e.firstName !== '***').map(e => e.email.toLowerCase())).size
     : 0
 
-  const validateEnroll = (fields = form) => {
-    const errs: Record<string, string> = {}
-    if (!fields.firstName.trim()) errs.firstName = t('enrollments.firstNameRequired')
-    else if (fields.firstName.trim().length < 3) errs.firstName = t('enrollments.nameMinLength')
-    if (!fields.lastName.trim()) errs.lastName = t('enrollments.lastNameRequired')
-    else if (fields.lastName.trim().length < 3) errs.lastName = t('enrollments.nameMinLength')
-    if (!fields.email.trim()) errs.email = t('enrollments.emailRequired')
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) errs.email = t('enrollments.emailInvalid')
-    if (!fields.phone.trim()) errs.phone = t('enrollments.phoneRequired')
-    else {
-      const digits = fields.phone.replace(/\s/g, '')
-      if (!/^(\d{9}|\+\d{2}\d{9})$/.test(digits)) errs.phone = t('enrollments.phoneInvalid')
-    }
-    return errs
+  const openAdd = () => {
+    setUserSearch('')
+    setSelectedUserId('')
+    setNote('')
+    setIsAdding(true)
   }
-
-  const handleEnrollBlur = (field: string) => {
-    setEnrollTouched(prev => new Set(prev).add(field))
-    setEnrollErrors(validateEnroll())
-  }
-
-  const enrollFieldError = (field: string) => enrollTouched.has(field) ? enrollErrors[field] : undefined
-
-  const handleEnrollSubmit = () => {
-    setEnrollTouched(new Set(['firstName', 'lastName', 'email', 'phone']))
-    const errs = validateEnroll()
-    setEnrollErrors(errs)
-    if (Object.keys(errs).length > 0) return
-    addMut.mutate()
-  }
-
-  const inputClass = (field: string) =>
-    `w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 focus:outline-none focus:ring-2 ${
-      enrollFieldError(field) ? 'border-rose-500/60 focus:ring-rose-500' : 'border-surface-700 focus:ring-primary-500'
-    }`
 
   return (
     <div className={clsx('bg-surface-900 border border-surface-800 rounded-xl overflow-hidden', !event.active && 'opacity-50')}>
@@ -169,7 +145,7 @@ function EventCard({
                 {t('actions.sendMessage')}
               </Button>
             )}
-            <Button variant="primary" size="sm" onClick={() => { setForm({ firstName: '', lastName: '', email: '', phone: '', note: '' }); setEnrollErrors({}); setEnrollTouched(new Set()); setIsAdding(true) }}>
+            <Button variant="primary" size="sm" onClick={openAdd}>
               <UserPlus className="w-4 h-4 mr-1.5" />
               {t('actions.addEnrollment')}
             </Button>
@@ -240,60 +216,46 @@ function EventCard({
 
       <Modal isOpen={isAdding} onClose={() => setIsAdding(false)} title={t('actions.addEnrollment')}>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.firstName')}</label>
-              <input
-                value={form.firstName}
-                onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
-                onBlur={() => handleEnrollBlur('firstName')}
-                className={inputClass('firstName')}
-              />
-              {enrollFieldError('firstName') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('firstName')}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.lastName')}</label>
-              <input
-                value={form.lastName}
-                onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
-                onBlur={() => handleEnrollBlur('lastName')}
-                className={inputClass('lastName')}
-              />
-              {enrollFieldError('lastName') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('lastName')}</p>}
-            </div>
-          </div>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.email')}</label>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.selectUser')}</label>
             <input
-              type="email"
-              value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              onBlur={() => handleEnrollBlur('email')}
-              className={inputClass('email')}
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              placeholder={t('enrollments.searchUserPlaceholder')}
+              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            {enrollFieldError('email') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('email')}</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollments.phone')}</label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              onBlur={() => handleEnrollBlur('phone')}
-              className={inputClass('phone')}
-              placeholder="123 456 789"
-            />
-            {enrollFieldError('phone') && <p className="text-xs text-rose-400 mt-1">{enrollFieldError('phone')}</p>}
+            <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-surface-800 divide-y divide-surface-800">
+              {usersQuery.isLoading ? (
+                <p className="px-3 py-3 text-sm text-surface-500">…</p>
+              ) : usersQuery.data?.content.length ? (
+                usersQuery.data.content.map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => setSelectedUserId(u.id)}
+                    className={clsx(
+                      'w-full text-left px-3 py-2.5 transition-colors',
+                      selectedUserId === u.id ? 'bg-primary-500/15 text-surface-100' : 'text-surface-300 hover:bg-surface-800'
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{u.firstName} {u.lastName}</span>
+                    <span className="block text-xs text-surface-500">{u.email}{u.phone ? ` · ${u.phone}` : ''}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-3 text-sm text-surface-500">{t('enrollments.noUsers')}</p>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">
               {t('enrollments.note')} <span className="text-surface-500 font-normal">({t('enrollments.optional')})</span>
             </label>
-            <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={3} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleEnrollSubmit} loading={addMut.isPending}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={() => addMut.mutate()} loading={addMut.isPending} disabled={!selectedUserId}>{t('actions.save')}</Button>
           </div>
         </div>
       </Modal>

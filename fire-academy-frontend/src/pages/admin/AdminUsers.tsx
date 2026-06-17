@@ -37,6 +37,7 @@ export function AdminUsers() {
   const [message, setMessage] = useState('')
 
   const [toDelete, setToDelete] = useState<AdminUser | null>(null)
+  const [notifyOnDelete, setNotifyOnDelete] = useState(true)
 
   const usersQuery = useQuery({
     queryKey: ['admin-users', search, page, sortField, sortDir],
@@ -63,7 +64,7 @@ export function AdminUsers() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => adminApi.deleteUser(id),
+    mutationFn: ({ id, notify }: { id: string; notify: boolean }) => adminApi.deleteUser(id, notify),
     onSuccess: () => {
       showToast(t('users.deleteSuccess'))
       setToDelete(null)
@@ -295,7 +296,7 @@ export function AdminUsers() {
                             <Button
                               variant="danger"
                               size="sm"
-                              onClick={() => setToDelete(u)}
+                              onClick={() => { setNotifyOnDelete(true); setToDelete(u) }}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -389,13 +390,23 @@ export function AdminUsers() {
       <ConfirmDialog
         isOpen={toDelete !== null}
         onClose={() => setToDelete(null)}
-        onConfirm={() => toDelete && deleteMutation.mutate(toDelete.id)}
+        onConfirm={() => toDelete && deleteMutation.mutate({ id: toDelete.id, notify: notifyOnDelete })}
         title={t('users.deleteTitle')}
         message={toDelete ? t('users.deleteMessage', { name: `${toDelete.firstName} ${toDelete.lastName}`, email: toDelete.email }) : ''}
         confirmLabel={t('users.deleteConfirm')}
         danger
         loading={deleteMutation.isPending}
-      />
+      >
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={notifyOnDelete}
+            onChange={e => setNotifyOnDelete(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500 shrink-0"
+          />
+          <span className="text-sm text-surface-400">{t('users.deleteNotify')}</span>
+        </label>
+      </ConfirmDialog>
     </div>
   )
 }

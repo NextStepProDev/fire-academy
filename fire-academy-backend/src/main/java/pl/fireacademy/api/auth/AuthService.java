@@ -72,6 +72,8 @@ public class AuthService {
         );
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setPreferredLanguage(resolveLanguage(request.preferredLanguage()));
+        // Zgoda na politykę prywatności jest wymagana (walidacja @AssertTrue) — zapisujemy moment akceptacji (RODO).
+        user.setPrivacyAcceptedAt(Instant.now());
 
         if (adminEmailConfig.isAdminEmail(user.getEmail())) {
             user.setRole(UserRole.ADMIN);

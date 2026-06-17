@@ -38,8 +38,9 @@ public class AdminUserController {
     }
 
     @DeleteMapping("/{id}")
-    public DeleteUserResponse delete(@CurrentUserId UUID adminId, @PathVariable UUID id) {
-        return service.delete(adminId, id);
+    public DeleteUserResponse delete(@CurrentUserId UUID adminId, @PathVariable UUID id,
+                                     @RequestParam(defaultValue = "true") boolean notify) {
+        return service.delete(adminId, id, notify);
     }
 
     @PostMapping("/{id}/promote")

@@ -34,25 +34,18 @@
     "maxParticipants": "Maks. uczestników"
   },
   "enroll": {
-    "title": "Formularz zapisu",
-    "firstName": "Imię",
-    "lastName": "Nazwisko",
+    "title": "Potwierdź zapis",
+    "intro": "Zapisujesz się na to wydarzenie z danych swojego konta:",
+    "name": "Imię i nazwisko",
     "email": "Adres email",
     "phone": "Numer telefonu",
     "note": "Informacja dla organizatora",
     "optional": "opcjonalnie",
-    "submit": "Wyślij zgłoszenie",
+    "submit": "Zapisz się",
     "success": "Zapis potwierdzony! Sprawdź swoją skrzynkę email.",
-    "firstNameRequired": "Imię jest wymagane",
-    "lastNameRequired": "Nazwisko jest wymagane",
-    "nameMinLength": "Minimum 3 znaki",
-    "emailRequired": "Email jest wymagany",
-    "emailInvalid": "Nieprawidłowy format email",
-    "phoneRequired": "Numer telefonu jest wymagany",
-    "phoneInvalid": "Nieprawidłowy format numeru telefonu",
-    "privacyLabel": "Zapoznałem/am się z",
-    "privacyLink": "polityką prywatności",
-    "privacyRequired": "Wymagane potwierdzenie zapoznania się z polityką prywatności"
+    "phoneMissingTitle": "Uzupełnij numer telefonu",
+    "phoneMissingText": "Aby zapisać się na wydarzenie, dodaj numer telefonu w ustawieniach konta — organizator musi mieć kontakt do uczestnika.",
+    "phoneMissingCta": "Przejdź do ustawień"
   },
   "instructor": {
     "readMore": "Czytaj więcej"

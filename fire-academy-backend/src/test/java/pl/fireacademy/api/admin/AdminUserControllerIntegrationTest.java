@@ -119,8 +119,8 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
                 new Event(EventCategory.TRAINING, "Nadchodzący", LocalDate.now().plusDays(5)));
         Event pastEvent = eventRepository.save(
                 new Event(EventCategory.CAMP, "Miniony", LocalDate.now().minusDays(20)));
-        enrollmentRepository.save(new Enrollment(futureEvent, "Jan", "Kowalski", "detail@test.com", "123456789", null, false));
-        enrollmentRepository.save(new Enrollment(pastEvent, "Jan", "Kowalski", "detail@test.com", "123456789", null, false));
+        enrollmentRepository.save(Enrollment.forUser(futureEvent, u, null, false));
+        enrollmentRepository.save(Enrollment.forUser(pastEvent, u, null, false));
 
         mockMvc.perform(get("/api/admin/users/" + u.getId())
                 .header("Authorization", "Bearer " + adminToken()))
@@ -206,10 +206,8 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
                 new Event(EventCategory.TRAINING, "Nadchodzący", LocalDate.now().plusDays(5)));
         Event pastEvent = eventRepository.save(
                 new Event(EventCategory.CAMP, "Archiwalny", LocalDate.now().minusDays(30)));
-        Enrollment future = enrollmentRepository.save(
-                new Enrollment(futureEvent, "Do", "Usunięcia", "todelete@test.com", "123456789", null, false));
-        Enrollment past = enrollmentRepository.save(
-                new Enrollment(pastEvent, "Do", "Usunięcia", "todelete@test.com", "123456789", null, false));
+        Enrollment future = enrollmentRepository.save(Enrollment.forUser(futureEvent, target, null, false));
+        Enrollment past = enrollmentRepository.save(Enrollment.forUser(pastEvent, target, null, false));
 
         mockMvc.perform(delete("/api/admin/users/" + target.getId())
                 .header("Authorization", "Bearer " + adminToken()))

@@ -63,10 +63,7 @@ interface UpdateEventRequest {
 
 interface AdminEnrollRequest {
   eventId: string
-  firstName: string
-  lastName: string
-  email: string
-  phone?: string
+  userId: string
   note?: string
 }
 
@@ -148,10 +145,6 @@ export const adminApi = {
     fetchApi<Enrollment>('/admin/enrollments', { method: 'POST', body: JSON.stringify(data) }),
   deleteEnrollment: (id: string, notify = true) =>
     fetchApi<void>(`/admin/enrollments/${id}?notify=${notify}`, { method: 'DELETE' }),
-  searchEnrollments: (query: string) =>
-    fetchApi<Enrollment[]>(`/admin/enrollments/search?query=${encodeURIComponent(query)}`),
-  anonymizeEnrollments: (query: string) =>
-    fetchApi<{ anonymizedCount: number }>(`/admin/enrollments/anonymize?query=${encodeURIComponent(query)}`, { method: 'POST' }),
   sendBulkEmail: (data: { eventId: string; message: string }) =>
     fetchApi<{ recipientCount: number }>('/admin/enrollments/bulk-email', { method: 'POST', body: JSON.stringify(data) }),
 
@@ -169,8 +162,8 @@ export const adminApi = {
   },
   sendUserEmail: (data: SendUserEmailRequest) =>
     fetchApi<{ recipientCount: number }>('/admin/users/email', { method: 'POST', body: JSON.stringify(data) }),
-  deleteUser: (id: string) =>
-    fetchApi<{ freedEnrollments: number; anonymizedEnrollments: number }>(`/admin/users/${id}`, { method: 'DELETE' }),
+  deleteUser: (id: string, notify = true) =>
+    fetchApi<{ freedEnrollments: number; anonymizedEnrollments: number }>(`/admin/users/${id}?notify=${notify}`, { method: 'DELETE' }),
   promoteUser: (id: string) =>
     fetchApi<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
   demoteUser: (id: string) =>

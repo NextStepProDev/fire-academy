@@ -8,13 +8,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.pub.PublicDtos.*;
-import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
-import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -34,7 +32,6 @@ class PublicServiceTest {
     @Mock private EventTypeRepository eventTypeRepository;
     @Mock private EventRepository eventRepository;
     @Mock private EnrollmentRepository enrollmentRepository;
-    @Mock private EnrollmentMailService enrollmentMailService;
     @Mock private MessageService msg;
 
     @InjectMocks private PublicService publicService;
@@ -171,95 +168,6 @@ class PublicServiceTest {
         when(msg.get("instructor.not.found")).thenReturn("Nie znaleziono");
 
         assertThrows(NotFoundException.class, () -> publicService.getInstructorById(id));
-    }
-
-    // --- Enroll ---
-
-    @Test
-    void shouldEnrollSuccessfully() {
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(activeEvent));
-        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@example.com")).thenReturn(false);
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(3L);
-
-        publicService.enroll(eventId, request);
-
-        verify(enrollmentRepository).save(any(Enrollment.class));
-        verify(enrollmentMailService).sendEnrollmentConfirmation(
-            eq("anna@example.com"), eq("Anna"), eq("Trening personalny"), any(), any(), any(), any());
-        verify(enrollmentMailService).sendEnrollmentNotification(
-            eq("Trening personalny"), eq("Anna Nowak"), eq("anna@example.com"),
-            any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void shouldThrowWhenEventNotFound() {
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.empty());
-        when(msg.get("event.not.found")).thenReturn("Nie znaleziono");
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-        assertThrows(NotFoundException.class, () -> publicService.enroll(eventId, request));
-    }
-
-    @Test
-    void shouldThrowWhenEventInactive() {
-        activeEvent.setActive(false);
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(activeEvent));
-        when(msg.get("enrollment.event.inactive")).thenReturn("Wydarzenie nieaktywne");
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-        var ex = assertThrows(IllegalStateException.class, () -> publicService.enroll(eventId, request));
-        assertEquals("Wydarzenie nieaktywne", ex.getMessage());
-    }
-
-    @Test
-    void shouldThrowWhenEnrollingLessThan24HoursBeforeEvent() throws Exception {
-        Event soonEvent = new Event(EventCategory.TRAINING, "Trening", LocalDate.now());
-        setId(soonEvent, eventId);
-        soonEvent.setStartTime(LocalTime.now().plusHours(1));
-        soonEvent.setActive(true);
-
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(soonEvent));
-        when(msg.get("enrollment.too.late")).thenReturn("Za późno");
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-        assertThrows(IllegalStateException.class, () -> publicService.enroll(eventId, request));
-    }
-
-    @Test
-    void shouldThrowWhenDuplicateEnrollment() {
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(activeEvent));
-        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@example.com")).thenReturn(true);
-        when(msg.get("enrollment.duplicate")).thenReturn("Już zapisany");
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-        var ex = assertThrows(IllegalStateException.class, () -> publicService.enroll(eventId, request));
-        assertEquals("Już zapisany", ex.getMessage());
-    }
-
-    @Test
-    void shouldThrowWhenEventFull() {
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(activeEvent));
-        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@example.com")).thenReturn(false);
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(6L);
-        when(msg.get("enrollment.event.full")).thenReturn("Brak miejsc");
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-        var ex = assertThrows(IllegalStateException.class, () -> publicService.enroll(eventId, request));
-        assertEquals("Brak miejsc", ex.getMessage());
-    }
-
-    @Test
-    void shouldAllowEnrollmentWhenNoMaxParticipants() {
-        activeEvent.setMaxParticipants(null);
-        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(activeEvent));
-        when(enrollmentRepository.existsByEventIdAndEmail(eventId, "anna@example.com")).thenReturn(false);
-
-        EnrollRequest request = new EnrollRequest("Anna", "Nowak", "anna@example.com", "123456789", null);
-
-        assertDoesNotThrow(() -> publicService.enroll(eventId, request));
-        verify(enrollmentRepository).save(any(Enrollment.class));
     }
 
     private static void setId(Object entity, UUID id) throws Exception {

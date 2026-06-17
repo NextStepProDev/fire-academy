@@ -66,6 +66,7 @@ export function RegisterPage() {
         lastName: form.lastName,
         phone: form.phone.replace(/\s/g, ''),
         preferredLanguage: i18n.language,
+        acceptedPrivacy,
       })
       setSuccess(true)
     } catch (err) {
