@@ -36,8 +36,9 @@ public class AdminEventController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id,
+                                       @RequestParam(defaultValue = "false") boolean force) {
+        service.delete(id, force);
         return ResponseEntity.noContent().build();
     }
 

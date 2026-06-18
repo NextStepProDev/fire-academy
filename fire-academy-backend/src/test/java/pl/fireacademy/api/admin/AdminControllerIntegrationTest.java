@@ -17,6 +17,7 @@ import java.time.LocalTime;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -144,6 +145,24 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(delete("/api/admin/events/" + event.getId())
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldForceDeleteEventWithEnrollments() throws Exception {
+        Event event = new Event(EventCategory.TRAINING, "Force delete", LocalDate.now().plusDays(7));
+        event.setActive(true);
+        event = eventRepository.save(event);
+
+        Enrollment enrollment = new Enrollment(event, "Jan", "Test", "jan@test.com", "123456789", null, false);
+        enrollmentRepository.save(enrollment);
+
+        UUID eventId = event.getId();
+        mockMvc.perform(delete("/api/admin/events/" + eventId + "?force=true")
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isNoContent());
+
+        assertThat(eventRepository.findById(eventId)).isEmpty();
+        assertThat(enrollmentRepository.countByEventId(eventId)).isZero();
     }
 
     // --- Event Type CRUD ---

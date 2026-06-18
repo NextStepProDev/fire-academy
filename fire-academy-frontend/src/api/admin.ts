@@ -131,8 +131,8 @@ export const adminApi = {
     fetchApi<EventInstance>('/admin/events', { method: 'POST', body: JSON.stringify(data) }),
   updateEvent: (id: string, data: UpdateEventRequest) =>
     fetchApi<EventInstance>(`/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteEvent: (id: string) =>
-    fetchApi<void>(`/admin/events/${id}`, { method: 'DELETE' }),
+  deleteEvent: (id: string, force = false) =>
+    fetchApi<void>(`/admin/events/${id}?force=${force}`, { method: 'DELETE' }),
   toggleEventActive: (id: string) =>
     fetchApi<EventInstance>(`/admin/events/${id}/toggle-active`, { method: 'PATCH' }),
 
