@@ -9,6 +9,7 @@ import pl.fireacademy.api.user.UserEnrollmentDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
+import pl.fireacademy.domain.enrollment.EnrollmentTimeline;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.event.EventRepository;
 import pl.fireacademy.domain.user.User;
@@ -16,10 +17,7 @@ import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -74,7 +72,7 @@ public class UserEnrollmentService {
             throw new IllegalStateException(msg.get("enrollment.event.inactive"));
         }
 
-        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(startDateTime(event))) {
+        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(event.startDateTime())) {
             throw new IllegalStateException(msg.get("enrollment.too.late"));
         }
 
@@ -87,7 +85,7 @@ public class UserEnrollmentService {
             throw new IllegalStateException(msg.get("enrollment.event.full"));
         }
 
-        String note = (request.note() == null || request.note().isBlank()) ? null : request.note();
+        String note = Enrollment.normalizeNote(request.note());
         enrollmentRepository.save(Enrollment.forUser(event, user, note, false));
 
         String schedule = EnrollmentMailService.formatSchedule(event);
@@ -103,18 +101,9 @@ public class UserEnrollmentService {
 
     @Transactional(readOnly = true)
     public MyEnrollmentsResponse getMyEnrollments(UUID userId) {
-        LocalDate today = LocalDate.now();
-        List<MyEnrollmentResponse> current = new ArrayList<>();
-        List<MyEnrollmentResponse> past = new ArrayList<>();
-        for (Enrollment e : enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId)) {
-            Event event = e.getEvent();
-            LocalDate effectiveEnd = event.getEndDate() != null ? event.getEndDate() : event.getStartDate();
-            boolean isPast = effectiveEnd.isBefore(today);
-            (isPast ? past : current).add(toResponse(e, isPast));
-        }
-        // Bieżące: najbliższe na górze. Archiwum: najnowsze na górze.
-        current.sort(Comparator.comparing(MyEnrollmentResponse::startDate));
-        past.sort(Comparator.comparing(MyEnrollmentResponse::startDate).reversed());
+        var split = EnrollmentTimeline.split(enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId));
+        List<MyEnrollmentResponse> current = split.current().stream().map(e -> toResponse(e, false)).toList();
+        List<MyEnrollmentResponse> past = split.past().stream().map(e -> toResponse(e, true)).toList();
         return new MyEnrollmentsResponse(current, past);
     }
 
@@ -128,7 +117,7 @@ public class UserEnrollmentService {
                 .orElseThrow(() -> new NotFoundException(msg.get("enrollment.not.found")));
 
         Event event = enrollment.getEvent();
-        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(startDateTime(event))) {
+        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(event.startDateTime())) {
             throw new IllegalStateException(msg.get("enrollment.cancel.too.late"));
         }
 
@@ -147,16 +136,10 @@ public class UserEnrollmentService {
 
     private MyEnrollmentResponse toResponse(Enrollment e, boolean past) {
         Event event = e.getEvent();
-        boolean canCancel = !past && LocalDateTime.now().plusHours(CUTOFF_HOURS).isBefore(startDateTime(event));
+        boolean canCancel = !past && LocalDateTime.now().plusHours(CUTOFF_HOURS).isBefore(event.startDateTime());
         return new MyEnrollmentResponse(
                 e.getId(), event.getId(), event.getDisplayName(), event.getCategory(),
                 event.getStartDate(), event.getEndDate(), event.getStartTime(), event.getEndTime(),
                 event.getLocation(), e.getNote(), past, canCancel, e.getCreatedAt());
-    }
-
-    private static LocalDateTime startDateTime(Event event) {
-        return event.getStartTime() != null
-                ? event.getStartDate().atTime(event.getStartTime())
-                : event.getStartDate().atStartOfDay();
     }
 }

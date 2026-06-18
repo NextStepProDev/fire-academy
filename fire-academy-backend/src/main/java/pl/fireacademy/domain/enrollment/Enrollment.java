@@ -22,7 +22,9 @@ public class Enrollment {
 
     // Konto, z którego pochodzi zapis. Nullable wyłącznie po to, by usunięcie/anonimizacja konta
     // mogło je wyzerować (FK ON DELETE SET NULL) — w normalnym obrocie zawsze ustawione.
-    // Dane osobowe poniżej to snapshot z chwili zapisu (roster czytelny nawet po usunięciu konta).
+    // Dane osobowe poniżej to snapshot z chwili zapisu — służy wyłącznie jako fallback dla
+    // czytelności rostera po usunięciu konta. Bieżące widoki czytają dane przez {@code display*()},
+    // które preferują żywe konto (źródło prawdy PII = users), więc zmiana danych w profilu jest widoczna.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     @Nullable
@@ -75,6 +77,11 @@ public class Enrollment {
         return e;
     }
 
+    /** Pusta/biała notatka → {@code null} (jedna reguła dla zapisu usera i admina). */
+    public static @Nullable String normalizeNote(@Nullable String note) {
+        return (note == null || note.isBlank()) ? null : note;
+    }
+
     @PrePersist
     void onCreate() {
         this.createdAt = Instant.now();
@@ -84,7 +91,7 @@ public class Enrollment {
         this.firstName = "Dane";
         this.lastName = "usunięte";
         this.email = "anonimowy-" + id + "@usuniety.rodo";
-        this.phone = "000000000";
+        this.phone = null;
         this.note = null;
         this.user = null;
     }
@@ -93,10 +100,15 @@ public class Enrollment {
         return email != null && email.endsWith("@usuniety.rodo");
     }
 
+    // Dane do wyświetlenia/wysyłki: żywe konto, gdy istnieje; po usunięciu konta — snapshot (zanonimizowany).
+    public String displayFirstName() { return user != null ? user.getFirstName() : firstName; }
+    public String displayLastName() { return user != null ? user.getLastName() : lastName; }
+    public String displayEmail() { return user != null ? user.getEmail() : email; }
+    @Nullable public String displayPhone() { return user != null ? user.getPhone() : phone; }
+
     public UUID getId() { return id; }
     public Event getEvent() { return event; }
     @Nullable public User getUser() { return user; }
-    public void setUser(@Nullable User user) { this.user = user; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getEmail() { return email; }

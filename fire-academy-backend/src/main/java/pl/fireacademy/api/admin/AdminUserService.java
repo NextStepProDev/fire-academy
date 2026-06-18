@@ -16,6 +16,7 @@ import pl.fireacademy.domain.auth.AuthTokenRepository;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
+import pl.fireacademy.domain.enrollment.EnrollmentTimeline;
 import pl.fireacademy.domain.event.Event;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
@@ -26,9 +27,6 @@ import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -102,18 +100,9 @@ public class AdminUserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
-        LocalDate today = LocalDate.now();
-        List<UserEnrollmentResponse> current = new ArrayList<>();
-        List<UserEnrollmentResponse> past = new ArrayList<>();
-        for (Enrollment e : enrollmentRepository.findByUserIdOrderByCreatedAtDesc(user.getId())) {
-            Event event = e.getEvent();
-            LocalDate effectiveEnd = event.getEndDate() != null ? event.getEndDate() : event.getStartDate();
-            boolean isPast = effectiveEnd.isBefore(today);
-            (isPast ? past : current).add(toEnrollmentResponse(e, isPast));
-        }
-        // Bieżące: najbliższe na górze. Archiwum: najnowsze na górze.
-        current.sort(Comparator.comparing(UserEnrollmentResponse::startDate));
-        past.sort(Comparator.comparing(UserEnrollmentResponse::startDate).reversed());
+        var split = EnrollmentTimeline.split(enrollmentRepository.findByUserIdOrderByCreatedAtDesc(user.getId()));
+        List<UserEnrollmentResponse> current = split.current().stream().map(e -> toEnrollmentResponse(e, false)).toList();
+        List<UserEnrollmentResponse> past = split.past().stream().map(e -> toEnrollmentResponse(e, true)).toList();
 
         String avatarUrl = user.getAvatarFilename() != null
                 ? "/api/files/" + AVATAR_FOLDER + "/" + user.getAvatarFilename()

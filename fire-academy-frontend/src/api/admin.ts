@@ -139,8 +139,6 @@ export const adminApi = {
   // Enrollments
   getEnrollmentsByEvent: (eventId: string) =>
     fetchApi<Enrollment[]>(`/admin/enrollments?eventId=${eventId}`),
-  getEnrollmentsByCategory: (category: EventCategory) =>
-    fetchApi<Enrollment[]>(`/admin/enrollments/by-category?category=${category}`),
   adminEnroll: (data: AdminEnrollRequest) =>
     fetchApi<Enrollment>('/admin/enrollments', { method: 'POST', body: JSON.stringify(data) }),
   deleteEnrollment: (id: string, notify = true) =>

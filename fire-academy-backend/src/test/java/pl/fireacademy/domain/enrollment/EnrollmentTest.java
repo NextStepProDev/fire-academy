@@ -37,7 +37,7 @@ class EnrollmentTest {
         assertEquals("Dane", enrollment.getFirstName());
         assertEquals("usunięte", enrollment.getLastName());
         assertTrue(enrollment.getEmail().endsWith("@usuniety.rodo"));
-        assertEquals("000000000", enrollment.getPhone());
+        assertNull(enrollment.getPhone());
         assertNull(enrollment.getNote());
         assertTrue(enrollment.isAnonymized());
     }
@@ -57,6 +57,30 @@ class EnrollmentTest {
 
         assertNull(e.getUser());
         assertTrue(e.isAnonymized());
+    }
+
+    @Test
+    void shouldReflectLiveAccountDataViaDisplayAccessors() {
+        Event event = new Event(EventCategory.CAMP, "Obóz", LocalDate.now().plusDays(7));
+        User user = new User("anna@test.com", "Anna", "Nowak", "500100200");
+        Enrollment e = Enrollment.forUser(event, user, null, false);
+
+        // Zmiana w profilu po zapisie ma być widoczna (źródło prawdy = konto, nie snapshot).
+        user.setFirstName("Joanna");
+        user.setPhone("600700800");
+
+        assertEquals("Joanna", e.displayFirstName());
+        assertEquals("600700800", e.displayPhone());
+    }
+
+    @Test
+    void shouldFallBackToSnapshotWhenNoAccount() {
+        Event event = new Event(EventCategory.TRAINING, "Trening", LocalDate.now().plusDays(7));
+        Enrollment e = new Enrollment(event, "Jan", "Kowalski", "jan@test.com", "123456789", null, false);
+
+        assertEquals("Jan", e.displayFirstName());
+        assertEquals("jan@test.com", e.displayEmail());
+        assertEquals("123456789", e.displayPhone());
     }
 
     @Test

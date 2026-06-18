@@ -55,7 +55,7 @@ VERSION
 | V11 | avatar_filename w users (zdjęcie profilowe użytkownika, folder `avatars/`) |
 | V12–V15 | *(zarezerwowane przez gałąź treningową — `training_slots`, `training_payments`, odwołania/dezaktywacja; nie na tej gałęzi)* |
 | V16 | enrollments.phone → nullable (admin może dopisać zalogowanego usera bez numeru; RODO — minimalizacja) |
-| V17 | enrollments.user_id → FK do users (ON DELETE SET NULL) + indeks + unikat (user_id,event_id); users.privacy_accepted_at (zgoda RODO). **Zapis wymaga konta** (PII = źródło prawdy w users) |
+| V17 | enrollments.user_id → FK do users (ON DELETE SET NULL) + indeks + unikat (user_id,event_id); users.privacy_accepted_at (zgoda RODO). **Zapis wymaga konta** (PII = źródło prawdy w users — roster admina i maile czytają aktualne dane przez `Enrollment.display*()`; kolumny snapshotu firstName/lastName/email/phone w `enrollments` to **tylko fallback** dla czytelności archiwum po usunięciu konta, nie odświeżane przy edycji profilu) |
 
 ---
 

@@ -4,8 +4,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.domain.event.Event;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,18 +26,11 @@ public class EnrollmentErasureService {
 
     @Transactional
     public ErasureResult eraseForUser(UUID userId) {
-        LocalDate today = LocalDate.now();
-        List<Enrollment> future = new ArrayList<>();
-        List<Enrollment> past = new ArrayList<>();
-        for (Enrollment enrollment : enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId)) {
-            Event event = enrollment.getEvent();
-            LocalDate eventEnd = event.getEndDate() != null ? event.getEndDate() : event.getStartDate();
-            if (!eventEnd.isBefore(today)) {
-                future.add(enrollment);
-            } else {
-                past.add(enrollment);
-            }
-        }
+        // Bieżące (current) = przyszłe/trwające → kasujemy (miejsce wraca do puli);
+        // archiwalne (past) → anonimizujemy. Ten sam podział co widoki rezerwacji.
+        var split = EnrollmentTimeline.split(enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId));
+        List<Enrollment> future = split.current();
+        List<Enrollment> past = split.past();
         // Wydarzenia, z których zwolniliśmy miejsce — do powiadomienia organizatora (zbieramy przed delete).
         List<Event> freedEvents = future.stream().map(Enrollment::getEvent).toList();
 

@@ -13,14 +13,13 @@ interface EnrollmentModalProps {
   onClose: () => void
   eventId: string | null
   eventName: string
-  returnTo?: string
   onEnrolled?: () => void
 }
 
 const inputBase = 'w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 focus:outline-none focus:ring-2'
 const inputOk = `${inputBase} border-surface-700 focus:ring-primary-500`
 
-export function EnrollmentModal({ isOpen, onClose, eventId, eventName, returnTo, onEnrolled }: EnrollmentModalProps) {
+export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolled }: EnrollmentModalProps) {
   const { t } = useTranslation('events')
   const { user } = useAuth()
   const [note, setNote] = useState('')
@@ -71,7 +70,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, returnTo,
               <p className="text-sm text-surface-400 mt-1">{t('enroll.phoneMissingText')}</p>
             </div>
           </div>
-          <Link to="/settings" onClick={() => saveRedirectPath(returnTo ?? window.location.pathname)}>
+          <Link to="/settings" onClick={() => saveRedirectPath(window.location.pathname)}>
             <Button variant="primary" className="w-full">{t('enroll.phoneMissingCta')}</Button>
           </Link>
         </div>

@@ -9,7 +9,6 @@ import pl.fireacademy.api.admin.EnrollmentDtos.*;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
-import pl.fireacademy.domain.event.EventCategory;
 import pl.fireacademy.domain.event.EventRepository;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -47,13 +46,6 @@ public class AdminEnrollmentService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<EnrollmentResponse> getByCategory(EventCategory category) {
-        return enrollmentRepository.findByEventCategory(category).stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
     @Caching(evict = {
             @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
             @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
@@ -70,7 +62,7 @@ public class AdminEnrollmentService {
             throw new IllegalStateException(msg.get("enrollment.already.exists"));
         }
 
-        String note = (request.note() == null || request.note().isBlank()) ? null : request.note();
+        String note = Enrollment.normalizeNote(request.note());
         var saved = enrollmentRepository.save(Enrollment.forUser(event, user, note, true));
 
         String schedule = EnrollmentMailService.formatSchedule(event);
@@ -98,7 +90,9 @@ public class AdminEnrollmentService {
                 .orElseThrow(() -> new NotFoundException(msg.get("enrollment.not.found")));
 
         var event = enrollment.getEvent();
-        var participantName = enrollment.getFirstName() + " " + enrollment.getLastName();
+        var participantName = enrollment.displayFirstName() + " " + enrollment.displayLastName();
+        var participantEmail = enrollment.displayEmail();
+        var participantFirstName = enrollment.displayFirstName();
         var schedule = EnrollmentMailService.formatSchedule(event);
 
         enrollmentRepository.delete(enrollment);
@@ -106,13 +100,13 @@ public class AdminEnrollmentService {
         // notify=false dla korekty archiwum (wydarzenie już było) — uczestnik nie dostaje maila o „odwołaniu".
         if (notify) {
             enrollmentMailService.sendEnrollmentDeletionNotification(
-                    enrollment.getEmail(), enrollment.getFirstName(),
+                    participantEmail, participantFirstName,
                     event.getDisplayName(), schedule,
                     event.getCategory(), event.getId().toString());
 
             enrollmentMailService.sendEnrollmentDeletionAdminNotification(
                     event.getDisplayName(), participantName,
-                    enrollment.getEmail(), schedule,
+                    participantEmail, schedule,
                     event.getCategory(), event.getId().toString());
         }
     }
@@ -127,7 +121,7 @@ public class AdminEnrollmentService {
         var seen = new LinkedHashSet<String>();
         var recipients = enrollments.stream()
                 .filter(e -> !e.isAnonymized())
-                .filter(e -> seen.add(e.getEmail().toLowerCase()))
+                .filter(e -> seen.add(e.displayEmail().toLowerCase()))
                 .toList();
 
         if (recipients.isEmpty()) {
@@ -142,7 +136,7 @@ public class AdminEnrollmentService {
         var schedule = EnrollmentMailService.formatSchedule(event);
         for (var enrollment : recipients) {
             enrollmentMailService.sendBulkEventMessage(
-                    enrollment.getEmail(), enrollment.getFirstName(),
+                    enrollment.displayEmail(), enrollment.displayFirstName(),
                     event.getDisplayName(), schedule,
                     event.getLocation(), request.message(), senderName,
                     event.getCategory(), event.getId().toString());
@@ -152,11 +146,12 @@ public class AdminEnrollmentService {
     }
 
     private EnrollmentResponse toResponse(Enrollment e) {
+        // Dane uczestnika z żywego konta (źródło prawdy) — snapshot tylko jako fallback po usunięciu konta.
         return new EnrollmentResponse(
                 e.getId(), e.getEvent().getId(),
                 e.getEvent().getDisplayName(),
                 e.getEvent().getStartDate(),
-                e.getFirstName(), e.getLastName(), e.getEmail(), e.getPhone(),
+                e.displayFirstName(), e.displayLastName(), e.displayEmail(), e.displayPhone(),
                 e.getNote(), e.isAddedByAdmin(), e.getCreatedAt()
         );
     }

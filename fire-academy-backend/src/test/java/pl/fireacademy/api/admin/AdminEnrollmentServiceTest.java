@@ -74,15 +74,6 @@ class AdminEnrollmentServiceTest {
     }
 
     @Test
-    void shouldGetEnrollmentsByCategory() {
-        when(enrollmentRepository.findByEventCategory(EventCategory.TRAINING)).thenReturn(List.of(enrollment));
-
-        List<EnrollmentResponse> result = service.getByCategory(EventCategory.TRAINING);
-
-        assertEquals(1, result.size());
-    }
-
-    @Test
     void shouldAdminEnroll() {
         AdminEnrollRequest request = new AdminEnrollRequest(eventId, userId, "Admin note");
 
