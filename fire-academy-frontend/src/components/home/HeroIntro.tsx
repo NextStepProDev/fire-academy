@@ -7,7 +7,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => {
     const clashTimer = setTimeout(() => setPhase('clash'), 80)
-    const exitTimer = setTimeout(() => setPhase('exit'), 3100)
+    const exitTimer = setTimeout(() => setPhase('exit'), 2300)
     return () => {
       clearTimeout(clashTimer)
       clearTimeout(exitTimer)
@@ -98,7 +98,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
 
       <div
         className={`absolute bottom-0 left-0 h-1 bg-primary-500 transition-all ease-linear ${
-          phase === 'enter' ? 'w-0 duration-0' : 'w-full duration-[3500ms]'
+          phase === 'enter' ? 'w-0 duration-0' : 'w-full duration-[2300ms]'
         }`}
       />
     </div>
