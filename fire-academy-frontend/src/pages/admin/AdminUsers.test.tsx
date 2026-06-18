@@ -104,7 +104,15 @@ describe('AdminUsers', () => {
     expect(screen.getByText('Odbierz admina')).toBeInTheDocument()
   })
 
-  it('shows the promote action for a regular user', async () => {
+  it('hides the promote action for a non-super-admin caller', async () => {
+    mockUser = { id: 'me', superAdmin: false }
+    await renderPage([regular])
+    await screen.findByText('Jan Kowalski')
+    expect(screen.queryByText('Nadaj admina')).not.toBeInTheDocument()
+  })
+
+  it('shows the promote action for a super-admin caller', async () => {
+    mockUser = { id: 'me', superAdmin: true }
     await renderPage([regular])
     await screen.findByText('Jan Kowalski')
     expect(screen.getByText('Nadaj admina')).toBeInTheDocument()

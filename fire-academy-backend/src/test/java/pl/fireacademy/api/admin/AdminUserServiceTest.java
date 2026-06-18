@@ -287,10 +287,13 @@ class AdminUserServiceTest {
     // --- promote ---
 
     @Test
-    void shouldPromoteUserToAdmin() {
+    void shouldPromoteUserToAdminWhenCallerIsSuperAdmin() {
+        User superAdmin = user(UUID.randomUUID(), "admin@fireacademy.test", "Admin", "Env", UserRole.ADMIN);
+        when(adminEmailConfig.isAdminEmail("admin@fireacademy.test")).thenReturn(true);
+        when(userRepository.findById(superAdmin.getId())).thenReturn(Optional.of(superAdmin));
         when(userRepository.findById(regularId)).thenReturn(Optional.of(regular));
 
-        AdminUserResponse result = service.promote(regularId);
+        AdminUserResponse result = service.promote(superAdmin.getId(), regularId);
 
         assertEquals(UserRole.ADMIN.name(), result.role());
         assertEquals(UserRole.ADMIN, regular.getRole());
@@ -299,11 +302,24 @@ class AdminUserServiceTest {
     }
 
     @Test
+    void shouldThrowWhenPromoteCallerIsNotSuperAdmin() {
+        User plainAdmin = user(UUID.randomUUID(), "boss@test.com", "Boss", "Admin", UserRole.ADMIN);
+        when(userRepository.findById(plainAdmin.getId())).thenReturn(Optional.of(plainAdmin));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.promote(plainAdmin.getId(), regularId));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     void shouldThrowWhenPromotingExistingAdmin() {
+        User superAdmin = user(UUID.randomUUID(), "admin@fireacademy.test", "Admin", "Env", UserRole.ADMIN);
+        when(adminEmailConfig.isAdminEmail("admin@fireacademy.test")).thenReturn(true);
+        when(userRepository.findById(superAdmin.getId())).thenReturn(Optional.of(superAdmin));
         User admin = user(UUID.randomUUID(), "boss@test.com", "Boss", "Admin", UserRole.ADMIN);
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
 
-        assertThrows(IllegalStateException.class, () -> service.promote(admin.getId()));
+        assertThrows(IllegalStateException.class, () -> service.promote(superAdmin.getId(), admin.getId()));
         verify(userRepository, never()).save(any());
     }
 

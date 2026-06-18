@@ -270,7 +270,7 @@ export function AdminUsers() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          {u.role === 'USER' && (
+                          {u.role === 'USER' && isSuperAdmin && (
                             <Button
                               variant="ghost"
                               size="sm"

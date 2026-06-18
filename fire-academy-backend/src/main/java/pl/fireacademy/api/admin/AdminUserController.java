@@ -44,8 +44,8 @@ public class AdminUserController {
     }
 
     @PostMapping("/{id}/promote")
-    public AdminUserResponse promote(@PathVariable UUID id) {
-        return service.promote(id);
+    public AdminUserResponse promote(@CurrentUserId UUID adminId, @PathVariable UUID id) {
+        return service.promote(adminId, id);
     }
 
     @PostMapping("/{id}/demote")

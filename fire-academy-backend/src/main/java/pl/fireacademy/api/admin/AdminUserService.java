@@ -188,7 +188,13 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse promote(UUID targetId) {
+    public AdminUserResponse promote(UUID adminId, UUID targetId) {
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
+        // Nadanie roli admina może wykonać wyłącznie super-admin zdefiniowany w .env (ADMIN_EMAIL).
+        if (!adminEmailConfig.isAdminEmail(admin.getEmail())) {
+            throw new IllegalStateException(msg.get("error.user.promote.forbidden"));
+        }
         User target = userRepository.findById(targetId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
         if (target.isAdmin()) {

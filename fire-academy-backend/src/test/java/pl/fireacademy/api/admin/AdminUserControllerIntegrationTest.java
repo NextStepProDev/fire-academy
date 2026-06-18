@@ -156,13 +156,23 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
     // --- roles ---
 
     @Test
-    void shouldPromoteUserByPlainAdmin() throws Exception {
+    void shouldPromoteUserBySuperAdmin() throws Exception {
         User target = createUser("promote@test.com", "Do", "Awansu", UserRole.USER);
 
         mockMvc.perform(post("/api/admin/users/" + target.getId() + "/promote")
-                .header("Authorization", "Bearer " + adminToken()))
+                .header("Authorization", "Bearer " + superAdminToken()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.role").value("ADMIN"));
+    }
+
+    @Test
+    void shouldRejectPromoteByPlainAdmin() throws Exception {
+        User target = createUser("promote2@test.com", "Do", "Awansu", UserRole.USER);
+
+        // testadmin@fireacademy.test NIE jest super-adminem z .env → nadanie uprawnień zabronione (409)
+        mockMvc.perform(post("/api/admin/users/" + target.getId() + "/promote")
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isConflict());
     }
 
     @Test
