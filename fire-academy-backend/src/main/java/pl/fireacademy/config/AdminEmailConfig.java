@@ -15,10 +15,15 @@ public class AdminEmailConfig {
     private static final Logger log = LoggerFactory.getLogger(AdminEmailConfig.class);
 
     private final Set<String> adminEmails;
+    private final Set<String> hiddenEmails;
 
     public AdminEmailConfig(AppConfig appConfig) {
-        String raw = appConfig.getAdmin().getEmail();
-        this.adminEmails = (raw == null || raw.isBlank())
+        this.adminEmails = parse(appConfig.getAdmin().getEmail());
+        this.hiddenEmails = parse(appConfig.getAdmin().getHiddenEmails());
+    }
+
+    private static Set<String> parse(String raw) {
+        return (raw == null || raw.isBlank())
                 ? Set.of()
                 : Arrays.stream(raw.split(","))
                         .map(String::trim)
@@ -42,5 +47,14 @@ public class AdminEmailConfig {
 
     public boolean isAdminEmail(String email) {
         return email != null && adminEmails.contains(email.toLowerCase().trim());
+    }
+
+    // Konta techniczne/deweloperskie — ukryte na liście użytkowników w panelu, mimo posiadanych uprawnień admina.
+    public Set<String> getHiddenEmails() {
+        return hiddenEmails;
+    }
+
+    public boolean isHiddenEmail(String email) {
+        return email != null && hiddenEmails.contains(email.toLowerCase().trim());
     }
 }

@@ -28,6 +28,7 @@ import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -73,9 +74,16 @@ public class AdminUserService {
         int safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         Pageable pageable = PageRequest.of(safePage, safeSize, resolveSort(sort, direction));
 
-        Page<User> result = (search == null || search.isBlank())
-                ? userRepository.findAll(pageable)
-                : userRepository.searchByPhrase(search.trim(), pageable);
+        // Konta techniczne/deweloperskie (np. konto programisty) są ukryte na liście — mają admina do testów,
+        // ale nie powinny zaśmiecać widoku ani mylić pozostałych administratorów. Filtr w SQL, by liczniki/paginacja
+        // były spójne; gdy brak ukrytych e-maili, używamy zwykłych zapytań (NOT IN () byłoby niepoprawne).
+        Set<String> hidden = adminEmailConfig.getHiddenEmails();
+        boolean blank = search == null || search.isBlank();
+        Page<User> result = hidden.isEmpty()
+                ? (blank ? userRepository.findAll(pageable)
+                         : userRepository.searchByPhrase(search.trim(), pageable))
+                : (blank ? userRepository.findAllExcludingEmails(hidden, pageable)
+                         : userRepository.searchByPhraseExcludingEmails(search.trim(), hidden, pageable));
 
         List<AdminUserResponse> content = result.getContent().stream().map(this::toResponse).toList();
         return new PagedUsersResponse(
@@ -128,11 +136,15 @@ public class AdminUserService {
 
     @Transactional(readOnly = true)
     public SendEmailResponse sendEmail(SendEmailRequest request) {
-        List<User> recipients = request.allUsers()
+        List<User> recipients = (request.allUsers()
                 ? userRepository.findAllByOrderByCreatedAtDesc()
                 : (request.userIds() == null || request.userIds().isEmpty()
-                        ? List.of()
-                        : userRepository.findAllById(request.userIds()));
+                        ? List.<User>of()
+                        : userRepository.findAllById(request.userIds())))
+                .stream()
+                // Konta ukryte (techniczne/deweloperskie) nie są adresatami maila „do wszystkich".
+                .filter(u -> !adminEmailConfig.isHiddenEmail(u.getEmail()))
+                .toList();
 
         if (recipients.isEmpty()) {
             throw new IllegalStateException(msg.get("email.admin.no.recipients"));

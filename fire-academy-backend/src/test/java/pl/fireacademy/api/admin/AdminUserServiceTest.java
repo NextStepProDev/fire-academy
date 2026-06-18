@@ -91,6 +91,32 @@ class AdminUserServiceTest {
     }
 
     @Test
+    void shouldExcludeHiddenEmailsWhenListingWithoutSearch() {
+        when(adminEmailConfig.getHiddenEmails()).thenReturn(java.util.Set.of("dev@test.com"));
+        when(userRepository.findAllExcludingEmails(anyCollection(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(regular)));
+
+        PagedUsersResponse result = service.list(null, 0, 30, "created", "desc");
+
+        assertEquals(1, result.content().size());
+        verify(userRepository).findAllExcludingEmails(eq(java.util.Set.of("dev@test.com")), any(Pageable.class));
+        verify(userRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void shouldExcludeHiddenEmailsWhenSearching() {
+        when(adminEmailConfig.getHiddenEmails()).thenReturn(java.util.Set.of("dev@test.com"));
+        when(userRepository.searchByPhraseExcludingEmails(eq("kowal"), anyCollection(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(regular)));
+
+        PagedUsersResponse result = service.list("  kowal  ", 0, 30, "created", "desc");
+
+        assertEquals(1, result.content().size());
+        verify(userRepository).searchByPhraseExcludingEmails(eq("kowal"), anyCollection(), any(Pageable.class));
+        verify(userRepository, never()).searchByPhrase(any(), any());
+    }
+
+    @Test
     void shouldMarkSuperAdminInResponse() {
         when(adminEmailConfig.isAdminEmail("jan@test.com")).thenReturn(true);
         when(userRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(regular)));
@@ -190,6 +216,20 @@ class AdminUserServiceTest {
         assertEquals(2, result.recipientCount());
         verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść");
         verify(adminUserMailService).sendCustomMessage("anna@test.com", "Anna", "Temat", "Treść");
+    }
+
+    @Test
+    void shouldSkipHiddenEmailRecipientsWhenEmailingAll() {
+        User dev = user(UUID.randomUUID(), "dev@test.com", "Dev", "Eloper", UserRole.ADMIN);
+        when(userRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(regular, dev));
+        when(adminEmailConfig.isHiddenEmail("dev@test.com")).thenReturn(true);
+
+        SendEmailResponse result = service.sendEmail(
+                new SendEmailRequest("Temat", "Treść", true, null));
+
+        assertEquals(1, result.recipientCount());
+        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść");
+        verify(adminUserMailService, never()).sendCustomMessage(eq("dev@test.com"), any(), any(), any());
     }
 
     @Test
