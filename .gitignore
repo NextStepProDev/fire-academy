@@ -32,3 +32,6 @@ uploads/
 
 # Logs
 *.log
+
+# Local docs (not for repo)
+docs/

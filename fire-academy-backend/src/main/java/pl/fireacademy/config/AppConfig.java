@@ -55,6 +55,7 @@ public class AppConfig {
 
     public static class Admin {
         private String email = "";
+        private String hiddenEmails = "";
 
         public String getEmail() {
             return email;
@@ -62,6 +63,14 @@ public class AppConfig {
 
         public void setEmail(String email) {
             this.email = email;
+        }
+
+        public String getHiddenEmails() {
+            return hiddenEmails;
+        }
+
+        public void setHiddenEmails(String hiddenEmails) {
+            this.hiddenEmails = hiddenEmails;
         }
     }
 

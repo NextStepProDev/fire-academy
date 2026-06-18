@@ -56,6 +56,8 @@ app:
     root: ${STORAGE_ROOT:./uploads}
   admin:
     email: ${ADMIN_EMAIL:}
+    # Konta techniczne/deweloperskie (CSV) — mają admina do testów, ale są ukryte na liście użytkowników w panelu.
+    hidden-emails: ${ADMIN_HIDDEN_EMAILS:}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:noreply@fireworkout.pl}}
   cors:

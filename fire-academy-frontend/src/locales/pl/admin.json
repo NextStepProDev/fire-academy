@@ -16,7 +16,7 @@
     "unverified": "niezweryfikowany",
     "user": "Użytkownik",
     "admin": "Administrator",
-    "superAdmin": "Administrator (konfig.)",
+    "superAdmin": "Kapitan",
     "promote": "Nadaj admina",
     "demote": "Odbierz admina",
     "promoteSuccess": "Nadano uprawnienia administratora.",
