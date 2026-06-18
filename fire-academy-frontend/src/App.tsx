@@ -17,6 +17,7 @@ const ResetPasswordPage = lazyWithReload(() => import('./pages/ResetPasswordPage
 const ResendVerificationPage = lazyWithReload(() => import('./pages/ResendVerificationPage').then(m => ({ default: m.ResendVerificationPage })))
 const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const ProfileCompletionPage = lazyWithReload(() => import('./pages/ProfileCompletionPage').then(m => ({ default: m.ProfileCompletionPage })))
 const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
@@ -62,6 +63,10 @@ export default function App() {
             <Route
               path="settings"
               element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
+            />
+            <Route
+              path="uzupelnij-profil"
+              element={<ProtectedRoute><ProfileCompletionPage /></ProtectedRoute>}
             />
             <Route
               path="admin/:tab"

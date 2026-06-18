@@ -14,7 +14,7 @@ interface AuthContextType {
   isAdmin: boolean
   isSuperAdmin: boolean
   login: (email: string, password: string) => Promise<User>
-  loginWithTokens: (tokens: AuthTokens) => Promise<void>
+  loginWithTokens: (tokens: AuthTokens) => Promise<User>
   logout: () => void
   refreshUser: () => Promise<void>
 }
@@ -97,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(currentUser)
     syncLanguage(currentUser.preferredLanguage)
     showToast(i18nRef.current.t('loggedIn', { ns: 'auth' }))
+    return currentUser
   }, [syncLanguage, showToast])
 
   const logout = useCallback(() => {
