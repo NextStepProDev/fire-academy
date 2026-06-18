@@ -1,12 +1,10 @@
 package pl.fireacademy.domain.enrollment;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pl.fireacademy.domain.event.EventCategory;
 
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,13 +27,4 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
     List<Enrollment> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     Optional<Enrollment> findByIdAndUserId(UUID id, UUID userId);
-
-    @Modifying
-    @Query("""
-        DELETE FROM Enrollment e WHERE e.event.id IN (
-            SELECT ev.id FROM Event ev
-            WHERE COALESCE(ev.endDate, ev.startDate) < :cutoffDate
-        )
-        """)
-    int deleteByEventEndedBefore(LocalDate cutoffDate);
 }

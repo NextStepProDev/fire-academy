@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 
-const LAST_UPDATED = '14 czerwca 2026'
+const LAST_UPDATED = '18 czerwca 2026'
 
 export function PrivacyPolicyPage() {
   return (
@@ -69,29 +69,45 @@ export function PrivacyPolicyPage() {
 
         <Section title="2. Jakie dane zbieramy">
           <p className="text-surface-400 leading-relaxed mb-4">
-            Zbieramy wyłącznie dane niezbędne do świadczenia usług szkoleniowych. Nie zbieramy nic ponad to.
+            Zbieramy wyłącznie dane niezbędne do założenia konta i świadczenia usług szkoleniowych. Nie zbieramy nic ponad to.
           </p>
 
-          <SubSection title="Zapis na wydarzenie (formularz publiczny)">
+          <SubSection title="Konto użytkownika (rejestracja)">
             <p className="text-surface-400 text-sm mb-2 leading-relaxed">
-              Przy zapisie na trening, obóz lub szkolenie zbieramy:
+              Założenie konta jest wymagane, aby zapisać się na trening, obóz lub szkolenie. Przy rejestracji zbieramy:
             </p>
             <DataList items={[
               'Imię i nazwisko',
               'Adres e-mail',
-              'Numer telefonu',
-              'Informacja dla organizatora (opcjonalnie) — np. uwagi zdrowotne, poziom zaawansowania',
-              'Data i godzina zapisu',
+              'Numer telefonu (opcjonalny przy rejestracji; wymagany do zapisu na wydarzenie)',
+              'Hasło — przechowywane wyłącznie w postaci zaszyfrowanego hashu (bcrypt), nigdy w formie jawnej',
+              'Data i godzina akceptacji polityki prywatności — jako potwierdzenie udzielonej zgody',
             ]} />
           </SubSection>
 
-          <SubSection title="Konto użytkownika (rejestracja e-mail i hasło)">
+          <SubSection title="Profil użytkownika (opcjonalnie)">
+            <p className="text-surface-400 text-sm mb-2 leading-relaxed">
+              W ustawieniach konta możesz dobrowolnie uzupełnić:
+            </p>
             <DataList items={[
-              'Imię i nazwisko',
-              'Adres e-mail',
-              'Numer telefonu (opcjonalnie)',
-              'Hasło — przechowywane wyłącznie w postaci zaszyfrowanego hashu (bcrypt), nigdy w formie jawnej',
+              'Zdjęcie profilowe (avatar) — jeśli zdecydujesz się je dodać; w każdej chwili możesz je usunąć',
+              'Preferencje powiadomień e-mail',
             ]} />
+          </SubSection>
+
+          <SubSection title="Zapis na wydarzenie">
+            <p className="text-surface-400 text-sm mb-2 leading-relaxed">
+              Zapis odbywa się z poziomu zalogowanego konta. Do listy uczestników trafiają Twoje imię i nazwisko,
+              adres e-mail oraz numer telefonu (pobierane z profilu), a dodatkowo:
+            </p>
+            <DataList items={[
+              'Informacja dla organizatora (opcjonalnie) — np. uwagi zdrowotne, poziom zaawansowania',
+              'Data i godzina zapisu',
+            ]} />
+            <p className="text-surface-500 text-sm mt-3 leading-relaxed">
+              Dane na liście uczestników zapisywane są jako kopia (snapshot) z chwili zapisu — dzięki temu organizator
+              ma czytelny wykaz uczestników wydarzenia nawet po usunięciu lub anonimizacji Twojego konta.
+            </p>
           </SubSection>
 
           <p className="text-surface-500 text-sm mt-4">
@@ -114,12 +130,16 @@ export function PrivacyPolicyPage() {
               basis="Art. 6 ust. 1 lit. b RODO — wykonanie umowy"
             />
             <LegalBasis
+              purpose="Zdjęcie profilowe (avatar)"
+              basis="Art. 6 ust. 1 lit. a RODO — dobrowolna zgoda, którą możesz w każdej chwili wycofać, usuwając zdjęcie w ustawieniach konta"
+            />
+            <LegalBasis
               purpose="Weryfikacja adresu e-mail i odzyskiwanie hasła"
               basis="Art. 6 ust. 1 lit. b RODO — wykonanie umowy"
             />
             <LegalBasis
-              purpose="Archiwum uczestników wydarzeń (przechowywanie danych po zakończeniu wydarzenia)"
-              basis="Art. 6 ust. 1 lit. f RODO — uzasadniony interes administratora (prowadzenie dokumentacji uczestników, rozliczenia, ochrona roszczeń — dane przechowywane do 3 lat)"
+              purpose="Archiwum uczestników wydarzeń (historia Twoich zapisów w koncie)"
+              basis="Art. 6 ust. 1 lit. f RODO — uzasadniony interes administratora (prowadzenie dokumentacji uczestników, rozliczenia, ochrona roszczeń); dane przechowywane tak długo, jak istnieje Twoje konto"
             />
             <LegalBasis
               purpose="Bezpieczeństwo systemu (blokada konta po nieudanych logowaniach, rate limiting)"
@@ -131,16 +151,20 @@ export function PrivacyPolicyPage() {
         <Section title="4. Jak długo przechowujemy dane">
           <div className="space-y-3 text-surface-300 leading-relaxed">
             <p>
-              <span className="text-surface-200 font-medium">Dane z zapisu na wydarzenie</span> — przechowywane
-              przez okres <span className="text-surface-200 font-medium">3 lat</span> od daty zakończenia wydarzenia.
-              Pozwala to organizatorowi na prowadzenie archiwum uczestników oraz rozliczenie usługi. Po upływie 3 lat
-              dane są automatycznie i trwale usuwane z bazy danych. Podstawą przechowywania jest uzasadniony interes
-              administratora (Art. 6 ust. 1 lit. f RODO) — okres 3 lat jest zbieżny z ogólnym terminem przedawnienia
-              roszczeń wynikającym z Kodeksu cywilnego.
+              <span className="text-surface-200 font-medium">Dane konta i historia zapisów</span> — przechowywane przez
+              cały czas istnienia Twojego konta. Dopóki masz konto, Twój profil oraz archiwum zapisów na wydarzenia
+              pozostają dostępne (m.in. po to, byś sam widział swoją historię, a organizator mógł prowadzić dokumentację
+              uczestników i rozliczenia). Nie usuwamy tych danych po żadnym z góry ustalonym okresie — decydujesz o tym Ty,
+              usuwając konto.
             </p>
             <p>
-              <span className="text-surface-200 font-medium">Dane konta użytkownika</span> — przechowywane przez
-              cały czas istnienia konta. Po jego usunięciu wszystkie dane są trwale i nieodwracalnie usuwane z bazy danych.
+              <span className="text-surface-200 font-medium">Usunięcie konta</span> — konto możesz usunąć samodzielnie
+              w ustawieniach. Usunięcie trwale kasuje Twoje dane profilowe (w tym zdjęcie profilowe) oraz zapisy na
+              nadchodzące wydarzenia (zwalniając miejsce), a wpisy z wydarzeń już zakończonych
+              <span className="text-surface-200 font-medium"> anonimizuje</span> — Twoje imię, nazwisko, e-mail i telefon
+              są bezpowrotnie nadpisywane, a na liście uczestników zostaje wyłącznie anonimowy wpis bez powiązania z Tobą.
+              Tak zanonimizowane dane nie są już danymi osobowymi w rozumieniu RODO. Jest to nasz mechanizm realizacji
+              prawa do bycia zapomnianym.
             </p>
             <p>
               <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 15 min,
@@ -179,7 +203,7 @@ export function PrivacyPolicyPage() {
           <div className="space-y-3">
             <Right title="Prawo dostępu" description="Możesz w każdej chwili zapytać, jakie Twoje dane przechowujemy." />
             <Right title="Prawo do sprostowania" description="Jeśli Twoje dane są nieprawidłowe lub niekompletne, możesz żądać ich poprawienia." />
-            <Right title="Prawo do usunięcia" description="Możesz zażądać trwałego usunięcia swoich danych osobowych z naszej bazy." />
+            <Right title="Prawo do usunięcia" description="Możesz zażądać trwałego usunięcia swoich danych — a konto usuniesz też samodzielnie w ustawieniach, co od razu anonimizuje całą Twoją historię zapisów." />
             <Right title="Prawo do ograniczenia przetwarzania" description="Możesz zażądać ograniczenia przetwarzania Twoich danych w określonych przypadkach." />
             <Right title="Prawo do przenoszalności" description="Możesz zażądać przekazania Twoich danych w ustrukturyzowanym, powszechnie używanym formacie." />
             <Right title="Prawo sprzeciwu" description="Możesz wnieść sprzeciw wobec przetwarzania danych opartego na uzasadnionym interesie." />

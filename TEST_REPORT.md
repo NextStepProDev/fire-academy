@@ -1,7 +1,7 @@
 # Fire Academy — Raport Testów
 
 **Data wygenerowania:** 2026-05-30
-**Status:** Wszystkie testy przechodzą (319/319)
+**Status:** Wszystkie testy przechodzą (317/317)
 **Pokrycie kodu (backend):** 84% instrukcji, 69% gałęzi
 
 ---
@@ -10,11 +10,11 @@
 
 | Warstwa | Plików testowych | Testów | Framework | Status |
 |---------|-----------------|--------|-----------|--------|
-| Backend — jednostkowe | 22 | 220 | JUnit 5, Mockito | PASS |
+| Backend — jednostkowe | 21 | 218 | JUnit 5, Mockito | PASS |
 | Backend — integracyjne | 6 | 57 | Testcontainers, MockMvc, PostgreSQL | PASS |
 | Frontend — komponenty/utility | 5 | 34 | Vitest, React Testing Library | PASS |
 | Frontend — E2E | 1 | 8 | Playwright (Chromium) | PASS* |
-| **RAZEM** | **34** | **319** | | |
+| **RAZEM** | **33** | **317** | | |
 
 *E2E wymaga uruchomionego dev servera
 
@@ -27,7 +27,7 @@
 | infrastructure.mail | 100% | 100% | AuthMailService, EnrollmentMailService |
 | domain.enrollment | 100% | 75% | Enrollment entity, anonymize |
 | api.file | 100% | 100% | FileController |
-| infrastructure.scheduler | 100% | 100% | Token + Enrollment cleanup |
+| infrastructure.scheduler | 100% | 100% | Token cleanup |
 | infrastructure.i18n | 100% | 100% | MessageService |
 | api.auth | 98% | 95% | AuthController + AuthService |
 | domain.instructor | 96% | n/a | Instructor entity |
@@ -342,15 +342,6 @@ Testowany: `TokenCleanupScheduler` — czyszczenie wygasłych tokenów
 |---|------|--------------|
 | 1 | shouldDeleteExpiredTokens | Usunięcie wygasłych tokenów |
 | 2 | shouldHandleNoExpiredTokens | Brak do usunięcia → OK |
-
-### EnrollmentCleanupSchedulerTest (2 testy)
-Plik: `infrastructure/scheduler/EnrollmentCleanupSchedulerTest.java`
-Testowany: `EnrollmentCleanupScheduler` — RODO cleanup (3 lata)
-
-| # | Test | Co weryfikuje |
-|---|------|--------------|
-| 1 | shouldDeleteEnrollmentsOlderThanThreeYears | Cutoff = now - 3 lata |
-| 2 | shouldHandleNoEnrollmentsToDelete | Brak do usunięcia → OK |
 
 ### UserTest (15 testów)
 Plik: `domain/user/UserTest.java`
