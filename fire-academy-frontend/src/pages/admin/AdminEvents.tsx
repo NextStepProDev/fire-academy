@@ -373,7 +373,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
     },
     onSuccess: invalidate,
   })
-  const deleteMut = useMutation({ mutationFn: adminApi.deleteEvent, onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: (id: string) => adminApi.deleteEvent(id), onSuccess: invalidate })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
 
   const openCreate = () => {
