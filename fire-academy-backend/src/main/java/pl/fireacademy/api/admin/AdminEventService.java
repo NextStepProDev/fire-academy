@@ -162,11 +162,16 @@ public class AdminEventService {
             @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
     })
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID id, boolean force) {
         var event = findOrThrow(id);
         long enrollments = enrollmentRepository.countByEventId(id);
         if (enrollments > 0) {
-            throw new IllegalStateException(msg.get("event.has.enrollments"));
+            if (!force) {
+                throw new IllegalStateException(msg.get("event.has.enrollments"));
+            }
+            // Force-delete (archiwum): cicho kasujemy zapisy zanim usuniemy termin.
+            // Termin jest przeszły, więc nie wysyłamy powiadomień o odwołaniu.
+            enrollmentRepository.deleteByEventId(id);
         }
         eventRepository.delete(event);
     }

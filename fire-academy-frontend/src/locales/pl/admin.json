@@ -148,7 +148,12 @@
     "categoryTraining": "Treningi",
     "categoryCamp": "Obozy",
     "categoryCourse": "Szkolenia",
-    "noItems": "Brak archiwalnych terminów"
+    "noItems": "Brak archiwalnych terminów",
+    "delete": "Usuń z archiwum",
+    "deleteTitle": "Usuń termin z archiwum",
+    "deleteConfirm": "Czy na pewno chcesz usunąć ten termin z archiwum? Tej operacji nie można cofnąć.",
+    "deleteEnrolledTitle": "Uwaga — zapisane osoby",
+    "deleteEnrolledIntro": "Na ten termin zapisane są poniższe osoby. Usunięcie terminu trwale skasuje ich zapisy (bez wysyłania powiadomień). Czy na pewno usunąć?"
   },
   "enrollments": {
     "title": "Zapisy",

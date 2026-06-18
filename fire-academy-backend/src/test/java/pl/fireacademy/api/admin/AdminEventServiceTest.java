@@ -230,7 +230,7 @@ class AdminEventServiceTest {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(enrollmentRepository.countByEventId(eventId)).thenReturn(0L);
 
-        service.delete(eventId);
+        service.delete(eventId, false);
 
         verify(eventRepository).delete(event);
     }
@@ -241,8 +241,19 @@ class AdminEventServiceTest {
         when(enrollmentRepository.countByEventId(eventId)).thenReturn(3L);
         when(msg.get("event.has.enrollments")).thenReturn("Ma zapisy");
 
-        var ex = assertThrows(IllegalStateException.class, () -> service.delete(eventId));
+        var ex = assertThrows(IllegalStateException.class, () -> service.delete(eventId, false));
         assertEquals("Ma zapisy", ex.getMessage());
+    }
+
+    @Test
+    void shouldForceDeleteEventWithEnrollments() {
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(enrollmentRepository.countByEventId(eventId)).thenReturn(3L);
+
+        service.delete(eventId, true);
+
+        verify(enrollmentRepository).deleteByEventId(eventId);
+        verify(eventRepository).delete(event);
     }
 
     private static void setId(Object entity, UUID id) throws Exception {

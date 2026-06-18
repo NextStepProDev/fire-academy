@@ -1,9 +1,10 @@
 import { useState, Fragment } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { ChevronDown, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 
@@ -24,15 +25,27 @@ function isPastEvent(event: EventInstance): boolean {
 
 function ArchiveCard({ event }: { event: ArchivedEvent }) {
   const { t } = useTranslation('admin')
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [expandedNote, setExpandedNote] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const config = categoryConfig[event.category]
+  const hasEnrollments = event.enrollmentCount > 0
 
   const { data: enrollments } = useQuery({
     queryKey: ['admin', 'enrollments', event.id],
     queryFn: () => adminApi.getEnrollmentsByEvent(event.id),
-    enabled: expanded,
+    enabled: expanded || confirmOpen,
     staleTime: 0,
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: () => adminApi.deleteEvent(event.id, hasEnrollments),
+    onSuccess: () => {
+      setConfirmOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
+      queryClient.invalidateQueries({ queryKey: ['public', 'events'] })
+    },
   })
 
   return (
@@ -63,6 +76,14 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
             {event.maxParticipants != null && ` / ${event.maxParticipants}`}
           </p>
         </div>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirmOpen(true) }}
+          className="mt-0.5 p-1 text-surface-400 hover:text-rose-400 shrink-0"
+          title={t('archive.delete')}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {expanded && (
@@ -123,6 +144,28 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => deleteMut.mutate()}
+        title={hasEnrollments ? t('archive.deleteEnrolledTitle') : t('archive.deleteTitle')}
+        message={hasEnrollments ? t('archive.deleteEnrolledIntro') : t('archive.deleteConfirm')}
+        confirmLabel={t('actions.delete')}
+        loading={deleteMut.isPending}
+        danger
+      >
+        {hasEnrollments && (
+          <ul className="max-h-48 overflow-y-auto rounded-lg bg-surface-800 divide-y divide-surface-700/50">
+            {enrollments?.map(en => (
+              <li key={en.id} className="px-3 py-2 text-sm">
+                <span className="text-surface-100">{en.firstName} {en.lastName}</span>
+                <span className="text-surface-400"> · {en.email}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }
