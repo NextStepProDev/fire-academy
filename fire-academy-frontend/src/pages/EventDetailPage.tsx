@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone } from 'lucide-react'
 import { publicApi } from '../api/public'
@@ -27,6 +27,7 @@ export function EventDetailPage() {
 
   const [enrollOpen, setEnrollOpen] = useState(false)
   const guardEnroll = useEnrollGuard()
+  const queryClient = useQueryClient()
 
   const eventQuery = useQuery({
     queryKey: ['public', 'event', id],
@@ -201,6 +202,7 @@ export function EventDetailPage() {
         onClose={() => setEnrollOpen(false)}
         eventId={canEnroll ? event.id : null}
         eventName={event.eventTypeName}
+        onEnrolled={() => queryClient.invalidateQueries({ queryKey: ['public'] })}
       />
     </>
   )

@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.EnrollmentDtos.*;
 import pl.fireacademy.config.CurrentUserId;
-import pl.fireacademy.domain.event.EventCategory;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,11 +23,6 @@ public class AdminEnrollmentController {
     @GetMapping
     public List<EnrollmentResponse> getByEvent(@RequestParam UUID eventId) {
         return service.getByEvent(eventId);
-    }
-
-    @GetMapping("/by-category")
-    public List<EnrollmentResponse> getByCategory(@RequestParam EventCategory category) {
-        return service.getByCategory(category);
     }
 
     @PostMapping

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { publicApi } from '../api/public'
 import { Seo } from '../components/seo/Seo'
@@ -27,6 +27,7 @@ export function EventsPage({ category }: EventsPageProps) {
   const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
   const [enrollEventName, setEnrollEventName] = useState('')
   const guardEnroll = useEnrollGuard()
+  const queryClient = useQueryClient()
 
   // Zapis wymaga konta — gość trafia na logowanie, zalogowany otwiera modal potwierdzenia.
   const openEnroll = (eventId: string, eventName: string) =>
@@ -194,6 +195,7 @@ export function EventsPage({ category }: EventsPageProps) {
         onClose={() => setEnrollEventId(null)}
         eventId={enrollEventId}
         eventName={enrollEventName}
+        onEnrolled={() => queryClient.invalidateQueries({ queryKey: ['public'] })}
       />
     </div>
   )

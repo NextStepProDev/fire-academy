@@ -228,12 +228,4 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         return userRepository.save(u).getId();
     }
 
-    @Test
-    void shouldGetEnrollmentsByCategory() throws Exception {
-        mockMvc.perform(get("/api/admin/enrollments/by-category")
-                .param("category", "TRAINING")
-                .header("Authorization", "Bearer " + adminToken()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray());
-    }
 }

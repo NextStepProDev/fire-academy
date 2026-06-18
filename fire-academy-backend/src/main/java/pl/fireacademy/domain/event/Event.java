@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
 
@@ -95,6 +96,21 @@ public class Event {
 
     public String getDisplayName() {
         return eventType != null ? eventType.getName() : customName;
+    }
+
+    /** Ostatni dzień terminu: wielodniowy → {@code endDate}, jednodniowy → {@code startDate}. */
+    public LocalDate effectiveEndDate() {
+        return endDate != null ? endDate : startDate;
+    }
+
+    /** Początek terminu jako data-godzina; brak godziny → początek dnia. */
+    public LocalDateTime startDateTime() {
+        return startTime != null ? startDate.atTime(startTime) : startDate.atStartOfDay();
+    }
+
+    /** Czy termin zakończył się przed podanym dniem (należy do archiwum). */
+    public boolean isPastOn(LocalDate today) {
+        return effectiveEndDate().isBefore(today);
     }
 
     @PrePersist

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { publicApi } from '../api/public'
@@ -23,6 +23,7 @@ export function EventTypeDetailPage() {
   const [enrollEventName, setEnrollEventName] = useState('')
   const touchStart = useRef<number | null>(null)
   const guardEnroll = useEnrollGuard()
+  const queryClient = useQueryClient()
 
   const eventTypeQuery = useQuery({
     queryKey: ['public', 'event-type', id],
@@ -292,6 +293,7 @@ export function EventTypeDetailPage() {
         onClose={() => setEnrollEventId(null)}
         eventId={enrollEventId}
         eventName={enrollEventName}
+        onEnrolled={() => queryClient.invalidateQueries({ queryKey: ['public'] })}
       />
     </>
   )
