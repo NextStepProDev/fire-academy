@@ -20,6 +20,14 @@ export function Navbar() {
   const isLinkActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
+  // Brand główny to Fire Academy; tylko sekcja obozów (lista + podstrony /obozy/rodzaj|termin)
+  // pokazuje wariant Fire Camp.
+  const isCampsSection = location.pathname.startsWith('/obozy')
+  const logoSrc = isCampsSection
+    ? '/images/logo/logo-white.png'
+    : '/images/logo/logo-academy-fire-white.png'
+  const logoAlt = isCampsSection ? 'Fire Camp' : 'Fire Academy'
+
   // Zalogowany użytkownik widzi swoje menu (avatar + ustawienia + wyloguj) na całej stronie.
   // Zapis na wydarzenia wymaga konta, więc punkt wejścia do logowania pokazujemy GOŚCIOWI
   // na każdej zakładce (treningi/obozy/szkolenia i pozostałe).
@@ -77,8 +85,8 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="hover:opacity-80 transition-opacity">
             <img
-              src="/images/logo/logo-white.png"
-              alt="Fire Academy"
+              src={logoSrc}
+              alt={logoAlt}
               className="h-9"
             />
           </Link>
