@@ -43,9 +43,9 @@
     "optional": "opcjonalnie",
     "submit": "Zapisz się",
     "success": "Zapis potwierdzony! Sprawdź swoją skrzynkę email.",
-    "phoneMissingTitle": "Uzupełnij numer telefonu",
-    "phoneMissingText": "Aby zapisać się na wydarzenie, dodaj numer telefonu w ustawieniach konta — organizator musi mieć kontakt do uczestnika.",
-    "phoneMissingCta": "Przejdź do ustawień"
+    "profileIncompleteTitle": "Uzupełnij swoje dane",
+    "profileIncompleteText": "Aby zapisać się na wydarzenie, uzupełnij poniższe dane — zapiszemy je w Twoim profilu, więc następnym razem pójdzie szybciej.",
+    "profileIncompleteCta": "Zapisz dane i kontynuuj"
   },
   "instructor": {
     "readMore": "Czytaj więcej"

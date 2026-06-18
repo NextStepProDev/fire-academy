@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
+import { ProfileCompletionForm } from '../profile/ProfileCompletionForm'
+import { getMissingProfileFields } from '../../utils/profileCompletion'
 import { userApi } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
-import { saveRedirectPath } from '../../utils/redirect'
-import { CheckCircle, Phone } from 'lucide-react'
+import { CheckCircle, UserPlus } from 'lucide-react'
 
 interface EnrollmentModalProps {
   isOpen: boolean
@@ -52,7 +52,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
 
   if (!isOpen || !user) return null
 
-  const hasPhone = !!user.phone && user.phone.trim().length > 0
+  const missingFields = getMissingProfileFields(user)
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={success ? '' : `${t('enroll.title')} — ${eventName}`}>
@@ -61,18 +61,16 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
           <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
           <p className="text-surface-100 font-medium">{t('enroll.success')}</p>
         </div>
-      ) : !hasPhone ? (
+      ) : missingFields.length > 0 ? (
         <div className="space-y-4 py-2">
           <div className="flex items-start gap-3">
-            <Phone className="w-6 h-6 text-primary-400 shrink-0 mt-0.5" />
+            <UserPlus className="w-6 h-6 text-primary-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-surface-100 font-medium">{t('enroll.phoneMissingTitle')}</p>
-              <p className="text-sm text-surface-400 mt-1">{t('enroll.phoneMissingText')}</p>
+              <p className="text-surface-100 font-medium">{t('enroll.profileIncompleteTitle')}</p>
+              <p className="text-sm text-surface-400 mt-1">{t('enroll.profileIncompleteText')}</p>
             </div>
           </div>
-          <Link to="/settings" onClick={() => saveRedirectPath(window.location.pathname)}>
-            <Button variant="primary" className="w-full">{t('enroll.phoneMissingCta')}</Button>
-          </Link>
+          <ProfileCompletionForm submitLabel={t('enroll.profileIncompleteCta')} />
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>

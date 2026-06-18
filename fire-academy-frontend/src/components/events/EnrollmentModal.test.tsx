@@ -17,9 +17,11 @@ vi.mock('react-i18next', () => ({
         'enroll.optional': 'opcjonalne',
         'enroll.submit': 'Zapisz się',
         'enroll.success': 'Zapisano!',
-        'enroll.phoneMissingTitle': 'Uzupełnij telefon',
-        'enroll.phoneMissingText': 'Dodaj numer telefonu',
-        'enroll.phoneMissingCta': 'Przejdź do ustawień',
+        'enroll.profileIncompleteTitle': 'Uzupełnij swoje dane',
+        'enroll.profileIncompleteText': 'Uzupełnij poniższe dane',
+        'enroll.profileIncompleteCta': 'Zapisz dane i kontynuuj',
+        'profile.phone': 'Telefon',
+        'completion.submit': 'Zapisz i kontynuuj',
       }
       return map[key] ?? key
     },
@@ -38,7 +40,7 @@ let mockUser: { firstName: string; lastName: string; email: string; phone: strin
   phone: '123456789',
 }
 vi.mock('../../context/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, refreshUser: vi.fn() }),
 }))
 
 function renderModal(props?: Partial<Parameters<typeof EnrollmentModal>[0]>) {
@@ -74,11 +76,12 @@ describe('EnrollmentModal', () => {
     expect(screen.queryByText('Zapisz się')).not.toBeInTheDocument()
   })
 
-  it('should block submit and prompt for phone when account has no phone', () => {
-    mockUser = { firstName: 'Piotr', lastName: 'Bez', email: 'piotr@test.com', phone: null }
+  it('should show inline profile completion form when account has no phone', () => {
+    mockUser = { firstName: 'Piotr', lastName: 'Kowal', email: 'piotr@test.com', phone: null }
     renderModal()
-    expect(screen.getByText('Uzupełnij telefon')).toBeInTheDocument()
-    expect(screen.getByText('Przejdź do ustawień')).toBeInTheDocument()
+    expect(screen.getByText('Uzupełnij swoje dane')).toBeInTheDocument()
+    expect(screen.getByText('Zapisz dane i kontynuuj')).toBeInTheDocument()
+    expect(screen.getByText('Telefon')).toBeInTheDocument()
     expect(screen.queryByText('Zapisz się')).not.toBeInTheDocument()
   })
 
