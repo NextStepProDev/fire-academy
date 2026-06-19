@@ -9,7 +9,7 @@ const tMap: Record<string, string> = {
   'users.title': 'Użytkownicy',
   'users.promote': 'Nadaj admina',
   'users.demote': 'Odbierz admina',
-  'users.emailAll': 'E-mail do wszystkich',
+  'users.compose': 'Wyślij e-mail',
   'users.emailTitle': 'Wyślij wiadomość',
   'users.search': 'Szukaj',
   'users.nextPage': 'Następna',
@@ -52,12 +52,12 @@ vi.mock('../../context/AuthContext', () => ({
 const regular: AdminUser = {
   id: 'u1', email: 'jan@test.com', firstName: 'Jan', lastName: 'Kowalski', phone: '123456789',
   role: 'USER', isAdmin: false, superAdmin: false, emailVerified: true,
-  emailNotificationsEnabled: true, createdAt: '2026-01-01T00:00:00Z',
+  marketingConsent: true, createdAt: '2026-01-01T00:00:00Z',
 }
 const plainAdmin: AdminUser = {
   id: 'a1', email: 'admin@test.com', firstName: 'Adam', lastName: 'Adminowski', phone: null,
   role: 'ADMIN', isAdmin: true, superAdmin: false, emailVerified: true,
-  emailNotificationsEnabled: true, createdAt: '2026-02-01T00:00:00Z',
+  marketingConsent: false, createdAt: '2026-02-01T00:00:00Z',
 }
 
 async function renderPage(users: AdminUser[], meta?: { totalElements?: number; totalPages?: number }) {
@@ -118,12 +118,12 @@ describe('AdminUsers', () => {
     expect(screen.getByText('Nadaj admina')).toBeInTheDocument()
   })
 
-  it('opens the email modal when sending to all', async () => {
+  it('opens the email modal when composing a message', async () => {
     const user = userEvent.setup()
     await renderPage([regular])
     await screen.findByText('Jan Kowalski')
 
-    await user.click(screen.getByText('E-mail do wszystkich'))
+    await user.click(screen.getByText('Wyślij e-mail'))
 
     expect(screen.getByText('Wyślij wiadomość')).toBeInTheDocument()
   })

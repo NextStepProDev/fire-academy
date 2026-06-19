@@ -258,7 +258,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"subject":"Witaj","message":"Treść wiadomości","allUsers":false,"userIds":["%s"]}
+                    {"subject":"Witaj","message":"Treść wiadomości","audience":"SELECTED","userIds":["%s"]}
                     """.formatted(target.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.recipientCount").value(1));
@@ -270,7 +270,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"subject":"Witaj","message":"Treść","allUsers":false,"userIds":[]}
+                    {"subject":"Witaj","message":"Treść","audience":"SELECTED","userIds":[]}
                     """))
             .andExpect(status().isConflict());
     }
@@ -281,7 +281,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"subject":"","message":"Treść","allUsers":true}
+                    {"subject":"","message":"Treść","audience":"ALL"}
                     """))
             .andExpect(status().isBadRequest());
     }

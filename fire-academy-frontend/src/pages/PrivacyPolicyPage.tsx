@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 
-const LAST_UPDATED = '18 czerwca 2026'
+const LAST_UPDATED = '19 czerwca 2026'
 
 export function PrivacyPolicyPage() {
   return (
@@ -91,7 +91,7 @@ export function PrivacyPolicyPage() {
             </p>
             <DataList items={[
               'Zdjęcie profilowe (avatar) — jeśli zdecydujesz się je dodać; w każdej chwili możesz je usunąć',
-              'Preferencje powiadomień e-mail',
+              'Zgoda marketingowa (opcjonalna) — wraz z datą i godziną jej udzielenia oraz unikalnym tokenem umożliwiającym rezygnację z newslettera bez logowania',
             ]} />
           </SubSection>
 
@@ -142,13 +142,52 @@ export function PrivacyPolicyPage() {
               basis="Art. 6 ust. 1 lit. f RODO — uzasadniony interes administratora (prowadzenie dokumentacji uczestników, rozliczenia, ochrona roszczeń); dane przechowywane tak długo, jak istnieje Twoje konto"
             />
             <LegalBasis
+              purpose="Wysyłka wiadomości marketingowych (newsletter)"
+              basis="Art. 6 ust. 1 lit. a RODO — Twoja dobrowolna i odrębna zgoda; dodatkowo art. 10 ustawy o świadczeniu usług drogą elektroniczną oraz art. 172 Prawa telekomunikacyjnego. Szczegóły w punkcie 4 poniżej."
+            />
+            <LegalBasis
               purpose="Bezpieczeństwo systemu (blokada konta po nieudanych logowaniach, rate limiting)"
               basis="Art. 6 ust. 1 lit. f RODO — uzasadniony interes administratora (ochrona przed nieuprawnionym dostępem)"
             />
           </div>
         </Section>
 
-        <Section title="4. Jak długo przechowujemy dane">
+        <Section title="4. Marketing — wiadomości handlowe">
+          <p className="text-surface-300 leading-relaxed mb-4">
+            Jeżeli udzielisz <span className="text-surface-200 font-medium">odrębnej, dobrowolnej zgody marketingowej</span>,
+            będziemy okazjonalnie wysyłać Ci informacje o nowych treningach, obozach i szkoleniach Fire Academy na adres
+            e-mail przypisany do konta. Zgoda obejmuje łącznie:
+          </p>
+          <DataList items={[
+            'przesyłanie informacji handlowych drogą elektroniczną — art. 10 ustawy z dnia 18 lipca 2002 r. o świadczeniu usług drogą elektroniczną (UŚUDE)',
+            'używanie podanego adresu e-mail jako telekomunikacyjnego urządzenia końcowego w celach marketingu bezpośredniego — art. 172 ustawy z dnia 16 lipca 2004 r. Prawo telekomunikacyjne',
+          ]} />
+          <p className="text-surface-400 text-sm mt-4 leading-relaxed">
+            <span className="text-surface-200 font-medium">Podstawa prawna:</span> art. 6 ust. 1 lit. a RODO — Twoja
+            wyraźna zgoda wyrażona przez zaznaczenie odpowiedniego pola przy rejestracji lub w ustawieniach konta.
+          </p>
+          <p className="text-surface-400 leading-relaxed mt-4">
+            Zgoda marketingowa jest <span className="text-surface-200 font-medium">całkowicie odrębna</span> od umowy
+            o prowadzenie konta — możesz mieć konto bez zgody na marketing i odwrotnie. Brak zgody nie wpływa na zapisy
+            na wydarzenia ani na otrzymywanie maili serwisowych (potwierdzenia rezerwacji, zmiany w terminach, odwołania),
+            które wysyłamy zawsze na podstawie wykonania umowy (art. 6 ust. 1 lit. b RODO).
+          </p>
+          <p className="text-surface-300 leading-relaxed mt-4">
+            <span className="text-surface-200 font-medium">Wycofanie zgody:</span> możesz w każdej chwili wycofać zgodę
+            marketingową na dwa sposoby:
+          </p>
+          <DataList items={[
+            'w ustawieniach swojego konta — przełącznik „Wiadomości marketingowe" w sekcji „Wiadomości marketingowe"',
+            'klikając link „Zrezygnuj" w stopce każdej otrzymanej wiadomości marketingowej — działa bez logowania, za pośrednictwem unikalnego tokena rezygnacji',
+          ]} />
+          <p className="text-surface-400 text-sm mt-4 leading-relaxed">
+            Wycofanie zgody <span className="text-surface-200 font-medium">nie wpływa na zgodność z prawem przetwarzania</span>,
+            którego dokonano na podstawie zgody przed jej wycofaniem. Dane przechowywane na potrzeby marketingu (data
+            udzielenia zgody, token rezygnacji) usuwamy razem z kontem.
+          </p>
+        </Section>
+
+        <Section title="5. Jak długo przechowujemy dane">
           <div className="space-y-3 text-surface-300 leading-relaxed">
             <p>
               <span className="text-surface-200 font-medium">Dane konta i historia zapisów</span> — przechowywane przez
@@ -173,7 +212,7 @@ export function PrivacyPolicyPage() {
           </div>
         </Section>
 
-        <Section title="5. Komu udostępniamy dane">
+        <Section title="6. Komu udostępniamy dane">
           <p className="text-surface-300 leading-relaxed font-medium text-lg mb-4">
             Nikomu. I nigdy tego nie zrobimy.
           </p>
@@ -191,12 +230,12 @@ export function PrivacyPolicyPage() {
             />
             <InfoItem
               title="Zewnętrzny serwer poczty e-mail (SMTP)"
-              description="Wykorzystywany wyłącznie do dostarczenia wiadomości (potwierdzenie zapisu, weryfikacja konta, reset hasła). Dostawca nie przetwarza Twoich danych w żadnym innym celu."
+              description="Wykorzystywany do dostarczenia wszystkich wiadomości e-mail wysyłanych z systemu — zarówno serwisowych (potwierdzenie zapisu, weryfikacja konta, reset hasła, zmiany w terminach), jak i marketingowych (po udzieleniu zgody). Dostawca nie przetwarza Twoich danych w żadnym innym celu."
             />
           </div>
         </Section>
 
-        <Section title="6. Twoje prawa">
+        <Section title="7. Twoje prawa">
           <p className="text-surface-400 leading-relaxed mb-4">
             Na podstawie RODO przysługują Ci następujące prawa:
           </p>
@@ -207,6 +246,7 @@ export function PrivacyPolicyPage() {
             <Right title="Prawo do ograniczenia przetwarzania" description="Możesz zażądać ograniczenia przetwarzania Twoich danych w określonych przypadkach." />
             <Right title="Prawo do przenoszalności" description="Możesz zażądać przekazania Twoich danych w ustrukturyzowanym, powszechnie używanym formacie." />
             <Right title="Prawo sprzeciwu" description="Możesz wnieść sprzeciw wobec przetwarzania danych opartego na uzasadnionym interesie." />
+            <Right title="Prawo do wycofania zgody" description="Jeśli przetwarzanie odbywa się na podstawie zgody (np. zgoda marketingowa, avatar), możesz ją w każdej chwili wycofać. Wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania." />
           </div>
           <p className="text-surface-400 text-sm mt-6 leading-relaxed">
             Aby skorzystać z któregokolwiek z powyższych praw, napisz do nas na adres{' '}
@@ -218,7 +258,7 @@ export function PrivacyPolicyPage() {
           </p>
         </Section>
 
-        <Section title="7. Bezpieczeństwo danych">
+        <Section title="8. Bezpieczeństwo danych">
           <p className="text-surface-400 leading-relaxed mb-4">
             Stosujemy wielowarstwowe zabezpieczenia techniczne, aby chronić Twoje dane:
           </p>
@@ -232,7 +272,7 @@ export function PrivacyPolicyPage() {
           ]} />
         </Section>
 
-        <Section title="8. Zmiany polityki prywatności">
+        <Section title="9. Zmiany polityki prywatności">
           <p className="text-surface-400 leading-relaxed">
             W przypadku istotnych zmian w polityce prywatności poinformujemy Cię o tym z wyprzedzeniem —
             przez e-mail lub komunikat na stronie. Data ostatniej aktualizacji jest zawsze widoczna na górze tej strony.
@@ -240,7 +280,7 @@ export function PrivacyPolicyPage() {
           </p>
         </Section>
 
-        <Section title="9. Kontakt w sprawach danych osobowych">
+        <Section title="10. Kontakt w sprawach danych osobowych">
           <p className="text-surface-400 leading-relaxed">
             Jeśli masz pytania dotyczące przetwarzania Twoich danych osobowych, chcesz skorzystać z przysługujących
             Ci praw lub masz jakiekolwiek wątpliwości — napisz do nas. Potraktujemy każde zgłoszenie poważnie

@@ -11,7 +11,8 @@ public final class UserDtos {
     public record UserResponse(UUID id, String email, String firstName, String lastName,
                                 @Nullable String phone, String role, boolean isAdmin,
                                 boolean superAdmin,
-                                boolean emailVerified, boolean emailNotificationsEnabled,
+                                boolean emailVerified,
+                                boolean privacyAccepted, boolean marketingConsent,
                                 String preferredLanguage, boolean hasPassword,
                                 boolean oauthLinked, @Nullable String avatarUrl, Instant createdAt) {}
 
@@ -28,5 +29,10 @@ public final class UserDtos {
 
     public record DeleteAccountRequest(@Nullable String password) {}
 
-    public record UpdateNotificationsRequest(boolean enabled) {}
+    public record UpdateMarketingRequest(boolean enabled) {}
+
+    // Zgody zbierane po stronie konta — głównie domknięcie kont Google na ekranie uzupełniania profilu
+    // (polityka prywatności obowiązkowa, marketing opcjonalny). Walidacja obowiązkowości w serwisie,
+    // bo polityka mogła być zaakceptowana wcześniej (rejestracja email/hasło).
+    public record ConsentsRequest(boolean acceptedPrivacy, boolean acceptedMarketing) {}
 }

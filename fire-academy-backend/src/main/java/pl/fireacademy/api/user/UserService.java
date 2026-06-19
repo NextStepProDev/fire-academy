@@ -18,6 +18,7 @@ import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -149,12 +150,41 @@ public class UserService {
     }
 
     @Transactional
-    public void updateNotifications(UUID userId, UserDtos.UpdateNotificationsRequest request) {
+    public UserDtos.UserResponse updateMarketing(UUID userId, UserDtos.UpdateMarketingRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        user.setEmailNotificationsEnabled(request.enabled());
+        // Włączenie ustawia moment zgody (jeśli jeszcze brak), wyłączenie ją zeruje — pełne wycofanie zgody (RODO).
+        if (request.enabled()) {
+            if (!user.hasMarketingConsent()) {
+                user.setMarketingConsentAt(Instant.now());
+            }
+        } else {
+            user.setMarketingConsentAt(null);
+        }
         userRepository.save(user);
         jwtAuthenticationFilter.evictUser(userId);
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserDtos.UserResponse submitConsents(UUID userId, UserDtos.ConsentsRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
+        // Polityka prywatności obowiązkowa, dopóki nie była zaakceptowana (domknięcie kont Google — RODO).
+        // Konta email/hasło mają ją już ustawioną przy rejestracji, więc tu jej nie wymuszamy ponownie.
+        if (!user.hasPrivacyAccepted()) {
+            if (!request.acceptedPrivacy()) {
+                throw new IllegalArgumentException(msg.get("validation.privacy.required"));
+            }
+            user.setPrivacyAcceptedAt(Instant.now());
+        }
+        // Marketing dobrowolny — ustawiamy tylko, gdy zaznaczony i jeszcze nieudzielony.
+        if (request.acceptedMarketing() && !user.hasMarketingConsent()) {
+            user.setMarketingConsentAt(Instant.now());
+        }
+        userRepository.save(user);
+        jwtAuthenticationFilter.evictUser(userId);
+        return toResponse(user);
     }
 
     private UserDtos.UserResponse toResponse(User user) {
@@ -166,7 +196,8 @@ public class UserService {
             user.getPhone(), user.getRole().name(),
             user.getRole() == pl.fireacademy.domain.user.UserRole.ADMIN,
             adminEmailConfig.isAdminEmail(user.getEmail()),
-            user.isEmailVerified(), user.isEmailNotificationsEnabled(),
+            user.isEmailVerified(),
+            user.hasPrivacyAccepted(), user.hasMarketingConsent(),
             user.getPreferredLanguage(), user.getPasswordHash() != null,
             user.getOauthProvider() != null, avatarUrl, user.getCreatedAt()
         );

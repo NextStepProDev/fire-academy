@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BadgeCheck, Bell, BellOff, CalendarPlus, Trash2, CheckCircle, XCircle, Mail, Phone, KeyRound } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, MailCheck, MailX, CalendarPlus, Trash2, CheckCircle, XCircle, Mail, Phone, KeyRound } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -16,6 +16,8 @@ const categoryLabelKey: Record<EventCategory, string> = {
   CAMP: 'archive.categoryCamp',
   COURSE: 'archive.categoryCourse',
 }
+
+const ARCHIVE_PAGE_SIZE = 50
 
 function formatSchedule(en: UserEnrollment): string {
   const datePart = en.endDate && en.endDate !== en.startDate
@@ -39,6 +41,8 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const [addOpen, setAddOpen] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState('')
   const [note, setNote] = useState('')
+  const [archiveExpanded, setArchiveExpanded] = useState(false)
+  const [archivePage, setArchivePage] = useState(1)
 
   const userQuery = useQuery({
     queryKey: ['admin-user', userId],
@@ -160,9 +164,9 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
           value={user.emailVerified ? t('users.detail.yes') : t('users.detail.no')}
         />
         <ProfileRow
-          icon={user.emailNotificationsEnabled ? <Bell className="w-4 h-4 text-green-400" /> : <BellOff className="w-4 h-4 text-surface-500" />}
-          label={t('users.detail.notifications')}
-          value={user.emailNotificationsEnabled ? t('users.detail.enabled') : t('users.detail.disabled')}
+          icon={user.marketingConsent ? <MailCheck className="w-4 h-4 text-emerald-400" /> : <MailX className="w-4 h-4 text-surface-500" />}
+          label={t('users.detail.marketing')}
+          value={user.marketingConsent ? t('users.detail.yes') : t('users.detail.no')}
         />
         <ProfileRow icon={<KeyRound className="w-4 h-4" />} label={t('users.detail.accountType')} value={user.oauthLinked ? 'Google' : (user.hasPassword ? t('users.detail.password') : '—')} />
         <ProfileRow label={t('users.created')} value={new Date(user.createdAt).toLocaleDateString('pl-PL')} />
@@ -182,13 +186,54 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
           : user.currentEnrollments.map(renderEnrollment)}
       </div>
 
-      {/* Archive */}
-      <h3 className="text-lg font-semibold text-surface-100 mb-3">{t('users.detail.archiveTitle')}</h3>
-      <div className="space-y-2">
-        {user.pastEnrollments.length === 0
-          ? <p className="text-surface-500 text-sm">{t('users.detail.noArchive')}</p>
-          : user.pastEnrollments.map(renderEnrollment)}
-      </div>
+      {/* Archive — collapsible, paginated 50/page */}
+      {(() => {
+        const archiveTotal = user.pastEnrollments.length
+        const totalPages = Math.max(1, Math.ceil(archiveTotal / ARCHIVE_PAGE_SIZE))
+        const pageSafe = Math.min(Math.max(1, archivePage), totalPages)
+        const slice = user.pastEnrollments.slice(
+          (pageSafe - 1) * ARCHIVE_PAGE_SIZE,
+          pageSafe * ARCHIVE_PAGE_SIZE,
+        )
+        return (
+          <>
+            <button
+              type="button"
+              onClick={() => setArchiveExpanded(v => !v)}
+              aria-expanded={archiveExpanded}
+              className="flex items-center gap-2 text-lg font-semibold text-surface-100 hover:text-primary-300 transition-colors mb-3"
+            >
+              {archiveExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+              {t('users.detail.archiveTitle')}
+              <span className="text-sm text-surface-500 font-normal">({archiveTotal})</span>
+            </button>
+            {archiveExpanded && (
+              archiveTotal === 0 ? (
+                <p className="text-surface-500 text-sm">{t('users.detail.noArchive')}</p>
+              ) : (
+                <>
+                  <div className="space-y-2">{slice.map(renderEnrollment)}</div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <span className="text-sm text-surface-500">
+                        {t('users.pageOf', { page: pageSafe, total: totalPages })}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" disabled={pageSafe === 1} onClick={() => setArchivePage(p => p - 1)}>
+                          {t('users.prevPage')}
+                        </Button>
+                        <Button variant="ghost" size="sm" disabled={pageSafe === totalPages} onClick={() => setArchivePage(p => p + 1)}>
+                          {t('users.nextPage')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            )}
+          </>
+        )
+      })()}
 
       {/* Add-to-event modal */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={t('users.detail.addToEvent')}>

@@ -56,15 +56,19 @@ public class User {
     @Nullable
     private String avatarFilename;
 
-    @Column(name = "email_notifications_enabled", nullable = false)
-    private boolean emailNotificationsEnabled = true;
-
     @Column(name = "preferred_language", nullable = false)
     private String preferredLanguage = "pl";
 
     @Column(name = "privacy_accepted_at")
     @Nullable
     private Instant privacyAcceptedAt;
+
+    @Column(name = "marketing_consent_at")
+    @Nullable
+    private Instant marketingConsentAt;
+
+    @Column(name = "marketing_unsubscribe_token", nullable = false, updatable = false)
+    private UUID marketingUnsubscribeToken = UUID.randomUUID();
 
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
@@ -222,14 +226,6 @@ public class User {
         return passwordHash != null;
     }
 
-    public boolean isEmailNotificationsEnabled() {
-        return emailNotificationsEnabled;
-    }
-
-    public void setEmailNotificationsEnabled(boolean emailNotificationsEnabled) {
-        this.emailNotificationsEnabled = emailNotificationsEnabled;
-    }
-
     public String getPreferredLanguage() {
         return preferredLanguage;
     }
@@ -245,6 +241,27 @@ public class User {
 
     public void setPrivacyAcceptedAt(@Nullable Instant privacyAcceptedAt) {
         this.privacyAcceptedAt = privacyAcceptedAt;
+    }
+
+    public boolean hasPrivacyAccepted() {
+        return privacyAcceptedAt != null;
+    }
+
+    @Nullable
+    public Instant getMarketingConsentAt() {
+        return marketingConsentAt;
+    }
+
+    public void setMarketingConsentAt(@Nullable Instant marketingConsentAt) {
+        this.marketingConsentAt = marketingConsentAt;
+    }
+
+    public boolean hasMarketingConsent() {
+        return marketingConsentAt != null;
+    }
+
+    public UUID getMarketingUnsubscribeToken() {
+        return marketingUnsubscribeToken;
     }
 
     public int getFailedLoginAttempts() {

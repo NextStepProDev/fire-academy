@@ -10,6 +10,7 @@ export interface RegisterRequest {
   phone: string
   preferredLanguage?: string
   acceptedPrivacy: boolean
+  acceptedMarketing: boolean
 }
 
 export interface LoginRequest {

@@ -78,11 +78,15 @@ export function Footer() {
           <p className="text-xs text-surface-500">
             {t('footer.copyright', { year })}
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
             <Link to="/polityka-prywatnosci" className="inline-block text-xs text-surface-500 hover:text-surface-300 hover:-translate-y-0.5 transition-all duration-200">
               {t('footer.privacy')}
             </Link>
-<ShareButton url="/" title="Fire Academy" />
+            <span aria-hidden="true" className="w-px h-4 bg-surface-700" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-surface-500">{t('footer.shareLabel')}</span>
+              <ShareButton url="/" title="Fire Academy" />
+            </div>
           </div>
         </div>
       </div>

@@ -16,6 +16,8 @@ const tMap: Record<string, string> = {
   'users.detail.removeArchiveConfirm': 'Usuń z archiwum',
   'users.detail.noCurrent': 'Brak aktualnych zapisów.',
   'users.detail.noArchive': 'Brak wpisów w archiwum.',
+  'users.prevPage': 'Poprzednia',
+  'users.nextPage': 'Następna',
 }
 
 vi.mock('react-i18next', () => ({
@@ -48,8 +50,8 @@ const pastEnrollment: UserEnrollment = {
 
 const baseUser: AdminUserDetailType = {
   id: 'u1', email: 'jan@test.com', firstName: 'Jan', lastName: 'Kowalski', phone: '123456789',
-  role: 'USER', isAdmin: false, superAdmin: false, emailVerified: true, emailNotificationsEnabled: true,
-  preferredLanguage: 'pl', hasPassword: true, oauthLinked: false, avatarUrl: null,
+  role: 'USER', isAdmin: false, superAdmin: false, emailVerified: true,
+  marketingConsent: false, preferredLanguage: 'pl', hasPassword: true, oauthLinked: false, avatarUrl: null,
   createdAt: '2026-01-01T00:00:00Z', currentEnrollments: [], pastEnrollments: [],
 }
 
@@ -70,15 +72,19 @@ describe('AdminUserDetail', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('renders profile with current and archived enrollments', async () => {
+    const user = userEvent.setup()
     await renderDetail({ currentEnrollments: [currentEnrollment], pastEnrollments: [pastEnrollment] })
     expect(await screen.findByText('Jan Kowalski')).toBeInTheDocument()
     expect(screen.getByText('Trening personalny')).toBeInTheDocument()
+    // Archiwum jest domyślnie zwinięte — rozwiń, zanim sprawdzisz zawartość.
+    await user.click(screen.getByRole('button', { expanded: false, name: /Archiwum/ }))
     expect(screen.getByText('Obóz zimowy')).toBeInTheDocument()
   })
 
   it('removes an archived enrollment without notification', async () => {
     const user = userEvent.setup()
     const adminApi = await renderDetail({ currentEnrollments: [], pastEnrollments: [pastEnrollment] })
+    await user.click(await screen.findByRole('button', { expanded: false, name: /Archiwum/ }))
     await screen.findByText('Obóz zimowy')
 
     await user.click(screen.getByRole('button', { name: 'Usuń wpis z archiwum' }))

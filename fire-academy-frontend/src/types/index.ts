@@ -7,7 +7,8 @@ export interface User {
   role: 'USER' | 'ADMIN'
   isAdmin: boolean
   superAdmin: boolean
-  emailNotificationsEnabled: boolean
+  privacyAccepted: boolean
+  marketingConsent: boolean
   preferredLanguage: string
   hasPassword: boolean
   avatarUrl: string | null
@@ -24,7 +25,7 @@ export interface AdminUser {
   isAdmin: boolean
   superAdmin: boolean
   emailVerified: boolean
-  emailNotificationsEnabled: boolean
+  marketingConsent: boolean
   createdAt: string
 }
 
@@ -84,7 +85,7 @@ export interface AdminUserDetail {
   isAdmin: boolean
   superAdmin: boolean
   emailVerified: boolean
-  emailNotificationsEnabled: boolean
+  marketingConsent: boolean
   preferredLanguage: string
   hasPassword: boolean
   oauthLinked: boolean

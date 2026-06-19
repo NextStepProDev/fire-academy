@@ -203,14 +203,52 @@ class UserServiceTest {
     }
 
     @Test
-    void shouldUpdateNotifications() {
+    void shouldGrantMarketingConsentWhenEnabled() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
 
-        service.updateNotifications(userId, new UpdateNotificationsRequest(false));
+        UserResponse result = service.updateMarketing(userId, new UpdateMarketingRequest(true));
 
-        assertFalse(user.isEmailNotificationsEnabled());
+        assertTrue(user.hasMarketingConsent());
+        assertTrue(result.marketingConsent());
         verify(jwtAuthenticationFilter).evictUser(userId);
+    }
+
+    @Test
+    void shouldRevokeMarketingConsentWhenDisabled() {
+        user.setMarketingConsentAt(java.time.Instant.now());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse result = service.updateMarketing(userId, new UpdateMarketingRequest(false));
+
+        assertFalse(user.hasMarketingConsent());
+        assertFalse(result.marketingConsent());
+    }
+
+    @Test
+    void shouldSetPrivacyAndMarketingOnConsentsForGoogleUser() {
+        user.setPrivacyAcceptedAt(null);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse result = service.submitConsents(userId, new ConsentsRequest(true, true));
+
+        assertTrue(user.hasPrivacyAccepted());
+        assertTrue(user.hasMarketingConsent());
+        assertTrue(result.privacyAccepted());
+        assertTrue(result.marketingConsent());
+    }
+
+    @Test
+    void shouldRejectConsentsWhenPrivacyMissingAndNotAccepted() {
+        user.setPrivacyAcceptedAt(null);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(msg.get("validation.privacy.required")).thenReturn("Wymagana polityka");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> service.submitConsents(userId, new ConsentsRequest(false, true)));
+        verify(userRepository, never()).save(any());
     }
 
     @Test

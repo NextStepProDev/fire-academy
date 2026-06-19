@@ -2,10 +2,12 @@ import { fetchApi } from './client'
 import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
+export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
+
 interface SendUserEmailRequest {
   subject: string
   message: string
-  allUsers: boolean
+  audience: EmailAudience
   userIds?: string[]
 }
 

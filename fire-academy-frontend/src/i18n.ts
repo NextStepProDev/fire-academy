@@ -8,17 +8,18 @@ import errorsPl from './locales/pl/errors.json'
 import eventsPl from './locales/pl/events.json'
 import adminPl from './locales/pl/admin.json'
 import accountPl from './locales/pl/account.json'
+import marketingPl from './locales/pl/marketing.json'
 
 i18n
   .use(initReactI18next)
   .init({
     resources: {
-      pl: { common: commonPl, auth: authPl, settings: settingsPl, errors: errorsPl, events: eventsPl, admin: adminPl, account: accountPl },
+      pl: { common: commonPl, auth: authPl, settings: settingsPl, errors: errorsPl, events: eventsPl, admin: adminPl, account: accountPl, marketing: marketingPl },
     },
     lng: 'pl',
     fallbackLng: 'pl',
     defaultNS: 'common',
-    ns: ['common', 'auth', 'settings', 'errors', 'events', 'admin', 'account'],
+    ns: ['common', 'auth', 'settings', 'errors', 'events', 'admin', 'account', 'marketing'],
     interpolation: { escapeValue: false },
   })
 

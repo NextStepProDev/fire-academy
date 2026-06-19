@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import { consumeRedirectPath } from '../utils/redirect'
-import { getMissingProfileFields } from '../utils/profileCompletion'
+import { needsProfileCompletion } from '../utils/profileCompletion'
 import { ProfileCompletionForm } from '../components/profile/ProfileCompletionForm'
 
 /**
@@ -15,16 +15,16 @@ export function ProfileCompletionPage() {
   const { t } = useTranslation('settings')
   const { user } = useAuth()
   const navigate = useNavigate()
-  const missing = getMissingProfileFields(user)
+  const incomplete = needsProfileCompletion(user)
 
   useEffect(() => {
-    // Profil kompletny (wejście wprost lub po zapisaniu braków) → kontynuuj ścieżkę.
-    if (user && missing.length === 0) {
+    // Profil kompletny i zgody domknięte (wejście wprost lub po zapisaniu) → kontynuuj ścieżkę.
+    if (user && !incomplete) {
       navigate(consumeRedirectPath() || '/moje-konto', { replace: true })
     }
-  }, [user, missing.length, navigate])
+  }, [user, incomplete, navigate])
 
-  if (!user || missing.length === 0) return null
+  if (!user || !incomplete) return null
 
   return (
     <div className="max-w-md mx-auto px-4 py-12">

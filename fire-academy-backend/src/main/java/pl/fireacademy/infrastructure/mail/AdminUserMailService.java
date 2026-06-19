@@ -1,5 +1,6 @@
 package pl.fireacademy.infrastructure.mail;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.MailException;
@@ -32,8 +33,14 @@ public class AdminUserMailService {
         this.msg = msg;
     }
 
+    /**
+     * Mail pisany ręcznie przez administratora. Gdy {@code unsubscribeToken != null}, wiadomość jest
+     * marketingowa: w stopce dochodzi akapit z linkiem rezygnacji ({siteUrl}/wypisz-sie?token=...),
+     * odrębnym od jakiegokolwiek mechanizmu serwisowego. Dla komunikatów serwisowych token jest null.
+     */
     @Async("mailExecutor")
-    public void sendCustomMessage(String recipientEmail, String firstName, String subject, String message) {
+    public void sendCustomMessage(String recipientEmail, String firstName, String subject, String message,
+                                  @Nullable String unsubscribeToken) {
         // Temat e-maila bez HTML-escape — inaczej polskie znaki trafiałyby jako encje (&oacute; itd.).
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeMessage = HtmlUtils.htmlEscape(message).replace("\n", "<br/>");
@@ -45,15 +52,31 @@ public class AdminUserMailService {
                             <p style="font-size: 16px; line-height: 1.8; margin: 0; color: #e0e0e0;">%s</p>
                         </div>
                         <p style="font-size: 16px; line-height: 1.6; margin: 24px 0 0;">%s<br/><strong>%s</strong></p>
+                        %s
             """.formatted(
                 msg.get("email.bulk.greeting", safeFirstName),
                 msg.get("email.admin.intro"),
                 safeMessage,
                 msg.get("email.bulk.signature"),
-                msg.get("email.footer")
+                msg.get("email.footer"),
+                unsubscribeToken != null ? unsubscribeBlock(unsubscribeToken) : ""
         );
 
         sendEmail(recipientEmail, subject, brandedTemplate(content));
+    }
+
+    private String unsubscribeBlock(String unsubscribeToken) {
+        String unsubscribeUrl = appConfig.getSiteUrl() + "/wypisz-sie?token=" + unsubscribeToken;
+        return """
+                        <hr style="border-color: #4a4a4a; margin: 24px 0 12px;" />
+                        <p style="font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0;">%s
+                            <a href="%s" style="color: #f97316;">%s</a>
+                        </p>
+            """.formatted(
+                msg.get("email.marketing.unsubscribe.reason"),
+                unsubscribeUrl,
+                msg.get("email.marketing.unsubscribe.link")
+        );
     }
 
     /**

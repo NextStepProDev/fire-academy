@@ -130,9 +130,4 @@ class UserTest {
     void shouldDefaultToPolish() {
         assertEquals("pl", user.getPreferredLanguage());
     }
-
-    @Test
-    void shouldDefaultToEmailNotificationsEnabled() {
-        assertTrue(user.isEmailNotificationsEnabled());
-    }
 }

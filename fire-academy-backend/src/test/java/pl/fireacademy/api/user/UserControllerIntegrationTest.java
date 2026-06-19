@@ -147,16 +147,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldUpdateNotificationSettings() throws Exception {
-        String token = userToken();
-        mockMvc.perform(put("/api/user/me/notifications")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"enabled\":false}"))
-            .andExpect(status().isNoContent());
-    }
-
-    @Test
     void shouldReturnAdminProfileForAdminUser() throws Exception {
         String token = adminToken();
         mockMvc.perform(get("/api/user/me")
