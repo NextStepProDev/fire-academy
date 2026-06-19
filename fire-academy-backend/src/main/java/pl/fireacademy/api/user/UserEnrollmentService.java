@@ -60,6 +60,12 @@ public class UserEnrollmentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
+        // RODO: bez zaakceptowanej polityki prywatności konto nie może korzystać z aplikacji
+        // (twarda bramka jest też na froncie — to zabezpieczenie na wypadek pominięcia UI).
+        if (!user.hasPrivacyAccepted()) {
+            throw new IllegalStateException(msg.get("enrollment.privacy.required"));
+        }
+
         // Organizator potrzebuje numeru kontaktowego — bez telefonu w profilu zapis jest blokowany.
         if (user.getPhone() == null || user.getPhone().isBlank()) {
             throw new IllegalStateException(msg.get("enrollment.phone.required"));

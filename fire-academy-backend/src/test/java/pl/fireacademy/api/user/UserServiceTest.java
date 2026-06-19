@@ -203,6 +203,37 @@ class UserServiceTest {
     }
 
     @Test
+    void shouldPurgeAbandonedUnconsentedAccounts() throws Exception {
+        User abandoned = new User("ghost@test.com", "Ghost", "User", null);
+        UUID abandonedId = UUID.randomUUID();
+        setId(abandoned, abandonedId);
+        abandoned.setOauthProvider("google");
+        when(userRepository.findByOauthProviderIsNotNullAndPrivacyAcceptedAtIsNullAndCreatedAtBefore(any()))
+                .thenReturn(java.util.List.of(abandoned));
+        when(enrollmentErasureService.eraseForUser(abandonedId)).thenReturn(erasure(0, 0, java.util.List.of()));
+
+        int deleted = service.purgeAbandonedUnconsentedAccounts(7);
+
+        assertEquals(1, deleted);
+        verify(userRepository).deleteById(abandonedId);
+        verify(authTokenRepository).deleteAllByUserId(abandonedId);
+        verify(jwtAuthenticationFilter).evictUser(abandonedId);
+        // Porzucone konto nie ma zapisów → żadnego maila do organizatora.
+        verifyNoInteractions(enrollmentMailService);
+    }
+
+    @Test
+    void shouldDoNothingWhenNoAbandonedAccounts() {
+        when(userRepository.findByOauthProviderIsNotNullAndPrivacyAcceptedAtIsNullAndCreatedAtBefore(any()))
+                .thenReturn(java.util.List.of());
+
+        int deleted = service.purgeAbandonedUnconsentedAccounts(7);
+
+        assertEquals(0, deleted);
+        verify(userRepository, never()).deleteById(any());
+    }
+
+    @Test
     void shouldGrantMarketingConsentWhenEnabled() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);

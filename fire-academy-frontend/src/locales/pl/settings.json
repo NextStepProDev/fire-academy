@@ -32,6 +32,15 @@
     "errors": {
       "required": "Uzupełnij wszystkie pola.",
       "nameTooShort": "Imię i nazwisko muszą mieć co najmniej 3 znaki."
+    },
+    "decline": {
+      "title": "Nie chcę akceptować polityki prywatności",
+      "text": "Bez akceptacji polityki prywatności nie możemy prowadzić Twojego konta. Możesz je teraz usunąć — natychmiast i trwale skasujemy wszystkie Twoje dane (imię, nazwisko, adres e-mail).",
+      "button": "Nie akceptuję — usuń konto",
+      "confirm": "Na pewno? Twoje konto i wszystkie dane zostaną trwale usunięte. Tej operacji nie można cofnąć.",
+      "confirmYes": "Tak, usuń konto",
+      "cancel": "Anuluj",
+      "deleted": "Konto zostało usunięte."
     }
   },
   "password": {

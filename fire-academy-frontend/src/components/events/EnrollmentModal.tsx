@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { ProfileCompletionForm } from '../profile/ProfileCompletionForm'
-import { getMissingProfileFields } from '../../utils/profileCompletion'
+import { needsProfileCompletion } from '../../utils/profileCompletion'
 import { userApi } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { CheckCircle, UserPlus } from 'lucide-react'
@@ -52,7 +52,8 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
 
   if (!isOpen || !user) return null
 
-  const missingFields = getMissingProfileFields(user)
+  // Brak wymaganych danych LUB niezaakceptowana polityka prywatności → najpierw domknij konto.
+  const incompleteProfile = needsProfileCompletion(user)
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={success ? '' : `${t('enroll.title')} — ${eventName}`}>
@@ -61,7 +62,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
           <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
           <p className="text-surface-100 font-medium">{t('enroll.success')}</p>
         </div>
-      ) : missingFields.length > 0 ? (
+      ) : incompleteProfile ? (
         <div className="space-y-4 py-2">
           <div className="flex items-start gap-3">
             <UserPlus className="w-6 h-6 text-primary-400 shrink-0 mt-0.5" />
