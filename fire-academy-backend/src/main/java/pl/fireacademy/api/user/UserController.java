@@ -44,10 +44,14 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/me/notifications")
-    public ResponseEntity<Void> updateNotifications(@CurrentUserId UUID userId, @RequestBody UserDtos.UpdateNotificationsRequest request) {
-        userService.updateNotifications(userId, request);
-        return ResponseEntity.noContent().build();
+    @PutMapping("/me/marketing")
+    public ResponseEntity<UserDtos.UserResponse> updateMarketing(@CurrentUserId UUID userId, @RequestBody UserDtos.UpdateMarketingRequest request) {
+        return ResponseEntity.ok(userService.updateMarketing(userId, request));
+    }
+
+    @PostMapping("/me/consents")
+    public ResponseEntity<UserDtos.UserResponse> submitConsents(@CurrentUserId UUID userId, @RequestBody UserDtos.ConsentsRequest request) {
+        return ResponseEntity.ok(userService.submitConsents(userId, request));
     }
 
     @PostMapping("/me/avatar")

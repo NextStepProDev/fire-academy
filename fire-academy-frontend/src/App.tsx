@@ -24,6 +24,7 @@ const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(
 const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
 const CoursesPage = lazyWithReload(() => import('./pages/CoursesPage').then(m => ({ default: m.CoursesPage })))
 const PrivacyPolicyPage = lazyWithReload(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })))
+const MarketingUnsubscribePage = lazyWithReload(() => import('./pages/MarketingUnsubscribePage').then(m => ({ default: m.MarketingUnsubscribePage })))
 const EventTypeDetailPage = lazyWithReload(() => import('./pages/EventTypeDetailPage').then(m => ({ default: m.EventTypeDetailPage })))
 const EventDetailPage = lazyWithReload(() => import('./pages/EventDetailPage').then(m => ({ default: m.EventDetailPage })))
 const InstructorDetailPage = lazyWithReload(() => import('./pages/InstructorDetailPage').then(m => ({ default: m.InstructorDetailPage })))
@@ -49,6 +50,7 @@ export default function App() {
             <Route path=":categorySlug/rodzaj/:id" element={<EventTypeDetailPage />} />
             <Route path=":categorySlug/termin/:id" element={<EventDetailPage />} />
             <Route path="polityka-prywatnosci" element={<PrivacyPolicyPage />} />
+            <Route path="wypisz-sie" element={<MarketingUnsubscribePage />} />
             <Route path="verify-email" element={<VerifyEmailPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />

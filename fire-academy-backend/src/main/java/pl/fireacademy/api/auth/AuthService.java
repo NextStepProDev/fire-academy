@@ -74,6 +74,10 @@ public class AuthService {
         user.setPreferredLanguage(resolveLanguage(request.preferredLanguage()));
         // Zgoda na politykę prywatności jest wymagana (walidacja @AssertTrue) — zapisujemy moment akceptacji (RODO).
         user.setPrivacyAcceptedAt(Instant.now());
+        // Zgoda marketingowa dobrowolna (opt-in) — pole opcjonalne (może być nieobecne) → null traktujemy jak brak zgody.
+        if (Boolean.TRUE.equals(request.acceptedMarketing())) {
+            user.setMarketingConsentAt(Instant.now());
+        }
 
         if (adminEmailConfig.isAdminEmail(user.getEmail())) {
             user.setRole(UserRole.ADMIN);

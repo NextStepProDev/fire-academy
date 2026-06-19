@@ -211,11 +211,11 @@ class AdminUserServiceTest {
         when(userRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(regular, other));
 
         SendEmailResponse result = service.sendEmail(
-                new SendEmailRequest("Temat", "Treść", true, null));
+                new SendEmailRequest("Temat", "Treść", "ALL", null));
 
         assertEquals(2, result.recipientCount());
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść");
-        verify(adminUserMailService).sendCustomMessage("anna@test.com", "Anna", "Temat", "Treść");
+        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
+        verify(adminUserMailService).sendCustomMessage("anna@test.com", "Anna", "Temat", "Treść", null);
     }
 
     @Test
@@ -225,11 +225,11 @@ class AdminUserServiceTest {
         when(adminEmailConfig.isHiddenEmail("dev@test.com")).thenReturn(true);
 
         SendEmailResponse result = service.sendEmail(
-                new SendEmailRequest("Temat", "Treść", true, null));
+                new SendEmailRequest("Temat", "Treść", "ALL", null));
 
         assertEquals(1, result.recipientCount());
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść");
-        verify(adminUserMailService, never()).sendCustomMessage(eq("dev@test.com"), any(), any(), any());
+        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
+        verify(adminUserMailService, never()).sendCustomMessage(eq("dev@test.com"), any(), any(), any(), any());
     }
 
     @Test
@@ -237,17 +237,40 @@ class AdminUserServiceTest {
         when(userRepository.findAllById(List.of(regularId))).thenReturn(List.of(regular));
 
         SendEmailResponse result = service.sendEmail(
-                new SendEmailRequest("Temat", "Treść", false, List.of(regularId)));
+                new SendEmailRequest("Temat", "Treść", "SELECTED", List.of(regularId)));
 
         assertEquals(1, result.recipientCount());
         verify(userRepository, never()).findAllByOrderByCreatedAtDesc();
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść");
+        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
     }
 
     @Test
     void shouldThrowWhenNoRecipientsSelected() {
         assertThrows(IllegalStateException.class, () -> service.sendEmail(
-                new SendEmailRequest("Temat", "Treść", false, List.of())));
+                new SendEmailRequest("Temat", "Treść", "SELECTED", List.of())));
+        verifyNoInteractions(adminUserMailService);
+    }
+
+    @Test
+    void shouldSendMarketingEmailOnlyToConsentersWithUnsubscribeLink() {
+        when(userRepository.findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc())
+                .thenReturn(List.of(regular));
+
+        SendEmailResponse result = service.sendEmail(
+                new SendEmailRequest("Nowy obóz!", "Zapraszamy", "MARKETING", null));
+
+        assertEquals(1, result.recipientCount());
+        verify(userRepository).findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
+        verify(userRepository, never()).findAllByOrderByCreatedAtDesc();
+        // Mail marketingowy dostaje token rezygnacji (niepusty), serwisowy dostawał null.
+        verify(adminUserMailService).sendCustomMessage(
+                eq("jan@test.com"), eq("Jan"), eq("Nowy obóz!"), eq("Zapraszamy"), notNull());
+    }
+
+    @Test
+    void shouldThrowWhenAudienceInvalid() {
+        assertThrows(IllegalArgumentException.class, () -> service.sendEmail(
+                new SendEmailRequest("Temat", "Treść", "WHATEVER", null)));
         verifyNoInteractions(adminUserMailService);
     }
 

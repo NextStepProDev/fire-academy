@@ -49,7 +49,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         registerRequest = new RegisterRequest(
-            "new@example.com", "Password123", "Jan", "Kowalski", null, null, true
+            "new@example.com", "Password123", "Jan", "Kowalski", null, null, true, false
         );
 
         loginRequest = new LoginRequest("test@example.com", "Password123");
@@ -114,7 +114,7 @@ class AuthServiceTest {
 
     @Test
     void shouldDefaultLanguageToPlWhenNull() {
-        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, null, true);
+        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, null, true, false);
         when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);
@@ -131,7 +131,7 @@ class AuthServiceTest {
 
     @Test
     void shouldDefaultLanguageToPlWhenUnsupported() {
-        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, "de", true);
+        var request = new RegisterRequest("new@example.com", "Password123", "Jan", "Kowalski", null, "de", true, false);
         when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(adminEmailConfig.isAdminEmail(anyString())).thenReturn(false);

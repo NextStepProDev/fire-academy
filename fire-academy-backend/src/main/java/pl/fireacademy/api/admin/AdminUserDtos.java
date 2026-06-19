@@ -25,14 +25,16 @@ public final class AdminUserDtos {
             boolean isAdmin,
             boolean superAdmin,
             boolean emailVerified,
-            boolean emailNotificationsEnabled,
+            boolean marketingConsent,
             Instant createdAt
     ) {}
 
+    // audience: MARKETING (tylko zgody marketingowe + link rezygnacji), ALL (komunikat serwisowy do wszystkich),
+    // SELECTED (wybrane osoby z userIds). Walidacja wartości w serwisie.
     public record SendEmailRequest(
             @NotBlank @Size(max = 200, message = "{validation.email.subject.size}") String subject,
             @NotBlank @Size(max = 10000, message = "{validation.email.message.size}") String message,
-            boolean allUsers,
+            @NotBlank String audience,
             @Nullable List<UUID> userIds
     ) {}
 
@@ -74,7 +76,7 @@ public final class AdminUserDtos {
             boolean isAdmin,
             boolean superAdmin,
             boolean emailVerified,
-            boolean emailNotificationsEnabled,
+            boolean marketingConsent,
             String preferredLanguage,
             boolean hasPassword,
             boolean oauthLinked,

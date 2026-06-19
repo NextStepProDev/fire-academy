@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { consumeRedirectPath } from '../utils/redirect'
-import { getMissingProfileFields } from '../utils/profileCompletion'
+import { needsProfileCompletion } from '../utils/profileCompletion'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
 export function OAuthCallbackPage() {
@@ -30,9 +30,9 @@ export function OAuthCallbackPage() {
       expiresIn: Number(expiresIn),
     })
       .then((loggedInUser) => {
-        // Brak wymaganych danych (np. telefon po rejestracji przez Google) → uzupełnij,
-        // returnTo zostaje zapamiętany i jest użyty po zapisaniu danych.
-        if (getMissingProfileFields(loggedInUser).length > 0) {
+        // Brak wymaganych danych (np. telefon po rejestracji przez Google) lub niedomknięta
+        // zgoda na politykę prywatności → uzupełnij; returnTo zostaje zapamiętany.
+        if (needsProfileCompletion(loggedInUser)) {
           navigate('/uzupelnij-profil', { replace: true })
         } else {
           navigate(consumeRedirectPath() || '/', { replace: true })

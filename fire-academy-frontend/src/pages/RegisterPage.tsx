@@ -18,6 +18,7 @@ export function RegisterPage() {
     phone: '',
   })
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
+  const [acceptedMarketing, setAcceptedMarketing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [firstNameError, setFirstNameError] = useState<string | null>(null)
   const [lastNameError, setLastNameError] = useState<string | null>(null)
@@ -67,6 +68,7 @@ export function RegisterPage() {
         phone: form.phone.replace(/\s/g, ''),
         preferredLanguage: i18n.language,
         acceptedPrivacy,
+        acceptedMarketing,
       })
       setSuccess(true)
     } catch (err) {
@@ -217,6 +219,20 @@ export function RegisterPage() {
               <Link to="/polityka-prywatnosci" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
                 {t('register.privacyLink')}
               </Link>
+            </label>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border border-surface-700/60 bg-surface-800/40 p-3">
+            <input
+              id="acceptMarketing"
+              type="checkbox"
+              checked={acceptedMarketing}
+              onChange={(e) => setAcceptedMarketing(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-2 focus:ring-primary-500"
+            />
+            <label htmlFor="acceptMarketing" className="text-sm text-surface-300">
+              {t('register.acceptMarketing')}
+              <span className="block text-xs text-surface-500 mt-0.5">{t('register.acceptMarketingHint')}</span>
             </label>
           </div>
 

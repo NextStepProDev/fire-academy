@@ -22,6 +22,7 @@ import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.domain.user.UserRole;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -111,21 +112,23 @@ public class DevDataSeeder implements CommandLineRunner {
     // --- Zwykli użytkownicy (proste maile @dev.pl) ---
 
     private void seedUsers() {
-        // jeden bez telefonu (test RODO), jeden z wyłączonymi powiadomieniami
+        // Piotr bez telefonu (test wymuszania uzupełnienia profilu); mix zgód marketingowych do testów audience MARKETING.
         createUser("jan@dev.pl", "Jan", "Kowalski", "500100100", true);
         createUser("anna@dev.pl", "Anna", "Nowak", "500100200", true);
-        createUser("piotr@dev.pl", "Piotr", "Wiśniewski", null, true);
+        createUser("piotr@dev.pl", "Piotr", "Wiśniewski", null, false);
         createUser("kasia@dev.pl", "Katarzyna", "Lewandowska", "500100400", false);
         createUser("marek@dev.pl", "Marek", "Zieliński", "500100500", true);
     }
 
     private void createUser(String email, String firstName, String lastName,
-                            @Nullable String phone, boolean notifications) {
+                            @Nullable String phone, boolean marketingConsent) {
         if (userRepository.existsByEmail(email)) return;
         User u = new User(email, firstName, lastName, phone);
         u.setPasswordHash(passwordEncoder.encode(DEV_PASSWORD));
         u.markEmailVerified();
-        u.setEmailNotificationsEnabled(notifications);
+        if (marketingConsent) {
+            u.setMarketingConsentAt(Instant.now());
+        }
         userRepository.save(u);
         log.info("DEV-SEEDER: user {} (hasło: {})", email, DEV_PASSWORD);
     }

@@ -1,0 +1,13 @@
+{
+  "unsubscribe": {
+    "title": "Rezygnacja z wiadomości marketingowych",
+    "text": "Czy na pewno chcesz przestać otrzymywać informacje o nadchodzących obozach, szkoleniach i wydarzeniach Fire Academy?",
+    "confirm": "Zrezygnuj z wiadomości marketingowych",
+    "doneTitle": "Rezygnacja przyjęta",
+    "doneText": "Nie będziesz już otrzymywać od nas wiadomości marketingowych. Powiadomienia dotyczące Twoich rezerwacji nadal będą wysyłane.",
+    "invalidTitle": "Nieprawidłowy link",
+    "invalidText": "Ten link rezygnacji jest niepoprawny lub niekompletny. Zgodą marketingową możesz też zarządzać w ustawieniach swojego konta.",
+    "error": "Coś poszło nie tak. Spróbuj ponownie za chwilę.",
+    "backHome": "Wróć na stronę główną"
+  }
+}

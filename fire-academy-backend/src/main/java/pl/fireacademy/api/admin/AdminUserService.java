@@ -99,6 +99,7 @@ public class AdminUserService {
             case "name" -> Sort.by(dir, "lastName", "firstName");
             case "email" -> Sort.by(dir, "email");
             case "role" -> Sort.by(dir, "role");
+            case "marketing" -> Sort.by(dir, "marketingConsentAt");
             default -> Sort.by(dir, "createdAt");
         };
     }
@@ -120,7 +121,8 @@ public class AdminUserService {
                 user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
                 user.getPhone(), user.getRole().name(), user.isAdmin(),
                 adminEmailConfig.isAdminEmail(user.getEmail()),
-                user.isEmailVerified(), user.isEmailNotificationsEnabled(),
+                user.isEmailVerified(),
+                user.hasMarketingConsent(),
                 user.getPreferredLanguage(), user.getPasswordHash() != null,
                 user.getOauthProvider() != null, avatarUrl, user.getCreatedAt(),
                 current, past);
@@ -136,13 +138,20 @@ public class AdminUserService {
 
     @Transactional(readOnly = true)
     public SendEmailResponse sendEmail(SendEmailRequest request) {
-        List<User> recipients = (request.allUsers()
-                ? userRepository.findAllByOrderByCreatedAtDesc()
-                : (request.userIds() == null || request.userIds().isEmpty()
-                        ? List.<User>of()
-                        : userRepository.findAllById(request.userIds())))
-                .stream()
-                // Konta ukryte (techniczne/deweloperskie) nie są adresatami maila „do wszystkich".
+        // Tryb MARKETING dociera wyłącznie do osób z aktywną zgodą i dokłada link rezygnacji.
+        // ALL/SELECTED to komunikaty serwisowe (bez linku) — odpowiedzialność za treść po stronie admina.
+        boolean marketing = "MARKETING".equals(request.audience());
+        List<User> base = switch (request.audience()) {
+            case "MARKETING" -> userRepository.findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
+            case "ALL" -> userRepository.findAllByOrderByCreatedAtDesc();
+            case "SELECTED" -> request.userIds() == null || request.userIds().isEmpty()
+                    ? List.<User>of()
+                    : userRepository.findAllById(request.userIds());
+            default -> throw new IllegalArgumentException(msg.get("email.admin.invalid.audience"));
+        };
+
+        List<User> recipients = base.stream()
+                // Konta ukryte (techniczne/deweloperskie) nigdy nie są adresatami zbiorczej wysyłki.
                 .filter(u -> !adminEmailConfig.isHiddenEmail(u.getEmail()))
                 .toList();
 
@@ -152,7 +161,8 @@ public class AdminUserService {
 
         for (User user : recipients) {
             adminUserMailService.sendCustomMessage(
-                    user.getEmail(), user.getFirstName(), request.subject(), request.message());
+                    user.getEmail(), user.getFirstName(), request.subject(), request.message(),
+                    marketing ? user.getMarketingUnsubscribeToken().toString() : null);
         }
 
         return new SendEmailResponse(recipients.size());
@@ -250,7 +260,8 @@ public class AdminUserService {
                 user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
                 user.getPhone(), user.getRole().name(), user.isAdmin(),
                 adminEmailConfig.isAdminEmail(user.getEmail()),
-                user.isEmailVerified(), user.isEmailNotificationsEnabled(),
+                user.isEmailVerified(),
+                user.hasMarketingConsent(),
                 user.getCreatedAt()
         );
     }

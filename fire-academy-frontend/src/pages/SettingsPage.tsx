@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Camera, ChevronDown, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authApi } from '../api/client'
@@ -120,11 +120,11 @@ export function SettingsPage() {
     }
   }
 
-  const handleNotificationsToggle = async () => {
+  const handleMarketingToggle = async () => {
     try {
-      await authApi.updateNotifications(!user?.emailNotificationsEnabled)
+      await authApi.updateMarketing(!user?.marketingConsent)
       await refreshUser()
-      showToast(t('notifications.updated'))
+      showToast(t('marketing.updated'))
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
@@ -294,22 +294,34 @@ export function SettingsPage() {
       )}
 
       <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
-        <h2 className="text-lg font-semibold text-surface-100 mb-4">{t('notifications.title')}</h2>
-        <div className="flex items-center justify-between">
-          <span className="text-surface-300">{t('notifications.email')}</span>
+        <h2 className="text-lg font-semibold text-surface-100 mb-1">{t('marketing.title')}</h2>
+        <p className="text-sm text-surface-400 mb-4">{t('marketing.description')}</p>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-surface-300">{t('marketing.toggle')}</span>
           <button
-            onClick={handleNotificationsToggle}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              user?.emailNotificationsEnabled ? 'bg-primary-600' : 'bg-surface-600'
+            type="button"
+            role="switch"
+            aria-checked={user?.marketingConsent ?? false}
+            onClick={handleMarketingToggle}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+              user?.marketingConsent ? 'bg-primary-600' : 'bg-surface-600'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                user?.emailNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                user?.marketingConsent ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
         </div>
+        <p className="text-xs text-surface-500 mt-3">{t('marketing.unsubscribeHint')}</p>
+        <Link
+          to="/polityka-prywatnosci"
+          target="_blank"
+          className="inline-block mt-2 text-xs text-primary-400 hover:text-primary-300 underline"
+        >
+          {t('marketing.privacyLink')}
+        </Link>
       </section>
 
       <section className="bg-surface-900 rounded-xl p-6 border border-rose-500/20">

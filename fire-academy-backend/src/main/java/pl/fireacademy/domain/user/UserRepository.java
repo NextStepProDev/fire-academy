@@ -18,6 +18,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // Pełna lista (np. mail „do wszystkich") — nie stronicowana.
     List<User> findAllByOrderByCreatedAtDesc();
 
+    // Adresaci maila marketingowego — wyłącznie osoby z aktywną zgodą (opt-in). Nie stronicowane.
+    List<User> findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
+
+    // Rezygnacja z linku w mailu — bez logowania, po stabilnym tokenie usera.
+    Optional<User> findByMarketingUnsubscribeToken(UUID token);
+
     // Wyszukiwanie po fragmencie imienia, nazwiska lub e-maila (bez rozróżniania wielkości liter), stronicowane.
     @Query("""
         SELECT u FROM User u

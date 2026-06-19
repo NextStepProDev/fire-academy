@@ -174,10 +174,15 @@ export const authApi = {
       method: 'DELETE',
       body: JSON.stringify({ password }),
     }),
-  updateNotifications: (enabled: boolean) =>
-    fetchApi<void>('/user/me/notifications', {
+  updateMarketing: (enabled: boolean) =>
+    fetchApi<User>('/user/me/marketing', {
       method: 'PUT',
       body: JSON.stringify({ enabled }),
+    }),
+  submitConsents: (acceptedPrivacy: boolean, acceptedMarketing: boolean) =>
+    fetchApi<User>('/user/me/consents', {
+      method: 'POST',
+      body: JSON.stringify({ acceptedPrivacy, acceptedMarketing }),
     }),
   updateLanguage: (language: string) =>
     fetchApi<void>('/user/me/language', {

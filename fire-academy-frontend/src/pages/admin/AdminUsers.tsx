@@ -1,9 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, Mail, Trash2, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
-import { adminApi } from '../../api/admin'
+import { Users, Search, Mail, MailCheck, MailX, Trash2, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
+import { adminApi, type EmailAudience } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext'
 import { AdminUserDetail } from './AdminUserDetail'
 import type { AdminUser } from '../../types'
 
-type SortField = 'name' | 'email' | 'role' | 'created'
+type SortField = 'name' | 'email' | 'role' | 'marketing' | 'created'
 type SortDir = 'asc' | 'desc'
 
 export function AdminUsers() {
@@ -32,7 +32,7 @@ export function AdminUsers() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const [emailOpen, setEmailOpen] = useState(false)
-  const [emailMode, setEmailMode] = useState<'selected' | 'all'>('selected')
+  const [audience, setAudience] = useState<EmailAudience>('MARKETING')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
 
@@ -78,8 +78,8 @@ export function AdminUsers() {
     mutationFn: () => adminApi.sendUserEmail({
       subject: subject.trim(),
       message: message.trim(),
-      allUsers: emailMode === 'all',
-      userIds: emailMode === 'selected' ? [...selected] : undefined,
+      audience,
+      userIds: audience === 'SELECTED' ? [...selected] : undefined,
     }),
     onSuccess: (data) => {
       showToast(t('users.emailSuccess', { count: data.recipientCount }))
@@ -92,10 +92,10 @@ export function AdminUsers() {
 
   const selectedCount = selected.size
 
-  const recipientCount = useMemo(
-    () => emailMode === 'all' ? totalElements : selectedCount,
-    [emailMode, totalElements, selectedCount],
-  )
+  // MARKETING dociera do osób ze zgodą — liczby nie znamy z listy (filtr po stronie backendu),
+  // więc nie blokujemy wysyłki licznikiem; ALL/SELECTED mają policzalnych adresatów.
+  const knownRecipientCount = audience === 'ALL' ? totalElements : audience === 'SELECTED' ? selectedCount : null
+  const canSend = audience === 'MARKETING' || (knownRecipientCount ?? 0) > 0
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault()
@@ -145,8 +145,8 @@ export function AdminUsers() {
     )
   }
 
-  const openEmail = (mode: 'selected' | 'all') => {
-    setEmailMode(mode)
+  const openEmail = (initial: EmailAudience) => {
+    setAudience(initial)
     setEmailOpen(true)
   }
 
@@ -180,21 +180,15 @@ export function AdminUsers() {
           <Button
             variant="primary"
             size="sm"
-            disabled={selectedCount === 0}
-            onClick={() => openEmail('selected')}
-          >
-            <Mail className="w-4 h-4 mr-2" />
-            {t('users.emailSelected', { count: selectedCount })}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             disabled={totalElements === 0}
-            onClick={() => openEmail('all')}
+            onClick={() => openEmail(selectedCount > 0 ? 'SELECTED' : 'MARKETING')}
           >
             <Mail className="w-4 h-4 mr-2" />
-            {t('users.emailAll')}
+            {t('users.compose')}
           </Button>
+          {selectedCount > 0 && (
+            <span className="text-sm text-surface-400">{t('users.selectedCount', { count: selectedCount })}</span>
+          )}
         </div>
       </div>
 
@@ -214,13 +208,14 @@ export function AdminUsers() {
                       aria-label={t('users.selectAll')}
                       checked={allSelected}
                       onChange={toggleAll}
-                      className="accent-primary-500"
+                      className="w-4 h-4 accent-primary-500 cursor-pointer"
                     />
                   </th>
                   {sortHeader('name', t('users.name'))}
                   {sortHeader('email', t('users.email'))}
                   <th className="px-4 py-3">{t('users.phone')}</th>
                   {sortHeader('role', t('users.role'))}
+                  {sortHeader('marketing', t('users.marketing'))}
                   {sortHeader('created', t('users.created'))}
                   <th className="px-4 py-3 text-right">{t('users.actions')}</th>
                 </tr>
@@ -236,7 +231,7 @@ export function AdminUsers() {
                           aria-label={t('users.selectOne', { name: `${u.firstName} ${u.lastName}` })}
                           checked={selected.has(u.id)}
                           onChange={() => toggleOne(u.id)}
-                          className="accent-primary-500"
+                          className="w-4 h-4 accent-primary-500 cursor-pointer"
                         />
                       </td>
                       <td className="px-4 py-3 text-surface-100">
@@ -262,6 +257,19 @@ export function AdminUsers() {
                         ) : (
                           <span className="text-xs px-2 py-1 rounded-full bg-surface-800 text-surface-400">
                             {t('users.user')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.marketingConsent ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400" title={t('users.marketingYes')}>
+                            <MailCheck className="w-4 h-4" />
+                            <span className="sr-only">{t('users.marketingYes')}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-surface-600" title={t('users.marketingNo')}>
+                            <MailX className="w-4 h-4" />
+                            <span className="sr-only">{t('users.marketingNo')}</span>
                           </span>
                         )}
                       </td>
@@ -344,9 +352,37 @@ export function AdminUsers() {
           onSubmit={e => { e.preventDefault(); emailMutation.mutate() }}
           className="space-y-4"
         >
-          <p className="text-surface-400 text-sm">
-            {t('users.emailRecipients', { count: recipientCount })}
-          </p>
+          <fieldset className="space-y-2">
+            <legend className="text-sm text-surface-300 mb-1">{t('users.audienceLegend')}</legend>
+            {([
+              { value: 'MARKETING', label: t('users.audienceMarketing'), hint: t('users.audienceMarketingHint'), disabled: false },
+              { value: 'ALL', label: t('users.audienceAll'), hint: t('users.audienceAllHint'), disabled: totalElements === 0 },
+              { value: 'SELECTED', label: t('users.audienceSelected', { count: selectedCount }), hint: t('users.audienceSelectedHint'), disabled: selectedCount === 0 },
+            ] as const).map(opt => (
+              <label
+                key={opt.value}
+                className={clsx(
+                  'flex items-start gap-2 rounded-lg border p-3 cursor-pointer',
+                  audience === opt.value ? 'border-primary-500/60 bg-primary-500/10' : 'border-surface-700 bg-surface-800/40',
+                  opt.disabled && 'opacity-40 cursor-not-allowed',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="audience"
+                  value={opt.value}
+                  checked={audience === opt.value}
+                  disabled={opt.disabled}
+                  onChange={() => setAudience(opt.value)}
+                  className="mt-0.5 accent-primary-500"
+                />
+                <span>
+                  <span className="block text-sm text-surface-200">{opt.label}</span>
+                  <span className="block text-xs text-surface-500">{opt.hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <div>
             <label className="block text-sm text-surface-300 mb-1">{t('users.emailSubject')}</label>
             <input
@@ -370,6 +406,9 @@ export function AdminUsers() {
             />
           </div>
           <p className="text-xs text-surface-500">{t('users.emailSignatureHint')}</p>
+          {audience === 'MARKETING' && (
+            <p className="text-xs text-surface-500">{t('users.emailUnsubscribeHint')}</p>
+          )}
           <div className="flex justify-end gap-3">
             <Button type="button" variant="ghost" size="sm" onClick={() => setEmailOpen(false)}>
               {t('users.cancel')}
@@ -379,7 +418,7 @@ export function AdminUsers() {
               variant="primary"
               size="sm"
               loading={emailMutation.isPending}
-              disabled={!subject.trim() || !message.trim() || recipientCount === 0}
+              disabled={!subject.trim() || !message.trim() || !canSend}
             >
               {t('users.emailSend')}
             </Button>

@@ -37,7 +37,7 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V17. Kolejna migracja: V18.**
+**Obecny stan: V19. Kolejna migracja: V20.**
 > ⚠️ V12–V15 są **zarezerwowane przez niezmergowaną gałąź treningową** (`feat/trainings-types-scheduling`) i bywają już zastosowane w bazach dev. Dlatego zmiany na innych gałęziach numerujemy **od V16 w górę** (Flyway dopuszcza lukę po V11), żeby nie kolidować z `training_*`.
 
 | Wersja | Co dodaje |
@@ -56,6 +56,8 @@ VERSION
 | V12–V15 | *(zarezerwowane przez gałąź treningową — `training_slots`, `training_payments`, odwołania/dezaktywacja; nie na tej gałęzi)* |
 | V16 | enrollments.phone → nullable (admin może dopisać zalogowanego usera bez numeru; RODO — minimalizacja) |
 | V17 | enrollments.user_id → FK do users (ON DELETE SET NULL) + indeks + unikat (user_id,event_id); users.privacy_accepted_at (zgoda RODO). **Zapis wymaga konta** (PII = źródło prawdy w users — roster admina i maile czytają aktualne dane przez `Enrollment.display*()`; kolumny snapshotu firstName/lastName/email/phone w `enrollments` to **tylko fallback** dla czytelności archiwum po usunięciu konta, nie odświeżane przy edycji profilu) |
+| V18 | users.marketing_consent_at (zgoda marketingowa opt-in, NULL=brak; wzorzec jak privacy_accepted_at) + users.marketing_unsubscribe_token (UUID, NOT NULL DEFAULT gen_random_uuid(), unikat — stabilny token linku rezygnacji bez logowania). **Marketing odrębny od maili serwisowych**: serwisowe (zapisy/odwołania, weryfikacja, reset) zawsze idą; marketing tylko za zgodą i z linkiem rezygnacji |
+| V19 | DROP users.email_notifications_enabled — kolumna nigdy nie była egzekwowana (żaden mail service nie sprawdzał flagi); zastąpiona całkowicie przez marketing_consent_at. Usunięty endpoint `PUT /me/notifications` + DTO + frontowy `authApi.updateNotifications` |
 
 ---
 
@@ -65,7 +67,7 @@ VERSION
 `POST /register` · `POST /login` · `POST /logout` · `POST /verify-email?token=` · `POST /resend-verification` · `POST /forgot-password` · `POST /reset-password` · `POST /refresh`
 
 ### User `/api/user` (auth required)
-`GET /me` · `PUT /me` · `PUT /me/password` · `DELETE /me` (RODO: anonimizuje całą historię — przyszłe zapisy kasuje (zwalnia miejsce), przeszłe anonimizuje + zeruje `user_id`; ta sama logika co admin → `EnrollmentErasureService.eraseForUser`, wołana PRZED usunięciem konta) · `PUT /me/notifications` · `PUT /me/language` · `POST /me/avatar` (multipart, kadrowanie po stronie frontu) · `DELETE /me/avatar`
+`GET /me` (zwraca m.in. `privacyAccepted`, `marketingConsent`) · `PUT /me` · `PUT /me/password` · `DELETE /me` (RODO: anonimizuje całą historię — przyszłe zapisy kasuje (zwalnia miejsce), przeszłe anonimizuje + zeruje `user_id`; ta sama logika co admin → `EnrollmentErasureService.eraseForUser`, wołana PRZED usunięciem konta) · `PUT /me/marketing` (toggle zgody marketingowej `{enabled}`) · `POST /me/consents` (domknięcie zgód po Google: `{acceptedPrivacy, acceptedMarketing}` — polityka obowiązkowa gdy jeszcze nieudzielona) · `PUT /me/language` · `POST /me/avatar` (multipart, kadrowanie po stronie frontu) · `DELETE /me/avatar`
 `POST /enrollments` (zapis na wydarzenie z konta — body `{eventId, note}`, dane z profilu; brak telefonu w profilu → `enrollment.phone.required`, front kieruje do `/settings`) · `GET /enrollments` (moje rezerwacje: `{current, past}`, każdy z `canCancel`) · `DELETE /enrollments/{id}` (anulowanie własnego zapisu; blokada <24h; powiadamiany tylko organizator)
 
 ### Files `/api/files` (public, cached 7 dni)
@@ -73,6 +75,7 @@ VERSION
 
 ### Public `/api/public` (brak auth)
 `GET /instructors?category=` · `GET /instructors/{id}` · `GET /event-types?category=` · `GET /event-types/{id}` · `GET /events?category=` · `GET /events/{id}`
+`POST /marketing/unsubscribe` (`{token}` — rezygnacja z marketingu z linku w mailu, bez logowania; idempotentne, zawsze 204 — anti-enumeracja; front: strona `/wypisz-sie?token=`, świadomie POST nie GET, by skanery maili nie wypisywały userów prefetchem)
 > ⚠️ Zapis gościa (`POST /events/{id}/enroll`) **USUNIĘTY** (V17). Zapis tylko przez konto → `POST /api/user/enrollments`. Niezalogowany klik „Zapisz się" w SPA → redirect na `/logowanie` (returnTo).
 
 ### OG `/og` (brak auth, HTML z Open Graph meta tagami dla crawlerów social media)
@@ -86,7 +89,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 `/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
 `/events` — CRUD + `?category=` + toggle active + customName (bez auto-create EventType)
 `/enrollments` — lista + admin-add + delete (`DELETE /{id}?notify=` — `notify=false` = ciche usunięcie z archiwum, bez maila o odwołaniu; admin-add ma guard duplikatu `enrollment.already.exists`. **Admin-add tylko dla istniejącego konta** — `AdminEnrollRequest{eventId, userId, note}`, dane uczestnika z konta (front: wyszukiwarka usera przez `GET /users?search=`); duplikat per `user_id+event`)
-`/users` — `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 30/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `created`} (whitelist, telefon niesortowalny), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`. **Konta z `ADMIN_HIDDEN_EMAILS` ukryte** — filtr w SQL, by liczniki/paginacja były spójne; te same konta pominięte w wyszukiwarce admin-add i jako adresaci maila „do wszystkich") · `POST /email` (mail do wszystkich lub wybranych, branding+podpis auto) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/promote` (**tylko super-admin z `ADMIN_EMAIL`**) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
+`/users` — `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 30/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `marketing`, `created`} (whitelist, telefon niesortowalny; `marketing` = po `marketing_consent_at`), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`. Lista zwraca też `marketingConsent` per user (ikona zgody w UI). **Konta z `ADMIN_HIDDEN_EMAILS` ukryte** — filtr w SQL, by liczniki/paginacja były spójne; te same konta pominięte w wyszukiwarce admin-add i jako adresaci maila zbiorczego) · `POST /email` (`{subject, message, audience, userIds}` — `audience` ∈ {`MARKETING` (tylko zgody marketingowe + auto link rezygnacji w stopce), `ALL` (komunikat serwisowy do wszystkich, bez linku), `SELECTED` (wybrane `userIds`)}; branding+podpis auto, ukryte konta pomijane) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/promote` (**tylko super-admin z `ADMIN_EMAIL`**) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
 
 > **Super-admin** = e-mail z `ADMIN_EMAIL` (`AdminEmailConfig.isAdminEmail`). `GET /api/user/me` zwraca flagę `superAdmin` (front pokazuje przyciski nadania i odebrania uprawnień admina tylko jemu). Maile admin→user: `AdminUserMailService` (logo Fire Academy, podpis „Pozdrawiam, Fire Academy", temat bez HTML-escape).
 
@@ -107,9 +110,11 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 | `/:category/termin/:id` | EventDetailPage | Strona szczegółów terminu (data, lokalizacja, cena, zapis, share) |
 | `/kadra/:id` | InstructorDetailPage | Strona szczegółów instruktora (zdjęcie, bio, share) |
 | `/logowanie` | LoginPage | Logowanie (link „Zaloguj się" w Navbarze dla gościa na każdej zakładce; `/admin/login` i `/login` → redirect tutaj). Po zalogowaniu wraca na zapamiętaną ścieżkę (returnTo) |
-| `/rejestracja` | RegisterPage | Rejestracja konta (telefon + wymagana akceptacja polityki prywatności → `acceptedPrivacy`; `/admin/register`, `/register` → redirect tutaj) |
+| `/rejestracja` | RegisterPage | Rejestracja konta (telefon + wymagana akceptacja polityki prywatności → `acceptedPrivacy` + opcjonalna zgoda marketingowa → `acceptedMarketing`; `/admin/register`, `/register` → redirect tutaj) |
+| `/uzupelnij-profil` | ProfileCompletionPage | Domknięcie konta po Google (ProtectedRoute): brakujące pola profilu + (gdy `privacyAccepted=false`) obowiązkowa polityka prywatności i opcjonalny marketing → `POST /api/user/me/consents`. Pokazywana gdy `needsProfileCompletion(user)` |
+| `/wypisz-sie` | MarketingUnsubscribePage | Rezygnacja z marketingu z linku w mailu (public, `?token=`, przycisk → `POST /api/public/marketing/unsubscribe`) |
 | `/moje-konto` | MojeKontoPage | Konto usera (ProtectedRoute): profil + „Moje rezerwacje" (bieżące/archiwum z `GET /api/user/enrollments`, anulowanie własnego zapisu) |
-| `/settings` | SettingsPage | Ustawienia konta (ProtectedRoute): avatar, dane (w tym telefon), hasło, powiadomienia, usunięcie konta |
+| `/settings` | SettingsPage | Ustawienia konta (ProtectedRoute): avatar, dane (w tym telefon), hasło, zgoda marketingowa (toggle), usunięcie konta |
 | `/admin/*` | AdminPage | Panel admina (zakładki: kadra, treningi, obozy, szkolenia, użytkownicy, archiwum). Zakładka „Użytkownicy": lista (paginacja+sort+wyszukiwanie) → klik w osobę = profil (`AdminUserDetail`: dane podgląd, zapisy bieżące/archiwum, dopisanie do wydarzenia, usuwanie zapisu/wpisu z archiwum). **Zakładka RODO usunięta** — prawo do bycia zapomnianym = usunięcie konta (anonimizuje całą historię, patrz niżej) |
 | `/verify-email` | VerifyEmailPage | Weryfikacja email (link z maila) |
 | `/reset-password` | ResetPasswordPage | Reset hasła (link z maila) |
@@ -138,7 +143,7 @@ Aplikacja wspiera wyłącznie **język polski**. Backend: `messages.properties` 
 - **Auto-admin:** email z `ADMIN_EMAIL` (env var) automatycznie dostaje ADMIN przy rejestracji
 - Account lockout: 5 failed attempts → 15 min lockout
 - Rate limiting: per-IP per-endpoint
-- **Konta publiczne** — logowanie/rejestracja dostępne dla każdego (`/logowanie`, `/rejestracja`); Navbar pokazuje „Zaloguj się" gościowi na wszystkich zakładkach. Zapis na wydarzenia wymaga konta. Admin trafia do panelu przez `/admin` (gdy zalogowany jako ADMIN). Rejestracja zapisuje zgodę RODO (`users.privacy_accepted_at`)
+- **Konta publiczne** — logowanie/rejestracja dostępne dla każdego (`/logowanie`, `/rejestracja`); Navbar pokazuje „Zaloguj się" gościowi na wszystkich zakładkach. Zapis na wydarzenia wymaga konta. Admin trafia do panelu przez `/admin` (gdy zalogowany jako ADMIN). Rejestracja zapisuje zgodę RODO (`users.privacy_accepted_at`) + opcjonalną zgodę marketingową (`users.marketing_consent_at`). **Google OAuth**: zgody domykane na `/uzupelnij-profil` (polityka obowiązkowa, marketing opcjonalny) — `OAuth2UserService.createNewUser` celowo nie ustawia zgód
 - Strony utility (verify-email, reset-password, forgot-password, resend-verification) pozostają na root level (linki z maili)
 
 ---

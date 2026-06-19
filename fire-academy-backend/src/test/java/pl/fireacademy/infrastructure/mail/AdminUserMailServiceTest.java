@@ -49,27 +49,37 @@ class AdminUserMailServiceTest {
 
     @Test
     void shouldSendCustomMessageWithBrandingAndSignature() throws Exception {
-        service.sendCustomMessage("jan@test.com", "Jan", "Ważna informacja", "Treść wiadomości");
+        service.sendCustomMessage("jan@test.com", "Jan", "Ważna informacja", "Treść wiadomości", null);
 
         verify(mailSender).send(mimeMessage);
         String body = extractHtml(mimeMessage);
         assertTrue(body.contains("logo-academy-fire-white.png"), "powinno zawierać logo Fire Academy");
         assertTrue(body.contains("Pozdrawiam,"));
         assertTrue(body.contains("Fire Academy"));
+        assertFalse(body.contains("/wypisz-sie"), "mail serwisowy (token null) nie ma linku rezygnacji");
+    }
+
+    @Test
+    void shouldAppendUnsubscribeLinkForMarketingMessage() throws Exception {
+        service.sendCustomMessage("jan@test.com", "Jan", "Nowy obóz", "Zapraszamy", "tok-123");
+
+        String body = extractHtml(mimeMessage);
+        assertTrue(body.contains("/wypisz-sie?token=tok-123"),
+                "mail marketingowy zawiera link rezygnacji z tokenem usera");
     }
 
     @Test
     void shouldKeepSubjectRawWithoutHtmlEscaping() throws Exception {
         // Temat z polskimi znakami i znakami specjalnymi musi pozostać surowy (bez encji HTML).
         String subject = "Zniżka 50% <wyjątkowo> ąćę";
-        service.sendCustomMessage("jan@test.com", "Jan", subject, "Treść");
+        service.sendCustomMessage("jan@test.com", "Jan", subject, "Treść", null);
 
         assertEquals(subject, mimeMessage.getSubject());
     }
 
     @Test
     void shouldHtmlEscapeMessageBodyAndConvertNewlines() throws Exception {
-        service.sendCustomMessage("jan@test.com", "Jan", "Temat", "Linia 1\n<script>alert(1)</script>");
+        service.sendCustomMessage("jan@test.com", "Jan", "Temat", "Linia 1\n<script>alert(1)</script>", null);
 
         String body = extractHtml(mimeMessage);
         assertTrue(body.contains("&lt;script&gt;"), "treść powinna być escapowana");
@@ -82,7 +92,7 @@ class AdminUserMailServiceTest {
         doThrow(new MailSendException("SMTP error")).when(mailSender).send(any(MimeMessage.class));
 
         assertDoesNotThrow(() -> service.sendCustomMessage(
-                "jan@test.com", "Jan", "Temat", "Treść"));
+                "jan@test.com", "Jan", "Temat", "Treść", null));
     }
 
     // Helper z multipart=true → treść owinięta w MimeMultipart; wyciągamy rekursywnie cały HTML.
