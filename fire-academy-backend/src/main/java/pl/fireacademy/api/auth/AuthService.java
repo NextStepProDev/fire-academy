@@ -158,6 +158,7 @@ public class AuthService {
         authTokenRepository.save(authToken);
 
         authMailService.sendWelcomeEmail(user);
+        authMailService.sendNewUserAdminNotification(user);
 
         log.info("Email verified for: {}", user.getEmail());
         return new MessageResponse(msg.get("auth.verify.success"));

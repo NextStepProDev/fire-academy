@@ -86,6 +86,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
         }
         User savedUser = userRepository.save(user);
         authMailService.sendWelcomeEmail(savedUser);
+        authMailService.sendNewUserAdminNotification(savedUser);
         return savedUser;
     }
 

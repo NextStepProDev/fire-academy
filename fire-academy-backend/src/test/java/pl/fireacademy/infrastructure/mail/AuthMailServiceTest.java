@@ -8,9 +8,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
+import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -21,6 +24,7 @@ class AuthMailServiceTest {
 
     @Mock private JavaMailSender mailSender;
     @Mock private MessageService msg;
+    @Mock private AdminEmailConfig adminEmailConfig;
     @Mock private MimeMessage mimeMessage;
 
     private AuthMailService service;
@@ -35,9 +39,9 @@ class AuthMailServiceTest {
 
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        service = new AuthMailService(mailSender, appConfig, msg);
+        service = new AuthMailService(mailSender, appConfig, adminEmailConfig, msg);
 
-        user = new User("jan@test.com", "Jan", "Kowalski", null);
+        user = new User("jan@test.com", "Jan", "Kowalski", "+48123456789");
         user.setPreferredLanguage("pl");
     }
 
@@ -92,6 +96,29 @@ class AuthMailServiceTest {
         service.sendPasswordChangedNotification(user);
 
         verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    void shouldSendNewUserAdminNotificationToAllAdmins() {
+        when(adminEmailConfig.getAdminEmails())
+            .thenReturn(Set.of("admin1@fireworkout.pl", "admin2@fireworkout.pl"));
+        when(msg.get(eq("email.admin.new.user.subject"), eq("Jan Kowalski"))).thenReturn("Nowy użytkownik: Jan Kowalski");
+        when(msg.get("email.admin.new.user.heading")).thenReturn("Nowy użytkownik dołączył do Fire Academy");
+        when(msg.get("email.admin.new.user.intro")).thenReturn("Konto zostało właśnie aktywowane. Szczegóły:");
+        when(msg.get(eq("email.admin.new.user.name"), anyString())).thenReturn("Imię i nazwisko: Jan Kowalski");
+        when(msg.get(eq("email.admin.new.user.email"), anyString())).thenReturn("Email: jan@test.com");
+        when(msg.get(eq("email.admin.new.user.phone"), anyString())).thenReturn("Telefon: +48123456789");
+        when(msg.get("email.admin.new.user.source.email")).thenReturn("Email i hasło");
+        when(msg.get(eq("email.admin.new.user.source"), anyString())).thenReturn("Sposób rejestracji: Email i hasło");
+        when(msg.get("email.admin.new.user.marketing.no")).thenReturn("Nie");
+        when(msg.get(eq("email.admin.new.user.marketing"), anyString())).thenReturn("Zgoda marketingowa: Nie");
+        when(msg.get("email.admin.new.user.button")).thenReturn("Zobacz w panelu");
+        when(msg.getForLang(eq("email.footer.visit"), eq("pl"))).thenReturn("Odwiedź naszą stronę");
+        when(msg.getForLang(eq("email.footer"), eq("pl"))).thenReturn("Fire Academy");
+
+        service.sendNewUserAdminNotification(user);
+
+        verify(mailSender, times(2)).send(mimeMessage);
     }
 
     @Test

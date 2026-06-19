@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
+import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -19,12 +20,15 @@ public class AuthMailService {
 
     private final JavaMailSender mailSender;
     private final AppConfig appConfig;
+    private final AdminEmailConfig adminEmailConfig;
     private final MessageService msg;
     private final String siteUrl;
 
-    public AuthMailService(JavaMailSender mailSender, AppConfig appConfig, MessageService msg) {
+    public AuthMailService(JavaMailSender mailSender, AppConfig appConfig,
+                           AdminEmailConfig adminEmailConfig, MessageService msg) {
         this.mailSender = mailSender;
         this.appConfig = appConfig;
+        this.adminEmailConfig = adminEmailConfig;
         this.msg = msg;
         this.siteUrl = appConfig.getSiteUrl();
     }
@@ -121,6 +125,65 @@ public class AuthMailService {
         );
 
         sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+    }
+
+    /**
+     * Powiadomienie organizatorów o nowym aktywnym koncie. Wysyłane po weryfikacji emailem
+     * (flow email/hasło) lub bezpośrednio po utworzeniu konta przez Google OAuth — w obu
+     * przypadkach konto jest już „realne" (zweryfikowany właściciel skrzynki).
+     */
+    @Async("mailExecutor")
+    public void sendNewUserAdminNotification(User user) {
+        if (adminEmailConfig.getAdminEmails().isEmpty()) {
+            return;
+        }
+        String fullName = (user.getFirstName() + " " + user.getLastName()).trim();
+        String subject = msg.get("email.admin.new.user.subject", fullName);
+
+        String safeFullName = HtmlUtils.htmlEscape(fullName);
+        String safeEmail = HtmlUtils.htmlEscape(user.getEmail());
+        String phone = user.getPhone();
+        String safePhone = (phone == null || phone.isBlank())
+                ? msg.get("email.admin.new.user.phone.none")
+                : HtmlUtils.htmlEscape(phone);
+        String source = user.getOauthProvider() != null
+                ? msg.get("email.admin.new.user.source.google")
+                : msg.get("email.admin.new.user.source.email");
+        String marketing = user.getMarketingConsentAt() != null
+                ? msg.get("email.admin.new.user.marketing.yes")
+                : msg.get("email.admin.new.user.marketing.no");
+
+        String adminUrl = siteUrl + "/admin/uzytkownicy";
+
+        String content = """
+                        <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                        <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                        <div style="background-color: #3d3a37; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                            <p style="font-size: 15px; margin: 4px 0;">%s</p>
+                            <p style="font-size: 15px; margin: 4px 0;">%s</p>
+                            <p style="font-size: 15px; margin: 4px 0;">%s</p>
+                            <p style="font-size: 15px; margin: 4px 0;">%s</p>
+                            <p style="font-size: 15px; margin: 4px 0;">%s</p>
+                        </div>
+                        <div style="text-align: center; margin: 28px 0;">
+                            <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
+                        </div>
+            """.formatted(
+                msg.get("email.admin.new.user.heading"),
+                msg.get("email.admin.new.user.intro"),
+                msg.get("email.admin.new.user.name", safeFullName),
+                msg.get("email.admin.new.user.email", safeEmail),
+                msg.get("email.admin.new.user.phone", safePhone),
+                msg.get("email.admin.new.user.source", source),
+                msg.get("email.admin.new.user.marketing", marketing),
+                adminUrl,
+                msg.get("email.admin.new.user.button")
+        );
+
+        String body = brandedTemplate(content, "pl");
+        for (String adminEmail : adminEmailConfig.getAdminEmails()) {
+            sendEmail(adminEmail, subject, body);
+        }
     }
 
     private String brandedTemplate(String content, String lang) {
