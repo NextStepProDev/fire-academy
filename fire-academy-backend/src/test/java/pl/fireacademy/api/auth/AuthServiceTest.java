@@ -289,6 +289,7 @@ class AuthServiceTest {
         assertTrue(existingUser.isEmailVerified());
         assertTrue(authToken.isUsed());
         verify(authMailService).sendWelcomeEmail(existingUser);
+        verify(authMailService).sendNewUserAdminNotification(existingUser);
     }
 
     @Test
