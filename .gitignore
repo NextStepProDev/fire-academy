@@ -35,3 +35,6 @@ uploads/
 
 # Local docs (not for repo)
 docs/
+
+# Claude Code (per-session artifacts, never commit)
+.claude/
