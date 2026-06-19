@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +59,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailIgnoreCase(String email);
 
     Optional<User> findByOauthProviderAndOauthId(String oauthProvider, String oauthId);
+
+    // Porzucone konta po logowaniu OAuth: założone (Google przekazuje imię/e-mail), ale nigdy niedomknięte
+    // zgodą na politykę prywatności. Ograniczamy do kont OAuth (oauth_provider != NULL) — konta e-mail/hasło
+    // mają zgodę ustawioną przy rejestracji, a stare konta sprzed migracji privacy_accepted_at również mają
+    // NULL i NIE mogą zostać tu złapane. Do automatycznego czyszczenia (RODO — nie trzymamy danych bez zgody).
+    List<User> findByOauthProviderIsNotNullAndPrivacyAcceptedAtIsNullAndCreatedAtBefore(Instant cutoff);
 
     boolean existsByEmail(String email);
 

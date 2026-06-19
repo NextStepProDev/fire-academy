@@ -33,11 +33,12 @@ vi.mock('../../api/client', () => ({
   userApi: { enroll: (...args: unknown[]) => enrollMock(...args) },
 }))
 
-let mockUser: { firstName: string; lastName: string; email: string; phone: string | null } | null = {
+let mockUser: { firstName: string; lastName: string; email: string; phone: string | null; privacyAccepted: boolean } | null = {
   firstName: 'Anna',
   lastName: 'Nowak',
   email: 'anna@test.com',
   phone: '123456789',
+  privacyAccepted: true,
 }
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ user: mockUser, refreshUser: vi.fn() }),
@@ -60,7 +61,7 @@ function renderModal(props?: Partial<Parameters<typeof EnrollmentModal>[0]>) {
 describe('EnrollmentModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUser = { firstName: 'Anna', lastName: 'Nowak', email: 'anna@test.com', phone: '123456789' }
+    mockUser = { firstName: 'Anna', lastName: 'Nowak', email: 'anna@test.com', phone: '123456789', privacyAccepted: true }
   })
 
   it('should render confirmation with account data when open', () => {
@@ -77,11 +78,18 @@ describe('EnrollmentModal', () => {
   })
 
   it('should show inline profile completion form when account has no phone', () => {
-    mockUser = { firstName: 'Piotr', lastName: 'Kowal', email: 'piotr@test.com', phone: null }
+    mockUser = { firstName: 'Piotr', lastName: 'Kowal', email: 'piotr@test.com', phone: null, privacyAccepted: true }
     renderModal()
     expect(screen.getByText('Uzupełnij swoje dane')).toBeInTheDocument()
     expect(screen.getByText('Zapisz dane i kontynuuj')).toBeInTheDocument()
     expect(screen.getByText('Telefon')).toBeInTheDocument()
+    expect(screen.queryByText('Zapisz się')).not.toBeInTheDocument()
+  })
+
+  it('should show completion form when privacy policy not accepted (even with full profile)', () => {
+    mockUser = { firstName: 'Ewa', lastName: 'Lis', email: 'ewa@test.com', phone: '500600700', privacyAccepted: false }
+    renderModal()
+    expect(screen.getByText('Uzupełnij swoje dane')).toBeInTheDocument()
     expect(screen.queryByText('Zapisz się')).not.toBeInTheDocument()
   })
 

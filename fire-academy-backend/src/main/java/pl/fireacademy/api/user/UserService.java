@@ -18,6 +18,7 @@ import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -97,9 +98,10 @@ public class UserService {
                 throw new IllegalArgumentException(msg.get("user.password.invalid"));
             }
         }
-        // RODO: przyszłe zapisy zwalniamy, przeszłe anonimizujemy — PRZED skasowaniem konta
-        // (po delete FK wyzeruje user_id i zapisów nie da się odnaleźć). Wspólna logika z panelem admina.
-        var erasure = enrollmentErasureService.eraseForUser(userId);
+        // Dane do powiadomienia łapiemy przed usunięciem (po delete encja jest odłączona).
+        String fullName = user.getFullName();
+        String email = user.getEmail();
+        var erasure = eraseAndDeleteAccount(user);
 
         // Samodzielna rezygnacja przez usunięcie konta — organizator nie wie inaczej, że zwolniły się
         // miejsca na przyszłych wydarzeniach. Jeden zbiorczy mail (przy usuwaniu z panelu admin sam zna wynik).
@@ -107,10 +109,38 @@ public class UserService {
             List<String> eventLines = erasure.freedEvents().stream()
                     .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
                     .toList();
-            enrollmentMailService.sendAccountDeletionSeatsFreedNotification(
-                    user.getFullName(), user.getEmail(), eventLines);
+            enrollmentMailService.sendAccountDeletionSeatsFreedNotification(fullName, email, eventLines);
         }
+    }
 
+    /**
+     * Automatyczne czyszczenie porzuconych kont OAuth: założonych przy logowaniu (Google przekazuje
+     * imię/e-mail), które nigdy nie zaakceptowały polityki prywatności i są starsze niż próg. RODO —
+     * skoro user nie domknął zgody i nie wrócił, nie mamy podstawy dalej przechowywać jego danych.
+     * Wywoływane przez scheduler. Zwraca liczbę usuniętych kont.
+     */
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
+            @CacheEvict(value = CacheConfig.EVENT, allEntries = true)
+    })
+    @Transactional
+    public int purgeAbandonedUnconsentedAccounts(int olderThanDays) {
+        Instant cutoff = Instant.now().minus(Duration.ofDays(olderThanDays));
+        List<User> abandoned = userRepository
+                .findByOauthProviderIsNotNullAndPrivacyAcceptedAtIsNullAndCreatedAtBefore(cutoff);
+        // Porzucone konta nie mają zapisów (backend blokuje zapis bez zgody), więc nie wysyłamy
+        // powiadomień o zwolnionych miejscach — samo skasowanie danych.
+        abandoned.forEach(this::eraseAndDeleteAccount);
+        return abandoned.size();
+    }
+
+    // Wspólny „ogon" usunięcia konta: anonimizacja/zwolnienie zapisów (RODO), skasowanie avatara,
+    // tokenów, samego konta i eksmisja z cache filtra JWT. Wołać w transakcji, po weryfikacji uprawnień.
+    private EnrollmentErasureService.ErasureResult eraseAndDeleteAccount(User user) {
+        UUID userId = user.getId();
+        // Przyszłe zapisy zwalniamy, przeszłe anonimizujemy — PRZED skasowaniem konta
+        // (po delete FK wyzeruje user_id i zapisów nie da się odnaleźć). Wspólna logika z panelem admina.
+        var erasure = enrollmentErasureService.eraseForUser(userId);
         if (user.getAvatarFilename() != null) {
             fileStorageService.delete(AVATAR_FOLDER, user.getAvatarFilename());
         }
@@ -118,6 +148,7 @@ public class UserService {
         userRepository.deleteById(userId);
         // Bez tego usunięty user nadal uwierzytelniałby się z cache filtra JWT przez ~60s.
         jwtAuthenticationFilter.evictUser(userId);
+        return erasure;
     }
 
     @Transactional

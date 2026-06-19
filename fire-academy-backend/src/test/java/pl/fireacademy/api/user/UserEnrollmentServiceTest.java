@@ -20,6 +20,7 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 
 import java.lang.reflect.Field;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -51,6 +52,7 @@ class UserEnrollmentServiceTest {
         userId = UUID.randomUUID();
         eventId = UUID.randomUUID();
         user = new User("anna@example.com", "Anna", "Nowak", "123456789");
+        user.setPrivacyAcceptedAt(Instant.now());
         setId(user, userId);
 
         activeEvent = new Event(EventCategory.CAMP, "Obóz letni", LocalDate.now().plusDays(7));
@@ -77,6 +79,18 @@ class UserEnrollmentServiceTest {
         verify(enrollmentMailService).sendEnrollmentNotification(
                 eq("Obóz letni"), eq("Anna Nowak"), eq("anna@example.com"),
                 eq("123456789"), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldThrowWhenPrivacyNotAccepted() {
+        user.setPrivacyAcceptedAt(null);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(msg.get("enrollment.privacy.required")).thenReturn("Zaakceptuj politykę");
+
+        var ex = assertThrows(IllegalStateException.class,
+                () -> service.enroll(userId, new EnrollRequest(eventId, null)));
+        assertEquals("Zaakceptuj politykę", ex.getMessage());
+        verify(enrollmentRepository, never()).save(any());
     }
 
     @Test
