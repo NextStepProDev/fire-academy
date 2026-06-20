@@ -5,12 +5,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.Instant;
@@ -52,6 +55,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<Map<String, Object>> handleBadRequestParam(Exception e) {
         return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadableBody(HttpMessageNotReadableException e) {
+        // Niepoprawne/niepełne body JSON (np. brak wymaganego pola prymitywnego, zły typ).
+        // e.getMessage() bywa rozwlekły i zdradza szczegóły wewnętrzne — zwracamy generyczny komunikat.
+        log.warn("Malformed request body: {}", e.getMessage());
+        return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", msg.get("error.request.body.invalid"), "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(Map.of("code", "METHOD_NOT_ALLOWED", "message", msg.get("error.method.not.allowed"), "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("code", "NOT_FOUND", "message", msg.get("error.resource.not.found"), "timestamp", Instant.now().toString()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
