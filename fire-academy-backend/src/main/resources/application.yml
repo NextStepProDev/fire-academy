@@ -97,6 +97,11 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # Wolny SMTP (~10 s) przekracza timeout docker healthchecka (5 s) → fałszywe "unhealthy" → zbędny restart.
+    # Maile to nie liveness — wyłączamy ich sondowanie w /actuator/health.
+    mail:
+      enabled: false
 
 logging:
   level:
