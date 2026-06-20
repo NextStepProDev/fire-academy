@@ -52,7 +52,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     }),
     onSuccess: invalidate,
   })
-  const deleteMut = useMutation({ mutationFn: adminApi.deleteEventType, onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: adminApi.deleteEventType, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventTypeActive, onSuccess: invalidate })
   const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderEventType(id, dir), onSuccess: invalidate })
   const thumbMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadEventTypeThumbnail(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
@@ -63,7 +63,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     onSuccess: invalidate,
     onError: (e: Error) => showToast(e.message, 'error'),
   })
-  const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate })
+  const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate })
 
   const openCreate = () => { setForm({ name: '', description: '' }); setIsCreating(true) }

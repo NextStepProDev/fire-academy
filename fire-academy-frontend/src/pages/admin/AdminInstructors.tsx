@@ -39,7 +39,7 @@ export function AdminInstructors() {
 
   const createMut = useMutation({ mutationFn: (d: typeof form) => adminApi.createInstructor(d), onSuccess: invalidate })
   const updateMut = useMutation({ mutationFn: ({ id, ...d }: typeof form & { id: string }) => adminApi.updateInstructor(id, d), onSuccess: invalidate })
-  const deleteMut = useMutation({ mutationFn: adminApi.deleteInstructor, onSuccess: invalidate })
+  const deleteMut = useMutation({ mutationFn: adminApi.deleteInstructor, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleInstructorActive, onSuccess: invalidate })
   const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderInstructor(id, dir), onSuccess: invalidate })
   const photoMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadInstructorPhoto(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })

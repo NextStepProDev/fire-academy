@@ -164,13 +164,22 @@ public class AdminEventService {
     @Transactional
     public void delete(UUID id, boolean force) {
         var event = findOrThrow(id);
-        long enrollments = enrollmentRepository.countByEventId(id);
-        if (enrollments > 0) {
+        var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(id);
+        if (!enrollments.isEmpty()) {
             if (!force) {
                 throw new IllegalStateException(msg.get("event.has.enrollments"));
             }
-            // Force-delete (archiwum): cicho kasujemy zapisy zanim usuniemy termin.
-            // Termin jest przeszły, więc nie wysyłamy powiadomień o odwołaniu.
+            // Termin przeszły (archiwum) → ciche usunięcie zapisów (wydarzenie już było).
+            // Termin przyszły/aktywny → powiadamiamy zapisanych o odwołaniu, zanim skasujemy zapisy.
+            if (!event.isPastOn(LocalDate.now())) {
+                var schedule = EnrollmentMailService.formatSchedule(event);
+                for (Enrollment enrollment : enrollments) {
+                    enrollmentMailService.sendEnrollmentDeletionNotification(
+                            enrollment.displayEmail(), enrollment.displayFirstName(),
+                            event.getDisplayName(), schedule,
+                            event.getCategory(), event.getId().toString());
+                }
+            }
             enrollmentRepository.deleteByEventId(id);
         }
         eventRepository.delete(event);

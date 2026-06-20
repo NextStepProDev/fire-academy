@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useToast } from '../../context/ToastContext'
 import { ChevronDown, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
@@ -25,6 +26,7 @@ function isPastEvent(event: EventInstance): boolean {
 
 function ArchiveCard({ event }: { event: ArchivedEvent }) {
   const { t } = useTranslation('admin')
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [expandedNote, setExpandedNote] = useState<string | null>(null)
@@ -46,6 +48,7 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
       queryClient.invalidateQueries({ queryKey: ['public', 'events'] })
     },
+    onError: (e: Error) => showToast(e.message, 'error'),
   })
 
   return (
