@@ -6,6 +6,7 @@
   "notFound": "Nie znaleziono",
   "forbidden": "Brak dostępu",
   "serviceUnavailable": "Usługa niedostępna. Spróbuj ponownie później.",
+  "serviceUpdating": "Trwa aktualizacja serwisu. Odśwież stronę za chwilę.",
   "authServer": "Błąd serwera autoryzacji",
   "authGeneric": "Błąd autoryzacji ({{status}})",
   "retry": "Spróbuj ponownie",
