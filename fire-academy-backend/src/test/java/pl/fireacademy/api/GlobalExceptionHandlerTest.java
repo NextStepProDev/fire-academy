@@ -2,10 +2,15 @@ package pl.fireacademy.api;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpInputMessage;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.util.Map;
@@ -94,6 +99,51 @@ class GlobalExceptionHandlerTest {
     }
 
     private enum EventCategoryStub { CAMP }
+
+    @Test
+    void shouldReturn400WhenRequestBodyUnreadable() {
+        when(msg.get("error.request.body.invalid")).thenReturn("Nieprawidłowe dane żądania");
+        var ex = new HttpMessageNotReadableException("Missing required creator property", mock(HttpInputMessage.class));
+
+        var response = handler.handleUnreadableBody(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("BAD_REQUEST", body.get("code"));
+        assertEquals("Nieprawidłowe dane żądania", body.get("message"));
+        assertNotNull(body.get("timestamp"));
+    }
+
+    @Test
+    void shouldReturn405WhenHttpMethodNotSupported() {
+        when(msg.get("error.method.not.allowed")).thenReturn("Ta metoda nie jest obsługiwana dla tego zasobu");
+        var ex = new HttpRequestMethodNotSupportedException("POST");
+
+        var response = handler.handleMethodNotSupported(ex);
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("METHOD_NOT_ALLOWED", body.get("code"));
+        assertEquals("Ta metoda nie jest obsługiwana dla tego zasobu", body.get("message"));
+        assertNotNull(body.get("timestamp"));
+    }
+
+    @Test
+    void shouldReturn404WhenNoResourceFound() {
+        when(msg.get("error.resource.not.found")).thenReturn("Nie znaleziono zasobu");
+        var ex = new NoResourceFoundException(HttpMethod.GET, "/api/public/nonexistent", "api/public/nonexistent");
+
+        var response = handler.handleNoResource(ex);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("NOT_FOUND", body.get("code"));
+        assertEquals("Nie znaleziono zasobu", body.get("message"));
+        assertNotNull(body.get("timestamp"));
+    }
 
     @Test
     void shouldReturn500ForUnexpectedException() {
