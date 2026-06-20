@@ -25,13 +25,17 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         SimpleCacheManager manager = new SimpleCacheManager();
+        // TTL ujednolicony na 30 min: każdy zapis (admin + self-enroll/cancel) robi
+        // @CacheEvict(allEntries=true), więc spójność gwarantuje eviction, nie wygaśnięcie.
+        // Krótki TTL (dawniej 2 min na EVENTS/EVENT) tylko wymuszał zbędne zimne trafienia
+        // w DB na boksie o ograniczonym CPU — bez zysku dla świeżości danych.
         manager.setCaches(List.of(
-                build(INSTRUCTORS, 10, 10),
-                build(EVENT_TYPES, 10, 10),
-                build(EVENTS, 10, 2),
-                build(INSTRUCTOR, 50, 10),
-                build(EVENT_TYPE, 50, 10),
-                build(EVENT, 50, 2)
+                build(INSTRUCTORS, 10, 30),
+                build(EVENT_TYPES, 10, 30),
+                build(EVENTS, 10, 30),
+                build(INSTRUCTOR, 50, 30),
+                build(EVENT_TYPE, 50, 30),
+                build(EVENT, 50, 30)
         ));
         return manager;
     }
