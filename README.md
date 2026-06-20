@@ -27,7 +27,7 @@ This is not a static landing page. Every date has its own schedule, price, and r
 
 | Audience | What they get |
 |----------|---------------|
-| **Participant** | A quick overview of the offer and self-service online sign-up with an email confirmation. |
+| **Participant** | A quick overview of the offer and self-service sign-up from a personal account, with an email confirmation. |
 | **Organizer / coach** | Full control over the offer, staff, and enrollments from the admin panel. |
 | **The club** | A professional presence in Google results and clean previews when shared on social media. |
 
@@ -51,8 +51,9 @@ Within each category the offer is split into two levels:
 1. Opens the site and picks a category (Trainings / Camps / Courses).
 2. Browses the **types** of sessions (gallery, description) and the upcoming **dates**.
 3. For each date, sees the price and location at a glance.
-4. Fills in a short **enrollment form** (first name, last name, email, phone, optional note for the organizer).
-5. Receives a **confirmation email**, while the organizer gets a notification about the new sign-up.
+4. **Creates an account or logs in** — by email and password or with Google. Sign-up requires an account; a guest who clicks "Sign up" is redirected to the login page and returned to the date afterwards.
+5. Signs up in one click — personal data is taken from the profile, with an optional note for the organizer.
+6. Receives a **confirmation email**, while the organizer gets a notification about the new sign-up. Bookings can be reviewed and cancelled from the account ("My bookings").
 
 The system enforces the rules on its own: it prevents signing up twice for the same date and **automatically closes enrollment 24 hours before the start** (directing people to contact the club directly).
 
@@ -62,31 +63,31 @@ The admin panel (hidden, available after logging in) offers tabs to manage every
 
 - **Staff** — instructors with a photo, bio, and assignment to categories.
 - **Trainings / Camps / Courses** — types and dates: creation, editing, galleries, ordering, activation.
-- **Enrollments** — view sign-ups per date, manually add a participant, send a bulk email to those registered.
+- **Enrollments** — view sign-ups per date, manually add a registered user, send a bulk email to participants.
+- **Users** — browse and search accounts (paginated), open a member's profile and bookings, send service or marketing emails, and manage administrator roles.
 - **Archive** — history of completed dates.
-- **GDPR** — anonymize participants' personal data on request.
 
 Any significant change to a date or removal of an enrollment **automatically notifies participants by email** — the communication takes care of itself.
 
 ## Key features
 
-- **Live online enrollment** with protection against duplicate sign-ups.
-- **Transactional emails** — confirmations, change/cancellation notices, bulk mailings.
+- **Account-based online enrollment** with protection against duplicate sign-ups.
+- **Transactional emails** — confirmations, change/cancellation notices; **opt-in marketing mailings** with a one-click unsubscribe link.
 - **Automatic rules** — enrollment closes 24 hours before the start; past dates are archived.
 - **Staff profiles** with bio and gallery, assigned to the relevant categories.
 - **Photo galleries** for session types (with server-side image optimization).
 - **Social sharing** (Facebook / WhatsApp / copy link) with rich previews — dedicated Open Graph meta tags served to social-media crawlers.
 - **SEO** — a sitemap (`sitemap.xml`) and markup for search engines.
-- **GDPR** — anonymization of participant data on request.
+- **GDPR** — privacy consent captured at sign-up; deleting an account anonymizes the entire booking history.
 - **Dark mode** in the club's visual identity (anthracite / black / orange).
 - **Polish-only** — a consistent, single-language interface and communication.
 
 ## Security and privacy
 
-- The organizer login is **hidden** — there's no login button on the public site; the panel is protected by an administrator role.
+- Accounts are **public** — anyone can register and log in (email/password or Google); signing up for a date requires an account, while the admin panel stays protected by an administrator role.
 - Authentication is based on **JWT** (a short-lived access token plus refresh), with email verification and password reset.
 - Abuse protection: **rate limiting** per IP address and account lockout after a series of failed login attempts.
-- Participants' personal data can be **anonymized** at any time in line with GDPR.
+- Participants can exercise the **right to be forgotten** — deleting an account anonymizes the whole booking history in line with GDPR.
 
 ## Under the hood (in brief)
 
@@ -105,6 +106,6 @@ fire-academy-hub/        # Runtime configuration (Docker Compose, env)
 
 <div align="center">
 
-**Fire Academy** · version `0.1.0` · © FIZJO4LIFE Sp. z o.o.
+**Fire Academy** · [latest release](../../releases) · © FIZJO4LIFE Sp. z o.o.
 
 </div>
