@@ -164,8 +164,9 @@ class UserServiceTest {
 
         verify(authTokenRepository).deleteAllByUserId(userId);
         verify(userRepository).deleteById(userId);
-        // Brak przyszłych miejsc → żadnego maila do organizatora.
-        verifyNoInteractions(enrollmentMailService);
+        // Organizator zawsze dostaje powiadomienie o usunięciu konta — tu bez listy zwolnionych miejsc.
+        verify(enrollmentMailService).sendAccountSelfDeletedNotification(
+                eq(user.getFullName()), eq(user.getEmail()), argThat(java.util.List::isEmpty));
     }
 
     @Test
@@ -178,7 +179,7 @@ class UserServiceTest {
 
         service.deleteMe(userId, new DeleteAccountRequest("Password123"));
 
-        verify(enrollmentMailService).sendAccountDeletionSeatsFreedNotification(
+        verify(enrollmentMailService).sendAccountSelfDeletedNotification(
                 eq(user.getFullName()), eq(user.getEmail()),
                 argThat(lines -> lines.size() == 1 && lines.getFirst().startsWith("Obóz letni")));
     }

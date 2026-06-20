@@ -103,14 +103,13 @@ public class UserService {
         String email = user.getEmail();
         var erasure = eraseAndDeleteAccount(user);
 
-        // Samodzielna rezygnacja przez usunięcie konta — organizator nie wie inaczej, że zwolniły się
-        // miejsca na przyszłych wydarzeniach. Jeden zbiorczy mail (przy usuwaniu z panelu admin sam zna wynik).
-        if (!erasure.freedEvents().isEmpty()) {
-            List<String> eventLines = erasure.freedEvents().stream()
-                    .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
-                    .toList();
-            enrollmentMailService.sendAccountDeletionSeatsFreedNotification(fullName, email, eventLines);
-        }
+        // Samodzielne usunięcie konta — organizator inaczej się o tym nie dowie. Zawsze jeden zbiorczy mail
+        // (przy usuwaniu z panelu admin sam zna wynik); gdy zwolniły się miejsca na przyszłych wydarzeniach,
+        // dołączamy ich listę.
+        List<String> eventLines = erasure.freedEvents().stream()
+                .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
+                .toList();
+        enrollmentMailService.sendAccountSelfDeletedNotification(fullName, email, eventLines);
     }
 
     /**

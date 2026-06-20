@@ -302,33 +302,39 @@ public class EnrollmentMailService {
     }
 
     /**
-     * Jeden zbiorczy mail do organizatorów: uczestnik usunął konto i zwolnił miejsca na przyszłych wydarzeniach.
-     * Wysyłany tylko przy samodzielnym usunięciu konta (przy usunięciu z panelu admin sam zna wynik).
+     * Jeden zbiorczy mail do organizatorów: uczestnik samodzielnie usunął konto. Wysyłany ZAWSZE przy
+     * samodzielnym usunięciu (przy usunięciu z panelu admin sam zna wynik). Gdy usunięcie zwolniło miejsca
+     * na przyszłych wydarzeniach, mail zawiera dodatkowo ich listę.
      * {@code eventLines} to gotowe wiersze „nazwa — termin" (budowane w warstwie aplikacji, w transakcji).
      */
     @Async("mailExecutor")
-    public void sendAccountDeletionSeatsFreedNotification(String participantName, String participantEmail,
-                                                          List<String> eventLines) {
-        if (eventLines.isEmpty()) {
-            return;
+    public void sendAccountSelfDeletedNotification(String participantName, String participantEmail,
+                                                   List<String> eventLines) {
+        String subject = msg.get("email.account.deleted.admin.subject");
+
+        String seatsHtml = "";
+        if (!eventLines.isEmpty()) {
+            String listHtml = eventLines.stream()
+                    .map(line -> "<p style=\"font-size: 15px; line-height: 1.6; margin: 4px 0;\">• %s</p>"
+                            .formatted(HtmlUtils.htmlEscape(line)))
+                    .reduce("", String::concat);
+            seatsHtml = """
+                            <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                            <div style="background-color: #3d3a37; border-left: 4px solid #f97316; border-radius: 8px; padding: 14px 18px; margin: 16px 0;">
+                                %s
+                            </div>
+                """.formatted(msg.get("email.account.deleted.admin.seats"), listHtml);
         }
-        String subject = msg.get("email.account.deleted.seats.subject");
-        String listHtml = eventLines.stream()
-                .map(line -> "<p style=\"font-size: 15px; line-height: 1.6; margin: 4px 0;\">• %s</p>"
-                        .formatted(HtmlUtils.htmlEscape(line)))
-                .reduce("", String::concat);
 
         String content = """
                         <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                         <p style="font-size: 16px; line-height: 1.6;">%s</p>
-                        <div style="background-color: #3d3a37; border-left: 4px solid #f97316; border-radius: 8px; padding: 14px 18px; margin: 16px 0;">
-                            %s
-                        </div>
+                        %s
             """.formatted(
                 subject,
-                msg.get("email.account.deleted.seats.body",
+                msg.get("email.account.deleted.admin.body",
                         HtmlUtils.htmlEscape(participantName), HtmlUtils.htmlEscape(participantEmail)),
-                listHtml
+                seatsHtml
         );
 
         // Branding neutralny (Fire Academy) — lista może obejmować różne kategorie.
