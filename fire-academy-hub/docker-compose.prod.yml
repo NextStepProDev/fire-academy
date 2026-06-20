@@ -77,7 +77,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       APP_BASE_URL: ${APP_BASE_URL}
       SITE_URL: ${SITE_URL:-${APP_BASE_URL}}
-      JAVA_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
+      # Puste — pozwala JVM ergonomicznie wybrać SerialGC poniżej 2 GB RAM (lekszy na ciasnym boxie).
+      # Po ew. upgradzie RAM można tu wstawić -XX:+UseG1GC. Memory flags (MaxRAMPercentage itd.) są w Dockerfile.
+      JAVA_OPTS: ""
     depends_on:
       postgres:
         condition: service_healthy
