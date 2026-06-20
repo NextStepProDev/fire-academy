@@ -30,7 +30,7 @@
     "pageText": "Zanim przejdziesz dalej, uzupełnij brakujące informacje. Potrzebujemy ich, aby zapisać Cię na zajęcia i mieć z Tobą kontakt.",
     "submit": "Zapisz i kontynuuj",
     "errors": {
-      "required": "Uzupełnij wszystkie pola.",
+      "fieldRequired": "To pole jest wymagane.",
       "nameTooShort": "Imię i nazwisko muszą mieć co najmniej 3 znaki."
     },
     "decline": {

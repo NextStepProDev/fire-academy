@@ -1,11 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import clsx from 'clsx'
 import { registerUser } from '../api/auth'
 import { validatePassword, validatePhone, validateName, validateEmail } from '../utils/validation'
 import { Button } from '../components/ui/Button'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
+
+type FieldKey = 'firstName' | 'lastName' | 'email' | 'phone' | 'password' | 'confirmPassword'
+
+const inputBase =
+  'w-full px-3 py-2 bg-surface-800 border rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:border-transparent'
+const inputNormal = 'border-surface-700 focus:ring-primary-500'
+const inputError = 'border-rose-500 focus:ring-rose-500'
 
 export function RegisterPage() {
   const { t, i18n } = useTranslation('auth')
@@ -20,43 +28,51 @@ export function RegisterPage() {
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
   const [acceptedMarketing, setAcceptedMarketing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [firstNameError, setFirstNameError] = useState<string | null>(null)
-  const [lastNameError, setLastNameError] = useState<string | null>(null)
-  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({})
+  const [privacyError, setPrivacyError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: FieldKey, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
+    // Skasuj błąd pola, gdy tylko user zaczyna je poprawiać.
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
-  const validate = (): string | null => {
+  /** Sprawdza wszystkie pola naraz i przypisuje błąd do konkretnego pola (nie jeden ogólny komunikat). */
+  const validate = () => {
+    const errs: Partial<Record<FieldKey, string>> = {}
     const fnErr = validateName(form.firstName)
-    if (fnErr) { setFirstNameError(fnErr); return fnErr }
-    setFirstNameError(null)
+    if (fnErr) errs.firstName = fnErr
     const lnErr = validateName(form.lastName)
-    if (lnErr) { setLastNameError(lnErr); return lnErr }
-    setLastNameError(null)
+    if (lnErr) errs.lastName = lnErr
     const emailErr = validateEmail(form.email)
-    if (emailErr) return emailErr
+    if (emailErr) errs.email = emailErr
     const phoneErr = validatePhone(form.phone)
-    if (phoneErr) { setPhoneError(phoneErr); return phoneErr }
-    setPhoneError(null)
-    const passwordErr = validatePassword(form.password, form.confirmPassword)
-    if (passwordErr) return passwordErr
-    if (!acceptedPrivacy) return t('register.privacyRequired')
-    return null
+    if (phoneErr) errs.phone = phoneErr
+    const pwErr = validatePassword(form.password, form.confirmPassword)
+    if (pwErr) {
+      // Niezgodność haseł podświetla pole potwierdzenia; za krótkie hasło — pole hasła.
+      if (form.password !== form.confirmPassword) errs.confirmPassword = pwErr
+      else errs.password = pwErr
+    }
+    const privErr = !acceptedPrivacy ? t('register.privacyRequired') : null
+    return { errs, privErr }
   }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    const validationError = validate()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
+    const { errs, privErr } = validate()
+    setFieldErrors(errs)
+    setPrivacyError(privErr)
+    if (Object.keys(errs).length > 0 || privErr) return
 
     setLoading(true)
     try {
@@ -110,7 +126,7 @@ export function RegisterPage() {
           <p className="text-surface-400 mt-1">{t('register.title')}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-surface-300 mb-1">
@@ -122,10 +138,12 @@ export function RegisterPage() {
                 required
                 minLength={3}
                 value={form.firstName}
-                onChange={(e) => { updateField('firstName', e.target.value); setFirstNameError(null) }}
-                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                onChange={(e) => updateField('firstName', e.target.value)}
+                className={clsx(inputBase, fieldErrors.firstName ? inputError : inputNormal)}
+                aria-invalid={!!fieldErrors.firstName}
+                aria-describedby={fieldErrors.firstName ? 'firstName-error' : undefined}
               />
-              {firstNameError && <p className="text-xs text-rose-400/80 mt-1">{firstNameError}</p>}
+              {fieldErrors.firstName && <p id="firstName-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.firstName}</p>}
             </div>
             <div>
               <label htmlFor="lastName" className="block text-sm font-medium text-surface-300 mb-1">
@@ -137,10 +155,12 @@ export function RegisterPage() {
                 required
                 minLength={3}
                 value={form.lastName}
-                onChange={(e) => { updateField('lastName', e.target.value); setLastNameError(null) }}
-                className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                onChange={(e) => updateField('lastName', e.target.value)}
+                className={clsx(inputBase, fieldErrors.lastName ? inputError : inputNormal)}
+                aria-invalid={!!fieldErrors.lastName}
+                aria-describedby={fieldErrors.lastName ? 'lastName-error' : undefined}
               />
-              {lastNameError && <p className="text-xs text-rose-400/80 mt-1">{lastNameError}</p>}
+              {fieldErrors.lastName && <p id="lastName-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.lastName}</p>}
             </div>
           </div>
 
@@ -154,9 +174,12 @@ export function RegisterPage() {
               required
               value={form.email}
               onChange={(e) => updateField('email', e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={clsx(inputBase, fieldErrors.email ? inputError : inputNormal)}
               placeholder={t('register.emailPlaceholder')}
+              aria-invalid={!!fieldErrors.email}
+              aria-describedby={fieldErrors.email ? 'email-error' : undefined}
             />
+            {fieldErrors.email && <p id="email-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.email}</p>}
           </div>
 
           <div>
@@ -168,11 +191,13 @@ export function RegisterPage() {
               type="tel"
               required
               value={form.phone}
-              onChange={(e) => { updateField('phone', e.target.value); setPhoneError(null) }}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              onChange={(e) => updateField('phone', e.target.value)}
+              className={clsx(inputBase, fieldErrors.phone ? inputError : inputNormal)}
               placeholder={t('register.phonePlaceholder')}
+              aria-invalid={!!fieldErrors.phone}
+              aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
             />
-            {phoneError && <p className="text-xs text-rose-400/80 mt-1">{phoneError}</p>}
+            {fieldErrors.phone && <p id="phone-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.phone}</p>}
           </div>
 
           <div>
@@ -186,9 +211,13 @@ export function RegisterPage() {
               minLength={8}
               value={form.password}
               onChange={(e) => updateField('password', e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={clsx(inputBase, fieldErrors.password ? inputError : inputNormal)}
+              aria-invalid={!!fieldErrors.password}
+              aria-describedby={fieldErrors.password ? 'password-error' : undefined}
             />
-            <p className="text-xs text-surface-500 mt-1">{t('register.passwordHint')}</p>
+            {fieldErrors.password
+              ? <p id="password-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.password}</p>
+              : <p className="text-xs text-surface-500 mt-1">{t('register.passwordHint')}</p>}
           </div>
 
           <div>
@@ -201,25 +230,35 @@ export function RegisterPage() {
               required
               value={form.confirmPassword}
               onChange={(e) => updateField('confirmPassword', e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={clsx(inputBase, fieldErrors.confirmPassword ? inputError : inputNormal)}
+              aria-invalid={!!fieldErrors.confirmPassword}
+              aria-describedby={fieldErrors.confirmPassword ? 'confirmPassword-error' : undefined}
             />
+            {fieldErrors.confirmPassword && <p id="confirmPassword-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.confirmPassword}</p>}
           </div>
 
-          <div className="flex items-start gap-2">
-            <input
-              id="acceptPrivacy"
-              type="checkbox"
-              required
-              checked={acceptedPrivacy}
-              onChange={(e) => { setAcceptedPrivacy(e.target.checked); setError(null) }}
-              className="mt-0.5 h-4 w-4 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-2 focus:ring-primary-500"
-            />
-            <label htmlFor="acceptPrivacy" className="text-sm text-surface-300">
-              {t('register.acceptPrivacyPrefix')}{' '}
-              <Link to="/polityka-prywatnosci" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
-                {t('register.privacyLink')}
-              </Link>
-            </label>
+          <div>
+            <div className="flex items-start gap-2">
+              <input
+                id="acceptPrivacy"
+                type="checkbox"
+                checked={acceptedPrivacy}
+                onChange={(e) => { setAcceptedPrivacy(e.target.checked); setPrivacyError(null) }}
+                className={clsx(
+                  'mt-0.5 h-4 w-4 rounded bg-surface-800 text-primary-500 focus:ring-2',
+                  privacyError ? 'border-rose-500 focus:ring-rose-500' : 'border-surface-600 focus:ring-primary-500',
+                )}
+                aria-invalid={!!privacyError}
+                aria-describedby={privacyError ? 'acceptPrivacy-error' : undefined}
+              />
+              <label htmlFor="acceptPrivacy" className={clsx('text-sm', privacyError ? 'text-rose-300' : 'text-surface-300')}>
+                {t('register.acceptPrivacyPrefix')}{' '}
+                <Link to="/polityka-prywatnosci" target="_blank" className="text-primary-400 hover:text-primary-300 underline">
+                  {t('register.privacyLink')}
+                </Link>
+              </label>
+            </div>
+            {privacyError && <p id="acceptPrivacy-error" className="text-xs text-rose-400/80 mt-1">{privacyError}</p>}
           </div>
 
           <div className="flex items-start gap-2 rounded-lg border border-surface-700/60 bg-surface-800/40 p-3">
