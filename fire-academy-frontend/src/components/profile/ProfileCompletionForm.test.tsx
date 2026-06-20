@@ -14,7 +14,7 @@ vi.mock('react-i18next', () => ({
         'profile.lastName': 'Nazwisko',
         'profile.phone': 'Telefon',
         'completion.submit': 'Zapisz i kontynuuj',
-        'completion.errors.required': 'Uzupełnij wszystkie pola.',
+        'completion.errors.fieldRequired': 'To pole jest wymagane.',
         'completion.errors.nameTooShort': 'Imię i nazwisko muszą mieć co najmniej 3 znaki.',
         'register.acceptPrivacyPrefix': 'Akceptuję',
         'register.privacyLink': 'Politykę prywatności',
@@ -80,15 +80,32 @@ describe('ProfileCompletionForm', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('should block submit and show an error when a missing field is left empty', async () => {
+  it('should block submit and flag the empty field with an inline error', async () => {
     mockUser = { firstName: 'Anna', lastName: 'Nowak', phone: '', privacyAccepted: true }
     const user = userEvent.setup()
-    render(<ProfileCompletionForm />)
+    const { container } = render(<ProfileCompletionForm />)
 
     await user.click(screen.getByText('Zapisz i kontynuuj'))
 
-    expect(screen.getByText('Uzupełnij wszystkie pola.')).toBeInTheDocument()
+    expect(screen.getByText('To pole jest wymagane.')).toBeInTheDocument()
+    const phoneInput = container.querySelector<HTMLInputElement>('input[autocomplete="tel"]')!
+    expect(phoneInput).toHaveAttribute('aria-invalid', 'true')
     expect(updateProfileMock).not.toHaveBeenCalled()
+  })
+
+  it('should clear a field error once the user starts editing', async () => {
+    mockUser = { firstName: 'Anna', lastName: 'Nowak', phone: '', privacyAccepted: true }
+    const user = userEvent.setup()
+    const { container } = render(<ProfileCompletionForm />)
+
+    await user.click(screen.getByText('Zapisz i kontynuuj'))
+    expect(screen.getByText('To pole jest wymagane.')).toBeInTheDocument()
+
+    const phoneInput = container.querySelector<HTMLInputElement>('input[autocomplete="tel"]')!
+    await user.type(phoneInput, '5')
+
+    expect(screen.queryByText('To pole jest wymagane.')).not.toBeInTheDocument()
+    expect(phoneInput).toHaveAttribute('aria-invalid', 'false')
   })
 
   it('should reject a too-short name', async () => {
