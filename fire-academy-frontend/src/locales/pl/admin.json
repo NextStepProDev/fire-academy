@@ -150,7 +150,8 @@
     "editTitle": "Edytuj termin",
     "noItems": "Brak terminów",
     "selectEventType": "Wybierz rodzaj",
-    "typeOrSelect": "Wybierz lub wpisz nazwę"
+    "typeOrSelect": "Wybierz lub wpisz nazwę",
+    "deleteEnrolledConfirm": "Na ten termin zapisanych jest {{count}} osób. Zostaną powiadomione mailem o odwołaniu, a ich zapisy zostaną trwale usunięte. Czy na pewno usunąć?"
   },
   "archive": {
     "title": "Archiwum",

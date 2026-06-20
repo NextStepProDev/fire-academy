@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { useToast } from '../../context/ToastContext'
 import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare, Mail, CheckCircle } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
@@ -22,10 +23,11 @@ function EventCard({
 }: {
   event: EventInstance
   onEdit: (ev: EventInstance) => void
-  onDelete: (id: string) => void
+  onDelete: (ev: EventInstance) => void
   onToggleActive: (id: string) => void
 }) {
   const { t } = useTranslation('admin')
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [expandedNote, setExpandedNote] = useState<string | null>(null)
@@ -76,6 +78,7 @@ function EventCard({
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
       queryClient.invalidateQueries({ queryKey: ['public', 'events'] })
     },
+    onError: (e: Error) => showToast(e.message, 'error'),
   })
 
   const bulkEmailMut = useMutation({
@@ -126,7 +129,7 @@ function EventCard({
             {event.active ? t('actions.deactivate') : t('actions.activate')}
           </button>
           <button onClick={() => onEdit(event)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
-          <button onClick={() => onDelete(event.id)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
+          <button onClick={() => onDelete(event)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
         </div>
       </div>
 
@@ -316,10 +319,11 @@ function EventCard({
 
 export function AdminEvents({ category }: AdminEventsProps) {
   const { t } = useTranslation('admin')
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [editItem, setEditItem] = useState<EventInstance | null>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<EventInstance | null>(null)
   const [form, setForm] = useState({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
 
   const queryKey = ['admin', 'events', category]
@@ -373,7 +377,11 @@ export function AdminEvents({ category }: AdminEventsProps) {
     },
     onSuccess: invalidate,
   })
-  const deleteMut = useMutation({ mutationFn: (id: string) => adminApi.deleteEvent(id), onSuccess: invalidate })
+  const deleteMut = useMutation({
+    mutationFn: ({ id, force }: { id: string; force: boolean }) => adminApi.deleteEvent(id, force),
+    onSuccess: invalidate,
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
   const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
 
   const openCreate = () => {
@@ -425,7 +433,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
               key={ev.id}
               event={ev}
               onEdit={openEdit}
-              onDelete={id => setDeleteId(id)}
+              onDelete={ev => setDeleteTarget(ev)}
               onToggleActive={id => toggleMut.mutate(id)}
             />
           ))}
@@ -498,7 +506,15 @@ export function AdminEvents({ category }: AdminEventsProps) {
         </div>
       </Modal>
 
-      <ConfirmDialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={() => { if (deleteId) { deleteMut.mutate(deleteId); setDeleteId(null) } }} title={t('confirm.deleteTitle')} message={t('confirm.delete')} confirmLabel={t('actions.delete')} danger />
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) { deleteMut.mutate({ id: deleteTarget.id, force: deleteTarget.enrollmentCount > 0 }); setDeleteTarget(null) } }}
+        title={t('confirm.deleteTitle')}
+        message={deleteTarget && deleteTarget.enrollmentCount > 0 ? t('events.deleteEnrolledConfirm', { count: deleteTarget.enrollmentCount }) : t('confirm.delete')}
+        confirmLabel={t('actions.delete')}
+        danger
+      />
     </div>
   )
 }

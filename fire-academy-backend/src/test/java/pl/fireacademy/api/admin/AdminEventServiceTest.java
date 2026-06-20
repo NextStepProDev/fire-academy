@@ -228,30 +228,53 @@ class AdminEventServiceTest {
     @Test
     void shouldDeleteEventWithoutEnrollments() {
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(0L);
+        when(enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId)).thenReturn(List.of());
 
         service.delete(eventId, false);
 
         verify(eventRepository).delete(event);
+        verify(enrollmentMailService, never()).sendEnrollmentDeletionNotification(any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldThrowWhenDeletingEventWithEnrollments() {
+        Enrollment enrollment = mock(Enrollment.class);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(3L);
+        when(enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId)).thenReturn(List.of(enrollment));
         when(msg.get("event.has.enrollments")).thenReturn("Ma zapisy");
 
         var ex = assertThrows(IllegalStateException.class, () -> service.delete(eventId, false));
         assertEquals("Ma zapisy", ex.getMessage());
+        verify(eventRepository, never()).delete(any());
     }
 
     @Test
-    void shouldForceDeleteEventWithEnrollments() {
+    void shouldForceDeleteFutureEventAndNotifyParticipants() {
+        Enrollment enrollment = mock(Enrollment.class);
+        when(enrollment.displayEmail()).thenReturn("user@test.com");
+        when(enrollment.displayFirstName()).thenReturn("Jan");
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
-        when(enrollmentRepository.countByEventId(eventId)).thenReturn(3L);
+        when(enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId)).thenReturn(List.of(enrollment));
 
         service.delete(eventId, true);
 
+        verify(enrollmentMailService).sendEnrollmentDeletionNotification(
+                eq("user@test.com"), eq("Jan"), any(), any(),
+                eq(EventCategory.TRAINING), eq(eventId.toString()));
+        verify(enrollmentRepository).deleteByEventId(eventId);
+        verify(eventRepository).delete(event);
+    }
+
+    @Test
+    void shouldForceDeletePastEventWithoutNotifying() {
+        event.setStartDate(LocalDate.now().minusDays(10));
+        Enrollment enrollment = mock(Enrollment.class);
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId)).thenReturn(List.of(enrollment));
+
+        service.delete(eventId, true);
+
+        verify(enrollmentMailService, never()).sendEnrollmentDeletionNotification(any(), any(), any(), any(), any(), any());
         verify(enrollmentRepository).deleteByEventId(eventId);
         verify(eventRepository).delete(event);
     }
