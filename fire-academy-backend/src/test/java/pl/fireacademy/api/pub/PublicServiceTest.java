@@ -102,7 +102,7 @@ class PublicServiceTest {
 
     @Test
     void shouldReturnUpcomingEventsWithAvailableSpots() {
-        when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+        when(eventRepository.findActiveCurrentByCategory(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
         when(enrollmentRepository.countByEventIds(List.of(eventId)))
@@ -117,7 +117,7 @@ class PublicServiceTest {
     @Test
     void shouldReturnMinusOneAvailableSpotsWhenNoMaxParticipants() throws Exception {
         activeEvent.setMaxParticipants(null);
-        when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+        when(eventRepository.findActiveCurrentByCategory(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
         when(enrollmentRepository.countByEventIds(List.of(eventId)))
@@ -130,7 +130,7 @@ class PublicServiceTest {
 
     @Test
     void shouldReturnZeroAvailableSpotsWhenFull() {
-        when(eventRepository.findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+        when(eventRepository.findActiveCurrentByCategory(
             eq(EventCategory.TRAINING), any(LocalDate.class)))
             .thenReturn(List.of(activeEvent));
         when(enrollmentRepository.countByEventIds(List.of(eventId)))

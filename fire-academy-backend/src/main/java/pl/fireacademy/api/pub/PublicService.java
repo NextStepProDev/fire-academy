@@ -67,8 +67,7 @@ public class PublicService {
     @Transactional(readOnly = true)
     public List<EventCard> getUpcomingEvents(EventCategory category) {
         var events = eventRepository
-                .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
-                        category, LocalDate.now());
+                .findActiveCurrentByCategory(category, LocalDate.now());
 
         if (events.isEmpty()) {
             return List.of();

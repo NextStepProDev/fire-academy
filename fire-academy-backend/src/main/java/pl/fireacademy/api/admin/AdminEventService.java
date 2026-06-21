@@ -134,7 +134,7 @@ public class AdminEventService {
             var enrollments = enrollmentRepository.findByEventIdOrderByCreatedAtDesc(id);
             for (Enrollment enrollment : enrollments) {
                 enrollmentMailService.sendEventModificationNotification(
-                        enrollment.getEmail(), enrollment.getFirstName(),
+                        enrollment.displayEmail(), enrollment.displayFirstName(),
                         saved.getDisplayName(), schedule, changes,
                         saved.getCategory(), saved.getId().toString());
             }
