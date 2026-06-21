@@ -70,6 +70,9 @@ public class User {
     @Column(name = "marketing_unsubscribe_token", nullable = false, updatable = false)
     private UUID marketingUnsubscribeToken = UUID.randomUUID();
 
+    private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
+    private static final int LOCKOUT_MINUTES = 15;
+
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
 
@@ -278,9 +281,15 @@ public class User {
     }
 
     public void incrementFailedLoginAttempts() {
+        // Po wygaśnięciu poprzedniej blokady liczymy od nowa — inaczej pierwsza pomyłka po
+        // wygaśnięciu (licznik wciąż na progu) zablokowałaby konto natychmiast.
+        if (lockedUntil != null && Instant.now().isAfter(lockedUntil)) {
+            this.failedLoginAttempts = 0;
+            this.lockedUntil = null;
+        }
         this.failedLoginAttempts++;
-        if (this.failedLoginAttempts >= 5) {
-            this.lockedUntil = Instant.now().plusSeconds(15 * 60);
+        if (this.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+            this.lockedUntil = Instant.now().plusSeconds(LOCKOUT_MINUTES * 60L);
         }
     }
 
