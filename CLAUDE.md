@@ -37,8 +37,8 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V19. Kolejna migracja: V20.**
-> ⚠️ V12–V15 są **zarezerwowane przez niezmergowaną gałąź treningową** (`feat/trainings-types-scheduling`) i bywają już zastosowane w bazach dev. Dlatego zmiany na innych gałęziach numerujemy **od V16 w górę** (Flyway dopuszcza lukę po V11), żeby nie kolidować z `training_*`.
+**Obecny stan (gałąź `feat/trainings-types-scheduling`): V23. Kolejna migracja: V24.**
+> ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana — kolejne migracje numerujemy od V24 w górę.
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -53,11 +53,15 @@ VERSION
 | V9 | note w enrollments (informacja dla organizatora) |
 | V10 | indeksy wydajnościowe: enrollments(event_id, email), events(category, active, start_date) |
 | V11 | avatar_filename w users (zdjęcie profilowe użytkownika, folder `avatars/`) |
-| V12–V15 | *(zarezerwowane przez gałąź treningową — `training_slots`, `training_payments`, odwołania/dezaktywacja; nie na tej gałęzi)* |
+| V12–V15 | *(puste — historycznie zarezerwowane przez gałąź treningową, przeniesione na V20–V23 po rebasie)* |
 | V16 | enrollments.phone → nullable (admin może dopisać zalogowanego usera bez numeru; RODO — minimalizacja) |
 | V17 | enrollments.user_id → FK do users (ON DELETE SET NULL) + indeks + unikat (user_id,event_id); users.privacy_accepted_at (zgoda RODO). **Zapis wymaga konta** (PII = źródło prawdy w users — roster admina i maile czytają aktualne dane przez `Enrollment.display*()`; kolumny snapshotu firstName/lastName/email/phone w `enrollments` to **tylko fallback** dla czytelności archiwum po usunięciu konta, nie odświeżane przy edycji profilu) |
 | V18 | users.marketing_consent_at (zgoda marketingowa opt-in, NULL=brak; wzorzec jak privacy_accepted_at) + users.marketing_unsubscribe_token (UUID, NOT NULL DEFAULT gen_random_uuid(), unikat — stabilny token linku rezygnacji bez logowania). **Marketing odrębny od maili serwisowych**: serwisowe (zapisy/odwołania, weryfikacja, reset) zawsze idą; marketing tylko za zgodą i z linkiem rezygnacji |
 | V19 | DROP users.email_notifications_enabled — kolumna nigdy nie była egzekwowana (żaden mail service nie sprawdzał flagi); zastąpiona całkowicie przez marketing_consent_at. Usunięty endpoint `PUT /me/notifications` + DTO + frontowy `authApi.updateNotifications` |
+| V20 | training_slots — cykliczne sloty treningowe (dzień tygodnia + godziny, rodzaj/trener, max uczestników, cena, aktywność) + training_enrollment (miesięczne subskrypcje user→slot, FK users ON DELETE CASCADE) |
+| V21 | training_payment — rejestr płatności miesięcznych per subskrypcja (oznaczanie opłacone/nieopłacone w rosterze) |
+| V22 | training_cancelled_session — odwołania pojedynczych zajęć (soft-delete) + archiwum |
+| V23 | dezaktywacja slotu od konkretnej daty + wygaśnięcie subskrypcji terminowej (scheduler) |
 
 ---
 
