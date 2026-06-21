@@ -68,6 +68,23 @@ class UserTest {
     }
 
     @Test
+    void shouldStartCountingFreshAfterLockExpires() throws Exception {
+        for (int i = 0; i < 5; i++) {
+            user.incrementFailedLoginAttempts();
+        }
+        // Symulujemy wygaśnięcie 15-minutowej blokady (licznik wciąż na progu).
+        Field lockedField = User.class.getDeclaredField("lockedUntil");
+        lockedField.setAccessible(true);
+        lockedField.set(user, Instant.now().minusSeconds(1));
+
+        user.incrementFailedLoginAttempts();
+
+        // Po wygaśnięciu pierwsza pomyłka liczy się jako 1 i NIE blokuje od razu.
+        assertEquals(1, user.getFailedLoginAttempts());
+        assertFalse(user.isAccountLocked());
+    }
+
+    @Test
     void shouldNotBeLockedWhenLockExpired() throws Exception {
         Field lockedField = User.class.getDeclaredField("lockedUntil");
         lockedField.setAccessible(true);
