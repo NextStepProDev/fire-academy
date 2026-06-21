@@ -35,7 +35,7 @@ import java.util.UUID;
 public class AdminUserService {
 
     private static final String AVATAR_FOLDER = "avatars";
-    private static final int DEFAULT_PAGE_SIZE = 30;
+    private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 100;
 
     private final UserRepository userRepository;

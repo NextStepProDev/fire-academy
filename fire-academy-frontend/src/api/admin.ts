@@ -155,7 +155,7 @@ export const adminApi = {
     const query = new URLSearchParams()
     if (params.search) query.set('search', params.search)
     query.set('page', String(params.page ?? 0))
-    query.set('size', String(params.size ?? 30))
+    query.set('size', String(params.size ?? 50))
     query.set('sort', params.sort ?? 'created')
     query.set('direction', params.direction ?? 'desc')
     return fetchApi<PagedUsers>(`/admin/users?${query.toString()}`)

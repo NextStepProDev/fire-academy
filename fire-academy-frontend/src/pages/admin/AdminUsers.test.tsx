@@ -65,7 +65,7 @@ async function renderPage(users: AdminUser[], meta?: { totalElements?: number; t
   vi.mocked(adminApi.getUsers).mockResolvedValue({
     content: users,
     page: 0,
-    size: 30,
+    size: 50,
     totalElements: meta?.totalElements ?? users.length,
     totalPages: meta?.totalPages ?? 1,
   })
