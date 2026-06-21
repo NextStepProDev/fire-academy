@@ -1,21 +1,16 @@
 package pl.fireacademy.infrastructure.mail;
 
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
-import jakarta.mail.internet.MimeMultipart;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.javamail.JavaMailSender;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.infrastructure.i18n.MessageService;
-
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -25,34 +20,31 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminUserMailServiceTest {
 
-    @Mock private JavaMailSender mailSender;
+    @Mock private MailDispatcher mailDispatcher;
     @Mock private MessageService msg;
+    @Captor private ArgumentCaptor<String> subjectCaptor;
+    @Captor private ArgumentCaptor<String> bodyCaptor;
 
-    private MimeMessage mimeMessage;
     private AdminUserMailService service;
 
     @BeforeEach
     void setUp() {
         AppConfig appConfig = new AppConfig();
-        appConfig.getMail().setFrom("noreply@fireworkout.pl");
-
-        mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         when(msg.get(anyString())).thenReturn("text");
         when(msg.get(anyString(), any())).thenReturn("text");
         when(msg.get("email.bulk.signature")).thenReturn("Pozdrawiam,");
         when(msg.get("email.footer")).thenReturn("Fire Academy");
 
-        service = new AdminUserMailService(mailSender, appConfig, msg);
+        service = new AdminUserMailService(mailDispatcher, appConfig, msg);
     }
 
     @Test
-    void shouldSendCustomMessageWithBrandingAndSignature() throws Exception {
+    void shouldSendCustomMessageWithBrandingAndSignature() {
         service.sendCustomMessage("jan@test.com", "Jan", "Ważna informacja", "Treść wiadomości", null);
 
-        verify(mailSender).send(mimeMessage);
-        String body = extractHtml(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        String body = bodyCaptor.getValue();
         assertTrue(body.contains("logo-academy-fire-white.png"), "powinno zawierać logo Fire Academy");
         assertTrue(body.contains("Pozdrawiam,"));
         assertTrue(body.contains("Fire Academy"));
@@ -60,53 +52,32 @@ class AdminUserMailServiceTest {
     }
 
     @Test
-    void shouldAppendUnsubscribeLinkForMarketingMessage() throws Exception {
+    void shouldAppendUnsubscribeLinkForMarketingMessage() {
         service.sendCustomMessage("jan@test.com", "Jan", "Nowy obóz", "Zapraszamy", "tok-123");
 
-        String body = extractHtml(mimeMessage);
-        assertTrue(body.contains("/wypisz-sie?token=tok-123"),
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        assertTrue(bodyCaptor.getValue().contains("/wypisz-sie?token=tok-123"),
                 "mail marketingowy zawiera link rezygnacji z tokenem usera");
     }
 
     @Test
-    void shouldKeepSubjectRawWithoutHtmlEscaping() throws Exception {
+    void shouldKeepSubjectRawWithoutHtmlEscaping() {
         // Temat z polskimi znakami i znakami specjalnymi musi pozostać surowy (bez encji HTML).
         String subject = "Zniżka 50% <wyjątkowo> ąćę";
         service.sendCustomMessage("jan@test.com", "Jan", subject, "Treść", null);
 
-        assertEquals(subject, mimeMessage.getSubject());
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), subjectCaptor.capture(), anyString());
+        assertEquals(subject, subjectCaptor.getValue());
     }
 
     @Test
-    void shouldHtmlEscapeMessageBodyAndConvertNewlines() throws Exception {
+    void shouldHtmlEscapeMessageBodyAndConvertNewlines() {
         service.sendCustomMessage("jan@test.com", "Jan", "Temat", "Linia 1\n<script>alert(1)</script>", null);
 
-        String body = extractHtml(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        String body = bodyCaptor.getValue();
         assertTrue(body.contains("&lt;script&gt;"), "treść powinna być escapowana");
         assertFalse(body.contains("<script>alert(1)</script>"), "surowy skrypt nie może trafić do treści");
         assertTrue(body.contains("Linia 1<br/>"), "nowe linie zamieniane na <br/>");
-    }
-
-    @Test
-    void shouldHandleMailExceptionGracefully() {
-        doThrow(new MailSendException("SMTP error")).when(mailSender).send(any(MimeMessage.class));
-
-        assertDoesNotThrow(() -> service.sendCustomMessage(
-                "jan@test.com", "Jan", "Temat", "Treść", null));
-    }
-
-    // Helper z multipart=true → treść owinięta w MimeMultipart; wyciągamy rekursywnie cały HTML.
-    private static String extractHtml(Object content) throws Exception {
-        if (content instanceof MimeMessage message) {
-            return extractHtml(message.getContent());
-        }
-        if (content instanceof MimeMultipart multipart) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < multipart.getCount(); i++) {
-                sb.append(extractHtml(multipart.getBodyPart(i).getContent()));
-            }
-            return sb.toString();
-        }
-        return String.valueOf(content);
     }
 }

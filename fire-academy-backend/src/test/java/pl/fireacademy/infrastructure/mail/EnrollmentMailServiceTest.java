@@ -1,6 +1,5 @@
 package pl.fireacademy.infrastructure.mail;
 
-import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,7 +7,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.mail.javamail.JavaMailSender;
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
@@ -31,23 +29,20 @@ class EnrollmentMailServiceTest {
 
     private static final String EVENT_ID = "11111111-1111-1111-1111-111111111111";
 
-    @Mock private JavaMailSender mailSender;
+    @Mock private MailDispatcher mailDispatcher;
     @Mock private AdminEmailConfig adminEmailConfig;
     @Mock private MessageService msg;
-    @Mock private MimeMessage mimeMessage;
 
     private EnrollmentMailService service;
 
     @BeforeEach
     void setUp() {
         AppConfig appConfig = new AppConfig();
-        appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         when(msg.get(anyString())).thenReturn("text");
         when(msg.get(anyString(), any())).thenReturn("text");
 
-        service = new EnrollmentMailService(mailSender, appConfig, adminEmailConfig, msg);
+        service = new EnrollmentMailService(mailDispatcher, appConfig, adminEmailConfig, msg);
     }
 
     @Test
@@ -55,7 +50,7 @@ class EnrollmentMailServiceTest {
         service.sendEnrollmentConfirmation("jan@test.com", "Jan", "Trening",
             "30.05.2026", "Kraków", EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -63,7 +58,7 @@ class EnrollmentMailServiceTest {
         service.sendEnrollmentConfirmation("anna@test.com", "Anna", "Obóz",
             "15.07.2026", null, EventCategory.CAMP, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("anna@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -74,7 +69,7 @@ class EnrollmentMailServiceTest {
             "jan@test.com", "534823667", "Wegetarianin", "30.05.2026",
             EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("admin@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -85,7 +80,7 @@ class EnrollmentMailServiceTest {
             "jan@test.com", "534823667", null, "30.05.2026",
             EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("admin@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -98,7 +93,7 @@ class EnrollmentMailServiceTest {
         service.sendEventModificationNotification("jan@test.com", "Jan",
             "Trening", "30.05.2026", changes, EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -110,7 +105,7 @@ class EnrollmentMailServiceTest {
         service.sendEventModificationAdminNotification("Trening",
             "30.05.2026", changes, EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender, times(2)).send(mimeMessage);
+        verify(mailDispatcher, times(2)).sendHtml(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -118,7 +113,7 @@ class EnrollmentMailServiceTest {
         service.sendEnrollmentDeletionNotification("jan@test.com", "Jan",
             "Trening", "30.05.2026", EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -128,7 +123,7 @@ class EnrollmentMailServiceTest {
         service.sendEnrollmentDeletionAdminNotification("Trening", "Jan Kowalski",
             "jan@test.com", "30.05.2026", EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("admin@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -136,7 +131,7 @@ class EnrollmentMailServiceTest {
         service.sendAdminEnrollmentConfirmation("anna@test.com", "Anna",
             "Obóz", "15.07.2026", "Zakopane", EventCategory.CAMP, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("anna@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -147,16 +142,7 @@ class EnrollmentMailServiceTest {
             "anna@test.com", "534823667", "Pierwszy raz", "15.07.2026",
             EventCategory.CAMP, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
-    }
-
-    @Test
-    void shouldHandleMailExceptionGracefully() {
-        doThrow(new org.springframework.mail.MailSendException("SMTP error"))
-            .when(mailSender).send(any(MimeMessage.class));
-
-        assertDoesNotThrow(() -> service.sendEnrollmentConfirmation(
-            "test@test.com", "Test", "Event", "30.05.2026", null, EventCategory.TRAINING, EVENT_ID));
+        verify(mailDispatcher).sendHtml(eq("admin@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -166,7 +152,7 @@ class EnrollmentMailServiceTest {
         service.sendEnrollmentNotification("Trening", "Jan", "jan@test.com",
             "534823667", null, "30.05.2026", EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(mailDispatcher, never()).sendHtml(any(), any(), any());
     }
 
     @Test
@@ -175,7 +161,7 @@ class EnrollmentMailServiceTest {
             "Kraków", "Do zobaczenia na zajęciach!", "Przemysław Fajer",
             EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -184,7 +170,7 @@ class EnrollmentMailServiceTest {
             null, "Do zobaczenia na zajęciach!", null,
             EventCategory.TRAINING, EVENT_ID);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test

@@ -1,13 +1,11 @@
 package pl.fireacademy.infrastructure.mail;
 
-import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.javamail.JavaMailSender;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.user.User;
@@ -15,17 +13,15 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthMailServiceTest {
 
-    @Mock private JavaMailSender mailSender;
+    @Mock private MailDispatcher mailDispatcher;
     @Mock private MessageService msg;
     @Mock private AdminEmailConfig adminEmailConfig;
-    @Mock private MimeMessage mimeMessage;
 
     private AuthMailService service;
     private User user;
@@ -35,11 +31,8 @@ class AuthMailServiceTest {
         AppConfig appConfig = new AppConfig();
         appConfig.setBaseUrl("http://localhost:8081");
         appConfig.setSiteUrl("http://localhost:5174");
-        appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-
-        service = new AuthMailService(mailSender, appConfig, adminEmailConfig, msg);
+        service = new AuthMailService(mailDispatcher, appConfig, adminEmailConfig, msg);
 
         user = new User("jan@test.com", "Jan", "Kowalski", "+48123456789");
         user.setPreferredLanguage("pl");
@@ -56,7 +49,7 @@ class AuthMailServiceTest {
 
         service.sendVerificationEmail(user, "test-token-123");
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -68,7 +61,7 @@ class AuthMailServiceTest {
 
         service.sendWelcomeEmail(user);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -83,7 +76,7 @@ class AuthMailServiceTest {
 
         service.sendPasswordResetEmail(user, "reset-token-456");
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -95,7 +88,7 @@ class AuthMailServiceTest {
 
         service.sendPasswordChangedNotification(user);
 
-        verify(mailSender).send(mimeMessage);
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
     }
 
     @Test
@@ -118,18 +111,6 @@ class AuthMailServiceTest {
 
         service.sendNewUserAdminNotification(user);
 
-        verify(mailSender, times(2)).send(mimeMessage);
-    }
-
-    @Test
-    void shouldHandleMailException() {
-        when(msg.getForLang(eq("email.welcome.subject"), eq("pl"))).thenReturn("Witamy!");
-        when(msg.getForLang(eq("email.welcome.greeting"), eq("pl"), eq("Jan"))).thenReturn("Cześć!");
-        when(msg.getForLang(eq("email.welcome.body"), eq("pl"))).thenReturn("Witamy");
-        when(msg.getForLang(eq("email.welcome.see.you"), eq("pl"))).thenReturn("Do zobaczenia!");
-        doThrow(new org.springframework.mail.MailSendException("SMTP error"))
-            .when(mailSender).send(any(MimeMessage.class));
-
-        assertDoesNotThrow(() -> service.sendWelcomeEmail(user));
+        verify(mailDispatcher, times(2)).sendHtml(anyString(), anyString(), anyString());
     }
 }

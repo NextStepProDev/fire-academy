@@ -1,11 +1,6 @@
 package pl.fireacademy.infrastructure.mail;
 
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
@@ -21,14 +16,12 @@ import java.util.List;
 @Service
 public class AdminUserMailService {
 
-    private static final Logger log = LoggerFactory.getLogger(AdminUserMailService.class);
-
-    private final JavaMailSender mailSender;
+    private final MailDispatcher mailDispatcher;
     private final AppConfig appConfig;
     private final MessageService msg;
 
-    public AdminUserMailService(JavaMailSender mailSender, AppConfig appConfig, MessageService msg) {
-        this.mailSender = mailSender;
+    public AdminUserMailService(MailDispatcher mailDispatcher, AppConfig appConfig, MessageService msg) {
+        this.mailDispatcher = mailDispatcher;
         this.appConfig = appConfig;
         this.msg = msg;
     }
@@ -149,17 +142,6 @@ public class AdminUserMailService {
     }
 
     private void sendEmail(String to, String subject, String body) {
-        try {
-            var message = mailSender.createMimeMessage();
-            var helper = new MimeMessageHelper(message, true);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(body, true);
-            helper.setFrom(appConfig.getMail().getFrom());
-            mailSender.send(message);
-            log.info("Admin user email sent to: {}", to);
-        } catch (MailException | jakarta.mail.MessagingException e) {
-            log.error("Failed to send admin user email to: {}", to, e);
-        }
+        mailDispatcher.sendHtml(to, subject, body);
     }
 }
