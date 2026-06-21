@@ -130,3 +130,6 @@ jobs:
             exit 1
           fi
           echo "Smoke test passed: all public endpoints return 200."
+
+      - name: SEO smoke test (crawler routing + robots)
+        run: bash fire-academy-hub/seo-smoke.sh https://fireworkout.pl
