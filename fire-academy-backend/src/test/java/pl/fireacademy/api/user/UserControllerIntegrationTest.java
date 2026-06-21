@@ -147,6 +147,52 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRecordMandatoryPrivacyConsentForOauthUser() throws Exception {
+        User user = new User("consents-it@test.com", "Ola", "Google", null);
+        user.setOauthProvider("google");
+        user.setOauthId("oauth-consents-1");
+        user.setRole(UserRole.USER);
+        user.markEmailVerified();
+        userRepository.save(user);
+        assertFalse(user.hasPrivacyAccepted());
+        String token = jwtService.generateAccessToken(user);
+
+        mockMvc.perform(post("/api/user/me/consents")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"acceptedPrivacy\":true,\"acceptedMarketing\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.privacyAccepted").value(true))
+            .andExpect(jsonPath("$.marketingConsent").value(true));
+
+        User refreshed = userRepository.findById(user.getId()).orElseThrow();
+        assertTrue(refreshed.hasPrivacyAccepted());
+        assertTrue(refreshed.hasMarketingConsent());
+    }
+
+    @Test
+    void shouldRejectConsentsWhenMandatoryPrivacyDeclined() throws Exception {
+        User user = new User("consents-decline-it@test.com", "Ola", "Google", null);
+        user.setOauthProvider("google");
+        user.setOauthId("oauth-consents-2");
+        user.setRole(UserRole.USER);
+        user.markEmailVerified();
+        userRepository.save(user);
+        String token = jwtService.generateAccessToken(user);
+
+        mockMvc.perform(post("/api/user/me/consents")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"acceptedPrivacy\":false,\"acceptedMarketing\":false}"))
+            .andExpect(status().isBadRequest());
+
+        // Polityka obowiązkowa: brak akceptacji nie może zapisać żadnej zgody.
+        User refreshed = userRepository.findById(user.getId()).orElseThrow();
+        assertFalse(refreshed.hasPrivacyAccepted());
+        assertFalse(refreshed.hasMarketingConsent());
+    }
+
+    @Test
     void shouldReturnAdminProfileForAdminUser() throws Exception {
         String token = adminToken();
         mockMvc.perform(get("/api/user/me")

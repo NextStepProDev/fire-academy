@@ -3,6 +3,9 @@ package pl.fireacademy.api.admin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -11,6 +14,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
 import pl.fireacademy.config.AdminEmailConfig;
@@ -77,6 +81,50 @@ class AdminUserServiceTest {
         assertEquals("jan@test.com", result.content().getFirst().email());
         verify(userRepository).findAll(any(Pageable.class));
         verify(userRepository, never()).searchByPhrase(any(), any());
+    }
+
+    private static final java.util.Set<String> ALLOWED_SORT_PROPERTIES =
+            java.util.Set.of("lastName", "firstName", "email", "role", "marketingConsentAt", "createdAt");
+
+    @ParameterizedTest(name = "sort=\"{0}\" dir={1} -> {3} {2}")
+    @CsvSource({
+            "name,       asc,  lastName,           ASC",
+            "name,       desc, lastName,           DESC",
+            "email,      asc,  email,              ASC",
+            "role,       desc, role,               DESC",
+            "marketing,  asc,  marketingConsentAt, ASC",
+            "created,    desc, createdAt,          DESC",
+            "phone,      asc,  createdAt,          ASC",   // telefon niesortowalny -> default
+            "garbage,    desc, createdAt,          DESC",  // wartość spoza whitelisty -> default
+            "'',         asc,  createdAt,          ASC"    // puste -> default
+    })
+    void shouldResolveSortFromWhitelistOnly(String sort, String direction,
+                                            String expectedProperty, Sort.Direction expectedDir) {
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(regular)));
+
+        service.list(null, 0, 30, sort, direction);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(userRepository).findAll(captor.capture());
+        Sort.Order order = captor.getValue().getSort().getOrderFor(expectedProperty);
+        assertNotNull(order, "Brak sortowania po " + expectedProperty);
+        assertEquals(expectedDir, order.getDirection());
+        // Whitelist nie może przepuścić dowolnej właściwości (ochrona przed wstrzyknięciem w Sort).
+        captor.getValue().getSort().forEach(o ->
+                assertTrue(ALLOWED_SORT_PROPERTIES.contains(o.getProperty()),
+                        "Niedozwolona właściwość sortowania: " + o.getProperty()));
+    }
+
+    @Test
+    void shouldSortByLastNameThenFirstNameForNameKey() {
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(regular)));
+
+        service.list(null, 0, 30, "name", "asc");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(userRepository).findAll(captor.capture());
+        assertEquals(List.of("lastName", "firstName"),
+                captor.getValue().getSort().toList().stream().map(Sort.Order::getProperty).toList());
     }
 
     @Test
