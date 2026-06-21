@@ -21,7 +21,7 @@ public class AdminUserController {
     @GetMapping
     public PagedUsersResponse list(@RequestParam(required = false) @Nullable String search,
                                    @RequestParam(defaultValue = "0") int page,
-                                   @RequestParam(defaultValue = "30") int size,
+                                   @RequestParam(defaultValue = "50") int size,
                                    @RequestParam(defaultValue = "created") String sort,
                                    @RequestParam(defaultValue = "desc") String direction) {
         return service.list(search, page, size, sort, direction);
