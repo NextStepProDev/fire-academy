@@ -1,6 +1,5 @@
 package pl.fireacademy.infrastructure.mail;
 
-import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,7 +9,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.mail.javamail.JavaMailSender;
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.AppConfig;
@@ -36,7 +34,7 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class TrainingMailServiceTest {
 
-    @Mock private JavaMailSender mailSender;
+    @Mock private MailDispatcher mailDispatcher;
     @Mock private AdminEmailConfig adminEmailConfig;
 
     private TrainingMailService service;
@@ -57,10 +55,8 @@ class TrainingMailServiceTest {
         AppConfig appConfig = new AppConfig();
         appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
-        when(mailSender.createMimeMessage()).thenAnswer(inv -> new MimeMessage((jakarta.mail.Session) null));
-
         // spy: realne renderowanie szablonu, ale przechwytujemy gotowy HTML przekazany do send(...)
-        mail = spy(new BrandedMailSender(mailSender, appConfig, msg));
+        mail = spy(new BrandedMailSender(mailDispatcher, appConfig, msg));
         service = new TrainingMailService(adminEmailConfig, msg, mail);
     }
 

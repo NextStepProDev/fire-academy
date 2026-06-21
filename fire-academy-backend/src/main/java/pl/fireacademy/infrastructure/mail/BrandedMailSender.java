@@ -1,10 +1,5 @@
 package pl.fireacademy.infrastructure.mail;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
@@ -17,18 +12,18 @@ import java.util.List;
 /**
  * Wspólny branding i wysyłka maili (antracyt + pomarańcz). Jedno źródło prawdy dla
  * {@link EnrollmentMailService} (wydarzenia) i {@link TrainingMailService} (treningi cykliczne).
+ * Wysyłka deleguje do {@link MailDispatcher}, więc maile treningowe korzystają z tego samego
+ * ponawiania przy przejściowych błędach SMTP co pozostałe maile serwisowe.
  */
 @Component
 public class BrandedMailSender {
 
-    private static final Logger log = LoggerFactory.getLogger(BrandedMailSender.class);
-
-    private final JavaMailSender mailSender;
+    private final MailDispatcher mailDispatcher;
     private final AppConfig appConfig;
     private final MessageService msg;
 
-    public BrandedMailSender(JavaMailSender mailSender, AppConfig appConfig, MessageService msg) {
-        this.mailSender = mailSender;
+    public BrandedMailSender(MailDispatcher mailDispatcher, AppConfig appConfig, MessageService msg) {
+        this.mailDispatcher = mailDispatcher;
         this.appConfig = appConfig;
         this.msg = msg;
     }
@@ -111,17 +106,6 @@ public class BrandedMailSender {
     }
 
     public void send(String to, String subject, String htmlBody) {
-        try {
-            var message = mailSender.createMimeMessage();
-            var helper = new MimeMessageHelper(message, true);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-            helper.setFrom(appConfig.getMail().getFrom());
-            mailSender.send(message);
-            log.info("Branded email sent to: {}", to);
-        } catch (MailException | jakarta.mail.MessagingException e) {
-            log.error("Failed to send email to: {}", to, e);
-        }
+        mailDispatcher.sendHtml(to, subject, htmlBody);
     }
 }
