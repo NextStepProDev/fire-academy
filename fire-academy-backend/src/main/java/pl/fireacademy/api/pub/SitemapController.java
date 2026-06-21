@@ -13,7 +13,9 @@ import pl.fireacademy.domain.event.EventTypeRepository;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +47,7 @@ public class SitemapController {
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
     public ResponseEntity<String> sitemap() {
         String siteUrl = appConfig.getSiteUrl();
-        String today = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
+        String today = formatDate(Instant.now());
 
         var sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -68,7 +70,7 @@ public class SitemapController {
 
         for (Event event : activeEvents) {
             String slug = CATEGORY_SLUGS.get(event.getCategory());
-            String lastmod = event.getUpdatedAt().toString().substring(0, 10);
+            String lastmod = formatDate(event.getUpdatedAt());
             addUrl(sb, siteUrl + "/" + slug + "/termin/" + event.getId(), lastmod, "weekly", "0.8");
         }
 
@@ -76,7 +78,7 @@ public class SitemapController {
             String slug = CATEGORY_SLUGS.get(category);
             List<EventType> types = eventTypeRepository.findByCategoryAndActiveTrueOrderByDisplayOrderAsc(category);
             for (EventType et : types) {
-                String lastmod = et.getUpdatedAt().toString().substring(0, 10);
+                String lastmod = formatDate(et.getUpdatedAt());
                 addUrl(sb, siteUrl + "/" + slug + "/rodzaj/" + et.getId(), lastmod, "weekly", "0.7");
             }
         }
@@ -85,7 +87,7 @@ public class SitemapController {
                 .filter(Instructor::isActive)
                 .toList();
         for (Instructor i : instructors) {
-            String lastmod = i.getUpdatedAt().toString().substring(0, 10);
+            String lastmod = formatDate(i.getUpdatedAt());
             addUrl(sb, siteUrl + "/kadra/" + i.getId(), lastmod, "monthly", "0.6");
         }
 
@@ -105,7 +107,17 @@ public class SitemapController {
         sb.append("  </url>\n");
     }
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_DATE.withZone(ZoneOffset.UTC);
+
+    private static String formatDate(Instant instant) {
+        return DATE_FORMAT.format(instant);
+    }
+
     private static String escapeXml(String text) {
-        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 }

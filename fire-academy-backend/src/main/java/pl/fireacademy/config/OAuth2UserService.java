@@ -41,7 +41,8 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
         return processOAuth2User(provider, oAuth2User);
     }
 
-    private OAuth2User processOAuth2User(String provider, OAuth2User oAuth2User) {
+    // Package-private: test-seam, by ominąć sieciowe super.loadUser() i testować samą logikę mapowania konta.
+    OAuth2User processOAuth2User(String provider, OAuth2User oAuth2User) {
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
         String oauthId = extractOAuthId(provider, attributes);
