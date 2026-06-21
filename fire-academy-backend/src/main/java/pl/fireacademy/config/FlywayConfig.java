@@ -20,10 +20,10 @@ public class FlywayConfig {
     @Bean
     public Flyway flyway(DataSource dataSource, Environment environment) {
         boolean devProfile = Arrays.asList(environment.getActiveProfiles()).contains("dev");
-        // Tylko dev: baza odbudowywana od zera przy każdym starcie (clean + migrate), żeby przełączanie
-        // gałęzi o rozjechanych migracjach nigdy nie kolidowało. Dane pochodzą z DevDataSeeder.
-        // Wyłączalne: app.dev.reset-on-start=false (wtedy zwykły migrate, dane trwają między restartami).
-        // Prod/test: clean ZABLOKOWANY (cleanDisabled=true) — bezpiecznik przed skasowaniem danych.
+        // Dev only: the database is rebuilt from scratch on every start (clean + migrate), so switching
+        // between branches with diverging migrations never collides. Data is restored by DevDataSeeder.
+        // Opt-out: app.dev.reset-on-start=false (then a plain migrate, data persists between restarts).
+        // Prod/test: clean is DISABLED (cleanDisabled=true) — a safeguard against wiping data.
         boolean resetOnStart = devProfile
                 && environment.getProperty("app.dev.reset-on-start", Boolean.class, true);
 

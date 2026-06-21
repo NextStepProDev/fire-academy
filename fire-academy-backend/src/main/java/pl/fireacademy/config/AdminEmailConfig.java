@@ -49,7 +49,7 @@ public class AdminEmailConfig {
         return email != null && adminEmails.contains(email.toLowerCase().trim());
     }
 
-    // Konta techniczne/deweloperskie — ukryte na liście użytkowników w panelu, mimo posiadanych uprawnień admina.
+    // Technical/developer accounts — hidden from the admin users list despite holding admin privileges.
     public Set<String> getHiddenEmails() {
         return hiddenEmails;
     }

@@ -105,8 +105,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        // Zakłada zaufane proxy (nginx), które nadpisuje X-Forwarded-For. Bezpośrednio wystawiony
-        // serwis pozwoliłby na spoofing nagłówka i obejście limitu — za odwrotnym proxy jest to OK.
+        // Assumes a trusted proxy (nginx) that overwrites X-Forwarded-For. A directly exposed
+        // service would allow header spoofing and limit bypass — behind a reverse proxy this is OK.
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isEmpty()) {
             return xff.split(",")[0].trim();

@@ -37,7 +37,7 @@ import java.util.Map;
 public class SecurityConfig {
 
     private static final Locale POLISH = Locale.of("pl");
-    // Lokalny mapper do drobnych odpowiedzi błędów — niezależny od konfiguracji Jacksona aplikacji.
+    // Local mapper for small error responses — independent of the application's Jackson configuration.
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
