@@ -92,8 +92,14 @@ function EventCard({
     },
   })
 
+  // Liczba realnych adresatów = unikalne maile bez kont zanonimizowanych (te sam pomija backend).
+  // Musi pasować do filtra wysyłki po stronie serwera (isAnonymized → email kończy się @usuniety.rodo).
   const uniqueEmails = enrollments
-    ? new Set(enrollments.filter(e => e.firstName !== '***').map(e => e.email.toLowerCase())).size
+    ? new Set(
+        enrollments
+          .filter(e => !e.email.toLowerCase().endsWith('@usuniety.rodo'))
+          .map(e => e.email.toLowerCase()),
+      ).size
     : 0
 
   const openAdd = () => {

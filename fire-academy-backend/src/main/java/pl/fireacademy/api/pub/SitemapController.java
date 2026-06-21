@@ -56,14 +56,14 @@ public class SitemapController {
         addUrl(sb, siteUrl + "/obozy", today, "daily", "0.9");
         addUrl(sb, siteUrl + "/szkolenia", today, "daily", "0.9");
 
-        List<Event> activeEvents = eventRepository
-                .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
-                        EventCategory.TRAINING, LocalDate.now());
+        List<Event> activeEvents = new java.util.ArrayList<>(eventRepository
+                .findActiveCurrentByCategory(
+                        EventCategory.TRAINING, LocalDate.now()));
         activeEvents.addAll(eventRepository
-                .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+                .findActiveCurrentByCategory(
                         EventCategory.CAMP, LocalDate.now()));
         activeEvents.addAll(eventRepository
-                .findByCategoryAndActiveTrueAndStartDateGreaterThanEqualOrderByStartDateAsc(
+                .findActiveCurrentByCategory(
                         EventCategory.COURSE, LocalDate.now()));
 
         for (Event event : activeEvents) {

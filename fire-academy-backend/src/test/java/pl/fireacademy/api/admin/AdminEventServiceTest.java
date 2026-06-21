@@ -152,8 +152,9 @@ class AdminEventServiceTest {
         event.setLocation("Kraków");
         event.setPrice(BigDecimal.valueOf(100));
         Enrollment enrollment = mock(Enrollment.class);
-        when(enrollment.getEmail()).thenReturn("user@test.com");
-        when(enrollment.getFirstName()).thenReturn("Jan");
+        // Powiadomienie używa aktualnych danych konta (display*), nie migawki z chwili zapisu.
+        when(enrollment.displayEmail()).thenReturn("user@test.com");
+        when(enrollment.displayFirstName()).thenReturn("Jan");
 
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(eventRepository.save(event)).thenReturn(event);
