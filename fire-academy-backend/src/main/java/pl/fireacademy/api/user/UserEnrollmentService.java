@@ -128,8 +128,10 @@ public class UserEnrollmentService {
         }
 
         String schedule = EnrollmentMailService.formatSchedule(event);
-        String participantName = enrollment.getFirstName() + " " + enrollment.getLastName();
-        String participantEmail = enrollment.getEmail();
+        // Aktualne dane konta (display*), nie migawka z chwili zapisu — spójnie z rosterem
+        // i pozostałymi mailami. Konto tu zawsze istnieje (to właściciel zapisu), więc display* je zwróci.
+        String participantName = enrollment.displayFirstName() + " " + enrollment.displayLastName();
+        String participantEmail = enrollment.displayEmail();
 
         enrollmentRepository.delete(enrollment);
 

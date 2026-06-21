@@ -193,6 +193,21 @@ class UserEnrollmentServiceTest {
     }
 
     @Test
+    void shouldUseCurrentAccountDataInCancellationNotification() {
+        // Zapis trzyma migawkę z chwili rejestracji (Anna Nowak). Po zmianie nazwiska w profilu
+        // powiadomienie do organizatora ma pokazać AKTUALNE dane konta, spójnie z listą uczestników.
+        Enrollment enrollment = Enrollment.forUser(activeEvent, user, null, false);
+        user.setLastName("Kowalska");
+        UUID enrollmentId = UUID.randomUUID();
+        when(enrollmentRepository.findByIdAndUserId(enrollmentId, userId)).thenReturn(Optional.of(enrollment));
+
+        service.cancelMyEnrollment(userId, enrollmentId);
+
+        verify(enrollmentMailService).sendEnrollmentDeletionAdminNotification(
+                eq("Obóz letni"), eq("Anna Kowalska"), eq("anna@example.com"), any(), any(), any());
+    }
+
+    @Test
     void shouldThrowWhenCancellingEnrollmentNotOwned() {
         UUID enrollmentId = UUID.randomUUID();
         when(enrollmentRepository.findByIdAndUserId(enrollmentId, userId)).thenReturn(Optional.empty());
