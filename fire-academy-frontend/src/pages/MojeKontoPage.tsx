@@ -103,7 +103,7 @@ export function MojeKontoPage() {
         </div>
       </div>
 
-      {/* Profil */}
+      {/* Profile */}
       <section className="bg-surface-900 rounded-xl p-6 border border-surface-800">
         <div className="flex items-center justify-between mb-5">
           <h2 className="flex items-center gap-2 text-xl font-bold text-surface-100">
@@ -138,7 +138,7 @@ export function MojeKontoPage() {
         </dl>
       </section>
 
-      {/* Moje rezerwacje */}
+      {/* My reservations */}
       <section className="bg-surface-900 rounded-xl p-6 border border-surface-800">
         <h2 className="flex items-center gap-2 text-xl font-bold text-surface-100 mb-5">
           <CalendarCheck className="w-5 h-5 text-primary-400" />

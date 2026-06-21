@@ -92,8 +92,8 @@ export function AdminUsers() {
 
   const selectedCount = selected.size
 
-  // MARKETING dociera do osób ze zgodą — liczby nie znamy z listy (filtr po stronie backendu),
-  // więc nie blokujemy wysyłki licznikiem; ALL/SELECTED mają policzalnych adresatów.
+  // MARKETING reaches people with consent — the count isn't known from the list (filtered backend-side),
+  // so we don't block sending by a counter; ALL/SELECTED have countable recipients.
   const knownRecipientCount = audience === 'ALL' ? totalElements : audience === 'SELECTED' ? selectedCount : null
   const canSend = audience === 'MARKETING' || (knownRecipientCount ?? 0) > 0
 

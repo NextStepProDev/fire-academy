@@ -59,8 +59,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleUnreadableBody(HttpMessageNotReadableException e) {
-        // Niepoprawne/niepełne body JSON (np. brak wymaganego pola prymitywnego, zły typ).
-        // e.getMessage() bywa rozwlekły i zdradza szczegóły wewnętrzne — zwracamy generyczny komunikat.
+        // Malformed/incomplete JSON body (e.g. missing required primitive field, wrong type).
+        // e.getMessage() can be verbose and leak internal details — return a generic message.
         log.warn("Malformed request body: {}", e.getMessage());
         return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", msg.get("error.request.body.invalid"), "timestamp", Instant.now().toString()));
     }

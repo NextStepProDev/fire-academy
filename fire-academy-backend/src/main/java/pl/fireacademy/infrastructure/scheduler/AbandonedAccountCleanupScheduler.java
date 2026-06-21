@@ -8,10 +8,10 @@ import org.springframework.stereotype.Component;
 import pl.fireacademy.api.user.UserService;
 
 /**
- * Codzienne czyszczenie porzuconych kont OAuth (logowanie Google), które nigdy nie zaakceptowały
- * polityki prywatności. RODO: bez zgody nie mamy podstawy trzymać danych w nieskończoność, a sama
- * aplikacja i tak nie wpuszcza takiego konta dalej niż ekran zgody. Próg dni konfigurowalny
- * (domyślnie 7) — daje userowi czas na powrót i domknięcie konta przed skasowaniem.
+ * Daily cleanup of abandoned OAuth accounts (Google login) that never accepted
+ * the privacy policy. GDPR: without consent we have no basis to keep the data indefinitely, and the
+ * application itself does not let such an account past the consent screen anyway. The day threshold is configurable
+ * (default 7) — it gives the user time to return and complete the account before deletion.
  */
 @Component
 public class AbandonedAccountCleanupScheduler {

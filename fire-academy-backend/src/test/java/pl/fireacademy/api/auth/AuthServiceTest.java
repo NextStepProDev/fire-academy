@@ -332,8 +332,8 @@ class AuthServiceTest {
 
     @Test
     void shouldReturnGenericSuccessWhenAlreadyVerified() {
-        // Jednolity komunikat (anti-enumeracja) — nie ujawniamy, że konto jest już zweryfikowane,
-        // i nie wysyłamy maila.
+        // Uniform message (anti-enumeration) — we do not reveal that the account is already verified,
+        // and we do not send a mail.
         existingUser.setEmailVerified(true);
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(msg.get("auth.resend.success")).thenReturn("Wysłano");
@@ -346,7 +346,7 @@ class AuthServiceTest {
 
     @Test
     void shouldReturnGenericSuccessWhenResendCooldownActive() {
-        // Cooldown nie rzuca już błędem — zwraca ten sam sukces, tylko nie wysyła maila.
+        // The cooldown no longer throws — it returns the same success, just without sending a mail.
         existingUser.setEmailVerified(false);
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.EMAIL_VERIFICATION), any())).thenReturn(true);
@@ -399,7 +399,7 @@ class AuthServiceTest {
 
     @Test
     void shouldReturnGenericSuccessWhenForgotPasswordCooldownActive() {
-        // Cooldown nie rzuca już błędem — zwraca ten sam sukces, tylko nie wysyła maila.
+        // The cooldown no longer throws — it returns the same success, just without sending a mail.
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
         when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), eq(TokenType.PASSWORD_RESET), any())).thenReturn(true);
         when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");

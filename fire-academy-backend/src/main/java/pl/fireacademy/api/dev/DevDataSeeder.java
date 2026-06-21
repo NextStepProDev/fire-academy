@@ -30,16 +30,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Wypełnia bazę dev przykładowymi danymi (profil `dev`).
+ * Fills the dev database with sample data (`dev` profile).
  * <p>
- * <b>Idempotentny</b> — każda sekcja sprawdza, czy dane już są, więc restart aplikacji NIC nie kasuje
- * ani nie duplikuje. Świeży zestaw dostajesz przez reset bazy (na dev robi to FlywayConfig clean+migrate).
+ * <b>Idempotent</b> — each section checks whether the data already exists, so restarting the application
+ * deletes NOTHING and creates no duplicates. You get a fresh set by resetting the database (on dev this is done
+ * by FlywayConfig clean+migrate).
  * <p>
- * <b>Zakres:</b> obozy, szkolenia, kadra, użytkownicy, zapisy. <b>NIE</b> sieje zawartości zakładki
- * „Treningi" (terminy/rodzaje TRAINING) — docelowo zastąpi je funkcja treningów cyklicznych
- * (encja {@code TrainingSlot} z osobnej gałęzi), więc tam mieszka jej własny seeder.
+ * <b>Scope:</b> camps, courses, instructors, users, enrollments. It does <b>NOT</b> seed the content of the
+ * "Trainings" tab (TRAINING events/event types) — these will eventually be replaced by the cyclical trainings feature
+ * (the {@code TrainingSlot} entity from a separate branch), so its own seeder lives there.
  * <p>
- * Wszystkie konta mają hasło <b>{@value #DEV_PASSWORD}</b>. Administratorami są e-maile z {@code ADMIN_EMAIL}.
+ * All accounts have the password <b>{@value #DEV_PASSWORD}</b>. Administrators are the e-mails from {@code ADMIN_EMAIL}.
  */
 @Component
 @Profile("dev")
@@ -54,12 +55,12 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final int FUTURE_COURSES = 6;
     private static final int PAST_COURSES = 8;
 
-    // Maile uczestników zapisów — każdy odpowiada kontu z seedUsers() (zapis wymaga konta).
-    // Dane osobowe w zapisie to snapshot kopiowany z konta przez Enrollment.forUser().
+    // Enrollment participants' e-mails — each corresponds to an account from seedUsers() (enrollment requires an account).
+    // Personal data in an enrollment is a snapshot copied from the account by Enrollment.forUser().
     private static final List<String> PEOPLE = List.of(
             "jan@dev.pl",
             "anna@dev.pl",
-            "piotr@dev.pl",   // bez telefonu — testuje blokadę zapisu z konta
+            "piotr@dev.pl",   // no phone — tests the account-enrollment block
             "kasia@dev.pl",
             "marek@dev.pl"
     );
@@ -92,10 +93,10 @@ public class DevDataSeeder implements CommandLineRunner {
         seedInstructors();
         seedEventTypes();
         seedEventsAndEnrollments();
-        log.info("DEV-SEEDER: gotowe. Hasło do wszystkich kont: '{}'.", DEV_PASSWORD);
+        log.info("DEV-SEEDER: done. Password for all accounts: '{}'.", DEV_PASSWORD);
     }
 
-    // --- Administratorzy (z ADMIN_EMAIL) ---
+    // --- Administrators (from ADMIN_EMAIL) ---
 
     private void seedAdmins() {
         for (String email : adminEmailConfig.getAdminEmails()) {
@@ -105,14 +106,14 @@ public class DevDataSeeder implements CommandLineRunner {
             admin.setRole(UserRole.ADMIN);
             admin.markEmailVerified();
             userRepository.save(admin);
-            log.info("DEV-SEEDER: admin {} (hasło: {})", email, DEV_PASSWORD);
+            log.info("DEV-SEEDER: admin {} (password: {})", email, DEV_PASSWORD);
         }
     }
 
-    // --- Zwykli użytkownicy (proste maile @dev.pl) ---
+    // --- Regular users (simple @dev.pl e-mails) ---
 
     private void seedUsers() {
-        // Piotr bez telefonu (test wymuszania uzupełnienia profilu); mix zgód marketingowych do testów audience MARKETING.
+        // Piotr without a phone (tests forcing profile completion); a mix of marketing consents for testing the MARKETING audience.
         createUser("jan@dev.pl", "Jan", "Kowalski", "500100100", true);
         createUser("anna@dev.pl", "Anna", "Nowak", "500100200", true);
         createUser("piotr@dev.pl", "Piotr", "Wiśniewski", null, false);
@@ -130,10 +131,10 @@ public class DevDataSeeder implements CommandLineRunner {
             u.setMarketingConsentAt(Instant.now());
         }
         userRepository.save(u);
-        log.info("DEV-SEEDER: user {} (hasło: {})", email, DEV_PASSWORD);
+        log.info("DEV-SEEDER: user {} (password: {})", email, DEV_PASSWORD);
     }
 
-    // --- Kadra (tylko kategorie CAMP/COURSE — bez TRAINING) ---
+    // --- Instructors (only CAMP/COURSE categories — no TRAINING) ---
 
     private void seedInstructors() {
         if (instructorRepository.count() > 0) return;
@@ -149,7 +150,7 @@ public class DevDataSeeder implements CommandLineRunner {
         instructorRepository.save(instructor("Damian", "Wilk",
                 "Instruktor samoobrony, szkolenia praktyczne.", 3,
                 Set.of(EventCategory.COURSE)));
-        log.info("DEV-SEEDER: 4 instruktorów");
+        log.info("DEV-SEEDER: 4 instructors");
     }
 
     private Instructor instructor(String firstName, String lastName, String bio, int order, Set<EventCategory> cats) {
@@ -161,7 +162,7 @@ public class DevDataSeeder implements CommandLineRunner {
         return i;
     }
 
-    // --- Rodzaje (katalog) — tylko CAMP/COURSE ---
+    // --- Event types (catalog) — only CAMP/COURSE ---
 
     private void seedEventTypes() {
         if (eventTypeRepository.count() > 0) return;
@@ -169,7 +170,7 @@ public class DevDataSeeder implements CommandLineRunner {
         eventType(EventCategory.CAMP, "Obóz przygotowawczy", "Intensywne przygotowanie do sezonu.", 1);
         eventType(EventCategory.COURSE, "Szkolenie samoobrony", "Weekendowe szkolenie praktyczne.", 0);
         eventType(EventCategory.COURSE, "Szkolenie instruktorskie", "Kurs dla przyszłych instruktorów.", 1);
-        log.info("DEV-SEEDER: 4 rodzaje");
+        log.info("DEV-SEEDER: 4 event types");
     }
 
     private void eventType(EventCategory category, String name, String description, int order) {
@@ -180,27 +181,27 @@ public class DevDataSeeder implements CommandLineRunner {
         eventTypeRepository.save(et);
     }
 
-    // --- Terminy (obozy + szkolenia, przyszłe + archiwalne) + zapisy ---
+    // --- Events (camps + courses, future + archived) + enrollments ---
 
     private void seedEventsAndEnrollments() {
         if (eventRepository.count() > 0) return;
         LocalDate today = LocalDate.now();
 
-        List<Event> camps = seedCamps(today);      // [0..FUTURE_CAMPS) przyszłe, reszta archiwalne
+        List<Event> camps = seedCamps(today);      // [0..FUTURE_CAMPS) future, the rest archived
         List<Event> courses = seedCourses(today);
 
-        // --- ZAPISY ---
-        // Bieżące (dla rosterów i sekcji „aktualne" w profilu)
+        // --- ENROLLMENTS ---
+        // Current (for rosters and the "current" section in the profile)
         enrollPeople(camps.get(0), 1, 3);                            // Anna, Kasia
         enrollPeople(camps.get(1), 0, 4, 1);                         // Jan, Marek, Anna
-        enroll(courses.get(0), PEOPLE.get(2), "Bez numeru telefonu");// Piotr (konto bez telefonu)
+        enroll(courses.get(0), PEOPLE.get(2), "Bez numeru telefonu");// Piotr (account without a phone)
         enrollPeople(courses.get(1), 1);                             // Anna
 
-        // Archiwalne — WIĘKSZOŚĆ z zapisami, część z kilkoma osobami (kilka zostaje pustych dla realizmu)
+        // Archived — MOST with enrollments, some with a few people (a few stay empty for realism)
         fillArchivalEnrollments(camps.subList(FUTURE_CAMPS, camps.size()));
         fillArchivalEnrollments(courses.subList(FUTURE_COURSES, courses.size()));
 
-        log.info("DEV-SEEDER: terminy (obozy/szkolenia) + zapisy");
+        log.info("DEV-SEEDER: events (camps/courses) + enrollments");
     }
 
     private List<Event> seedCamps(LocalDate today) {
@@ -219,7 +220,7 @@ public class DevDataSeeder implements CommandLineRunner {
             result.add(save(eventRange(EventCategory.CAMP, names[i % names.length], start, start.plusDays(5),
                     LocalTime.of(9, 0), LocalTime.of(16, 0), places[i % places.length], 1000 + i * 100, 16 + i)));
         }
-        log.info("DEV-SEEDER: {} obozów", result.size());
+        log.info("DEV-SEEDER: {} camps", result.size());
         return result;
     }
 
@@ -237,14 +238,14 @@ public class DevDataSeeder implements CommandLineRunner {
             result.add(save(event(EventCategory.COURSE, names[i % names.length], today.minusDays(15L + i * 16L),
                     LocalTime.of(10, 0), LocalTime.of(16, 0), locations[i % locations.length], 250 + i * 50, 12 + i)));
         }
-        log.info("DEV-SEEDER: {} szkoleń", result.size());
+        log.info("DEV-SEEDER: {} courses", result.size());
         return result;
     }
 
-    // Większość archiwalnych terminów dostaje 1..4 uczestników (różne osoby), co 6. zostaje pusty.
+    // Most archived events get 1..4 participants (different people), every 6th stays empty.
     private void fillArchivalEnrollments(List<Event> pastEvents) {
         for (int j = 0; j < pastEvents.size(); j++) {
-            if (j % 6 == 4) continue; // część pusta
+            if (j % 6 == 4) continue; // some left empty
             Event ev = pastEvents.get(j);
             int max = ev.getMaxParticipants() != null ? ev.getMaxParticipants() : Integer.MAX_VALUE;
             int count = Math.min(1 + (j % 4), Math.min(max, PEOPLE.size()));
@@ -260,7 +261,7 @@ public class DevDataSeeder implements CommandLineRunner {
         e.setStartTime(start);
         e.setEndTime(end);
         e.setLocation(location);
-        // Opis → strona ma treść, więc na liście pojawia się button „Szczegóły" (hasDetails()).
+        // Description → the page has content, so a "Details" button appears in the list (hasDetails()).
         e.setDescription("Termin: " + name + " (" + location
                 + "). Plan zajęć, poziom zaawansowania i informacje organizacyjne. Zapraszamy!");
         e.setPrice(BigDecimal.valueOf(price));
@@ -286,7 +287,7 @@ public class DevDataSeeder implements CommandLineRunner {
         }
     }
 
-    // Zapis = konto użytkownika. Snapshot danych osobowych kopiuje Enrollment.forUser() z konta.
+    // Enrollment = a user account. Enrollment.forUser() copies the personal-data snapshot from the account.
     private void enroll(Event event, String email, @Nullable String note) {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalStateException("DEV-SEEDER: brak konta dla zapisu " + email));

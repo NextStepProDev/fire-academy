@@ -20,11 +20,11 @@ public class Enrollment {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    // Konto, z którego pochodzi zapis. Nullable wyłącznie po to, by usunięcie/anonimizacja konta
-    // mogło je wyzerować (FK ON DELETE SET NULL) — w normalnym obrocie zawsze ustawione.
-    // Dane osobowe poniżej to snapshot z chwili zapisu — służy wyłącznie jako fallback dla
-    // czytelności rostera po usunięciu konta. Bieżące widoki czytają dane przez {@code display*()},
-    // które preferują żywe konto (źródło prawdy PII = users), więc zmiana danych w profilu jest widoczna.
+    // Account the enrollment originates from. Nullable solely so that account deletion/anonymization
+    // can null it out (FK ON DELETE SET NULL) — in normal operation it is always set.
+    // The personal data below is a snapshot from the moment of enrollment — it serves only as a fallback
+    // for roster readability after the account is deleted. Current views read the data via {@code display*()},
+    // which prefer the live account (PII source of truth = users), so profile data changes are visible.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     @Nullable
@@ -67,8 +67,8 @@ public class Enrollment {
     }
 
     /**
-     * Tworzy zapis powiązany z kontem. Dane osobowe są kopiowane z konta jako snapshot
-     * (źródło prawdy PII pozostaje w {@code users}; snapshot służy czytelności rostera po usunięciu konta).
+     * Creates an enrollment linked to an account. Personal data is copied from the account as a snapshot
+     * (the PII source of truth stays in {@code users}; the snapshot serves roster readability after account deletion).
      */
     public static Enrollment forUser(Event event, User user, @Nullable String note, boolean addedByAdmin) {
         Enrollment e = new Enrollment(event, user.getFirstName(), user.getLastName(),
@@ -77,7 +77,7 @@ public class Enrollment {
         return e;
     }
 
-    /** Pusta/biała notatka → {@code null} (jedna reguła dla zapisu usera i admina). */
+    /** Empty/blank note → {@code null} (single rule for both user and admin enrollment). */
     public static @Nullable String normalizeNote(@Nullable String note) {
         return (note == null || note.isBlank()) ? null : note;
     }
@@ -100,7 +100,7 @@ public class Enrollment {
         return email != null && email.endsWith("@usuniety.rodo");
     }
 
-    // Dane do wyświetlenia/wysyłki: żywe konto, gdy istnieje; po usunięciu konta — snapshot (zanonimizowany).
+    // Data for display/sending: the live account when it exists; after account deletion — the snapshot (anonymized).
     public String displayFirstName() { return user != null ? user.getFirstName() : firstName; }
     public String displayLastName() { return user != null ? user.getLastName() : lastName; }
     public String displayEmail() { return user != null ? user.getEmail() : email; }

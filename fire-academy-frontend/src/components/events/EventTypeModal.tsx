@@ -36,12 +36,12 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
       if (e.key === 'ArrowLeft') prev()
       else if (e.key === 'ArrowRight') next()
       else if (e.key === 'Escape') {
-        // Przechwyć Escape, by nie zamknąć też modala pod spodem
+        // Intercept Escape so the modal underneath isn't closed as well
         e.stopImmediatePropagation()
         setLightboxIndex(null)
       }
     }
-    // Faza przechwytywania — uruchamia się przed handlerem Escape w Modal
+    // Capture phase — runs before the Escape handler in Modal
     document.addEventListener('keydown', handler, true)
     return () => document.removeEventListener('keydown', handler, true)
   }, [lightboxIndex, prev, next])

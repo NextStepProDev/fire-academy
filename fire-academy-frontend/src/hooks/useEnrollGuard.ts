@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import { saveRedirectPath } from '../utils/redirect'
 
 /**
- * Zapis na wydarzenie wymaga konta. Gość, który klika „Zapisz się", zostaje przekierowany
- * na logowanie z zapamiętaną ścieżką powrotu (po zalogowaniu wraca tam, gdzie był).
- * Zalogowany użytkownik wykonuje przekazaną akcję (otwarcie modala zapisu).
+ * Enrolling in an event requires an account. A guest who clicks "Sign up" is redirected
+ * to login with the return path remembered (after logging in they return to where they were).
+ * A logged-in user performs the passed action (opening the enrollment modal).
  */
 export function useEnrollGuard() {
   const { isAuthenticated } = useAuth()

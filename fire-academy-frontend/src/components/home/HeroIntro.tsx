@@ -14,15 +14,15 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
     }
   }, [])
 
-  // Zakończ po animacji zaniku (700 ms) — niezależnie czy faza wyjścia
-  // nastąpiła naturalnie, czy przez pominięcie klawiszem.
+  // Finish after the fade-out animation (700 ms) — regardless of whether the exit phase
+  // happened naturally or via keyboard skip.
   useEffect(() => {
     if (phase !== 'exit') return
     const doneTimer = setTimeout(onComplete, 700)
     return () => clearTimeout(doneTimer)
   }, [phase, onComplete])
 
-  // Pominięcie intro klawiszem (Escape / Enter / Spacja).
+  // Skip the intro with a key (Escape / Enter / Space).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
@@ -49,7 +49,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
       />
       <div className="absolute inset-0 bg-black/55" />
 
-      {/* Błysk ognia w momencie zderzenia logotypów */}
+      {/* Fire burst at the moment the logos clash */}
       {met && (
         <div
           className="intro-burst pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[60vmin] rounded-full"
@@ -62,7 +62,7 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
 
       <div className="relative z-10 flex flex-col items-center gap-8">
         <div className={`flex items-center justify-center gap-5 md:gap-8 ${met ? 'intro-glow' : ''}`}>
-          {/* ACADEMY FIRE — wlatuje z lewej */}
+          {/* ACADEMY FIRE — flies in from the left */}
           <img
             src="/images/logo/logo-academy-fire-aligned.png"
             alt="Fire Academy"
@@ -71,14 +71,14 @@ export function HeroIntro({ onComplete }: { onComplete: () => void }) {
             }`}
           />
 
-          {/* Separator — wskakuje gdy się spotkają */}
+          {/* Separator — pops in when they meet */}
           <span
             className={`h-20 w-[3px] origin-center rounded-full bg-white/45 transition-all duration-300 ease-out md:h-28 ${
               met ? 'scale-y-100 opacity-100 delay-[650ms]' : 'scale-y-0 opacity-0'
             }`}
           />
 
-          {/* FIRE CAMP — wlatuje z prawej */}
+          {/* FIRE CAMP — flies in from the right */}
           <img
             src="/images/logo/logo-fire-camp-aligned.png"
             alt="Fire Camp"

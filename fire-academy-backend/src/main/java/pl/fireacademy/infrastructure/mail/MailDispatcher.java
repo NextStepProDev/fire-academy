@@ -10,21 +10,21 @@ import org.springframework.stereotype.Component;
 import pl.fireacademy.config.AppConfig;
 
 /**
- * Wspólny punkt wysyłki maili HTML z ponawianiem (best-effort). Wołany z metod {@code @Async}
- * serwisów mailowych, więc pętla ponawiania działa na wątku puli {@code mailExecutor} i nie blokuje
- * żądania użytkownika.
+ * A shared point for sending HTML emails with retries (best-effort). Called from the {@code @Async}
+ * methods of the mail services, so the retry loop runs on the {@code mailExecutor} pool thread and does not block
+ * the user's request.
  * <p>
- * Przejściowe błędy SMTP (chwilowa niedostępność Gmaila, sieć) są najczęstsze — kilka prób z odstępem
- * łapie ich większość. Po wyczerpaniu prób mail jest porzucany, ale logowany na poziomie ERROR ze stałym
- * markerem {@code MAIL_DELIVERY_FAILED}, żeby dało się go wychwycić w logach/monitoringu. Metoda nigdy
- * nie rzuca wyjątku — wysyłka maila nie może wywrócić operacji biznesowej (zapis i tak jest już zapisany).
+ * Transient SMTP errors (a brief Gmail unavailability, network) are the most common — a few spaced-out attempts
+ * catch most of them. After the attempts are exhausted the email is dropped, but logged at ERROR level with a fixed
+ * marker {@code MAIL_DELIVERY_FAILED}, so it can be caught in logs/monitoring. The method never
+ * throws — sending an email must not break the business operation (the enrollment is already saved anyway).
  */
 @Component
 public class MailDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(MailDispatcher.class);
     private static final int DEFAULT_MAX_ATTEMPTS = 3;
-    // Odstępy (ms) PRZED kolejnymi próbami: przed 2. próbą, przed 3. próbą.
+    // Delays (ms) BEFORE subsequent attempts: before the 2nd attempt, before the 3rd attempt.
     private static final long[] DEFAULT_BACKOFF_MS = {2_000L, 5_000L};
 
     private final JavaMailSender mailSender;
@@ -37,7 +37,7 @@ public class MailDispatcher {
         this(mailSender, appConfig, DEFAULT_MAX_ATTEMPTS, DEFAULT_BACKOFF_MS);
     }
 
-    /** Konstruktor dla testów — pozwala skrócić/wyzerować odstępy ponawiania. */
+    /** Constructor for tests — allows shortening/zeroing the retry delays. */
     MailDispatcher(JavaMailSender mailSender, AppConfig appConfig, int maxAttempts, long[] backoffMs) {
         this.mailSender = mailSender;
         this.appConfig = appConfig;
@@ -45,7 +45,7 @@ public class MailDispatcher {
         this.backoffMs = backoffMs;
     }
 
-    /** Wysyła maila HTML z ponawianiem przy błędach SMTP. Nie rzuca wyjątku (best-effort). */
+    /** Sends an HTML email with retries on SMTP errors. Does not throw (best-effort). */
     public void sendHtml(String to, String subject, String htmlBody) {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
@@ -68,7 +68,7 @@ public class MailDispatcher {
                     log.warn("Email to {} failed (attempt {}/{}), retrying in {} ms: {}",
                             to, attempt, maxAttempts, delay, e.getMessage());
                     if (!sleep(delay)) {
-                        return; // przerwano w trakcie odczekiwania
+                        return; // interrupted while waiting
                     }
                 } else {
                     log.error("MAIL_DELIVERY_FAILED to={} after {} attempts", to, maxAttempts, e);
@@ -77,7 +77,7 @@ public class MailDispatcher {
         }
     }
 
-    /** @return false, gdy wątek został przerwany podczas oczekiwania. */
+    /** @return false when the thread was interrupted while waiting. */
     private boolean sleep(long millis) {
         if (millis <= 0) {
             return true;

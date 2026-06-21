@@ -65,7 +65,7 @@ class EnrollmentTest {
         User user = new User("anna@test.com", "Anna", "Nowak", "500100200");
         Enrollment e = Enrollment.forUser(event, user, null, false);
 
-        // Zmiana w profilu po zapisie ma być widoczna (źródło prawdy = konto, nie snapshot).
+        // A profile change after enrollment must be visible (source of truth = account, not snapshot).
         user.setFirstName("Joanna");
         user.setPhone("600700800");
 

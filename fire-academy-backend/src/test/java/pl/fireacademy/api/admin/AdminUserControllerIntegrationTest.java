@@ -23,7 +23,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired private EventRepository eventRepository;
     @Autowired private EnrollmentRepository enrollmentRepository;
 
-    // app.admin.email w BaseIntegrationTest = "admin@fireacademy.test" → super-admin z .env
+    // app.admin.email in BaseIntegrationTest = "admin@fireacademy.test" → super-admin from .env
     private String superAdminToken() {
         return createUserAndGetToken("admin@fireacademy.test", "Env", "Admin", UserRole.ADMIN);
     }
@@ -105,7 +105,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.content.length()").value(2))
             .andExpect(jsonPath("$.page").value(0))
             .andExpect(jsonPath("$.size").value(2))
-            // 5 utworzonych + testadmin z adminToken() = 6 → 3 strony po 2
+            // 5 created + testadmin from adminToken() = 6 → 3 pages of 2
             .andExpect(jsonPath("$.totalElements").value(6))
             .andExpect(jsonPath("$.totalPages").value(3));
     }
@@ -169,7 +169,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
     void shouldRejectPromoteByPlainAdmin() throws Exception {
         User target = createUser("promote2@test.com", "Do", "Awansu", UserRole.USER);
 
-        // testadmin@fireacademy.test NIE jest super-adminem z .env → nadanie uprawnień zabronione (409)
+        // testadmin@fireacademy.test is NOT the super-admin from .env → promotion forbidden (409)
         mockMvc.perform(post("/api/admin/users/" + target.getId() + "/promote")
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isConflict());
@@ -179,7 +179,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
     void shouldRejectDemoteByPlainAdmin() throws Exception {
         User target = createUser("admin3@test.com", "Inny", "Admin", UserRole.ADMIN);
 
-        // testadmin@fireacademy.test NIE jest super-adminem z .env → degradacja zabroniona (409)
+        // testadmin@fireacademy.test is NOT the super-admin from .env → demotion forbidden (409)
         mockMvc.perform(post("/api/admin/users/" + target.getId() + "/demote")
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isConflict());
@@ -197,7 +197,7 @@ class AdminUserControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldRejectDemoteOfSuperAdminTarget() throws Exception {
-        // super-admin nie może odebrać sobie ani innemu super-adminowi (tu: samemu sobie → 409)
+        // a super-admin cannot demote themselves or another super-admin (here: themselves → 409)
         User superAdmin = userRepository.findByEmail("admin@fireacademy.test")
                 .orElseGet(() -> createUser("admin@fireacademy.test", "Env", "Admin", UserRole.ADMIN));
 

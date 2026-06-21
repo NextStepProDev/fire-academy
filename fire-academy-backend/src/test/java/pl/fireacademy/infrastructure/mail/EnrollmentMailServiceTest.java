@@ -204,7 +204,7 @@ class EnrollmentMailServiceTest {
         event.setStartTime(LocalTime.of(9, 0));
         event.setEndTime(LocalTime.of(16, 0));
 
-        // Godzina przyklejona do swojej daty — start pierwszego dnia → koniec ostatniego.
+        // Each time is attached to its own date — start of the first day → end of the last.
         assertEquals("15.07.2026, 09:00 – 18.07.2026, 16:00", EnrollmentMailService.formatSchedule(event));
     }
 

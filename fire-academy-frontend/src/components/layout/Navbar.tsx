@@ -20,21 +20,21 @@ export function Navbar() {
   const isLinkActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
-  // Brand główny to Fire Academy; tylko sekcja obozów (lista + podstrony /obozy/rodzaj|termin)
-  // pokazuje wariant Fire Camp.
+  // The main brand is Fire Academy; only the camps section (list + /obozy/rodzaj|termin subpages)
+  // shows the Fire Camp variant.
   const isCampsSection = location.pathname.startsWith('/obozy')
   const logoSrc = isCampsSection
     ? '/images/logo/logo-white.png'
     : '/images/logo/logo-academy-fire-white.png'
   const logoAlt = isCampsSection ? 'Fire Camp' : 'Fire Academy'
 
-  // Zalogowany użytkownik widzi swoje menu (avatar + ustawienia + wyloguj) na całej stronie.
-  // Zapis na wydarzenia wymaga konta, więc punkt wejścia do logowania pokazujemy GOŚCIOWI
-  // na każdej zakładce (treningi/obozy/szkolenia i pozostałe).
+  // A logged-in user sees their menu (avatar + settings + logout) across the whole site.
+  // Enrolling in events requires an account, so we show the login entry point to a GUEST
+  // on every tab (trainings/camps/courses and the rest).
   const showUserArea = isAuthenticated
   const showLoginEntry = !isAuthenticated
 
-  // "Ustawienia" w menu avatara podświetlamy, gdy user jest na tej podstronie ("tu jesteś").
+  // We highlight "Settings" in the avatar menu when the user is on that subpage ("you are here").
   const isSettingsActive = location.pathname.startsWith('/settings')
 
   const navLinks = [
@@ -42,7 +42,7 @@ export function Navbar() {
     { to: '/treningi', label: t('nav.trainings') },
     { to: '/obozy', label: t('nav.camps') },
     { to: '/szkolenia', label: t('nav.courses') },
-    // "Moje konto" — główny cel zalogowanego usera — na stałe w nawbarze (poza adminem).
+    // "My account" — the main destination for a logged-in user — permanently in the navbar (except for admin).
     ...(isAuthenticated && !isAdmin ? [{ to: '/moje-konto', label: t('nav.myAccount') }] : []),
     ...(isAdmin ? [{ to: '/admin', label: t('nav.admin') }] : []),
   ]

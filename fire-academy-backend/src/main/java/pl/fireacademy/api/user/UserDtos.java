@@ -31,8 +31,8 @@ public final class UserDtos {
 
     public record UpdateMarketingRequest(boolean enabled) {}
 
-    // Zgody zbierane po stronie konta — głównie domknięcie kont Google na ekranie uzupełniania profilu
-    // (polityka prywatności obowiązkowa, marketing opcjonalny). Walidacja obowiązkowości w serwisie,
-    // bo polityka mogła być zaakceptowana wcześniej (rejestracja email/hasło).
+    // Consents collected on the account side — mainly to complete Google accounts on the profile-completion screen
+    // (privacy policy mandatory, marketing optional). The mandatory check is validated in the service,
+    // because the policy may have been accepted earlier (email/password registration).
     public record ConsentsRequest(boolean acceptedPrivacy, boolean acceptedMarketing) {}
 }

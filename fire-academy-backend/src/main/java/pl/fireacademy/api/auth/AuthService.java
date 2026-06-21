@@ -26,8 +26,8 @@ public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final Set<String> SUPPORTED_LANGUAGES = Set.of("pl");
-    // Poprawny formatowo hash BCrypt (cost 10) używany wyłącznie do fikcyjnego porównania,
-    // gdy konto nie istnieje — wyrównuje czas odpowiedzi i blokuje enumerację użytkowników.
+    // A format-valid BCrypt hash (cost 10) used solely for a dummy comparison
+    // when the account does not exist — it evens out the response time and blocks user enumeration.
     private static final String DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
     private static final Duration EMAIL_VERIFICATION_EXPIRATION = Duration.ofMinutes(15);
     private static final Duration PASSWORD_RESET_EXPIRATION = Duration.ofHours(1);
@@ -72,9 +72,9 @@ public class AuthService {
         );
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setPreferredLanguage(resolveLanguage(request.preferredLanguage()));
-        // Zgoda na politykę prywatności jest wymagana (walidacja @AssertTrue) — zapisujemy moment akceptacji (RODO).
+        // Privacy policy consent is required (@AssertTrue validation) — we record the acceptance moment (GDPR).
         user.setPrivacyAcceptedAt(Instant.now());
-        // Zgoda marketingowa dobrowolna (opt-in) — pole opcjonalne (może być nieobecne) → null traktujemy jak brak zgody.
+        // Marketing consent is voluntary (opt-in) — the field is optional (may be absent) → null is treated as no consent.
         if (Boolean.TRUE.equals(request.acceptedMarketing())) {
             user.setMarketingConsentAt(Instant.now());
         }
@@ -96,7 +96,7 @@ public class AuthService {
     public AuthTokensResponse login(LoginRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
         if (user == null) {
-            // Fikcyjne porównanie, by czas odpowiedzi nie zdradzał istnienia konta.
+            // Dummy comparison so the response time does not reveal the account's existence.
             passwordEncoder.matches(request.password(), DUMMY_PASSWORD_HASH);
             throw new IllegalArgumentException(msg.get("auth.login.invalid"));
         }
@@ -168,8 +168,8 @@ public class AuthService {
     public MessageResponse resendVerification(ResendVerificationRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
-        // Zawsze ten sam komunikat — nie ujawniamy, czy konto istnieje, jest już zweryfikowane
-        // ani czy trwa cooldown (anti-enumeracja). Mejl wysyłamy tylko, gdy faktycznie trzeba.
+        // Always the same message — we do not reveal whether the account exists, is already verified,
+        // or whether a cooldown is in progress (anti-enumeration). We send the email only when actually needed.
         boolean shouldSend = user != null
             && !user.isEmailVerified()
             && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.EMAIL_VERIFICATION, Instant.now().minus(RESEND_COOLDOWN));
@@ -185,8 +185,8 @@ public class AuthService {
     public MessageResponse forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
-        // Jednolity komunikat niezależnie od istnienia konta, logowania przez OAuth (brak hasła)
-        // czy cooldownu (anti-enumeracja). Mejl wysyłamy tylko, gdy faktycznie trzeba.
+        // A uniform message regardless of account existence, OAuth login (no password),
+        // or cooldown (anti-enumeration). We send the email only when actually needed.
         boolean shouldSend = user != null
             && user.getPasswordHash() != null
             && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.PASSWORD_RESET, Instant.now().minus(RESEND_COOLDOWN));
@@ -207,8 +207,8 @@ public class AuthService {
 
         User user = authToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-        // Reset hasła potwierdza dostęp do skrzynki → zdejmujemy ewentualną blokadę konta
-        // (po 5 nieudanych próbach), żeby użytkownik mógł się od razu zalogować.
+        // A password reset confirms mailbox access → we lift any account lockout
+        // (after 5 failed attempts) so the user can log in right away.
         user.resetFailedLoginAttempts();
         authToken.markAsUsed();
 

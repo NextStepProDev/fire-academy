@@ -74,9 +74,9 @@ public class AdminUserService {
         int safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
         Pageable pageable = PageRequest.of(safePage, safeSize, resolveSort(sort, direction));
 
-        // Konta techniczne/deweloperskie (np. konto programisty) są ukryte na liście — mają admina do testów,
-        // ale nie powinny zaśmiecać widoku ani mylić pozostałych administratorów. Filtr w SQL, by liczniki/paginacja
-        // były spójne; gdy brak ukrytych e-maili, używamy zwykłych zapytań (NOT IN () byłoby niepoprawne).
+        // Technical/developer accounts (e.g. the developer's account) are hidden from the list — they have admin for testing,
+        // but should not clutter the view or confuse the other administrators. Filter in SQL so that counters/pagination
+        // stay consistent; when there are no hidden e-mails, use the plain queries (NOT IN () would be invalid).
         Set<String> hidden = adminEmailConfig.getHiddenEmails();
         boolean blank = search == null || search.isBlank();
         Page<User> result = hidden.isEmpty()
@@ -91,8 +91,8 @@ public class AdminUserService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    // Whitelist sortowanych pól (chroni przed wstrzyknięciem dowolnej właściwości w Sort).
-    // Telefon celowo nie jest sortowalny.
+    // Whitelist of sortable fields (protects against injecting an arbitrary property into Sort).
+    // Phone is intentionally not sortable.
     private Sort resolveSort(String sort, String direction) {
         Sort.Direction dir = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return switch (sort == null ? "" : sort) {
@@ -138,8 +138,8 @@ public class AdminUserService {
 
     @Transactional(readOnly = true)
     public SendEmailResponse sendEmail(SendEmailRequest request) {
-        // Tryb MARKETING dociera wyłącznie do osób z aktywną zgodą i dokłada link rezygnacji.
-        // ALL/SELECTED to komunikaty serwisowe (bez linku) — odpowiedzialność za treść po stronie admina.
+        // MARKETING mode reaches only people with an active consent and appends an unsubscribe link.
+        // ALL/SELECTED are service announcements (no link) — responsibility for the content lies with the admin.
         boolean marketing = "MARKETING".equals(request.audience());
         List<User> base = switch (request.audience()) {
             case "MARKETING" -> userRepository.findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
@@ -151,7 +151,7 @@ public class AdminUserService {
         };
 
         List<User> recipients = base.stream()
-                // Konta ukryte (techniczne/deweloperskie) nigdy nie są adresatami zbiorczej wysyłki.
+                // Hidden accounts (technical/developer) are never recipients of a bulk send.
                 .filter(u -> !adminEmailConfig.isHiddenEmail(u.getEmail()))
                 .toList();
 
@@ -184,12 +184,12 @@ public class AdminUserService {
             throw new IllegalStateException(msg.get("error.user.cannot.delete.superadmin"));
         }
 
-        // Zapisy: przyszłe zwalniamy (miejsce wraca do puli), przeszłe anonimizujemy (archiwum bez PII,
-        // user_id → NULL). Wspólna logika z samodzielnym usunięciem konta — przed skasowaniem usera.
+        // Enrollments: future ones are freed (the spot returns to the pool), past ones anonymized (archive without PII,
+        // user_id → NULL). Shared logic with self-service account deletion — before deleting the user.
         var erasure = enrollmentErasureService.eraseForUser(targetId);
 
-        // Powiadomienie usera o usunięciu konta (opcjonalne — admin decyduje; np. dla RODO/realnej osoby tak,
-        // dla kont testowych/spamu nie). Dane i lista zwolnionych rezerwacji złapane przed delete.
+        // Notify the user about account deletion (optional — the admin decides; e.g. yes for GDPR/a real person,
+        // no for test/spam accounts). Data and the list of freed reservations captured before delete.
         if (notify) {
             List<String> cancelled = erasure.freedEvents().stream()
                     .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
@@ -203,7 +203,7 @@ public class AdminUserService {
         }
         authTokenRepository.deleteAllByUserId(targetId);
         userRepository.delete(target);
-        // Bez evict usunięty/odświeżony user nadal uwierzytelniałby się z cache filtra JWT przez ~60s.
+        // Without evict, a deleted/refreshed user would still authenticate from the JWT filter cache for ~60s.
         jwtAuthenticationFilter.evictUser(targetId);
 
         return new DeleteUserResponse(erasure.freed(), erasure.anonymized());
@@ -213,7 +213,7 @@ public class AdminUserService {
     public AdminUserResponse promote(UUID adminId, UUID targetId) {
         User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        // Nadanie roli admina może wykonać wyłącznie super-admin zdefiniowany w .env (ADMIN_EMAIL).
+        // Granting the admin role can only be done by the super-admin defined in .env (ADMIN_EMAIL).
         if (!adminEmailConfig.isAdminEmail(admin.getEmail())) {
             throw new IllegalStateException(msg.get("error.user.promote.forbidden"));
         }
@@ -232,7 +232,7 @@ public class AdminUserService {
     public AdminUserResponse demote(UUID adminId, UUID targetId) {
         User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        // Odebranie roli admina może wykonać wyłącznie super-admin zdefiniowany w .env (ADMIN_EMAIL).
+        // Revoking the admin role can only be done by the super-admin defined in .env (ADMIN_EMAIL).
         if (!adminEmailConfig.isAdminEmail(admin.getEmail())) {
             throw new IllegalStateException(msg.get("error.user.demote.forbidden"));
         }
@@ -242,7 +242,7 @@ public class AdminUserService {
 
         User target = userRepository.findById(targetId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        // Super-admin z .env i tak zostałby ponownie awansowany przy logowaniu → blokujemy bezcelową operację.
+        // The super-admin from .env would be promoted again on login anyway → block this pointless operation.
         if (adminEmailConfig.isAdminEmail(target.getEmail())) {
             throw new IllegalStateException(msg.get("error.user.cannot.demote.superadmin"));
         }

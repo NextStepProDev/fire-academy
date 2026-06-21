@@ -8,15 +8,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Sprawdza, że standardowe wyjątki Spring MVC są mapowane na właściwe kody HTTP przez
- * GlobalExceptionHandler (a nie połykane przez catch-all jako 500). Regresja: rejestracja
- * z pominiętym polem prymitywnym (`acceptedPrivacy`) zwracała 500 zamiast 400.
+ * Verifies that standard Spring MVC exceptions are mapped to the correct HTTP codes by
+ * GlobalExceptionHandler (rather than swallowed by the catch-all as 500). Regression: registration
+ * with a missing primitive field (`acceptedPrivacy`) returned 500 instead of 400.
  */
 class GlobalExceptionHandlerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldReturn400WhenRegisterBodyOmitsPrimitiveField() throws Exception {
-        // Brak `acceptedPrivacy` (prymityw boolean) → HttpMessageNotReadableException, nie 500.
+        // Missing `acceptedPrivacy` (primitive boolean) → HttpMessageNotReadableException, not 500.
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""

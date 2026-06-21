@@ -44,7 +44,7 @@ class OAuth2UserServiceTest {
 
     @Test
     void shouldCreateNewUserWithoutAnyConsentsForRodoGate() {
-        // RODO: konto Google powstaje BEZ zgód — domknięcie polityki/marketingu robi ekran /uzupelnij-profil.
+        // GDPR: a Google account is created WITHOUT any consents — the policy/marketing is completed on the /uzupelnij-profil screen.
         when(userRepository.findByOauthProviderAndOauthId("google", "sub-1")).thenReturn(Optional.empty());
         when(userRepository.findByEmailIgnoreCase("anna@gmail.com")).thenReturn(Optional.empty());
         when(adminEmailConfig.isAdminEmail("anna@gmail.com")).thenReturn(false);

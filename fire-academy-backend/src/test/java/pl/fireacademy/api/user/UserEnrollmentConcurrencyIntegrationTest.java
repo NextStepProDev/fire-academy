@@ -24,11 +24,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Pojemność wydarzenia pod presją współbieżności. Dwie równoległe próby zapisu na termin
- * z jednym wolnym miejscem nie mogą obie przejść (overbooking). Ochroną jest
- * {@code EventRepository.findByIdForUpdate} z {@code @Lock(PESSIMISTIC_WRITE)} — wiersz
- * wydarzenia jest zablokowany na czas transakcji, więc drugi wątek czeka i po commicie
- * pierwszego widzi już komplet. Ten test pilnuje, by tej blokady nikt nie usunął.
+ * Event capacity under concurrency pressure. Two parallel attempts to enroll in an event
+ * with a single free spot must not both succeed (overbooking). The protection is
+ * {@code EventRepository.findByIdForUpdate} with {@code @Lock(PESSIMISTIC_WRITE)} — the event
+ * row is locked for the duration of the transaction, so the second thread waits and, after the
+ * first commits, already sees a full event. This test guards against anyone removing that lock.
  */
 class UserEnrollmentConcurrencyIntegrationTest extends BaseIntegrationTest {
 

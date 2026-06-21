@@ -2,12 +2,12 @@ import type { User } from '../types'
 
 export type ProfileField = 'firstName' | 'lastName' | 'phone'
 
-// Pola profilu wymagane do zapisu na wydarzenie (organizator potrzebuje kontaktu).
-// Dodanie nowego wymaganego pola w przyszłości = dopisanie go tutaj — formularz
-// uzupełniania i bramki zapisu policzą braki automatycznie.
+// Profile fields required to enroll in an event (the organizer needs contact details).
+// Adding a new required field in the future = appending it here — the completion form
+// and enrollment gates will compute the missing fields automatically.
 export const REQUIRED_PROFILE_FIELDS: ProfileField[] = ['firstName', 'lastName', 'phone']
 
-/** Zwraca listę wymaganych pól profilu, których użytkownik jeszcze nie uzupełnił. */
+/** Returns the list of required profile fields the user has not yet filled in. */
 export function getMissingProfileFields(
   user: Pick<User, 'firstName' | 'lastName' | 'phone'> | null | undefined
 ): ProfileField[] {
@@ -15,9 +15,9 @@ export function getMissingProfileFields(
   return REQUIRED_PROFILE_FIELDS.filter((field) => !(user[field] ?? '').trim())
 }
 
-// Konta Google trafiają tu też po to, by domknąć zgodę na politykę prywatności (RODO) —
-// rejestracja email/hasło wymusza ją od razu, OAuth nie. Ekran uzupełniania pokazujemy więc,
-// gdy brakuje wymaganych pól LUB nie udzielono jeszcze zgody na politykę prywatności.
+// Google accounts also land here to finalize the privacy policy consent (GDPR) —
+// email/password registration enforces it immediately, OAuth does not. So we show the
+// completion screen when required fields are missing OR the privacy policy consent has not yet been given.
 export function needsProfileCompletion(
   user: Pick<User, 'firstName' | 'lastName' | 'phone' | 'privacyAccepted'> | null | undefined
 ): boolean {

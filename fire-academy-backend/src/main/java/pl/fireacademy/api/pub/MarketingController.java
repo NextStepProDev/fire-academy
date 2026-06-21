@@ -16,8 +16,8 @@ public class MarketingController {
 
     public record UnsubscribeRequest(@NotBlank String token) {}
 
-    // Rezygnacja z maili marketingowych prosto z linku w mailu (bez logowania).
-    // Idempotentne i bezpieczne dla enumeracji — zawsze 204, niezależnie od istnienia/stanu konta.
+    // Unsubscribe from marketing e-mails straight from the link in the e-mail (without logging in).
+    // Idempotent and enumeration-safe — always 204, regardless of the account's existence/state.
     @PostMapping("/unsubscribe")
     public ResponseEntity<Void> unsubscribe(@RequestBody UnsubscribeRequest request) {
         service.unsubscribe(request.token());

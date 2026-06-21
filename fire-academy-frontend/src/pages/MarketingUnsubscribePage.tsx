@@ -7,9 +7,9 @@ import { Button } from '../components/ui/Button'
 type Status = 'idle' | 'loading' | 'done' | 'error'
 
 /**
- * Publiczna strona rezygnacji z wiadomości marketingowych — otwierana z linku w mailu
- * (bez logowania). Świadomie wymaga kliknięcia przycisku (POST), żeby skanery antyspamowe
- * nie wypisywały użytkowników automatycznym prefetchem GET.
+ * Public marketing unsubscribe page — opened from a link in an email
+ * (no login required). Deliberately requires a button click (POST) so anti-spam scanners
+ * don't unsubscribe users via an automatic GET prefetch.
  */
 export function MarketingUnsubscribePage() {
   const { t } = useTranslation('marketing')

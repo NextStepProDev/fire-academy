@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public interface EventTypeRepository extends JpaRepository<EventType, UUID> {
 
-    // JOIN FETCH zdjęć eliminuje N+1 przy publicznym listowaniu (każdy typ ładuje galerię).
-    // DISTINCT na zapytaniu encyjnym Hibernate deduplikuje w pamięci — kolejność z @OrderBy zostaje zachowana.
+    // JOIN FETCH of photos eliminates N+1 in the public listing (each type loads its gallery).
+    // DISTINCT on an entity query is deduplicated by Hibernate in memory — the @OrderBy ordering is preserved.
     @Query("SELECT DISTINCT et FROM EventType et LEFT JOIN FETCH et.photos "
             + "WHERE et.category = :category AND et.active = true ORDER BY et.displayOrder ASC")
     List<EventType> findByCategoryAndActiveTrueOrderByDisplayOrderAsc(EventCategory category);

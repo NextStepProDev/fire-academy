@@ -97,7 +97,7 @@ public class AdminEnrollmentService {
 
         enrollmentRepository.delete(enrollment);
 
-        // notify=false dla korekty archiwum (wydarzenie już było) — uczestnik nie dostaje maila o „odwołaniu".
+        // notify=false for archive corrections (the event already happened) — the participant gets no "cancellation" email.
         if (notify) {
             enrollmentMailService.sendEnrollmentDeletionNotification(
                     participantEmail, participantFirstName,
@@ -146,7 +146,7 @@ public class AdminEnrollmentService {
     }
 
     private EnrollmentResponse toResponse(Enrollment e) {
-        // Dane uczestnika z żywego konta (źródło prawdy) — snapshot tylko jako fallback po usunięciu konta.
+        // Participant data from the live account (source of truth) — the snapshot is only a fallback after account deletion.
         return new EnrollmentResponse(
                 e.getId(), e.getEvent().getId(),
                 e.getEvent().getDisplayName(),

@@ -10,8 +10,8 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.util.List;
 
 /**
- * Maile pisane ręcznie przez administratora do użytkowników (dowolny temat + treść).
- * Branding wspólny ze stylem eventów: logo Fire Academy, stopka, podpis „Pozdrawiam, Fire Academy".
+ * Emails written manually by the administrator to users (arbitrary subject + body).
+ * Branding shared with the event style: Fire Academy logo, footer, signature "Pozdrawiam, Fire Academy".
  */
 @Service
 public class AdminUserMailService {
@@ -27,14 +27,14 @@ public class AdminUserMailService {
     }
 
     /**
-     * Mail pisany ręcznie przez administratora. Gdy {@code unsubscribeToken != null}, wiadomość jest
-     * marketingowa: w stopce dochodzi akapit z linkiem rezygnacji ({siteUrl}/wypisz-sie?token=...),
-     * odrębnym od jakiegokolwiek mechanizmu serwisowego. Dla komunikatów serwisowych token jest null.
+     * Email written manually by the administrator. When {@code unsubscribeToken != null}, the message is
+     * marketing: a paragraph with an unsubscribe link ({siteUrl}/wypisz-sie?token=...) is added to the footer,
+     * separate from any service mechanism. For service messages the token is null.
      */
     @Async("mailExecutor")
     public void sendCustomMessage(String recipientEmail, String firstName, String subject, String message,
                                   @Nullable String unsubscribeToken) {
-        // Temat e-maila bez HTML-escape — inaczej polskie znaki trafiałyby jako encje (&oacute; itd.).
+        // Email subject without HTML escaping — otherwise Polish characters would end up as entities (&oacute; etc.).
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeMessage = HtmlUtils.htmlEscape(message).replace("\n", "<br/>");
 
@@ -73,9 +73,9 @@ public class AdminUserMailService {
     }
 
     /**
-     * Powiadomienie o usunięciu konta przez organizatora. Jeśli przepadły przyszłe rezerwacje,
-     * wymienia je (żeby uczestnik nie stawił się na wydarzenie, z którego został wypisany).
-     * {@code cancelledReservations} to gotowe wiersze „nazwa — termin".
+     * Notification about account deletion by the organizer. If future reservations were lost,
+     * it lists them (so the participant doesn't show up at an event they were unenrolled from).
+     * {@code cancelledReservations} are ready-made "name — date" lines.
      */
     @Async("mailExecutor")
     public void sendAccountDeletedNotification(String recipientEmail, String firstName,

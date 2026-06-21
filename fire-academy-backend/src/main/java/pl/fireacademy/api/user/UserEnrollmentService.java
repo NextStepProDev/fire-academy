@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Zapisy własne zalogowanego użytkownika (zakładka „Moje rezerwacje").
+ * The logged-in user's own enrollments (the "My reservations" tab).
  * <p>
- * Dane uczestnika pochodzą z konta (jedno źródło prawdy PII) — formularz nie zbiera już
- * imienia/maila/telefonu. Walidacja terminu (aktywność, 24h, limit miejsc) jest taka sama
- * jak w dawnym zapisie publicznym.
+ * Participant data comes from the account (a single PII source of truth) — the form no longer collects
+ * first name/email/phone. Event validation (active, 24h, capacity) is the same
+ * as in the former public enrollment.
  */
 @Service
 public class UserEnrollmentService {
@@ -60,13 +60,13 @@ public class UserEnrollmentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
-        // RODO: bez zaakceptowanej polityki prywatności konto nie może korzystać z aplikacji
-        // (twarda bramka jest też na froncie — to zabezpieczenie na wypadek pominięcia UI).
+        // GDPR: without an accepted privacy policy the account cannot use the application
+        // (the hard gate is also on the frontend — this is a safeguard in case the UI is bypassed).
         if (!user.hasPrivacyAccepted()) {
             throw new IllegalStateException(msg.get("enrollment.privacy.required"));
         }
 
-        // Organizator potrzebuje numeru kontaktowego — bez telefonu w profilu zapis jest blokowany.
+        // The organizer needs a contact number — without a phone in the profile the enrollment is blocked.
         if (user.getPhone() == null || user.getPhone().isBlank()) {
             throw new IllegalStateException(msg.get("enrollment.phone.required"));
         }
@@ -128,15 +128,15 @@ public class UserEnrollmentService {
         }
 
         String schedule = EnrollmentMailService.formatSchedule(event);
-        // Aktualne dane konta (display*), nie migawka z chwili zapisu — spójnie z rosterem
-        // i pozostałymi mailami. Konto tu zawsze istnieje (to właściciel zapisu), więc display* je zwróci.
+        // Current account data (display*), not the snapshot from the enrollment moment — consistent with the roster
+        // and the other emails. The account always exists here (it's the enrollment owner), so display* returns it.
         String participantName = enrollment.displayFirstName() + " " + enrollment.displayLastName();
         String participantEmail = enrollment.displayEmail();
 
         enrollmentRepository.delete(enrollment);
 
-        // Użytkownik anuluje sam — nie wysyłamy mu maila „anulowano przez organizatora";
-        // powiadamiamy tylko organizatora, że zwolniło się miejsce.
+        // The user cancels themselves — we don't send them a "cancelled by the organizer" email;
+        // we only notify the organizer that a spot has been freed.
         enrollmentMailService.sendEnrollmentDeletionAdminNotification(
                 event.getDisplayName(), participantName, participantEmail, schedule,
                 event.getCategory(), event.getId().toString());

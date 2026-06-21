@@ -49,7 +49,7 @@ function EventCard({
 
   const enrollCount = enrollments?.length ?? 0
 
-  // Zapis = istniejące konto. Admin wyszukuje użytkownika i wybiera go z listy.
+  // Enrollment = an existing account. The admin searches for a user and picks them from the list.
   const usersQuery = useQuery({
     queryKey: ['admin', 'users', 'enroll-search', userSearch],
     queryFn: () => adminApi.getUsers({ search: userSearch.trim() || undefined, size: 10 }),
@@ -92,8 +92,8 @@ function EventCard({
     },
   })
 
-  // Liczba realnych adresatów = unikalne maile bez kont zanonimizowanych (te sam pomija backend).
-  // Musi pasować do filtra wysyłki po stronie serwera (isAnonymized → email kończy się @usuniety.rodo).
+  // Number of real recipients = unique emails excluding anonymized accounts (those are skipped by the backend).
+  // Must match the server-side send filter (isAnonymized → email ends with @usuniety.rodo).
   const uniqueEmails = enrollments
     ? new Set(
         enrollments

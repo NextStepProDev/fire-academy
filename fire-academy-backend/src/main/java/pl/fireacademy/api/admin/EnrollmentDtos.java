@@ -27,7 +27,7 @@ public final class EnrollmentDtos {
             Instant createdAt
     ) {}
 
-    // Admin dopisuje wyłącznie istniejące konto (wybór użytkownika) — dane osobowe biorą się z konta.
+    // Admin can only add an existing account (user selection) — personal data comes from the account.
     public record AdminEnrollRequest(
             @NotNull(message = "{validation.event.required}") UUID eventId,
             @NotNull(message = "{validation.user.required}") UUID userId,

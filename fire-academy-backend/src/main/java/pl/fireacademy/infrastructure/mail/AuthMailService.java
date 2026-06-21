@@ -119,9 +119,9 @@ public class AuthMailService {
     }
 
     /**
-     * Powiadomienie organizatorów o nowym aktywnym koncie. Wysyłane po weryfikacji emailem
-     * (flow email/hasło) lub bezpośrednio po utworzeniu konta przez Google OAuth — w obu
-     * przypadkach konto jest już „realne" (zweryfikowany właściciel skrzynki).
+     * Notifies the organizers about a new active account. Sent after email verification
+     * (email/password flow) or directly after account creation via Google OAuth — in both
+     * cases the account is already "real" (a verified mailbox owner).
      */
     @Async("mailExecutor")
     public void sendNewUserAdminNotification(User user) {
@@ -178,7 +178,7 @@ public class AuthMailService {
     }
 
     private String brandedTemplate(String content, String lang) {
-        // Maile kontowe nie są przypisane do sekcji → ogólne logo ACADEMY FIRE (nie obozowe FIRE CAMP).
+        // Account emails are not tied to a section → the generic ACADEMY FIRE logo (not the camp FIRE CAMP one).
         String logoUrl = siteUrl + "/images/logo/logo-academy-fire-white.png";
         return """
             <html>

@@ -147,8 +147,8 @@ class UserServiceTest {
 
         service.deleteMe(userId, new DeleteAccountRequest("Password123"));
 
-        // RODO: kasowanie zapisów (przyszłe usuń, przeszłe anonimizuj) MUSI pójść przed delete konta —
-        // po skasowaniu usera FK wyzeruje user_id i zapisów nie da się odnaleźć.
+        // GDPR: erasing enrollments (delete future, anonymize past) MUST run before account deletion —
+        // after the user is deleted the FK nulls user_id and the enrollments can no longer be found.
         var order = inOrder(enrollmentErasureService, userRepository);
         order.verify(enrollmentErasureService).eraseForUser(userId);
         order.verify(userRepository).deleteById(userId);
@@ -164,7 +164,7 @@ class UserServiceTest {
 
         verify(authTokenRepository).deleteAllByUserId(userId);
         verify(userRepository).deleteById(userId);
-        // Organizator zawsze dostaje powiadomienie o usunięciu konta — tu bez listy zwolnionych miejsc.
+        // The organizer always gets an account-deletion notification — here without a list of freed spots.
         verify(enrollmentMailService).sendAccountSelfDeletedNotification(
                 eq(user.getFullName()), eq(user.getEmail()), argThat(java.util.List::isEmpty));
     }
@@ -219,7 +219,7 @@ class UserServiceTest {
         verify(userRepository).deleteById(abandonedId);
         verify(authTokenRepository).deleteAllByUserId(abandonedId);
         verify(jwtAuthenticationFilter).evictUser(abandonedId);
-        // Porzucone konto nie ma zapisów → żadnego maila do organizatora.
+        // An abandoned account has no enrollments → no mail to the organizer.
         verifyNoInteractions(enrollmentMailService);
     }
 

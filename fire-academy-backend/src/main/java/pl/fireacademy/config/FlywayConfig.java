@@ -36,7 +36,7 @@ public class FlywayConfig {
         Flyway flyway = config.load();
 
         if (resetOnStart) {
-            log.warn("DEV reset-on-start: czyszczę bazę (clean) i migruję od zera. Dane odbuduje seeder.");
+            log.warn("DEV reset-on-start: cleaning the database (clean) and migrating from scratch. The seeder will rebuild data.");
             flyway.clean();
         }
 

@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Usuwanie danych osobowych użytkownika z zapisów (RODO, art. 17). Jedno źródło prawdy dla obu ścieżek
- * usunięcia konta: panel admina ({@code AdminUserService.delete}) i samodzielne ({@code UserService.deleteMe}).
+ * Erasure of a user's personal data from enrollments (GDPR, art. 17). Single source of truth for both
+ * account-deletion paths: the admin panel ({@code AdminUserService.delete}) and self-service ({@code UserService.deleteMe}).
  * <p>
- * Przyszłe zapisy kasujemy (miejsce wraca do puli), przeszłe anonimizujemy (archiwum zostaje bez PII,
- * {@code user_id} → null). Wywoływać <b>przed</b> usunięciem konta — po skasowaniu usera FK
- * {@code ON DELETE SET NULL} zeruje powiązanie i zapisów nie da się już odnaleźć po {@code user_id}.
+ * Future enrollments are deleted (the spot returns to the pool), past ones are anonymized (the archive stays without PII,
+ * {@code user_id} → null). Must be called <b>before</b> deleting the account — once the user is deleted the FK
+ * {@code ON DELETE SET NULL} nulls the link and the enrollments can no longer be found by {@code user_id}.
  */
 @Service
 public class EnrollmentErasureService {
@@ -26,12 +26,12 @@ public class EnrollmentErasureService {
 
     @Transactional
     public ErasureResult eraseForUser(UUID userId) {
-        // Bieżące (current) = przyszłe/trwające → kasujemy (miejsce wraca do puli);
-        // archiwalne (past) → anonimizujemy. Ten sam podział co widoki rezerwacji.
+        // Current = future/ongoing → deleted (the spot returns to the pool);
+        // archived (past) → anonymized. The same split as the reservation views.
         var split = EnrollmentTimeline.split(enrollmentRepository.findByUserIdOrderByCreatedAtDesc(userId));
         List<Enrollment> future = split.current();
         List<Enrollment> past = split.past();
-        // Wydarzenia, z których zwolniliśmy miejsce — do powiadomienia organizatora (zbieramy przed delete).
+        // Events from which we freed a spot — for notifying the organizer (collected before delete).
         List<Event> freedEvents = future.stream().map(Enrollment::getEvent).toList();
 
         if (!future.isEmpty()) {

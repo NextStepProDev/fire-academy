@@ -52,7 +52,7 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
 
   if (!isOpen || !user) return null
 
-  // Brak wymaganych danych LUB niezaakceptowana polityka prywatności → najpierw domknij konto.
+  // Missing required data OR privacy policy not accepted → complete the account first.
   const incompleteProfile = needsProfileCompletion(user)
 
   return (

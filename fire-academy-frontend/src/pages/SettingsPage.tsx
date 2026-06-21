@@ -41,7 +41,7 @@ export function SettingsPage() {
 
   const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    e.target.value = '' // pozwól wybrać ten sam plik ponownie
+    e.target.value = '' // allow selecting the same file again
     if (!file) return
     if (!file.type.startsWith('image/')) {
       showToast(t('avatar.invalidType'), 'error')
@@ -142,7 +142,7 @@ export function SettingsPage() {
     }
   }
 
-  // "Zapisz" / "Anuluj" aktywne tylko, gdy faktycznie coś zmieniono względem zapisanych danych.
+  // "Save" / "Cancel" enabled only when something was actually changed relative to the saved data.
   const isProfileDirty =
     firstName !== (user?.firstName ?? '') ||
     lastName !== (user?.lastName ?? '') ||

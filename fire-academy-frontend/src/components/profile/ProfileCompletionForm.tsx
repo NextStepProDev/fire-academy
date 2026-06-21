@@ -16,20 +16,20 @@ const FIELD_INPUT_TYPE: Record<ProfileField, string> = { firstName: 'text', last
 const FIELD_AUTOCOMPLETE: Record<ProfileField, string> = { firstName: 'given-name', lastName: 'family-name', phone: 'tel' }
 
 interface ProfileCompletionFormProps {
-  /** Etykieta przycisku zatwierdzenia (domyślnie „Zapisz i kontynuuj"). */
+  /** Submit button label (defaults to "Zapisz i kontynuuj"). */
   submitLabel?: string
 }
 
 /**
- * Formularz domknięcia konta po rejestracji/logowaniu: brakujące wymagane pola profilu
- * (imię, nazwisko, telefon) oraz — dla kont Google bez zgody — obowiązkowa akceptacja
- * polityki prywatności (RODO) i opcjonalna zgoda marketingowa. Renderuje tylko to, czego
- * brakuje, zapisuje na koncie i odświeża usera w `AuthContext`; komponent nadrzędny reaguje
- * na zmianę usera (braki znikają), więc nie potrzebuje callbacku.
+ * Account completion form after registration/login: missing required profile fields
+ * (first name, last name, phone) and — for Google accounts without consent — mandatory acceptance
+ * of the privacy policy (GDPR) and optional marketing consent. Renders only what is
+ * missing, saves it to the account and refreshes the user in `AuthContext`; the parent component reacts
+ * to the user change (the gaps disappear), so it doesn't need a callback.
  *
- * Walidacja jest per-pole: niepoprawne pola dostają czerwoną ramkę i komunikat tuż pod nimi
- * (a nie jeden ogólny błąd na dole), żeby od razu było widać, czego brakuje — np. telefonu,
- * a nie zgody marketingowej.
+ * Validation is per-field: invalid fields get a red border and a message right below them
+ * (rather than one generic error at the bottom), so it's immediately clear what's missing — e.g. the phone,
+ * not the marketing consent.
  */
 export function ProfileCompletionForm({ submitLabel }: ProfileCompletionFormProps) {
   const { t } = useTranslation(['settings', 'auth'])
@@ -48,7 +48,7 @@ export function ProfileCompletionForm({ submitLabel }: ProfileCompletionFormProp
 
   const setField = (field: ProfileField, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }))
-    // Skasuj błąd pola, gdy tylko user zaczyna je poprawiać.
+    // Clear the field error as soon as the user starts correcting it.
     setFieldErrors((prev) => {
       if (!prev[field]) return prev
       const next = { ...prev }
@@ -79,7 +79,7 @@ export function ProfileCompletionForm({ submitLabel }: ProfileCompletionFormProp
     setLoading(true)
     try {
       if (missing.length > 0) {
-        // Pola spoza listy braków zachowują dotychczasowe wartości z konta.
+        // Fields not in the missing list keep their existing account values.
         await authApi.updateProfile(
           missing.includes('firstName') ? values.firstName.trim() : user.firstName,
           missing.includes('lastName') ? values.lastName.trim() : user.lastName,

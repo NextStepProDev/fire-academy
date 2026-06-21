@@ -26,7 +26,7 @@ class MailDispatcherTest {
     void setUp() {
         AppConfig appConfig = new AppConfig();
         appConfig.getMail().setFrom("noreply@test.com");
-        // Zerowy backoff — test bez realnego oczekiwania.
+        // Zero backoff — test without real waiting.
         dispatcher = new MailDispatcher(mailSender, appConfig, 3, new long[]{0, 0});
         when(mailSender.createMimeMessage()).thenAnswer(inv -> new MimeMessage((Session) null));
     }

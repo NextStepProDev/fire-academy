@@ -20,7 +20,7 @@ class AbandonedAccountCleanupSchedulerTest {
 
         scheduler.purgeAbandonedAccounts();
 
-        // Próg musi pochodzić z konfiguracji, nie być zaszyty na stałe.
+        // The threshold must come from configuration, not be hardcoded.
         verify(userService).purgeAbandonedUnconsentedAccounts(30);
     }
 

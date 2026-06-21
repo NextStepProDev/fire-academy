@@ -72,14 +72,14 @@ class UserTest {
         for (int i = 0; i < 5; i++) {
             user.incrementFailedLoginAttempts();
         }
-        // Symulujemy wygaśnięcie 15-minutowej blokady (licznik wciąż na progu).
+        // We simulate the 15-minute lockout expiring (the counter is still at the threshold).
         Field lockedField = User.class.getDeclaredField("lockedUntil");
         lockedField.setAccessible(true);
         lockedField.set(user, Instant.now().minusSeconds(1));
 
         user.incrementFailedLoginAttempts();
 
-        // Po wygaśnięciu pierwsza pomyłka liczy się jako 1 i NIE blokuje od razu.
+        // After expiry the first failure counts as 1 and does NOT lock immediately.
         assertEquals(1, user.getFailedLoginAttempts());
         assertFalse(user.isAccountLocked());
     }

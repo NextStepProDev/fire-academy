@@ -8,9 +8,9 @@ export function TrainingsPage() {
   const { t } = useTranslation('account')
   const { isAuthenticated, isAdmin, user } = useAuth()
 
-  // Pasek personalizowany — logowanie jest powiązane z treningami. Sama lista treningów
-  // (terminy, rodzaje, kadra) pozostaje w pełni publiczna w <EventsPage />.
-  // Adminowi nie pokazujemy paska usera (ma własny panel).
+  // Personalized banner — login is tied to trainings. The training list itself
+  // (events, event types, instructors) stays fully public in <EventsPage />.
+  // We don't show the user banner to an admin (they have their own panel).
   const banner = isAdmin ? null : isAuthenticated ? (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3">
       <p className="text-surface-200 text-sm">{t('banner.loggedIn', { name: user?.firstName })}</p>

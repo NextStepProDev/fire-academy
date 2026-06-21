@@ -30,8 +30,8 @@ export function OAuthCallbackPage() {
       expiresIn: Number(expiresIn),
     })
       .then((loggedInUser) => {
-        // Brak wymaganych danych (np. telefon po rejestracji przez Google) lub niedomknięta
-        // zgoda na politykę prywatności → uzupełnij; returnTo zostaje zapamiętany.
+        // Missing required data (e.g. phone after Google registration) or pending
+        // privacy policy consent → complete it; returnTo is preserved.
         if (needsProfileCompletion(loggedInUser)) {
           navigate('/uzupelnij-profil', { replace: true })
         } else {

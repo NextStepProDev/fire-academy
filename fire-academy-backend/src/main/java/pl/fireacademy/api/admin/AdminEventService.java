@@ -169,8 +169,8 @@ public class AdminEventService {
             if (!force) {
                 throw new IllegalStateException(msg.get("event.has.enrollments"));
             }
-            // Termin przeszły (archiwum) → ciche usunięcie zapisów (wydarzenie już było).
-            // Termin przyszły/aktywny → powiadamiamy zapisanych o odwołaniu, zanim skasujemy zapisy.
+            // Past event (archive) → silent deletion of enrollments (the event already happened).
+            // Future/active event → notify the enrolled about the cancellation before we delete the enrollments.
             if (!event.isPastOn(LocalDate.now())) {
                 var schedule = EnrollmentMailService.formatSchedule(event);
                 for (Enrollment enrollment : enrollments) {

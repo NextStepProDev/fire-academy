@@ -53,7 +53,7 @@ export interface UserEnrollment {
   createdAt: string
 }
 
-// Zapis własny zalogowanego użytkownika („Moje rezerwacje"). Dane uczestnika pochodzą z konta.
+// A logged-in user's own enrollment ("My reservations"). Participant data comes from the account.
 export interface MyEnrollment {
   id: string
   eventId: string

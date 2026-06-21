@@ -44,7 +44,7 @@ class SitemapControllerIntegrationTest extends BaseIntegrationTest {
             .andReturn();
 
         List<String> locs = parseLocs(result);
-        // Statyczne strony zawsze obecne — to one trzymają indeks głównych zakładek.
+        // Static pages are always present — they hold the index of the main tabs.
         assertTrue(locs.contains(BASE + "/"));
         assertTrue(locs.contains(BASE + "/treningi"));
         assertTrue(locs.contains(BASE + "/obozy"));
@@ -94,18 +94,18 @@ class SitemapControllerIntegrationTest extends BaseIntegrationTest {
             .andReturn();
 
         List<String> locs = parseLocs(result);
-        // Aktywne i bieżące są w sitemapie.
+        // Active and current entities are in the sitemap.
         assertTrue(locs.contains(BASE + "/treningi/termin/" + futureEventId));
         assertTrue(locs.contains(BASE + "/obozy/rodzaj/" + activeTypeId));
         assertTrue(locs.contains(BASE + "/kadra/" + activeInstructorId));
-        // Przeszłe i nieaktywne nie mogą trafić do sitemapy (SEO: brak martwych/ukrytych URL-i).
+        // Past and inactive entities must not reach the sitemap (SEO: no dead/hidden URLs).
         assertFalse(locs.contains(BASE + "/treningi/termin/" + pastEventId));
         assertFalse(locs.contains(BASE + "/obozy/termin/" + inactiveEventId));
         assertFalse(locs.contains(BASE + "/szkolenia/rodzaj/" + inactiveTypeId));
         assertFalse(locs.contains(BASE + "/kadra/" + inactiveInstructorId));
     }
 
-    /** Parsuje odpowiedź jako XML (twarda gwarancja poprawnej struktury) i wyciąga wszystkie {@code <loc>}. */
+    /** Parses the response as XML (a hard guarantee of correct structure) and extracts all {@code <loc>}. */
     private List<String> parseLocs(MvcResult result) throws Exception {
         byte[] body = result.getResponse().getContentAsByteArray();
         var factory = DocumentBuilderFactory.newInstance();
@@ -118,7 +118,7 @@ class SitemapControllerIntegrationTest extends BaseIntegrationTest {
             locs.add(((Element) locNodes.item(i)).getTextContent());
         }
         assertFalse(locs.isEmpty(), "Sitemap nie może być pusta");
-        // Sanity: każdy wpis <url> ma dokładnie jeden <loc>.
+        // Sanity: each <url> entry has exactly one <loc>.
         assertEquals(doc.getElementsByTagName("url").getLength(), locs.size());
         return locs;
     }

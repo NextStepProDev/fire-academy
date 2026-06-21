@@ -152,7 +152,7 @@ class AdminEventServiceTest {
         event.setLocation("Kraków");
         event.setPrice(BigDecimal.valueOf(100));
         Enrollment enrollment = mock(Enrollment.class);
-        // Powiadomienie używa aktualnych danych konta (display*), nie migawki z chwili zapisu.
+        // The notification uses the current account data (display*), not the snapshot from enrollment time.
         when(enrollment.displayEmail()).thenReturn("user@test.com");
         when(enrollment.displayFirstName()).thenReturn("Jan");
 

@@ -17,7 +17,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // onClose w ref, by efekt nie restartował przy każdej nowej referencji callbacku
+  // onClose in a ref so the effect doesn't restart on every new callback reference
   const onCloseRef = useRef(onClose)
   useEffect(() => {
     onCloseRef.current = onClose
@@ -29,7 +29,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     document.body.style.overflow = 'hidden'
     const previouslyFocused = document.activeElement as HTMLElement | null
 
-    // Przenieś fokus do modala po otwarciu
+    // Move focus into the modal after opening
     const panel = panelRef.current
     const first = panel?.querySelector<HTMLElement>(FOCUSABLE)
     ;(first ?? panel)?.focus()
@@ -64,7 +64,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
-      // Przywróć fokus na element wyzwalający
+      // Restore focus to the triggering element
       previouslyFocused?.focus?.()
     }
   }, [isOpen])

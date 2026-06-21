@@ -94,9 +94,9 @@ class AdminUserServiceTest {
             "role,       desc, role,               DESC",
             "marketing,  asc,  marketingConsentAt, ASC",
             "created,    desc, createdAt,          DESC",
-            "phone,      asc,  createdAt,          ASC",   // telefon niesortowalny -> default
-            "garbage,    desc, createdAt,          DESC",  // wartość spoza whitelisty -> default
-            "'',         asc,  createdAt,          ASC"    // puste -> default
+            "phone,      asc,  createdAt,          ASC",   // phone is not sortable -> default
+            "garbage,    desc, createdAt,          DESC",  // value outside the whitelist -> default
+            "'',         asc,  createdAt,          ASC"    // empty -> default
     })
     void shouldResolveSortFromWhitelistOnly(String sort, String direction,
                                             String expectedProperty, Sort.Direction expectedDir) {
@@ -109,7 +109,7 @@ class AdminUserServiceTest {
         Sort.Order order = captor.getValue().getSort().getOrderFor(expectedProperty);
         assertNotNull(order, "Brak sortowania po " + expectedProperty);
         assertEquals(expectedDir, order.getDirection());
-        // Whitelist nie może przepuścić dowolnej właściwości (ochrona przed wstrzyknięciem w Sort).
+        // The whitelist must not let an arbitrary property through (protection against injection into Sort).
         captor.getValue().getSort().forEach(o ->
                 assertTrue(ALLOWED_SORT_PROPERTIES.contains(o.getProperty()),
                         "Niedozwolona właściwość sortowania: " + o.getProperty()));
@@ -176,7 +176,7 @@ class AdminUserServiceTest {
 
     @Test
     void shouldReturnPaginationMetadata() {
-        // 70 wszystkich, strona 1, rozmiar 30 → 3 strony
+        // 70 total, page 1, size 30 → 3 pages
         when(userRepository.findAll(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(regular), PageRequest.of(1, 30), 70));
 
@@ -194,7 +194,7 @@ class AdminUserServiceTest {
 
         service.list(null, 0, 5000, "created", "desc");
 
-        // rozmiar strony ograniczany do MAX_PAGE_SIZE (100)
+        // page size clamped to MAX_PAGE_SIZE (100)
         verify(userRepository).findAll(argThat((Pageable p) -> p.getPageSize() == 100));
     }
 
@@ -204,7 +204,7 @@ class AdminUserServiceTest {
 
         service.list(null, 0, 30, "name", "asc");
 
-        // „name" → sort po lastName (potem firstName), kierunek ASC
+        // „name" → sort by lastName (then firstName), direction ASC
         verify(userRepository).findAll(argThat((Pageable p) -> {
             var order = p.getSort().getOrderFor("lastName");
             return order != null && order.isAscending();
@@ -217,7 +217,7 @@ class AdminUserServiceTest {
 
         service.list(null, 0, 30, "phone", "asc");
 
-        // pole spoza whitelisty (np. telefon) → domyślnie createdAt
+        // field outside the whitelist (e.g. phone) → defaults to createdAt
         verify(userRepository).findAll(argThat((Pageable p) ->
                 p.getSort().getOrderFor("createdAt") != null
                         && p.getSort().getOrderFor("lastName") == null));
@@ -310,7 +310,7 @@ class AdminUserServiceTest {
         assertEquals(1, result.recipientCount());
         verify(userRepository).findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
         verify(userRepository, never()).findAllByOrderByCreatedAtDesc();
-        // Mail marketingowy dostaje token rezygnacji (niepusty), serwisowy dostawał null.
+        // A marketing mail gets an unsubscribe token (non-null); a service mail got null.
         verify(adminUserMailService).sendCustomMessage(
                 eq("jan@test.com"), eq("Jan"), eq("Nowy obóz!"), eq("Zapraszamy"), notNull());
     }
@@ -337,7 +337,7 @@ class AdminUserServiceTest {
 
         assertEquals(1, result.freedEnrollments());
         assertEquals(1, result.anonymizedEnrollments());
-        // Erasure musi pójść PRZED usunięciem konta (po delete FK wyzeruje user_id).
+        // Erasure must run BEFORE account deletion (after delete the FK nulls user_id).
         var order = inOrder(enrollmentErasureService, userRepository);
         order.verify(enrollmentErasureService).eraseForUser(regularId);
         order.verify(userRepository).delete(regular);

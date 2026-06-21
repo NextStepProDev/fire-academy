@@ -6,11 +6,11 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Podział zapisów na bieżące i archiwalne wg daty zakończenia terminu — jedno źródło prawdy dla
- * widoku „Moje rezerwacje", profilu użytkownika w panelu admina i usuwania danych (RODO).
+ * Splits enrollments into current and archived by the event's end date — single source of truth for
+ * the "My reservations" view, the user profile in the admin panel, and data erasure (GDPR).
  * <p>
- * Bieżące = termin trwa lub jest w przyszłości (sortowane rosnąco — najbliższe na górze),
- * archiwalne = termin zakończył się przed dziś (sortowane malejąco — najnowsze na górze).
+ * Current = the event is ongoing or in the future (sorted ascending — soonest on top),
+ * archived = the event ended before today (sorted descending — most recent on top).
  */
 public final class EnrollmentTimeline {
 

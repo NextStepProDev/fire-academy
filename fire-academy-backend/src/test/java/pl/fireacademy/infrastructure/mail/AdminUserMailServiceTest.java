@@ -62,7 +62,7 @@ class AdminUserMailServiceTest {
 
     @Test
     void shouldKeepSubjectRawWithoutHtmlEscaping() {
-        // Temat z polskimi znakami i znakami specjalnymi musi pozostać surowy (bez encji HTML).
+        // A subject with Polish and special characters must stay raw (no HTML entities).
         String subject = "Zniżka 50% <wyjątkowo> ąćę";
         service.sendCustomMessage("jan@test.com", "Jan", subject, "Treść", null);
 

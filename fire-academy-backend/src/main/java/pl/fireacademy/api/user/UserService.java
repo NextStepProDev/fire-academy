@@ -98,14 +98,14 @@ public class UserService {
                 throw new IllegalArgumentException(msg.get("user.password.invalid"));
             }
         }
-        // Dane do powiadomienia łapiemy przed usunięciem (po delete encja jest odłączona).
+        // We capture the data for the notification before deletion (after delete the entity is detached).
         String fullName = user.getFullName();
         String email = user.getEmail();
         var erasure = eraseAndDeleteAccount(user);
 
-        // Samodzielne usunięcie konta — organizator inaczej się o tym nie dowie. Zawsze jeden zbiorczy mail
-        // (przy usuwaniu z panelu admin sam zna wynik); gdy zwolniły się miejsca na przyszłych wydarzeniach,
-        // dołączamy ich listę.
+        // Self-service account deletion — the organizer wouldn't otherwise learn about it. Always one summary email
+        // (when deleting from the admin panel the admin already knows the result); when spots on future events were
+        // freed, we attach their list.
         List<String> eventLines = erasure.freedEvents().stream()
                 .map(ev -> ev.getDisplayName() + " — " + EnrollmentMailService.formatSchedule(ev))
                 .toList();
@@ -113,10 +113,10 @@ public class UserService {
     }
 
     /**
-     * Automatyczne czyszczenie porzuconych kont OAuth: założonych przy logowaniu (Google przekazuje
-     * imię/e-mail), które nigdy nie zaakceptowały polityki prywatności i są starsze niż próg. RODO —
-     * skoro user nie domknął zgody i nie wrócił, nie mamy podstawy dalej przechowywać jego danych.
-     * Wywoływane przez scheduler. Zwraca liczbę usuniętych kont.
+     * Automatic cleanup of abandoned OAuth accounts: created at login (Google passes
+     * name/e-mail) that never accepted the privacy policy and are older than the threshold. GDPR —
+     * since the user did not finalize consent and never came back, we have no basis to keep storing their data.
+     * Invoked by a scheduler. Returns the number of deleted accounts.
      */
     @Caching(evict = {
             @CacheEvict(value = CacheConfig.EVENTS, allEntries = true),
@@ -127,25 +127,25 @@ public class UserService {
         Instant cutoff = Instant.now().minus(Duration.ofDays(olderThanDays));
         List<User> abandoned = userRepository
                 .findByOauthProviderIsNotNullAndPrivacyAcceptedAtIsNullAndCreatedAtBefore(cutoff);
-        // Porzucone konta nie mają zapisów (backend blokuje zapis bez zgody), więc nie wysyłamy
-        // powiadomień o zwolnionych miejscach — samo skasowanie danych.
+        // Abandoned accounts have no enrollments (the backend blocks enrollment without consent), so we don't send
+        // freed-spot notifications — just delete the data.
         abandoned.forEach(this::eraseAndDeleteAccount);
         return abandoned.size();
     }
 
-    // Wspólny „ogon" usunięcia konta: anonimizacja/zwolnienie zapisów (RODO), skasowanie avatara,
-    // tokenów, samego konta i eksmisja z cache filtra JWT. Wołać w transakcji, po weryfikacji uprawnień.
+    // The shared "tail" of account deletion: anonymizing/freeing enrollments (GDPR), deleting the avatar,
+    // tokens, the account itself, and eviction from the JWT filter cache. Call within a transaction, after permission checks.
     private EnrollmentErasureService.ErasureResult eraseAndDeleteAccount(User user) {
         UUID userId = user.getId();
-        // Przyszłe zapisy zwalniamy, przeszłe anonimizujemy — PRZED skasowaniem konta
-        // (po delete FK wyzeruje user_id i zapisów nie da się odnaleźć). Wspólna logika z panelem admina.
+        // Future enrollments are freed, past ones anonymized — BEFORE deleting the account
+        // (after delete the FK nulls user_id and the enrollments can't be found). Shared logic with the admin panel.
         var erasure = enrollmentErasureService.eraseForUser(userId);
         if (user.getAvatarFilename() != null) {
             fileStorageService.delete(AVATAR_FOLDER, user.getAvatarFilename());
         }
         authTokenRepository.deleteAllByUserId(userId);
         userRepository.deleteById(userId);
-        // Bez tego usunięty user nadal uwierzytelniałby się z cache filtra JWT przez ~60s.
+        // Without this, a deleted user would still authenticate from the JWT filter cache for ~60s.
         jwtAuthenticationFilter.evictUser(userId);
         return erasure;
     }
@@ -183,7 +183,7 @@ public class UserService {
     public UserDtos.UserResponse updateMarketing(UUID userId, UserDtos.UpdateMarketingRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        // Włączenie ustawia moment zgody (jeśli jeszcze brak), wyłączenie ją zeruje — pełne wycofanie zgody (RODO).
+        // Enabling sets the consent moment (if not already present), disabling clears it — full consent withdrawal (GDPR).
         if (request.enabled()) {
             if (!user.hasMarketingConsent()) {
                 user.setMarketingConsentAt(Instant.now());
@@ -200,15 +200,15 @@ public class UserService {
     public UserDtos.UserResponse submitConsents(UUID userId, UserDtos.ConsentsRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
-        // Polityka prywatności obowiązkowa, dopóki nie była zaakceptowana (domknięcie kont Google — RODO).
-        // Konta email/hasło mają ją już ustawioną przy rejestracji, więc tu jej nie wymuszamy ponownie.
+        // Privacy policy mandatory until it has been accepted (completing Google accounts — GDPR).
+        // Email/password accounts already have it set at registration, so we don't enforce it again here.
         if (!user.hasPrivacyAccepted()) {
             if (!request.acceptedPrivacy()) {
                 throw new IllegalArgumentException(msg.get("validation.privacy.required"));
             }
             user.setPrivacyAcceptedAt(Instant.now());
         }
-        // Marketing dobrowolny — ustawiamy tylko, gdy zaznaczony i jeszcze nieudzielony.
+        // Marketing voluntary — we set it only when checked and not yet granted.
         if (request.acceptedMarketing() && !user.hasMarketingConsent()) {
             user.setMarketingConsentAt(Instant.now());
         }

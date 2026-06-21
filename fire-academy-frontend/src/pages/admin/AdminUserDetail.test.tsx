@@ -76,7 +76,7 @@ describe('AdminUserDetail', () => {
     await renderDetail({ currentEnrollments: [currentEnrollment], pastEnrollments: [pastEnrollment] })
     expect(await screen.findByText('Jan Kowalski')).toBeInTheDocument()
     expect(screen.getByText('Trening personalny')).toBeInTheDocument()
-    // Archiwum jest domyślnie zwinięte — rozwiń, zanim sprawdzisz zawartość.
+    // The archive is collapsed by default — expand it before checking its contents.
     await user.click(screen.getByRole('button', { expanded: false, name: /Archiwum/ }))
     expect(screen.getByText('Obóz zimowy')).toBeInTheDocument()
   })

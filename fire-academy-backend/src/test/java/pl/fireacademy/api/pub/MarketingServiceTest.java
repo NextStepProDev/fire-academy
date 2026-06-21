@@ -46,7 +46,7 @@ class MarketingServiceTest {
 
         service.unsubscribe(token.toString());
 
-        // Brak zgody → nic nie zapisujemy, ale też nie rzucamy wyjątkiem.
+        // No consent → we save nothing, but also do not throw.
         verify(userRepository, never()).save(any());
     }
 

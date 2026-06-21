@@ -1,8 +1,8 @@
 package pl.fireacademy.api;
 
 /**
- * Rzucany, gdy żądany zasób nie istnieje (lub jest nieaktywny/ukryty dla żądającego).
- * Mapowany na HTTP 404 w {@link GlobalExceptionHandler}.
+ * Thrown when the requested resource does not exist (or is inactive/hidden for the requester).
+ * Mapped to HTTP 404 in {@link GlobalExceptionHandler}.
  */
 public class NotFoundException extends RuntimeException {
     public NotFoundException(String message) {

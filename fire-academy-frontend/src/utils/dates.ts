@@ -19,10 +19,10 @@ export function formatDateRange(start: string, end: string | null): string {
 }
 
 /**
- * Formatuje termin jako jeden ciągły blok „od początku do końca".
- * Wielodniowy z godzinami: godzina przyklejona do swojej daty (start pierwszego dnia → koniec
- * ostatniego), żeby nie sugerować „codziennie w tych godzinach", np.
- * „15 lip 2026, 09:00 – 18 lip 2026, 16:00". Jednodniowy: „30 maj 2026, 10:00 – 11:30".
+ * Formats a schedule as a single continuous block "from start to end".
+ * Multi-day with times: the time is stuck to its own date (start of the first day → end of
+ * the last), so as not to suggest "every day during these hours", e.g.
+ * "15 lip 2026, 09:00 – 18 lip 2026, 16:00". Single day: "30 maj 2026, 10:00 – 11:30".
  */
 export function formatSchedule(
   startDate: string,

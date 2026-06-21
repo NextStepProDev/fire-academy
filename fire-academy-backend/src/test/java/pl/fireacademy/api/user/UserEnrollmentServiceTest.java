@@ -194,8 +194,8 @@ class UserEnrollmentServiceTest {
 
     @Test
     void shouldUseCurrentAccountDataInCancellationNotification() {
-        // Zapis trzyma migawkę z chwili rejestracji (Anna Nowak). Po zmianie nazwiska w profilu
-        // powiadomienie do organizatora ma pokazać AKTUALNE dane konta, spójnie z listą uczestników.
+        // The enrollment holds a snapshot from registration time (Anna Nowak). After a surname change
+        // in the profile, the organizer notification must show the CURRENT account data, consistent with the roster.
         Enrollment enrollment = Enrollment.forUser(activeEvent, user, null, false);
         user.setLastName("Kowalska");
         UUID enrollmentId = UUID.randomUUID();

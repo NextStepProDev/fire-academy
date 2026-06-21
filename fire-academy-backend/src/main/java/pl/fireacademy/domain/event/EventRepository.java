@@ -14,9 +14,9 @@ import java.util.UUID;
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
     /**
-     * Terminy „bieżące" do widoków publicznych (lista, sitemap): aktywne i jeszcze niezakończone.
-     * Liczone po dacie zakończenia (a gdy jej brak — po dacie rozpoczęcia), żeby wydarzenie wielodniowe
-     * w trakcie trwania nie znikało ze strony przed swoim faktycznym końcem.
+     * "Current" events for public views (list, sitemap): active and not yet finished.
+     * Computed by the end date (or, when absent, by the start date) so that a multi-day event
+     * in progress does not disappear from the page before its actual end.
      */
     @Query("""
             SELECT e FROM Event e

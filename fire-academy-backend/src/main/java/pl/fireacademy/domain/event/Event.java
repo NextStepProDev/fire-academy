@@ -98,17 +98,17 @@ public class Event {
         return eventType != null ? eventType.getName() : customName;
     }
 
-    /** Ostatni dzień terminu: wielodniowy → {@code endDate}, jednodniowy → {@code startDate}. */
+    /** Last day of the event: multi-day → {@code endDate}, single-day → {@code startDate}. */
     public LocalDate effectiveEndDate() {
         return endDate != null ? endDate : startDate;
     }
 
-    /** Początek terminu jako data-godzina; brak godziny → początek dnia. */
+    /** Start of the event as a date-time; no time → start of day. */
     public LocalDateTime startDateTime() {
         return startTime != null ? startDate.atTime(startTime) : startDate.atStartOfDay();
     }
 
-    /** Czy termin zakończył się przed podanym dniem (należy do archiwum). */
+    /** Whether the event ended before the given day (belongs to the archive). */
     public boolean isPastOn(LocalDate today) {
         return effectiveEndDate().isBefore(today);
     }

@@ -28,7 +28,7 @@ public class MarketingService {
         try {
             parsed = UUID.fromString(token.trim());
         } catch (IllegalArgumentException e) {
-            // Token nie jest poprawnym UUID — nie ujawniamy tego, traktujemy jak brak konta.
+            // The token is not a valid UUID — we don't reveal that, we treat it as no account.
             return;
         }
         userRepository.findByMarketingUnsubscribeToken(parsed).ifPresent(user -> {

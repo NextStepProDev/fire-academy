@@ -281,8 +281,8 @@ public class User {
     }
 
     public void incrementFailedLoginAttempts() {
-        // Po wygaśnięciu poprzedniej blokady liczymy od nowa — inaczej pierwsza pomyłka po
-        // wygaśnięciu (licznik wciąż na progu) zablokowałaby konto natychmiast.
+        // After the previous lockout expires we count from scratch — otherwise the first failure after
+        // expiry (with the counter still at the threshold) would lock the account immediately.
         if (lockedUntil != null && Instant.now().isAfter(lockedUntil)) {
             this.failedLoginAttempts = 0;
             this.lockedUntil = null;

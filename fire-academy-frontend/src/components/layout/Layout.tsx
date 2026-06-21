@@ -4,9 +4,9 @@ import { Footer } from './Footer'
 import { useAuth } from '../../context/AuthContext'
 import { needsProfileCompletion } from '../../utils/profileCompletion'
 
-// Trasy dostępne dla zalogowanego usera, który nie domknął jeszcze konta (brak danych lub
-// niezaakceptowana polityka prywatności). Wszystko inne jest zablokowane do czasu akceptacji
-// — RODO: bez zgody na politykę nie pozwalamy korzystać z aplikacji.
+// Routes available to a logged-in user who hasn't completed their account yet (missing data or
+// privacy policy not accepted). Everything else is blocked until acceptance
+// — GDPR: without consent to the policy we don't allow using the app.
 const COMPLETION_ALLOWED_PATHS = ['/uzupelnij-profil', '/polityka-prywatnosci', '/oauth-callback']
 
 export function Layout() {
@@ -14,8 +14,8 @@ export function Layout() {
   const isHome = location.pathname === '/'
   const { user, isLoading } = useAuth()
 
-  // Twarda bramka: dopóki konto nie jest domknięte, kierujemy na uzupełnienie (i tam jest też
-  // opcja „nie akceptuję — usuń konto"). Czekamy aż user się załaduje, by nie migać redirectem.
+  // Hard gate: until the account is completed we redirect to the completion page (which also has
+  // the "I don't accept — delete account" option). We wait for the user to load to avoid a redirect flash.
   if (!isLoading && needsProfileCompletion(user) && !COMPLETION_ALLOWED_PATHS.includes(location.pathname)) {
     return <Navigate to="/uzupelnij-profil" replace />
   }

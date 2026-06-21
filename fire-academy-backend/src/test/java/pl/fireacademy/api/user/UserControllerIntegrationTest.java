@@ -138,7 +138,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 .content("{\"password\":\"DeleteMe123\"}"))
             .andExpect(status().isNoContent());
 
-        // Konto usunięte, przyszły zapis skasowany (miejsce wolne), przeszły zanonimizowany i odłączony.
+        // Account deleted, future enrollment removed (spot freed), past one anonymized and detached.
         assertTrue(userRepository.findById(user.getId()).isEmpty());
         assertTrue(enrollmentRepository.findById(future.getId()).isEmpty());
         Enrollment archived = enrollmentRepository.findById(past.getId()).orElseThrow();
@@ -186,7 +186,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 .content("{\"acceptedPrivacy\":false,\"acceptedMarketing\":false}"))
             .andExpect(status().isBadRequest());
 
-        // Polityka obowiązkowa: brak akceptacji nie może zapisać żadnej zgody.
+        // Privacy policy is mandatory: declining must not save any consent.
         User refreshed = userRepository.findById(user.getId()).orElseThrow();
         assertFalse(refreshed.hasPrivacyAccepted());
         assertFalse(refreshed.hasMarketingConsent());

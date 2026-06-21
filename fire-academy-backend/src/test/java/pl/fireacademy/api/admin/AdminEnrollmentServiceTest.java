@@ -112,7 +112,7 @@ class AdminEnrollmentServiceTest {
         EnrollmentResponse result = service.adminEnroll(request);
 
         assertNull(result.phone());
-        // Mail do organizatora dostaje placeholder „—" zamiast null (brak NPE w szablonie).
+        // The organizer mail gets the placeholder „—" instead of null (no NPE in the template).
         verify(enrollmentMailService).sendAdminEnrollmentNotification(
             eq("Trening personalny"), eq("Anna Nowak"), eq("anna@test.com"),
             eq("—"), any(), any(), any(), any());
@@ -147,7 +147,7 @@ class AdminEnrollmentServiceTest {
         service.delete(enrollmentId, false);
 
         verify(enrollmentRepository).delete(enrollment);
-        // Korekta archiwum — żadnych maili.
+        // Archive correction — no mails.
         verifyNoInteractions(enrollmentMailService);
     }
 

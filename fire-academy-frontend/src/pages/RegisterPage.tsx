@@ -35,7 +35,7 @@ export function RegisterPage() {
 
   const updateField = (field: FieldKey, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
-    // Skasuj błąd pola, gdy tylko user zaczyna je poprawiać.
+    // Clear the field error as soon as the user starts correcting it.
     setFieldErrors((prev) => {
       if (!prev[field]) return prev
       const next = { ...prev }
@@ -44,7 +44,7 @@ export function RegisterPage() {
     })
   }
 
-  /** Sprawdza wszystkie pola naraz i przypisuje błąd do konkretnego pola (nie jeden ogólny komunikat). */
+  /** Validates all fields at once and assigns the error to the specific field (not one generic message). */
   const validate = () => {
     const errs: Partial<Record<FieldKey, string>> = {}
     const fnErr = validateName(form.firstName)
@@ -57,7 +57,7 @@ export function RegisterPage() {
     if (phoneErr) errs.phone = phoneErr
     const pwErr = validatePassword(form.password, form.confirmPassword)
     if (pwErr) {
-      // Niezgodność haseł podświetla pole potwierdzenia; za krótkie hasło — pole hasła.
+      // A password mismatch highlights the confirm field; a too-short password — the password field.
       if (form.password !== form.confirmPassword) errs.confirmPassword = pwErr
       else errs.password = pwErr
     }

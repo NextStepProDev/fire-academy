@@ -29,7 +29,7 @@ export function EventsPage({ category }: EventsPageProps) {
   const guardEnroll = useEnrollGuard()
   const queryClient = useQueryClient()
 
-  // Zapis wymaga konta — gość trafia na logowanie, zalogowany otwiera modal potwierdzenia.
+  // Enrollment requires an account — a guest is sent to login, a logged-in user opens the confirmation modal.
   const openEnroll = (eventId: string, eventName: string) =>
     guardEnroll(() => {
       setEnrollEventId(eventId)
@@ -121,7 +121,7 @@ export function EventsPage({ category }: EventsPageProps) {
       />
       <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{pageTitle}</h1>
 
-      {/* Terminy */}
+      {/* Events */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.terminy')}</h2>
         {eventsQuery.isLoading ? (
@@ -143,7 +143,7 @@ export function EventsPage({ category }: EventsPageProps) {
         )}
       </section>
 
-      {/* Rodzaje */}
+      {/* Event types */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t(`sections.rodzaje_${category}`)}</h2>
         {eventTypesQuery.isLoading ? (
@@ -159,7 +159,7 @@ export function EventsPage({ category }: EventsPageProps) {
         )}
       </section>
 
-      {/* O nas */}
+      {/* About us */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.oNas')}</h2>
         {instructorsQuery.isLoading ? (

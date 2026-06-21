@@ -29,8 +29,8 @@ public final class AdminUserDtos {
             Instant createdAt
     ) {}
 
-    // audience: MARKETING (tylko zgody marketingowe + link rezygnacji), ALL (komunikat serwisowy do wszystkich),
-    // SELECTED (wybrane osoby z userIds). Walidacja wartości w serwisie.
+    // audience: MARKETING (marketing consents only + unsubscribe link), ALL (service announcement to everyone),
+    // SELECTED (selected people from userIds). Value validation in the service.
     public record SendEmailRequest(
             @NotBlank @Size(max = 200, message = "{validation.email.subject.size}") String subject,
             @NotBlank @Size(max = 10000, message = "{validation.email.message.size}") String message,

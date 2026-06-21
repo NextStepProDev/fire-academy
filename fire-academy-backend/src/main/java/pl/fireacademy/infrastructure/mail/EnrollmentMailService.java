@@ -296,10 +296,10 @@ public class EnrollmentMailService {
     }
 
     /**
-     * Jeden zbiorczy mail do organizatorów: uczestnik samodzielnie usunął konto. Wysyłany ZAWSZE przy
-     * samodzielnym usunięciu (przy usunięciu z panelu admin sam zna wynik). Gdy usunięcie zwolniło miejsca
-     * na przyszłych wydarzeniach, mail zawiera dodatkowo ich listę.
-     * {@code eventLines} to gotowe wiersze „nazwa — termin" (budowane w warstwie aplikacji, w transakcji).
+     * A single combined email to the organizers: a participant deleted their own account. Sent ALWAYS on
+     * self-deletion (on deletion from the admin panel, the admin already knows the result). When the deletion freed
+     * spots on future events, the email additionally contains their list.
+     * {@code eventLines} are ready-made "name — date" lines (built in the application layer, within the transaction).
      */
     @Async("mailExecutor")
     public void sendAccountSelfDeletedNotification(String participantName, String participantEmail,
@@ -331,7 +331,7 @@ public class EnrollmentMailService {
                 seatsHtml
         );
 
-        // Branding neutralny (Fire Academy) — lista może obejmować różne kategorie.
+        // Neutral branding (Fire Academy) — the list may span different categories.
         String body = brandedTemplate(content, EventCategory.TRAINING);
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
             sendEmail(adminEmail, subject, body);
@@ -392,13 +392,13 @@ public class EnrollmentMailService {
     }
 
     /**
-     * Formatuje termin wydarzenia jako jeden ciągły blok „od początku do końca".
+     * Formats the event date as a single continuous "from start to end" block.
      * <p>
-     * Wielodniowe: godzina jest przyklejona do swojej daty (początek pierwszego dnia → koniec
-     * ostatniego), żeby nie sugerować „codziennie w tych godzinach" — np.
-     * „15.07.2026, 09:00 – 18.07.2026, 16:00". Jednodniowe: „30.05.2026, 10:00–11:30".
+     * Multi-day: the time is glued to its date (start of the first day → end of the
+     * last), so as not to suggest "every day at these hours" — e.g.
+     * "15.07.2026, 09:00 – 18.07.2026, 16:00". Single-day: "30.05.2026, 10:00–11:30".
      * <p>
-     * Wywoływane w obrębie transakcji (przed granicą @Async), żeby uniknąć lazy-loadingu odłączonej encji.
+     * Called within the transaction (before the @Async boundary), to avoid lazy-loading a detached entity.
      */
     public static String formatSchedule(Event event) {
         LocalDate start = event.getStartDate();
@@ -465,7 +465,7 @@ public class EnrollmentMailService {
 
     private String brandedTemplate(String content, EventCategory category) {
         String siteUrl = appConfig.getSiteUrl();
-        // Logo FIRE CAMP tylko dla obozów; pozostałe sekcje (treningi/szkolenia) → ACADEMY FIRE.
+        // FIRE CAMP logo only for camps; other sections (trainings/courses) → ACADEMY FIRE.
         boolean camp = category == EventCategory.CAMP;
         String logoUrl = siteUrl + (camp ? "/images/logo/logo-white.png" : "/images/logo/logo-academy-fire-white.png");
         String logoAlt = camp ? "Fire Camp" : "Fire Academy";

@@ -10,12 +10,12 @@ import { ProfileCompletionForm } from '../components/profile/ProfileCompletionFo
 import { Button } from '../components/ui/Button'
 
 /**
- * Strona uzupełniania profilu po rejestracji/logowaniu, gdy brakuje wymaganych danych
- * (typowo telefonu po rejestracji przez Google) lub niezaakceptowanej polityki prywatności.
- * Pełni rolę twardej bramki (patrz Layout): bez domknięcia konta user nie wejdzie nigdzie indziej.
- * Gdy polityka nie jest zaakceptowana, oferujemy też wyjście „nie akceptuję — usuń konto",
- * by user mógł skasować swoje dane bez konieczności korzystania z reszty aplikacji (RODO).
- * Po zapisaniu danych user zostaje przekierowany tam, skąd przyszedł (returnTo) lub na „Moje konto".
+ * Profile completion page after registration/login, when required data is missing
+ * (typically the phone after Google registration) or the privacy policy hasn't been accepted.
+ * Acts as a hard gate (see Layout): without completing the account the user can't go anywhere else.
+ * When the policy isn't accepted, we also offer an exit "I don't accept — delete account",
+ * so the user can erase their data without having to use the rest of the app (GDPR).
+ * After saving the data the user is redirected to where they came from (returnTo) or to "My account".
  */
 export function ProfileCompletionPage() {
   const { t } = useTranslation('settings')
@@ -28,7 +28,7 @@ export function ProfileCompletionPage() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    // Profil kompletny i zgody domknięte (wejście wprost lub po zapisaniu) → kontynuuj ścieżkę.
+    // Profile complete and consents settled (direct entry or after saving) → continue the path.
     if (user && !incomplete) {
       navigate(consumeRedirectPath() || '/moje-konto', { replace: true })
     }
@@ -36,7 +36,7 @@ export function ProfileCompletionPage() {
 
   if (!user || !incomplete) return null
 
-  // Konta Google nie mają hasła, więc usunięcie nie wymaga jego potwierdzenia.
+  // Google accounts have no password, so deletion doesn't require confirming it.
   const handleDecline = async () => {
     setDeleting(true)
     try {

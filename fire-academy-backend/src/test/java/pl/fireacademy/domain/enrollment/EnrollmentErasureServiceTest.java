@@ -40,7 +40,7 @@ class EnrollmentErasureServiceTest {
 
         assertEquals(1, result.freed());
         assertEquals(1, result.anonymized());
-        // Zwolnione wydarzenie udostępnione do powiadomienia organizatora.
+        // The freed event is exposed for the organizer notification.
         assertEquals(1, result.freedEvents().size());
         assertSame(futureEvent, result.freedEvents().getFirst());
         verify(enrollmentRepository).deleteAll(List.of(future));
