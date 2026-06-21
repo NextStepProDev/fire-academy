@@ -1,6 +1,6 @@
 -- Status płatności za trening: jeden rekord = opłacony miesiąc danej subskrypcji.
 -- Obecność rekordu (enrollment_id, year_month) = opłacone; brak = nieopłacone.
--- Płatność realizowana offline (recepcja), admin/trener oznacza ją ręcznie.
+-- Płatność realizowana offline (u organizatora), admin/trener oznacza ją ręcznie.
 
 CREATE TABLE training_payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

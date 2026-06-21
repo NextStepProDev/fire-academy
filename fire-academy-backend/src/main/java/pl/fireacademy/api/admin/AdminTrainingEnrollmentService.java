@@ -79,7 +79,7 @@ public class AdminTrainingEnrollmentService {
         // Admin może dopisywać ponad limit miejsc (świadome przekroczenie) — brak kontroli pojemności.
         enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
 
-        // G: powiadom usera, że recepcja go dopisała.
+        // G: powiadom usera, że organizator go dopisał.
         var info = slotInfo(slot);
         var billingMonth = start.isAfter(current) ? start : current;
         int sessions = TrainingEnrollmentService.sessionsInMonth(slot.getDayOfWeek(), billingMonth);
@@ -97,7 +97,7 @@ public class AdminTrainingEnrollmentService {
         var user = te.getUser();
         var info = slotInfo(te.getSlot());
         enrollmentRepository.delete(te);
-        // H: powiadom usera, że recepcja go wypisała.
+        // H: powiadom usera, że organizator go wypisał.
         trainingMail.sendAdminRemoved(user.getEmail(), user.getFirstName(), info);
     }
 

@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * Maile dla treningów cyklicznych (kategoria TRAINING): zapis, rezygnacja, zmiany slotu,
- * usunięcie slotu, odwołanie pojedynczych zajęć oraz akcje recepcji. Branding wspólny z
+ * usunięcie slotu, odwołanie pojedynczych zajęć oraz akcje organizatora. Branding wspólny z
  * {@link EnrollmentMailService} przez {@link BrandedMailSender}.
  */
 @Service
@@ -83,7 +83,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.enroll.subject", slot.trainingName()), branded(content, false));
     }
 
-    // ── G: recepcja dopisała usera (user) ───────────────────────────────────
+    // ── G: organizator dopisał usera (user) ─────────────────────────────────
     @Async("mailExecutor")
     public void sendAdminAddedConfirmation(String email, String firstName, SlotInfo slot,
                                            YearMonth startMonth, @Nullable Integer months,
@@ -105,7 +105,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.adminadd.subject", slot.trainingName()), branded(content, true));
     }
 
-    // ── B: powiadomienie recepcji o zapisie/rezygnacji (admin) ──────────────
+    // ── B: powiadomienie organizatora o zapisie/rezygnacji (admin) ──────────
     @Async("mailExecutor")
     public void sendAdminEnrollmentNotification(boolean enrolled, String fullName, String email,
                                                 SlotInfo slot, String periodLabel, long taken, int max) {
@@ -216,7 +216,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.session.subject", date.format(DATE_FMT), slot.trainingName()), branded(content, false));
     }
 
-    // ── H: recepcja wypisała usera (user) ───────────────────────────────────
+    // ── H: organizator wypisał usera (user) ─────────────────────────────────
     @Async("mailExecutor")
     public void sendAdminRemoved(String email, String firstName, SlotInfo slot) {
         String content = """

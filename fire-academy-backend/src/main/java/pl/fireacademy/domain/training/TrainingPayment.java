@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Oznaczenie opłaconego miesiąca dla subskrypcji treningowej.
- * Obecność rekordu = miesiąc opłacony (płatność w recepcji, ustawiana ręcznie przez admina/trenera).
+ * Obecność rekordu = miesiąc opłacony (płatność u organizatora, ustawiana ręcznie przez admina/trenera).
  */
 @Entity
 @Table(name = "training_payments")
