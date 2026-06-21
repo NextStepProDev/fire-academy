@@ -68,7 +68,6 @@
     "7": "Niedziela"
   },
   "slots": {
-    "month": "Miesiąc",
     "noSlots": "Brak terminów w tym miesiącu",
     "spotsOf": "Wolne miejsca: {{available}} / {{max}}",
     "full": "Brak miejsc",

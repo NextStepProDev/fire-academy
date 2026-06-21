@@ -41,7 +41,6 @@
     "period": "Od {{from}}",
     "periodUntil": "Od {{from}} do {{to}}",
     "indefinite": "na czas nieokreślony",
-    "monthlyAmount": "{{amount}} zł / miesiąc",
     "monthTotalLabel": "Łącznie do zapłaty za {{month}}:",
     "billing": "Kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
     "paymentNote": "Płatne z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
