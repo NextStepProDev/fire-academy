@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { registerUser } from '../api/auth'
 import { validatePassword, validatePhone, validateName, validateEmail } from '../utils/validation'
+import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
 import { Button } from '../components/ui/Button'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
@@ -208,13 +209,14 @@ export function RegisterPage() {
               id="password"
               type="password"
               required
-              minLength={8}
+              minLength={10}
               value={form.password}
               onChange={(e) => updateField('password', e.target.value)}
               className={clsx(inputBase, fieldErrors.password ? inputError : inputNormal)}
               aria-invalid={!!fieldErrors.password}
               aria-describedby={fieldErrors.password ? 'password-error' : undefined}
             />
+            <PasswordStrengthMeter password={form.password} />
             {fieldErrors.password
               ? <p id="password-error" className="text-xs text-rose-400/80 mt-1">{fieldErrors.password}</p>
               : <p className="text-xs text-surface-500 mt-1">{t('register.passwordHint')}</p>}

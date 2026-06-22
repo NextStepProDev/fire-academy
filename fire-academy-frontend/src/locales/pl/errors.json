@@ -20,6 +20,6 @@
     "emailInvalid": "Nieprawidłowy adres email",
     "phoneInvalid": "Nieprawidłowy numer telefonu (9 cyfr lub +48123456789)",
     "passwordsMismatch": "Hasła się nie zgadzają",
-    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
+    "passwordTooShort": "Hasło musi mieć co najmniej 10 znaków"
   }
 }

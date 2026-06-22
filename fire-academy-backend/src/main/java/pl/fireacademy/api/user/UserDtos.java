@@ -24,7 +24,7 @@ public final class UserDtos {
 
     public record ChangePasswordRequest(
         @NotBlank String currentPassword,
-        @NotBlank @Size(min = 8, max = 100) String newPassword
+        @NotBlank @Size(min = 10, max = 100, message = "{validation.password.size}") String newPassword
     ) {}
 
     public record DeleteAccountRequest(@Nullable String password) {}

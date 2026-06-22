@@ -19,6 +19,7 @@ import pl.fireacademy.domain.user.UserRole;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.AuthMailService;
 import pl.fireacademy.infrastructure.security.JwtService;
+import pl.fireacademy.infrastructure.security.PasswordPolicyValidator;
 
 import java.lang.reflect.Field;
 import java.time.Instant;
@@ -39,6 +40,7 @@ class AuthServiceTest {
     @Mock private AuthMailService authMailService;
     @Mock private AdminEmailConfig adminEmailConfig;
     @Mock private MessageService msg;
+    @Mock private PasswordPolicyValidator passwordPolicy;
 
     @InjectMocks private AuthService authService;
 

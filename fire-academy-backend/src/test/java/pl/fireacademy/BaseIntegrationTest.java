@@ -7,6 +7,7 @@ import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfig
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -45,6 +46,10 @@ public abstract class BaseIntegrationTest {
         registry.add("app.site-url", () -> "http://localhost:5174");
         registry.add("app.cors.allowed-origins", () -> "http://localhost:5174");
     }
+
+    // Never call the real HIBP API from tests: the mock's isPwned(...) returns false by default.
+    @MockitoBean
+    protected pl.fireacademy.infrastructure.security.PwnedPasswordChecker pwnedPasswordChecker;
 
     @Autowired
     protected WebApplicationContext webApplicationContext;

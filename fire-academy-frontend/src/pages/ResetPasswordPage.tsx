@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { resetPassword } from '../api/auth'
 import { Button } from '../components/ui/Button'
+import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
 
@@ -20,7 +21,7 @@ export function ResetPasswordPage() {
     e.preventDefault()
     setError(null)
 
-    if (newPassword.length < 8) {
+    if (newPassword.length < 10) {
       setError(t('resetPassword.tooShort'))
       return
     }
@@ -73,11 +74,12 @@ export function ResetPasswordPage() {
               id="newPassword"
               type="password"
               required
-              minLength={8}
+              minLength={10}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
+            <PasswordStrengthMeter password={newPassword} />
             <p className="text-xs text-surface-500 mt-1">{t('resetPassword.passwordHint')}</p>
           </div>
 
