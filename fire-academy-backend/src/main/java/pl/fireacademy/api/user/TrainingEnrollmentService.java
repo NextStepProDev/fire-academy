@@ -23,7 +23,7 @@ import java.util.UUID;
 @Service
 public class TrainingEnrollmentService {
 
-    /** Ile miesięcy do przodu (poza bieżącym) można rezerwować. */
+    /** How many months ahead (beyond the current one) can be booked. */
     private static final int BOOKABLE_MONTHS_AHEAD = 2;
 
     private final TrainingEnrollmentRepository enrollmentRepository;
@@ -75,7 +75,7 @@ public class TrainingEnrollmentService {
             throw new IllegalStateException(msg.get("trainingenrollment.duplicate"));
         }
 
-        // Sprawdź dostępność miejsc dla każdego pokrywanego miesiąca w oknie rezerwacji.
+        // Check spot availability for each covered month within the booking window.
         var lastToCheck = (end != null && end.isBefore(windowEnd)) ? end : windowEnd;
         for (var m = start; !m.isAfter(lastToCheck); m = m.plusMonths(1)) {
             if (enrollmentRepository.countCovering(slotId, m.toString()) >= slot.getMaxParticipants()) {
@@ -108,7 +108,7 @@ public class TrainingEnrollmentService {
         if (enrollments.isEmpty()) {
             return List.of();
         }
-        // Nadchodzące odwołane zajęcia (od dziś do końca okna rezerwacji) per slot.
+        // Upcoming cancelled sessions (from today to the end of the booking window) per slot.
         var slotIds = enrollments.stream().map(te -> te.getSlot().getId()).distinct().toList();
         var to = current.plusMonths(BOOKABLE_MONTHS_AHEAD).atEndOfMonth();
         var cancelledMap = cancelledSessionRepository
@@ -133,12 +133,12 @@ public class TrainingEnrollmentService {
         var info = slotInfo(slot);
         YearMonth activeUntil;
         if (te.getStartMonth().isAfter(current)) {
-            // Subskrypcja jeszcze się nie zaczęła — usuwamy w całości.
+            // Subscription has not started yet — remove it entirely.
             enrollmentRepository.delete(te);
             activeUntil = null;
         } else {
-            // Rezygnacja od kolejnego miesiąca — zostaje na bieżący.
-            // expiryNotified=true: mail o rezygnacji (C) zastępuje mail o wygaśnięciu (K) ze schedulera.
+            // Cancellation from the next month — stays for the current one.
+            // expiryNotified=true: the cancellation email (C) replaces the expiry email (K) from the scheduler.
             te.setEndMonth(current);
             te.setExpiryNotified(true);
             enrollmentRepository.save(te);
@@ -187,8 +187,8 @@ public class TrainingEnrollmentService {
     }
 
     /**
-     * Liczba zajęć danego dnia tygodnia (ISO 1–7) do opłacenia w miesiącu:
-     * dla bieżącego miesiąca liczona od DZIŚ do końca (pozostałe), dla przyszłych — wszystkie.
+     * Number of sessions on a given weekday (ISO 1–7) to be paid for in the month:
+     * for the current month counted from TODAY to the end (remaining ones), for future months — all of them.
      */
     public static int sessionsInMonth(int isoDayOfWeek, YearMonth month) {
         int fromDay = month.equals(YearMonth.now()) ? LocalDate.now().getDayOfMonth() : 1;

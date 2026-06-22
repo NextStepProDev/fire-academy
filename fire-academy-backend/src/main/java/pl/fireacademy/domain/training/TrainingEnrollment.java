@@ -9,10 +9,10 @@ import java.time.YearMonth;
 import java.util.UUID;
 
 /**
- * Subskrypcja użytkownika na cykliczny slot treningowy.
- * Interwał miesięcy: od {@code startMonth} do {@code endMonth} (NULL = na czas nieokreślony).
- * Każdy zapisany jest domyślnie „stałym bywalcem" — bezterminowo trzyma miejsce, dopóki sam
- * nie zrezygnuje (od kolejnego miesiąca) lub trener go nie usunie.
+ * A user's subscription to a cyclical training slot.
+ * Month interval: from {@code startMonth} to {@code endMonth} (NULL = indefinite).
+ * Every enrolled person is by default a "regular" — they hold their spot indefinitely until they
+ * cancel themselves (from the next month) or the instructor removes them.
  */
 @Entity
 @Table(name = "training_enrollments")
@@ -57,7 +57,7 @@ public class TrainingEnrollment {
         this.createdAt = Instant.now();
     }
 
-    /** Czy subskrypcja obejmuje wskazany miesiąc. */
+    /** Whether the subscription covers the given month. */
     public boolean covers(YearMonth month) {
         var m = month.toString();
         return startMonth.compareTo(m) <= 0 && (endMonth == null || endMonth.compareTo(m) >= 0);

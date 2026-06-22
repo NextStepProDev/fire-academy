@@ -63,7 +63,7 @@ public class PublicService {
                 .countCoveringBySlotIds(slotIds, month.toString()).stream()
                 .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
 
-        // Odwołane pojedyncze zajęcia w obrębie miesiąca (do oznaczenia w grafiku).
+        // Cancelled individual sessions within the month (to mark them in the schedule).
         Map<UUID, List<LocalDate>> cancelledMap = trainingCancelledSessionRepository
                 .findForSlotsInRange(slotIds, month.atDay(1), month.atEndOfMonth()).stream()
                 .collect(Collectors.groupingBy(cs -> cs.getSlot().getId(),

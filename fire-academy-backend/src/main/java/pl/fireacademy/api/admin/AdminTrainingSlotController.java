@@ -59,7 +59,7 @@ public class AdminTrainingSlotController {
         return service.toggleActive(id);
     }
 
-    /** Zaplanowana dezaktywacja od daty (powiadamia zapisanych mailem). */
+    /** Scheduled deactivation from a date (notifies the enrolled participants by email). */
     @PostMapping("/{id}/deactivate")
     public TrainingSlotResponse deactivate(@PathVariable UUID id, @Valid @RequestBody DeactivateSlotRequest request) {
         return service.deactivate(id, request.from());
@@ -70,13 +70,13 @@ public class AdminTrainingSlotController {
         return service.reactivate(id);
     }
 
-    /** Archiwum usuniętych slotów wraz z danymi kontaktowymi byłych uczestników. */
+    /** Archive of deleted slots together with the contact data of former participants. */
     @GetMapping("/deleted")
     public List<DeletedSlotResponse> getDeleted() {
         return service.getDeletedSlots();
     }
 
-    // --- Odwoływanie pojedynczych zajęć ---
+    // --- Cancelling individual sessions ---
 
     @GetMapping("/{id}/cancelled-sessions")
     public List<CancelledSessionResponse> getCancelledSessions(@PathVariable UUID id) {
@@ -97,7 +97,7 @@ public class AdminTrainingSlotController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- Zarządzanie zapisami (roster) ---
+    // --- Enrollment management (roster) ---
 
     @GetMapping("/{slotId}/enrollments")
     public List<RosterEntry> getRoster(@PathVariable UUID slotId,

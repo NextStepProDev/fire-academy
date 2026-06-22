@@ -180,7 +180,7 @@ public class AuthMailService {
     private String brandedTemplate(String content, String lang) {
         // Account emails are not tied to a section → the generic ACADEMY FIRE logo (not the camp FIRE CAMP one).
         String logoUrl = siteUrl + "/images/logo/logo-academy-fire-white.png";
-        // Podpis pomijany, gdy treść ma już ciepłe zakończenie („Do zobaczenia", np. powitanie).
+        // Sign-off skipped when the content already has a warm closing („Do zobaczenia", e.g. a welcome).
         String signOffHtml = content.toLowerCase().contains("do zobaczenia")
                 ? ""
                 : "<p style=\"font-size: 15px; line-height: 1.6; margin: 24px 0 0;\">%s<br/><strong>%s</strong></p>"

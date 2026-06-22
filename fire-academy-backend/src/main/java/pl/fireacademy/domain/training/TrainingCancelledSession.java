@@ -7,8 +7,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Odwołane pojedyncze zajęcia cyklicznego slotu (np. choroba trenera) — konkretna data wystąpienia.
- * Slot pozostaje aktywny; nie odbywają się wyłącznie te konkretne zajęcia.
+ * A cancelled individual session of a cyclical slot (e.g. the instructor is ill) — a specific occurrence date.
+ * The slot stays active; only that specific session does not take place.
  */
 @Entity
 @Table(name = "training_cancelled_sessions")

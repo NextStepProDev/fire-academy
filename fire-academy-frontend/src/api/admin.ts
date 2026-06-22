@@ -168,7 +168,7 @@ export const adminApi = {
   toggleEventActive: (id: string) =>
     fetchApi<EventInstance>(`/admin/events/${id}/toggle-active`, { method: 'PATCH' }),
 
-  // Training slots (cykliczne)
+  // Training slots (recurring)
   getTrainingSlots: (month: string) =>
     fetchApi<TrainingSlot[]>(`/admin/training-slots?month=${month}`),
   createTrainingSlot: (data: TrainingSlotRequest) =>
@@ -186,7 +186,7 @@ export const adminApi = {
   reactivateTrainingSlot: (id: string) =>
     fetchApi<TrainingSlot>(`/admin/training-slots/${id}/reactivate`, { method: 'POST' }),
 
-  // Training enrollments (roster / zarządzanie)
+  // Training enrollments (roster / management)
   getTrainingRoster: (slotId: string, month: string) =>
     fetchApi<TrainingRosterEntry[]>(`/admin/training-slots/${slotId}/enrollments?month=${month}`),
   addTrainingEnrollment: (slotId: string, data: AdminAddTrainingEnrollmentRequest) =>
@@ -196,7 +196,7 @@ export const adminApi = {
   setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
     fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
 
-  // Odwoływanie pojedynczych zajęć
+  // Cancelling individual sessions
   getCancelledSessions: (slotId: string) =>
     fetchApi<CancelledSession[]>(`/admin/training-slots/${slotId}/cancelled-sessions`),
   cancelTrainingSession: (slotId: string, sessionDate: string) =>
@@ -204,7 +204,7 @@ export const adminApi = {
   restoreTrainingSession: (slotId: string, date: string) =>
     fetchApi<void>(`/admin/training-slots/${slotId}/cancel-session?date=${date}`, { method: 'DELETE' }),
 
-  // Archiwum usuniętych slotów
+  // Archive of deleted slots
   getDeletedTrainingSlots: () =>
     fetchApi<DeletedTrainingSlot[]>(`/admin/training-slots/deleted`),
   searchUsers: (query: string) =>

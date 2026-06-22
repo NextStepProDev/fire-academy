@@ -62,7 +62,7 @@ public final class TrainingSlotDtos {
             @NotNull @Min(1) Integer maxParticipants
     ) {}
 
-    /** Zbiorcze tworzenie wielu slotów jednego rodzaju z tym samym trenerem (różne dni/godziny). */
+    /** Bulk creation of multiple slots of one event type with the same instructor (different days/times). */
     public record BatchCreateTrainingSlotRequest(
             @NotNull UUID eventTypeId,
             @Nullable UUID instructorId,
@@ -77,7 +77,7 @@ public final class TrainingSlotDtos {
             @NotNull @Min(1) Integer maxParticipants
     ) {}
 
-    /** Pozycja rostera: jeden zapisany uczestnik na dany miesiąc. */
+    /** Roster entry: a single enrolled participant for a given month. */
     public record RosterEntry(
             UUID enrollmentId,
             UUID userId,
@@ -102,7 +102,7 @@ public final class TrainingSlotDtos {
             boolean paid
     ) {}
 
-    /** Usunięty (zarchiwizowany) slot z danymi byłych uczestników do kontaktu. */
+    /** Deleted (archived) slot with contact data of former participants. */
     public record DeletedSlotResponse(
             UUID id,
             String eventTypeName,

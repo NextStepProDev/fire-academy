@@ -299,9 +299,9 @@ public class DevDataSeeder implements CommandLineRunner {
         enrollmentRepository.save(Enrollment.forUser(event, user, note, true));
     }
 
-    // --- Treningi cykliczne: rodzaje (TRAINING), kadra TRAINING i 27 slotów pon–pt ---
+    // --- Cyclical trainings: event types (TRAINING), TRAINING instructors and 27 slots Mon–Fri ---
 
-    // 27 cyklicznych slotów rozłożonych pon–pt (dzień ISO 1..5), z rotacją godzin/rodzajów/trenerów.
+    // 27 cyclical slots spread across Mon–Fri (ISO day 1..5), with rotating times/types/instructors.
     private void seedTrainingSlots() {
         if (trainingSlotRepository.count() > 0) return;
 
@@ -318,7 +318,7 @@ public class DevDataSeeder implements CommandLineRunner {
         };
 
         for (int i = 0; i < TRAINING_SLOTS; i++) {
-            int dayOfWeek = (i % 5) + 1;            // 1=pon … 5=pt
+            int dayOfWeek = (i % 5) + 1;            // 1=Mon … 5=Fri
             LocalTime[] slot = hours[(i / 5) % hours.length];
             boolean personal = i % 6 == 0;
             int max = personal ? 1 : 6;
@@ -331,7 +331,7 @@ public class DevDataSeeder implements CommandLineRunner {
             ts.setActive(true);
             trainingSlotRepository.save(ts);
         }
-        log.info("DEV-SEEDER: {} slotów treningowych (pon–pt)", TRAINING_SLOTS);
+        log.info("DEV-SEEDER: {} training slots (Mon–Fri)", TRAINING_SLOTS);
     }
 
     private List<EventType> seedTrainingTypes() {

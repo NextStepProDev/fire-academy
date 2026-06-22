@@ -12,8 +12,8 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 /**
- * Cykliczny, bezterminowy slot tygodniowy treningu (np. poniedziałek 8:00–9:00).
- * Należy do rodzaju ({@link EventType}, kategoria TRAINING) i ma przypisanego jednego trenera.
+ * A cyclical, indefinite weekly training slot (e.g. Monday 8:00–9:00).
+ * Belongs to an event type ({@link EventType}, TRAINING category) and has one assigned instructor.
  */
 @Entity
 @Table(name = "training_slots")

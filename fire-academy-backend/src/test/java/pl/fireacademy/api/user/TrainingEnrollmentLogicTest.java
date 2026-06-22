@@ -6,24 +6,24 @@ import java.time.YearMonth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Czysta logika liczenia zajęć w miesiącu (podstawa kwoty miesięcznej). */
+/** Pure logic for counting sessions in a month (the basis of the monthly amount). */
 class TrainingEnrollmentLogicTest {
 
     @Test
     void shouldCountMondaysInKnownMonth() {
-        // Luty 2027: poniedziałki 1, 8, 15, 22 = 4
+        // February 2027: Mondays 1, 8, 15, 22 = 4
         assertEquals(4, TrainingEnrollmentService.sessionsInMonth(1, YearMonth.of(2027, 2)));
     }
 
     @Test
     void shouldCountFiveOccurrencesWhenMonthHasFive() {
-        // Marzec 2027: poniedziałki 1, 8, 15, 22, 29 = 5
+        // March 2027: Mondays 1, 8, 15, 22, 29 = 5
         assertEquals(5, TrainingEnrollmentService.sessionsInMonth(1, YearMonth.of(2027, 3)));
     }
 
     @Test
     void shouldCountSundaysAsIsoDaySeven() {
-        // Luty 2027: niedziele 7, 14, 21, 28 = 4
+        // February 2027: Sundays 7, 14, 21, 28 = 4
         assertEquals(4, TrainingEnrollmentService.sessionsInMonth(7, YearMonth.of(2027, 2)));
     }
 }

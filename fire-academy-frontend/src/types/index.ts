@@ -145,10 +145,10 @@ export interface EventInstance {
   createdAt: string
 }
 
-/** ISO: 1 = poniedziałek … 7 = niedziela */
+/** ISO: 1 = Monday … 7 = Sunday */
 export type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-/** Cykliczny slot treningowy — widok admina. */
+/** Recurring training slot — admin view. */
 export interface TrainingSlot {
   id: string
   eventTypeId: string
@@ -163,12 +163,12 @@ export interface TrainingSlot {
   displayOrder: number
   enrolledThisMonth: number
   active: boolean
-  /** Data (ISO YYYY-MM-DD), od której slot jest zdezaktywowany; null = aktywny. */
+  /** Date (ISO YYYY-MM-DD) from which the slot is deactivated; null = active. */
   deactivatedFrom: string | null
   createdAt: string
 }
 
-/** Cykliczny slot treningowy — widok publiczny (z wolnymi miejscami dla miesiąca). */
+/** Recurring training slot — public view (with available spots for the month). */
 export interface TrainingSlotCard {
   id: string
   eventTypeId: string
@@ -181,17 +181,17 @@ export interface TrainingSlotCard {
   price: number | null
   maxParticipants: number
   availableSpots: number
-  /** Daty (ISO YYYY-MM-DD) odwołanych pojedynczych zajęć w wybranym miesiącu. */
+  /** Dates (ISO YYYY-MM-DD) of cancelled individual sessions in the selected month. */
   cancelledDates: string[]
 }
 
-/** Odwołane pojedyncze zajęcia slotu (panel admina). */
+/** Cancelled individual session of a slot (admin panel). */
 export interface CancelledSession {
   id: string
   sessionDate: string
 }
 
-/** Usunięty (zarchiwizowany) slot z danymi byłych uczestników. */
+/** Deleted (archived) slot with data of former participants. */
 export interface DeletedTrainingSlot {
   id: string
   eventTypeName: string
@@ -212,7 +212,7 @@ export interface ArchivedParticipant {
   endMonth: string | null
 }
 
-/** Zarejestrowany użytkownik — wynik wyszukiwarki admina. */
+/** Registered user — admin search result. */
 export interface AdminUserSummary {
   id: string
   firstName: string
@@ -220,7 +220,7 @@ export interface AdminUserSummary {
   email: string
 }
 
-/** Pozycja rostera admina — jeden zapisany uczestnik na dany miesiąc. */
+/** Admin roster entry — one enrolled participant for a given month. */
 export interface TrainingRosterEntry {
   enrollmentId: string
   userId: string
@@ -234,7 +234,7 @@ export interface TrainingRosterEntry {
   paid: boolean
 }
 
-/** Subskrypcja zalogowanego użytkownika na slot — widok konta. */
+/** Logged-in user's subscription to a slot — account view. */
 export interface MyTrainingEnrollment {
   id: string
   slotId: string
@@ -250,7 +250,7 @@ export interface MyTrainingEnrollment {
   billingMonth: string
   sessionsInBillingMonth: number
   monthlyAmount: number | null
-  /** Nadchodzące odwołane zajęcia tego slotu (ISO YYYY-MM-DD). */
+  /** Upcoming cancelled sessions of this slot (ISO YYYY-MM-DD). */
   cancelledDates: string[]
 }
 

@@ -28,10 +28,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Pełna ścieżka treningów cyklicznych przez realne endpointy (admin + public + user)
- * na prawdziwym Postgresie (Testcontainers). Pokrywa happy-path oraz trudne brzegi:
- * dostępność per miesiąc (bezterminowi vs miesięczni), limit, duplikat, rezygnacja
- * od kolejnego miesiąca, płatność, dopisywanie ponad limit i wypisywanie przez admina.
+ * Full cyclical-training flow through the real endpoints (admin + public + user)
+ * on a real Postgres (Testcontainers). Covers the happy path and tricky edges:
+ * per-month availability (indefinite vs monthly), capacity limit, duplicate, cancellation
+ * from the next month, payment, adding beyond the limit, and removal by the admin.
  */
 class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
@@ -40,13 +40,13 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Autowired private TrainingEnrollmentRepository trainingEnrollmentRepository;
     @Autowired private TrainingSubscriptionExpiryScheduler expiryScheduler;
 
-    /** Mock, by weryfikować wysyłkę maili bez realnego SMTP (i bez @Async po stronie mocka). */
+    /** Mock to verify email sending without real SMTP (and without @Async on the mock side). */
     @MockitoBean private TrainingMailService trainingMail;
 
     private static final String USER_EMAIL = "testuser@fireacademy.test";
     private static final String CURRENT = YearMonth.now().toString();
     private static final String NEXT = YearMonth.now().plusMonths(1).toString();
-    private static final int DAY = 1; // poniedziałek
+    private static final int DAY = 1; // Monday
 
     private EventType seedType() {
         EventType et = new EventType(EventCategory.TRAINING, "Trening personalny");
@@ -74,13 +74,13 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         var json = mockMvc.perform(get("/api/public/training-slots").param("month", month))
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
-        // jeden slot na test (cleanup czyści między testami) — bierzemy pierwszy
+        // one slot per test (cleanup clears between tests) — take the first
         return ((Number) com.jayway.jsonpath.JsonPath.read(json, "$[0].availableSpots")).intValue();
     }
 
     private int sessionsInCurrentMonth() {
         YearMonth ym = YearMonth.now();
-        int fromDay = LocalDate.now().getDayOfMonth(); // pozostałe od dziś (jak w serwisie)
+        int fromDay = LocalDate.now().getDayOfMonth(); // remaining ones from today (as in the service)
         int count = 0;
         for (int d = fromDay; d <= ym.lengthOfMonth(); d++) {
             if (LocalDate.of(ym.getYear(), ym.getMonthValue(), d).getDayOfWeek().getValue() == DAY) count++;
@@ -138,7 +138,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         TrainingSlot slot = seedSlot(8);
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
 
-        // bezterminowy zajmuje miejsce i teraz, i w przyszłych miesiącach
+        // an indefinite subscription occupies a spot both now and in future months
         org.junit.jupiter.api.Assertions.assertEquals(7, availableSpots(CURRENT, slot.getId()));
         org.junit.jupiter.api.Assertions.assertEquals(7, availableSpots(NEXT, slot.getId()));
     }
@@ -149,7 +149,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\",\"months\":1}");
 
         org.junit.jupiter.api.Assertions.assertEquals(7, availableSpots(CURRENT, slot.getId()));
-        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(NEXT, slot.getId())); // następny miesiąc wolny
+        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(NEXT, slot.getId())); // next month free
     }
 
     @Test
@@ -202,7 +202,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isNoContent());
 
-        // zostaje na bieżący miesiąc, zwolnione od kolejnego
+        // stays for the current month, freed from the next one
         org.junit.jupiter.api.Assertions.assertEquals(7, availableSpots(CURRENT, slot.getId()));
         org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(NEXT, slot.getId()));
     }
@@ -232,7 +232,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Test
     void shouldAllowAdminToAddParticipantOverCapacity() throws Exception {
         TrainingSlot slot = seedSlot(1);
-        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}"); // slot pełny (max 1)
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}"); // slot full (max 1)
 
         createUserAndGetToken("extra@fireacademy.test", "Ekstra", "Osoba", UserRole.USER);
         UUID extraId = userRepository.findByEmail("extra@fireacademy.test").orElseThrow().getId();
@@ -247,7 +247,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .param("month", CURRENT)
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(2)); // ponad limit (max 1)
+            .andExpect(jsonPath("$.length()").value(2)); // beyond the limit (max 1)
     }
 
     @Test
@@ -260,10 +260,10 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isNoContent());
 
-        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(CURRENT, slot.getId())); // miejsce natychmiast wolne
+        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(CURRENT, slot.getId())); // spot immediately free
     }
 
-    // ── Wiring maili (mock TrainingMailService) ─────────────────────────────
+    // ── Email wiring (mock TrainingMailService) ─────────────────────────────
 
     @Test
     void shouldSendEnrollmentAndAdminEmailsOnEnroll() throws Exception {
@@ -335,7 +335,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isNoContent());
 
-        // po soft-delete slot znika z „Moje rezerwacje"
+        // after soft-delete the slot disappears from "My reservations"
         mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
     }
@@ -346,7 +346,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isBadRequest());
     }
 
-    /** Najbliższe wystąpienie dnia slotu (poniedziałek) od dziś — data realnych zajęć. */
+    /** Nearest occurrence of the slot's day (Monday) from today — date of a real session. */
     private LocalDate nextSlotDate() {
         LocalDate d = LocalDate.now();
         while (d.getDayOfWeek().getValue() != DAY) d = d.plusDays(1);
@@ -362,7 +362,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isNoContent());
 
-        // zniknął z katalogu publicznego i z listy admina
+        // disappeared from the public catalog and from the admin list
         mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(0));
@@ -371,7 +371,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(0));
 
-        // ale jest w archiwum z danymi kontaktowymi uczestnika
+        // but it is in the archive with the participant's contact data
         mockMvc.perform(get("/api/admin/training-slots/deleted")
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isOk())
@@ -415,7 +415,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldRejectCancelSessionOnWrongWeekday() throws Exception {
-        TrainingSlot slot = seedSlot(8); // poniedziałek
+        TrainingSlot slot = seedSlot(8); // Monday
         LocalDate tuesday = LocalDate.now();
         while (tuesday.getDayOfWeek().getValue() != 2) tuesday = tuesday.plusDays(1);
 
@@ -444,7 +444,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(0));
 
-        // reaktywacja przywraca slot do katalogu
+        // reactivation restores the slot to the catalog
         mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/reactivate")
                 .header("Authorization", "Bearer " + admin))
             .andExpect(status().isOk());
@@ -462,7 +462,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .content("{\"from\":\"" + LocalDate.now().plusMonths(1) + "\"}"))
             .andExpect(status().isOk());
 
-        // przyszła data dezaktywacji → slot nadal w katalogu (odbywa się do tej daty)
+        // future deactivation date → slot still in the catalog (takes place until that date)
         mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1));
@@ -481,7 +481,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Test
     void shouldFlagExpiredSubscriptionViaScheduler() {
         TrainingSlot slot = seedSlot(8);
-        userToken(); // utwórz standardowego usera
+        userToken(); // create a standard user
         var user = userRepository.findById(regularUserId()).orElseThrow();
         YearMonth past = YearMonth.now().minusMonths(2);
         TrainingEnrollment te = trainingEnrollmentRepository.save(new TrainingEnrollment(slot, user, past, past));

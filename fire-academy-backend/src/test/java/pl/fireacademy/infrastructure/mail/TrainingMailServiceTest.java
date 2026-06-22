@@ -26,9 +26,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Testy maili treningowych (A–K) z REALNYM {@link MessageService} (ładuje messages.properties),
- * dzięki czemu wyłapują błędy placeholderów MessageFormat i weryfikują renderowaną treść:
- * logo + podpis „Pozdrawiam" (pomijany przy „Do zobaczenia").
+ * Tests of training emails (A–K) with a REAL {@link MessageService} (loads messages.properties),
+ * so they catch MessageFormat placeholder errors and verify the rendered content:
+ * logo + the „Pozdrawiam" sign-off (skipped for „Do zobaczenia").
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -55,12 +55,12 @@ class TrainingMailServiceTest {
         AppConfig appConfig = new AppConfig();
         appConfig.getMail().setFrom("noreply@fireworkout.pl");
 
-        // spy: realne renderowanie szablonu, ale przechwytujemy gotowy HTML przekazany do send(...)
+        // spy: real template rendering, but we capture the final HTML passed to send(...)
         mail = spy(new BrandedMailSender(mailDispatcher, appConfig, msg));
         service = new TrainingMailService(adminEmailConfig, msg, mail);
     }
 
-    /** Przechwytuje wyrenderowany HTML jedynego wysłanego maila. */
+    /** Captures the rendered HTML of the single sent email. */
     private String sentHtml() {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(mail).send(anyString(), anyString(), captor.capture());
@@ -72,16 +72,16 @@ class TrainingMailServiceTest {
         service.sendEnrollmentConfirmation(EMAIL, "Jan", SLOT, MONTH, null, MONTH, 4, BigDecimal.valueOf(360));
         String html = sentHtml();
         assertTrue(html.contains("Trening personalny"));
-        assertTrue(html.contains("Fire Academy"));               // logo + stopka
-        assertFalse(html.contains("Pozdrawiam"));                // A kończy się „Do zobaczenia"
-        assertTrue(html.contains("360"));                        // kwota miesięczna
+        assertTrue(html.contains("Fire Academy"));               // logo + footer
+        assertFalse(html.contains("Pozdrawiam"));                // A ends with „Do zobaczenia"
+        assertTrue(html.contains("360"));                        // monthly amount
     }
 
     @Test
     void shouldSendAdminAddedConfirmationWithSignOff() throws Exception {
         service.sendAdminAddedConfirmation(EMAIL, "Jan", SLOT, MONTH, 3, MONTH, 4, BigDecimal.valueOf(360));
         String html = sentHtml();
-        assertTrue(html.contains("organizator"));                // terminologia, nie „recepcja"
+        assertTrue(html.contains("organizator"));                // terminology, not „recepcja"
         assertTrue(html.contains("Pozdrawiam"));
     }
 
@@ -106,7 +106,7 @@ class TrainingMailServiceTest {
         service.sendCancellationConfirmation(EMAIL, "Jan", SLOT, MONTH);
         String html = sentHtml();
         assertTrue(html.contains("Trening personalny"));
-        assertFalse(html.contains("Pozdrawiam"));                // C kończy się „Do zobaczenia"
+        assertFalse(html.contains("Pozdrawiam"));                // C ends with „Do zobaczenia"
     }
 
     @Test
@@ -121,7 +121,7 @@ class TrainingMailServiceTest {
         service.sendSlotModification(EMAIL, "Jan", SLOT, changes);
         String html = sentHtml();
         assertTrue(html.contains("Godziny"));
-        assertTrue(html.contains("20:00"));                      // nowa wartość w bloku zmian
+        assertTrue(html.contains("20:00"));                      // new value in the changes block
         assertTrue(html.contains("Pozdrawiam"));
     }
 
@@ -138,7 +138,7 @@ class TrainingMailServiceTest {
         service.sendSessionCancelled(EMAIL, "Jan", SLOT, LocalDate.of(2026, 7, 13));
         String html = sentHtml();
         assertTrue(html.contains("13.07.2026"));
-        assertFalse(html.contains("Pozdrawiam"));                // F kończy się „do zobaczenia na kolejnym treningu"
+        assertFalse(html.contains("Pozdrawiam"));                // F ends with „do zobaczenia na kolejnym treningu"
     }
 
     @Test
@@ -162,12 +162,12 @@ class TrainingMailServiceTest {
         service.sendSubscriptionExpired(EMAIL, "Jan", SLOT);
         String html = sentHtml();
         assertTrue(html.contains("dobiegła końca"));
-        assertFalse(html.contains("Pozdrawiam"));                // K kończy się „Do zobaczenia na sali"
+        assertFalse(html.contains("Pozdrawiam"));                // K ends with „Do zobaczenia na sali"
     }
 
     @Test
     void shouldRenderCampLogoForCampNotApplicable_trainingsAlwaysAcademy() throws Exception {
-        // Treningi to zawsze sekcja ACADEMY → logo Fire Academy, nigdy Fire Camp.
+        // Trainings are always the ACADEMY section → Fire Academy logo, never Fire Camp.
         service.sendSlotDeletion(EMAIL, "Jan", SLOT);
         String html = sentHtml();
         assertTrue(html.contains("logo-academy-fire-white.png"));

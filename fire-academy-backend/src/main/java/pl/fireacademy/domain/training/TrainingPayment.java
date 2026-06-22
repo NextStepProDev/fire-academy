@@ -7,8 +7,8 @@ import java.time.YearMonth;
 import java.util.UUID;
 
 /**
- * Oznaczenie opłaconego miesiąca dla subskrypcji treningowej.
- * Obecność rekordu = miesiąc opłacony (płatność u organizatora, ustawiana ręcznie przez admina/trenera).
+ * Marker of a paid month for a training subscription.
+ * Presence of the record = the month is paid (payment to the organizer, set manually by the admin/instructor).
  */
 @Entity
 @Table(name = "training_payments")

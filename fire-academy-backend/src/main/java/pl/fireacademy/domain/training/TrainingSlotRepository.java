@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface TrainingSlotRepository extends JpaRepository<TrainingSlot, UUID> {
 
-    /** Publiczny katalog: aktywne, nieusunięte, jeszcze niezdezaktywowane sloty. */
+    /** Public catalog: active, non-deleted, not-yet-deactivated slots. */
     @Query("""
         SELECT s FROM TrainingSlot s
         WHERE s.active = true AND s.deletedAt IS NULL
@@ -21,7 +21,7 @@ public interface TrainingSlotRepository extends JpaRepository<TrainingSlot, UUID
         """)
     List<TrainingSlot> findPublicSlots();
 
-    /** Panel admina: wszystkie nieusunięte sloty. */
+    /** Admin panel: all non-deleted slots. */
     @Query("""
         SELECT s FROM TrainingSlot s
         WHERE s.deletedAt IS NULL
@@ -29,7 +29,7 @@ public interface TrainingSlotRepository extends JpaRepository<TrainingSlot, UUID
         """)
     List<TrainingSlot> findAllActive();
 
-    /** Archiwum: usunięte sloty (dostęp do danych kontaktowych byłych uczestników). */
+    /** Archive: deleted slots (access to contact data of former participants). */
     @Query("SELECT s FROM TrainingSlot s WHERE s.deletedAt IS NOT NULL ORDER BY s.deletedAt DESC")
     List<TrainingSlot> findDeleted();
 

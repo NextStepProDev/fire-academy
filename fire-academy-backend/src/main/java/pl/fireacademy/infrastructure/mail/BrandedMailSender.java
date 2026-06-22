@@ -10,10 +10,10 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.util.List;
 
 /**
- * Wspólny branding i wysyłka maili (antracyt + pomarańcz). Jedno źródło prawdy dla
- * {@link EnrollmentMailService} (wydarzenia) i {@link TrainingMailService} (treningi cykliczne).
- * Wysyłka deleguje do {@link MailDispatcher}, więc maile treningowe korzystają z tego samego
- * ponawiania przy przejściowych błędach SMTP co pozostałe maile serwisowe.
+ * Shared branding and email sending (anthracite + orange). A single source of truth for
+ * {@link EnrollmentMailService} (events) and {@link TrainingMailService} (cyclical trainings).
+ * Sending delegates to {@link MailDispatcher}, so training emails use the same
+ * retrying on transient SMTP failures as the other service emails.
  */
 @Component
 public class BrandedMailSender {
@@ -32,7 +32,7 @@ public class BrandedMailSender {
         return appConfig.getSiteUrl();
     }
 
-    /** Pomarańczowy przycisk CTA prowadzący pod wskazany URL. */
+    /** Orange CTA button leading to the given URL. */
     public String button(String url, String label) {
         return """
             <div style="text-align: center; margin: 28px 0;">
@@ -41,7 +41,7 @@ public class BrandedMailSender {
             """.formatted(url, label);
     }
 
-    /** Lista zmian pól: stara wartość przekreślona → nowa na pomarańczowo. */
+    /** List of field changes: old value struck through → new one in orange. */
     public String renderChanges(List<FieldChange> changes) {
         var changesHtml = new StringBuilder();
         for (var change : changes) {
@@ -59,20 +59,20 @@ public class BrandedMailSender {
     }
 
     public String brandedTemplate(String content, EventCategory category) {
-        // Domyślnie pomija podpis, jeśli treść już ma ciepłe zakończenie („Do zobaczenia")
-        // lub własny podpis („Pozdrawiam"), żeby nie dublować zwrotów grzecznościowych.
+        // By default skips the sign-off if the content already has a warm closing („Do zobaczenia")
+        // or its own sign-off („Pozdrawiam"), to avoid duplicating courtesy phrases.
         String lower = content.toLowerCase();
         boolean signOff = !lower.contains("do zobaczenia") && !lower.contains("pozdrawiam");
         return brandedTemplate(content, category, signOff);
     }
 
     /**
-     * @param signOff czy dodać podpis „Pozdrawiam, Fire Academy/Fire Camp". Pomijany dla maili,
-     *                które już kończą się ciepłym zwrotem („Do zobaczenia!") lub mają własny podpis.
+     * @param signOff whether to add the „Pozdrawiam, Fire Academy/Fire Camp" sign-off. Skipped for emails
+     *                that already end with a warm closing („Do zobaczenia!") or have their own sign-off.
      */
     public String brandedTemplate(String content, EventCategory category, boolean signOff) {
         String siteUrl = appConfig.getSiteUrl();
-        // Logo FIRE CAMP tylko dla obozów; pozostałe sekcje (treningi/szkolenia) → ACADEMY FIRE.
+        // FIRE CAMP logo only for camps; the other sections (trainings/courses) → ACADEMY FIRE.
         boolean camp = category == EventCategory.CAMP;
         String logoUrl = siteUrl + (camp ? "/images/logo/logo-white.png" : "/images/logo/logo-academy-fire-white.png");
         String logoAlt = camp ? "Fire Camp" : "Fire Academy";

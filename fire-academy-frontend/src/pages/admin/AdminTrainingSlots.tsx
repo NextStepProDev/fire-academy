@@ -15,7 +15,7 @@ import clsx from 'clsx'
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
-/** Wszystkie daty (ISO) w danym miesiącu wypadające w danym dniu tygodnia (ISO 1–7). */
+/** All dates (ISO) in a given month falling on a given day of the week (ISO 1–7). */
 function sessionDatesInMonth(month: string, isoDayOfWeek: number): string[] {
   const [y, m] = month.split('-').map(Number)
   const out: string[] = []
@@ -46,9 +46,9 @@ const emptyCreate = () => ({ eventTypeId: '', instructorId: '', rows: [emptyRow(
 
 const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
-// Klasa pola formularza.
-// `error` (czerwone obramowanie) zapalamy DOPIERO po próbie zapisu, gdy wymagane pole jest puste.
-// `paleEmpty` (dla pól time) — gdy pusto, przykładowa godzina jest blada, żeby nie wyglądała jak wpisana.
+// Form field class.
+// `error` (red border) is enabled ONLY after a save attempt, when a required field is empty.
+// `paleEmpty` (for time fields) — when empty, the placeholder time is pale so it doesn't look like an entered value.
 const fieldClass = (error?: boolean, paleEmpty?: boolean) => clsx(
   'w-full px-3 py-2 bg-surface-800 rounded-lg border focus:outline-none focus:ring-2 transition-colors',
   error ? 'border-rose-500 focus:ring-rose-500' : 'border-surface-700 focus:ring-primary-500',
@@ -245,7 +245,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
             </div>
           )}
 
-          {/* Odwoływanie pojedynczych zajęć w wybranym miesiącu */}
+          {/* Cancelling individual sessions in the selected month */}
           <div className="mt-4 pt-3 border-t border-surface-800">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-surface-400 mb-2">
               <CalendarOff className="w-3.5 h-3.5" /> {t('trainingSlots.cancelSessions')}
@@ -509,7 +509,7 @@ export function AdminTrainingSlots() {
         <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
       </div>
 
-      {/* Selektor miesiąca */}
+      {/* Month selector */}
       <div className="flex flex-wrap gap-2 mb-6">
         {months.map(m => (
           <button
@@ -546,7 +546,7 @@ export function AdminTrainingSlots() {
         </div>
       )}
 
-      {/* Archiwum usuniętych slotów (dane kontaktowe byłych uczestników) */}
+      {/* Archive of deleted slots (contact data of former participants) */}
       <div className="mt-8 border-t border-surface-800 pt-4">
         <button
           onClick={() => setShowArchive(s => !s)}
@@ -610,7 +610,7 @@ export function AdminTrainingSlots() {
         )}
       </div>
 
-      {/* Edycja pojedynczego slotu */}
+      {/* Editing a single slot */}
       <Modal isOpen={!!editItem} onClose={closeForm} title={t('trainingSlots.editTitle')}>
         <div className="space-y-4">
           <div>
@@ -660,7 +660,7 @@ export function AdminTrainingSlots() {
         </div>
       </Modal>
 
-      {/* Tworzenie wielu slotów naraz (jeden rodzaj + trener, wiele dni) */}
+      {/* Creating multiple slots at once (one type + instructor, multiple days) */}
       <Modal isOpen={isCreating} onClose={closeForm} title={t('trainingSlots.createTitle')}>
         <div className="space-y-4">
           <div>

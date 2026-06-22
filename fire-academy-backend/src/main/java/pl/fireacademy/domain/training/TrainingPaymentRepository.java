@@ -16,7 +16,7 @@ public interface TrainingPaymentRepository extends JpaRepository<TrainingPayment
     @Transactional
     void deleteByEnrollmentIdAndYearMonth(UUID enrollmentId, String yearMonth);
 
-    /** Id subskrypcji opłaconych za dany miesiąc spośród podanych. */
+    /** Ids of subscriptions paid for a given month among the provided ones. */
     @Query("SELECT p.enrollment.id FROM TrainingPayment p WHERE p.enrollment.id IN :ids AND p.yearMonth = :month")
     List<UUID> findPaidEnrollmentIds(@Param("ids") Collection<UUID> ids, @Param("month") String month);
 }

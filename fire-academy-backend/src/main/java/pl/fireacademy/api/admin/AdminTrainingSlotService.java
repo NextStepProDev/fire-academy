@@ -94,7 +94,7 @@ public class AdminTrainingSlotService {
     public TrainingSlotResponse update(UUID id, UpdateTrainingSlotRequest request) {
         var slot = findOrThrow(id);
 
-        // Zrzut wartości sprzed zmiany (do wykrycia różnic dla maila D).
+        // Snapshot of the values before the change (to detect differences for email D).
         var before = snapshot(slot);
 
         slot.setEventType(resolveTrainingType(request.eventTypeId()));
@@ -121,9 +121,9 @@ public class AdminTrainingSlotService {
     }
 
     /**
-     * Zaplanowana dezaktywacja: slot przestaje się odbywać od wskazanej daty. Zajęcia przed nią
-     * odbywają się normalnie. Powiadamia mailem (J) aktualnych subskrybentów (bezterminowi +
-     * pokrywający miesiąc daty). Data nie może być z przeszłości.
+     * Scheduled deactivation: the slot stops taking place from the given date. Sessions before it
+     * happen normally. Notifies current subscribers by email (J) (indefinite +
+     * those covering the month of the date). The date cannot be in the past.
      */
     @Transactional
     public TrainingSlotResponse deactivate(UUID id, java.time.LocalDate from) {
@@ -146,7 +146,7 @@ public class AdminTrainingSlotService {
         return toResponse(saved, YearMonth.now().toString());
     }
 
-    /** Cofnięcie dezaktywacji — slot znów aktywny (bez maila). */
+    /** Undo deactivation — the slot becomes active again (no email). */
     @Transactional
     public TrainingSlotResponse reactivate(UUID id) {
         var slot = findOrThrow(id);
@@ -156,8 +156,8 @@ public class AdminTrainingSlotService {
     }
 
     /**
-     * Miękkie usunięcie: slot znika z katalogu, ale zapisy i dane kontaktowe pozostają w archiwum
-     * (admin może zadzwonić do byłych uczestników). Wysyła mail E do aktualnych subskrybentów.
+     * Soft delete: the slot disappears from the catalog, but enrollments and contact data stay in the archive
+     * (the admin can call former participants). Sends email E to current subscribers.
      */
     @Transactional
     public void delete(UUID id) {
@@ -190,7 +190,7 @@ public class AdminTrainingSlotService {
         }).toList();
     }
 
-    // ── Odwoływanie pojedynczych zajęć (mail F) ─────────────────────────────
+    // ── Cancelling individual sessions (email F) ─────────────────────────────
 
     @Transactional(readOnly = true)
     public List<CancelledSessionResponse> getCancelledSessions(UUID slotId) {
@@ -199,7 +199,7 @@ public class AdminTrainingSlotService {
                 .toList();
     }
 
-    /** Odwołuje konkretne zajęcia danego slotu (np. choroba trenera) i powiadamia zapisanych na ten miesiąc. */
+    /** Cancels a specific session of a given slot (e.g. the instructor is ill) and notifies those enrolled for that month. */
     @Transactional
     public void cancelSession(UUID slotId, java.time.LocalDate date) {
         var slot = findOrThrow(slotId);
@@ -226,7 +226,7 @@ public class AdminTrainingSlotService {
         }
     }
 
-    /** Cofnięcie odwołania — zajęcia znów się odbędą (bez maila). */
+    /** Undo cancellation — the session will take place again (no email). */
     @Transactional
     public void restoreSession(UUID slotId, java.time.LocalDate date) {
         cancelledSessionRepository.deleteBySlotIdAndSessionDate(slotId, date);
@@ -264,7 +264,7 @@ public class AdminTrainingSlotService {
                 s.getDayOfWeek(), s.getStartTime(), s.getEndTime(), s.getPrice());
     }
 
-    /** Wysyła powiadomienie do każdego aktualnego subskrybenta slotu (bieżący miesiąc i dalej). */
+    /** Sends a notification to every current subscriber of the slot (current month and beyond). */
     private void notifySubscribers(UUID slotId, java.util.function.BiConsumer<String, String> send) {
         String month = YearMonth.now().toString();
         for (var te : enrollmentRepository.findActiveSubscribersForSlot(slotId, month)) {

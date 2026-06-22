@@ -94,11 +94,11 @@ export function TrainingsPage() {
 
       <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{t('trainings.title')}</h1>
 
-      {/* Terminy cykliczne */}
+      {/* Recurring sessions */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.terminy')}</h2>
 
-        {/* Selektor miesiąca */}
+        {/* Month selector */}
         <div className="flex flex-wrap gap-2 mb-6">
           {months.map(m => (
             <button
@@ -160,7 +160,7 @@ export function TrainingsPage() {
         )}
       </section>
 
-      {/* Rodzaje */}
+      {/* Types */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.rodzaje_TRAINING')}</h2>
         {eventTypesQuery.isLoading ? (
@@ -176,7 +176,7 @@ export function TrainingsPage() {
         )}
       </section>
 
-      {/* Kadra */}
+      {/* Staff */}
       <section>
         <h2 className="text-2xl font-bold text-surface-100 mb-6 border-l-4 border-primary-500 pl-4">{t('sections.oNas')}</h2>
         {instructorsQuery.isLoading ? (

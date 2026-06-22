@@ -14,7 +14,7 @@ public final class TrainingEnrollmentDtos {
 
     private TrainingEnrollmentDtos() {}
 
-    /** {@code months} puste = na czas nieokreślony; podane = subskrypcja na N miesięcy. */
+    /** {@code months} empty = indefinite; provided = subscription for N months. */
     public record EnrollTrainingRequest(
             @NotNull YearMonth startMonth,
             @Nullable @Min(1) @Max(24) Integer months

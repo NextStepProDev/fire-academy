@@ -1,16 +1,16 @@
-// Narzędzia do cyklicznych slotów treningowych.
-// Miesiące w formacie 'YYYY-MM'. Dzień tygodnia w ISO: 1 = poniedziałek … 7 = niedziela.
+// Utilities for recurring training slots.
+// Months in 'YYYY-MM' format. Day of week in ISO: 1 = Monday … 7 = Sunday.
 
-/** Ile miesięcy do przodu (poza bieżącym) można rezerwować — spójne z backendem. */
+/** How many months ahead (beyond the current one) can be booked — consistent with the backend. */
 export const BOOKABLE_MONTHS_AHEAD = 2
 
-/** Bieżący miesiąc jako 'YYYY-MM'. */
+/** Current month as 'YYYY-MM'. */
 export function currentMonth(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-/** Lista miesięcy dostępnych do przeglądania/rezerwacji (bieżący + BOOKABLE_MONTHS_AHEAD). */
+/** List of months available for browsing/booking (current + BOOKABLE_MONTHS_AHEAD). */
 export function visibleMonths(): string[] {
   const now = new Date()
   const result: string[] = []
@@ -22,8 +22,8 @@ export function visibleMonths(): string[] {
 }
 
 /**
- * Liczba zajęć do opłacenia w danym miesiącu:
- * dla bieżącego miesiąca liczone od DZIŚ do końca (pozostałe), dla przyszłych — wszystkie.
+ * Number of sessions to be paid for in a given month:
+ * for the current month counted from TODAY to the end (remaining), for future months — all of them.
  */
 export function remainingOccurrences(dayOfWeek: number, month: string): number {
   const now = new Date()
@@ -39,13 +39,13 @@ export function remainingOccurrences(dayOfWeek: number, month: string): number {
   return count
 }
 
-/** Formatuje 'YYYY-MM' na polską nazwę, np. 'czerwiec 2026'. */
+/** Formats 'YYYY-MM' into a Polish name, e.g. 'czerwiec 2026'. */
 export function formatMonth(month: string): string {
   const [year, m] = month.split('-').map(Number)
   return new Date(year, m - 1, 1).toLocaleDateString('pl', { month: 'long', year: 'numeric' })
 }
 
-/** Przesuwa miesiąc 'YYYY-MM' o n miesięcy. */
+/** Shifts month 'YYYY-MM' by n months. */
 export function addMonths(month: string, n: number): string {
   const [year, m] = month.split('-').map(Number)
   const d = new Date(year, m - 1 + n, 1)

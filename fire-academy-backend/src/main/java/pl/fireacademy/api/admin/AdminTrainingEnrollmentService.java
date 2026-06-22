@@ -76,10 +76,10 @@ public class AdminTrainingEnrollmentService {
             throw new IllegalStateException(msg.get("trainingenrollment.duplicate"));
         }
 
-        // Admin może dopisywać ponad limit miejsc (świadome przekroczenie) — brak kontroli pojemności.
+        // Admin may add participants beyond the capacity limit (deliberate overbooking) — no capacity check.
         enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
 
-        // G: powiadom usera, że organizator go dopisał.
+        // G: notify the user that the organizer added them.
         var info = slotInfo(slot);
         var billingMonth = start.isAfter(current) ? start : current;
         int sessions = TrainingEnrollmentService.sessionsInMonth(slot.getDayOfWeek(), billingMonth);
@@ -89,7 +89,7 @@ public class AdminTrainingEnrollmentService {
                 start, request.months(), billingMonth, sessions, amount);
     }
 
-    /** Wypisanie w dowolnym momencie — twarde usunięcie (zwalnia miejsce we wszystkich miesiącach). */
+    /** Removal at any time — hard delete (frees the spot in all months). */
     @Transactional
     public void remove(UUID enrollmentId) {
         var te = enrollmentRepository.findById(enrollmentId)
@@ -97,7 +97,7 @@ public class AdminTrainingEnrollmentService {
         var user = te.getUser();
         var info = slotInfo(te.getSlot());
         enrollmentRepository.delete(te);
-        // H: powiadom usera, że organizator go wypisał.
+        // H: notify the user that the organizer removed them.
         trainingMail.sendAdminRemoved(user.getEmail(), user.getFirstName(), info);
     }
 

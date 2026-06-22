@@ -43,11 +43,11 @@ export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrol
 
   if (!slot) return null
 
-  // Cena za pierwszy miesiąc liczona po POZOSTAŁYCH zajęciach (gdy zapis w trakcie miesiąca).
+  // Price for the first month calculated from the REMAINING sessions (when enrolling mid-month).
   const sessions = remainingOccurrences(slot.dayOfWeek, startMonth)
   const amount = slot.price != null ? slot.price * sessions : null
 
-  // Suma z dotychczasowymi rezerwacjami użytkownika obejmującymi wybrany miesiąc.
+  // Total including the user's existing reservations covering the selected month.
   const existingForMonth = (myEnrollments.data ?? [])
     .filter(e => e.startMonth <= startMonth && (e.endMonth == null || e.endMonth >= startMonth) && e.price != null)
     .reduce((sum, e) => sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth)), 0)

@@ -12,9 +12,9 @@ import pl.fireacademy.infrastructure.mail.TrainingMailService;
 import java.time.YearMonth;
 
 /**
- * Codziennie powiadamia użytkowników, których terminowa subskrypcja treningu właśnie wygasła
- * (mail K), żeby mogli zapisać się ponownie. Rezygnacje mają {@code expiryNotified=true}
- * (dostały już mail o rezygnacji), więc są pomijane.
+ * Daily notifies users whose fixed-term training subscription has just expired
+ * (email K), so they can enroll again. Cancellations have {@code expiryNotified=true}
+ * (they already received a cancellation email), so they are skipped.
  */
 @Component
 public class TrainingSubscriptionExpiryScheduler {

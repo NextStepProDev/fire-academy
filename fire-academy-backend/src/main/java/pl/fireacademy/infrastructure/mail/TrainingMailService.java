@@ -17,9 +17,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * Maile dla treningów cyklicznych (kategoria TRAINING): zapis, rezygnacja, zmiany slotu,
- * usunięcie slotu, odwołanie pojedynczych zajęć oraz akcje organizatora. Branding wspólny z
- * {@link EnrollmentMailService} przez {@link BrandedMailSender}.
+ * Emails for cyclical trainings (TRAINING category): enrollment, cancellation, slot changes,
+ * slot deletion, cancellation of individual sessions, and organizer actions. Branding shared with
+ * {@link EnrollmentMailService} via {@link BrandedMailSender}.
  */
 @Service
 public class TrainingMailService {
@@ -44,7 +44,7 @@ public class TrainingMailService {
         this.mail = mail;
     }
 
-    /** Niemodyfikowalny zrzut danych slotu, budowany w obrębie transakcji (przed granicą @Async). */
+    /** Immutable snapshot of slot data, built within the transaction (before the @Async boundary). */
     public record SlotInfo(String trainingName, @Nullable String instructorName,
                            int dayOfWeek, LocalTime startTime, @Nullable LocalTime endTime,
                            @Nullable BigDecimal price) {
@@ -61,7 +61,7 @@ public class TrainingMailService {
         return MONTHS_PL[month.getMonthValue()] + " " + month.getYear();
     }
 
-    // ── A: potwierdzenie zapisu (user) ──────────────────────────────────────
+    // ── A: enrollment confirmation (user) ──────────────────────────────────────
     @Async("mailExecutor")
     public void sendEnrollmentConfirmation(String email, String firstName, SlotInfo slot,
                                            YearMonth startMonth, @Nullable Integer months,
@@ -83,7 +83,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.enroll.subject", slot.trainingName()), branded(content, false));
     }
 
-    // ── G: organizator dopisał usera (user) ─────────────────────────────────
+    // ── G: organizer added the user (user) ─────────────────────────────────
     @Async("mailExecutor")
     public void sendAdminAddedConfirmation(String email, String firstName, SlotInfo slot,
                                            YearMonth startMonth, @Nullable Integer months,
@@ -105,7 +105,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.adminadd.subject", slot.trainingName()), branded(content, true));
     }
 
-    // ── B: powiadomienie organizatora o zapisie/rezygnacji (admin) ──────────
+    // ── B: organizer notification about enrollment/cancellation (admin) ──────────
     @Async("mailExecutor")
     public void sendAdminEnrollmentNotification(boolean enrolled, String fullName, String email,
                                                 SlotInfo slot, String periodLabel, long taken, int max) {
@@ -135,7 +135,7 @@ public class TrainingMailService {
         }
     }
 
-    // ── C: potwierdzenie rezygnacji (user) ──────────────────────────────────
+    // ── C: cancellation confirmation (user) ──────────────────────────────────
     @Async("mailExecutor")
     public void sendCancellationConfirmation(String email, String firstName, SlotInfo slot,
                                              @Nullable YearMonth activeUntil) {
@@ -156,7 +156,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.cancel.subject", slot.trainingName()), branded(content, false));
     }
 
-    // ── D: zmiana w slocie (user) ───────────────────────────────────────────
+    // ── D: slot change (user) ───────────────────────────────────────────
     @Async("mailExecutor")
     public void sendSlotModification(String email, String firstName, SlotInfo slot, List<FieldChange> changes) {
         String content = """
@@ -179,7 +179,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.modified.subject", slot.trainingName()), branded(content, true));
     }
 
-    // ── E: usunięcie slotu (user) ───────────────────────────────────────────
+    // ── E: slot deletion (user) ───────────────────────────────────────────
     @Async("mailExecutor")
     public void sendSlotDeletion(String email, String firstName, SlotInfo slot) {
         String content = """
@@ -196,7 +196,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.deleted.subject", slot.trainingName()), branded(content, true));
     }
 
-    // ── F: odwołane pojedyncze zajęcia (user) ───────────────────────────────
+    // ── F: cancelled individual session (user) ───────────────────────────────
     @Async("mailExecutor")
     public void sendSessionCancelled(String email, String firstName, SlotInfo slot, LocalDate date) {
         String timeLabel = slot.startTime().format(TIME_FMT)
@@ -216,7 +216,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.session.subject", date.format(DATE_FMT), slot.trainingName()), branded(content, false));
     }
 
-    // ── H: organizator wypisał usera (user) ─────────────────────────────────
+    // ── H: organizer removed the user (user) ─────────────────────────────────
     @Async("mailExecutor")
     public void sendAdminRemoved(String email, String firstName, SlotInfo slot) {
         String content = """
@@ -231,7 +231,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.adminremove.subject", slot.trainingName()), branded(content, true));
     }
 
-    // ── J: slot dezaktywowany od konkretnej daty (user) ─────────────────────
+    // ── J: slot deactivated from a specific date (user) ─────────────────────
     @Async("mailExecutor")
     public void sendSlotDeactivation(String email, String firstName, SlotInfo slot, LocalDate from) {
         String content = """
@@ -248,7 +248,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.deactivated.subject", from.format(DATE_FMT), slot.trainingName()), branded(content, true));
     }
 
-    // ── K: subskrypcja terminowa dobiegła końca (user) ──────────────────────
+    // ── K: fixed-term subscription has ended (user) ──────────────────────
     @Async("mailExecutor")
     public void sendSubscriptionExpired(String email, String firstName, SlotInfo slot) {
         String content = """
@@ -265,7 +265,7 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.expired.subject", slot.trainingName()), branded(content, false));
     }
 
-    // ── Helpery ─────────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────
     private String detailsBlock(SlotInfo slot, YearMonth startMonth, @Nullable Integer months,
                                 YearMonth billingMonth, int sessions, @Nullable BigDecimal monthlyAmount) {
         String instructorLine = slot.instructorName() != null
@@ -308,7 +308,7 @@ public class TrainingMailService {
         return mail.button(mail.siteUrl() + "/treningi", msg.get("email.training.view"));
     }
 
-    /** @param signOff false dla maili kończących się „Do zobaczenia" (bez dublowania podpisem). */
+    /** @param signOff false for emails ending with „Do zobaczenia" (to avoid duplicating the sign-off). */
     private String branded(String content, boolean signOff) {
         return mail.brandedTemplate(content, EventCategory.TRAINING, signOff);
     }

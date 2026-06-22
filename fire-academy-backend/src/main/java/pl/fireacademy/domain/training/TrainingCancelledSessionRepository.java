@@ -17,7 +17,7 @@ public interface TrainingCancelledSessionRepository extends JpaRepository<Traini
 
     void deleteBySlotIdAndSessionDate(UUID slotId, LocalDate sessionDate);
 
-    /** Odwołane daty dla zestawu slotów w zakresie (publiczny grafik / konto usera). */
+    /** Cancelled dates for a set of slots within a range (public schedule / user account). */
     @Query("""
         SELECT cs FROM TrainingCancelledSession cs
         WHERE cs.slot.id IN :slotIds AND cs.sessionDate >= :from AND cs.sessionDate <= :to

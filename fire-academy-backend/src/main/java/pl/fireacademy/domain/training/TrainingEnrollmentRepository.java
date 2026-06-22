@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnrollment, UUID> {
 
-    /** Liczba subskrypcji pokrywających dany miesiąc dla pojedynczego slotu. */
+    /** Number of subscriptions covering a given month for a single slot. */
     @Query("""
         SELECT COUNT(te) FROM TrainingEnrollment te
         WHERE te.slot.id = :slotId
@@ -18,7 +18,7 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     long countCovering(@Param("slotId") UUID slotId, @Param("month") String month);
 
-    /** Liczba subskrypcji pokrywających miesiąc, zgrupowana po slotach (batch). */
+    /** Number of subscriptions covering a month, grouped by slot (batch). */
     @Query("""
         SELECT te.slot.id, COUNT(te) FROM TrainingEnrollment te
         WHERE te.slot.id IN :slotIds
@@ -27,7 +27,7 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<Object[]> countCoveringBySlotIds(@Param("slotIds") Collection<UUID> slotIds, @Param("month") String month);
 
-    /** Czy użytkownik ma już subskrypcję slotu aktywną w/po wskazanym miesiącu (kolizja). */
+    /** Whether the user already has a slot subscription active in/after the given month (collision). */
     @Query("""
         SELECT COUNT(te) > 0 FROM TrainingEnrollment te
         WHERE te.user.id = :userId AND te.slot.id = :slotId
@@ -35,7 +35,7 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     boolean existsActiveFor(@Param("userId") UUID userId, @Param("slotId") UUID slotId, @Param("month") String month);
 
-    /** Aktywne subskrypcje użytkownika (niezakończone i na nieusuniętych slotach). */
+    /** Active subscriptions of the user (not ended and on non-deleted slots). */
     @Query("""
         SELECT te FROM TrainingEnrollment te
         WHERE te.user.id = :userId
@@ -47,7 +47,7 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
 
     long countBySlotId(UUID slotId);
 
-    /** Subskrypcje pokrywające dany miesiąc dla slotu (roster admina). */
+    /** Subscriptions covering a given month for a slot (admin roster). */
     @Query("""
         SELECT te FROM TrainingEnrollment te
         WHERE te.slot.id = :slotId
@@ -57,8 +57,8 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
     List<TrainingEnrollment> findCoveringForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
 
     /**
-     * Aktualni odbiorcy powiadomień o slocie: subskrypcje jeszcze niezakończone
-     * (bezterminowe lub kończące się w/po bieżącym miesiącu, w tym przyszłe). Dla maili D/E.
+     * Current recipients of slot notifications: subscriptions not yet ended
+     * (indefinite or ending in/after the current month, including future ones). For emails D/E.
      */
     @Query("""
         SELECT te FROM TrainingEnrollment te
@@ -68,7 +68,7 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<TrainingEnrollment> findActiveSubscribersForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
 
-    /** Wszyscy kiedykolwiek zapisani na slot (archiwum usuniętego slotu — dane kontaktowe). */
+    /** Everyone ever enrolled in the slot (archive of a deleted slot — contact data). */
     @Query("""
         SELECT te FROM TrainingEnrollment te
         JOIN FETCH te.user
@@ -78,8 +78,8 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
     List<TrainingEnrollment> findAllForSlotWithUser(@Param("slotId") UUID slotId);
 
     /**
-     * Subskrypcje terminowe, które już wygasły (endMonth przed bieżącym miesiącem) i nie dostały
-     * jeszcze maila o zakończeniu. Dla schedulera (mail K). Rezygnacje mają flagę = true → pomijane.
+     * Fixed-term subscriptions that have already expired (endMonth before the current month) and have not
+     * received the end-of-subscription email yet. For the scheduler (email K). Cancellations have the flag = true → skipped.
      */
     @Query("""
         SELECT te FROM TrainingEnrollment te

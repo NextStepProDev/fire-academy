@@ -35,7 +35,7 @@ public class AdminUserController {
 
     public record UserSummary(UUID id, String firstName, String lastName, String email) {}
 
-    /** Wyszukiwarka zarejestrowanych użytkowników (do ręcznego dopisywania na treningi). */
+    /** Search box for registered users (for manually adding them to trainings). */
     @GetMapping("/search")
     public List<UserSummary> search(@RequestParam String query) {
         var q = query.trim();
