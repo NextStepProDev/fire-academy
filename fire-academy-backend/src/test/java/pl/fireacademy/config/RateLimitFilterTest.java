@@ -111,6 +111,26 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void shouldPreferCfConnectingIpOverSpoofedXForwardedFor() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Attacker rotates a spoofed X-Forwarded-For per request, but Cloudflare pins
+        // CF-Connecting-IP to their real IP -> every request shares one bucket and gets limited.
+        MockHttpServletResponse last = null;
+        for (int i = 0; i <= 15; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+            request.setRemoteAddr("127.0.0.1");
+            request.addHeader("CF-Connecting-IP", "203.0.113.7");
+            request.addHeader("X-Forwarded-For", "10." + i + "." + i + ".1");
+            last = new MockHttpServletResponse();
+            filter.doFilterInternal(request, last, filterChain);
+        }
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), last.getStatus());
+    }
+
+    @Test
     void shouldAllowHigherLimitForAdminEndpoints() throws ServletException, IOException {
         for (int i = 0; i < 60; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/admin/instructors");
