@@ -92,7 +92,11 @@ public class AuthService {
         return new MessageResponse(msg.get("auth.register.success"));
     }
 
-    @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
+    // Intentionally NOT @Transactional: a transaction would pin a Hikari connection for the whole
+    // method, including the ~100ms+ BCrypt comparison. Under a login flood that starves the small
+    // pool (idle-in-transaction connections), cascading 500s to every DB-backed endpoint. Each
+    // repository write here is independent, so a per-call auto-commit transaction is sufficient and
+    // releases the connection before BCrypt runs.
     public AuthTokensResponse login(LoginRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
         if (user == null) {
