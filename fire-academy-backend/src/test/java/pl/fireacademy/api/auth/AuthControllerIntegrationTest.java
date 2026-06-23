@@ -193,7 +193,7 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .content("""
                     {
                         "email": "admin@fireacademy.test",
-                        "password": "AdminPass123",
+                        "password": "StrongPass123",
                         "firstName": "Admin",
                         "lastName": "Fire",
                         "acceptedPrivacy": true

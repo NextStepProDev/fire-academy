@@ -16,6 +16,7 @@ import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
+import pl.fireacademy.infrastructure.security.PasswordPolicyValidator;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
 import java.time.Duration;
@@ -36,11 +37,13 @@ public class UserService {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final FileStorageService fileStorageService;
     private final AdminEmailConfig adminEmailConfig;
+    private final PasswordPolicyValidator passwordPolicy;
 
     public UserService(UserRepository userRepository, AuthTokenRepository authTokenRepository,
                        EnrollmentErasureService enrollmentErasureService, EnrollmentMailService enrollmentMailService,
                        PasswordEncoder passwordEncoder, MessageService msg, JwtAuthenticationFilter jwtAuthenticationFilter,
-                       FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig) {
+                       FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig,
+                       PasswordPolicyValidator passwordPolicy) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentErasureService = enrollmentErasureService;
@@ -50,6 +53,7 @@ public class UserService {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.fileStorageService = fileStorageService;
         this.adminEmailConfig = adminEmailConfig;
+        this.passwordPolicy = passwordPolicy;
     }
 
     public UserDtos.UserResponse getMe(UUID userId) {
@@ -80,6 +84,7 @@ public class UserService {
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new IllegalArgumentException(msg.get("user.password.invalid"));
         }
+        passwordPolicy.validate(request.newPassword(), user.getEmail(), user.getFirstName(), user.getLastName());
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
         jwtAuthenticationFilter.evictUser(userId);

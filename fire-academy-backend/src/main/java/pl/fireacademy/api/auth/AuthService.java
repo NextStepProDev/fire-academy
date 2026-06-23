@@ -16,6 +16,7 @@ import pl.fireacademy.domain.user.UserRole;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.AuthMailService;
 import pl.fireacademy.infrastructure.security.JwtService;
+import pl.fireacademy.infrastructure.security.PasswordPolicyValidator;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,6 +41,7 @@ public class AuthService {
     private final AuthMailService authMailService;
     private final AdminEmailConfig adminEmailConfig;
     private final MessageService msg;
+    private final PasswordPolicyValidator passwordPolicy;
 
     public AuthService(
             UserRepository userRepository,
@@ -48,7 +50,8 @@ public class AuthService {
             JwtService jwtService,
             AuthMailService authMailService,
             AdminEmailConfig adminEmailConfig,
-            MessageService msg) {
+            MessageService msg,
+            PasswordPolicyValidator passwordPolicy) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.passwordEncoder = passwordEncoder;
@@ -56,6 +59,7 @@ public class AuthService {
         this.authMailService = authMailService;
         this.adminEmailConfig = adminEmailConfig;
         this.msg = msg;
+        this.passwordPolicy = passwordPolicy;
     }
 
     @Transactional
@@ -63,6 +67,8 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new IllegalArgumentException(msg.get("auth.email.exists"));
         }
+
+        passwordPolicy.validate(request.password(), request.email(), request.firstName(), request.lastName());
 
         User user = new User(
             request.email(),
@@ -210,6 +216,7 @@ public class AuthService {
             .orElseThrow(() -> new IllegalArgumentException(msg.get("auth.reset.invalid")));
 
         User user = authToken.getUser();
+        passwordPolicy.validate(request.newPassword(), user.getEmail(), user.getFirstName(), user.getLastName());
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         // A password reset confirms mailbox access → we lift any account lockout
         // (after 5 failed attempts) so the user can log in right away.

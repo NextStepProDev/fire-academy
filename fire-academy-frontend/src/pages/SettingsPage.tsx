@@ -8,6 +8,7 @@ import { authApi } from '../api/client'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { AvatarCropper } from '../components/ui/AvatarCropper'
+import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
 
@@ -102,7 +103,7 @@ export function SettingsPage() {
       setPasswordError(t('validation.passwordsMismatch', { ns: 'errors' }))
       return
     }
-    if (newPassword.length < 8) {
+    if (newPassword.length < 10) {
       setPasswordError(t('validation.passwordTooShort', { ns: 'errors' }))
       return
     }
@@ -277,7 +278,8 @@ export function SettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.new')}</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required />
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required minLength={10} />
+              <PasswordStrengthMeter password={newPassword} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.confirm')}</label>
