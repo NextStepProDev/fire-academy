@@ -105,8 +105,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        // Assumes a trusted proxy (nginx) that overwrites X-Forwarded-For. A directly exposed
-        // service would allow header spoofing and limit bypass — behind a reverse proxy this is OK.
+        // Cloudflare sets CF-Connecting-IP to the true client IP on every proxied request, and a
+        // client cannot forge it as long as the origin only accepts traffic from Cloudflare. Trust
+        // it first: unlike the first X-Forwarded-For token (which a client can set to rotate past
+        // the per-IP limiter — confirmed bypassable in prod), this header is controlled by our edge.
+        // Fall back to X-Forwarded-For, then the socket address, for non-Cloudflare envs (local/dev).
+        String cfIp = request.getHeader("CF-Connecting-IP");
+        if (cfIp != null && !cfIp.isBlank()) {
+            return cfIp.trim();
+        }
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isEmpty()) {
             return xff.split(",")[0].trim();
