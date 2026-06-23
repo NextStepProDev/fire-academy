@@ -1,11 +1,12 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Camera, ChevronDown, Trash2 } from 'lucide-react'
+import { Camera, ChevronDown, LogOut, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { authApi } from '../api/client'
 import { Button } from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Avatar } from '../components/ui/Avatar'
 import { AvatarCropper } from '../components/ui/AvatarCropper'
 import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
@@ -35,6 +36,9 @@ export function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const [showLogoutAllConfirm, setShowLogoutAllConfirm] = useState(false)
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [cropSrc, setCropSrc] = useState<string | null>(null)
@@ -140,6 +144,20 @@ export function SettingsPage() {
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
       setDeleteLoading(false)
+    }
+  }
+
+  const handleLogoutAll = async () => {
+    setLogoutAllLoading(true)
+    try {
+      await authApi.logoutAllDevices()
+      // The current session's own refresh token is gone too, so log out locally and send the user
+      // to the login page — refreshing here would fail anyway once the access token expires.
+      logout()
+      navigate('/logowanie', { replace: true })
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+      setLogoutAllLoading(false)
     }
   }
 
@@ -325,6 +343,25 @@ export function SettingsPage() {
           {t('marketing.privacyLink')}
         </Link>
       </section>
+
+      <section className="bg-surface-900 rounded-xl p-6 border border-surface-800 mb-6">
+        <h2 className="text-lg font-semibold text-surface-100 mb-1">{t('sessions.title')}</h2>
+        <p className="text-sm text-surface-400 mb-4">{t('sessions.description')}</p>
+        <Button type="button" variant="secondary" onClick={() => setShowLogoutAllConfirm(true)}>
+          <LogOut className="w-4 h-4 mr-1.5" />
+          {t('sessions.button')}
+        </Button>
+      </section>
+
+      <ConfirmDialog
+        isOpen={showLogoutAllConfirm}
+        onClose={() => setShowLogoutAllConfirm(false)}
+        onConfirm={handleLogoutAll}
+        title={t('sessions.confirmTitle')}
+        message={t('sessions.confirmMessage')}
+        confirmLabel={t('sessions.button')}
+        loading={logoutAllLoading}
+      />
 
       <section className="bg-surface-900 rounded-xl p-6 border border-rose-500/20">
         <h2 className="text-lg font-semibold text-rose-400 mb-4">{t('danger.title')}</h2>

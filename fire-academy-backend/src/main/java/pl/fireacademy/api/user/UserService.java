@@ -10,6 +10,7 @@ import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.auth.TokenType;
 import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
@@ -153,6 +154,17 @@ public class UserService {
         // Without this, a deleted user would still authenticate from the JWT filter cache for ~60s.
         jwtAuthenticationFilter.evictUser(userId);
         return erasure;
+    }
+
+    /**
+     * "Log out everywhere": deletes ALL of the user's refresh tokens, so no device can refresh its
+     * session — every device drops to logged-out within ≤15 min (when its access token expires).
+     * Not instant and not device-specific by design (all-or-nothing). The caller's own session is
+     * affected too, so the frontend logs the user out locally as well.
+     */
+    @Transactional
+    public void logoutAllDevices(UUID userId) {
+        authTokenRepository.deleteByUserIdAndTokenType(userId, TokenType.REFRESH_TOKEN);
     }
 
     @Transactional

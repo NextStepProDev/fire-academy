@@ -164,6 +164,8 @@ export const adminApi = {
     fetchApi<{ recipientCount: number }>('/admin/users/email', { method: 'POST', body: JSON.stringify(data) }),
   deleteUser: (id: string, notify = true) =>
     fetchApi<{ freedEnrollments: number; anonymizedEnrollments: number }>(`/admin/users/${id}?notify=${notify}`, { method: 'DELETE' }),
+  forceLogout: (id: string) =>
+    fetchApi<void>(`/admin/users/${id}/logout-all`, { method: 'POST' }),
   promoteUser: (id: string) =>
     fetchApi<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
   demoteUser: (id: string) =>
