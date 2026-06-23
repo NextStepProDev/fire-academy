@@ -13,6 +13,7 @@ import pl.fireacademy.api.admin.AdminUserDtos.*;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.auth.TokenType;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
@@ -207,6 +208,20 @@ public class AdminUserService {
         jwtAuthenticationFilter.evictUser(targetId);
 
         return new DeleteUserResponse(erasure.freed(), erasure.anonymized());
+    }
+
+    /**
+     * Force-logout of a chosen user (e.g. a compromised account): deletes ALL their refresh tokens so
+     * no device can refresh, and evicts the JWT filter cache. Sessions drop to logged-out within ≤15 min
+     * (when access tokens expire) — not instant, not device-specific. Allowed against any user, admins
+     * included (a deliberate scenario, unlike delete which protects the super-admin).
+     */
+    @Transactional
+    public void forceLogout(UUID targetId) {
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
+        authTokenRepository.deleteByUserIdAndTokenType(target.getId(), TokenType.REFRESH_TOKEN);
+        jwtAuthenticationFilter.evictUser(target.getId());
     }
 
     @Transactional

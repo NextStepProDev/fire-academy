@@ -219,6 +219,8 @@ export const authApi = {
   getMyEnrollments: () => fetchApi<MyEnrollments>('/user/enrollments'),
   cancelEnrollment: (id: string) =>
     fetchApi<void>(`/user/enrollments/${id}`, { method: 'DELETE' }),
+  logoutAllDevices: () =>
+    fetchApi<void>('/user/me/logout-all', { method: 'POST' }),
 }
 
 export const userApi = authApi

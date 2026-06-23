@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import clsx from 'clsx'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, Mail, MailCheck, MailX, Trash2, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
+import { Users, Search, Mail, MailCheck, MailX, Trash2, LogOut, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
 import { adminApi, type EmailAudience } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -39,6 +39,8 @@ export function AdminUsers() {
   const [toDelete, setToDelete] = useState<AdminUser | null>(null)
   const [notifyOnDelete, setNotifyOnDelete] = useState(true)
 
+  const [toForceLogout, setToForceLogout] = useState<AdminUser | null>(null)
+
   const usersQuery = useQuery({
     queryKey: ['admin-users', search, page, sortField, sortDir],
     queryFn: () => adminApi.getUsers({ search: search || undefined, page, sort: sortField, direction: sortDir }),
@@ -70,6 +72,15 @@ export function AdminUsers() {
       setToDelete(null)
       setSelected(new Set())
       invalidate()
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const forceLogoutMutation = useMutation({
+    mutationFn: (id: string) => adminApi.forceLogout(id),
+    onSuccess: () => {
+      showToast(t('users.forceLogoutSuccess'))
+      setToForceLogout(null)
     },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
@@ -300,6 +311,17 @@ export function AdminUsers() {
                               {t('users.demote')}
                             </Button>
                           )}
+                          {/* Force-logout is offered for every user, admins included (a deliberate scenario,
+                              e.g. a compromised account) — unlike delete it is not blocked for admins. */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={t('users.forceLogout')}
+                            aria-label={t('users.forceLogout')}
+                            onClick={() => setToForceLogout(u)}
+                          >
+                            <LogOut className="w-4 h-4" />
+                          </Button>
                           {!u.superAdmin && !isSelf && (
                             <Button
                               variant="danger"
@@ -446,6 +468,16 @@ export function AdminUsers() {
           <span className="text-sm text-surface-400">{t('users.deleteNotify')}</span>
         </label>
       </ConfirmDialog>
+
+      <ConfirmDialog
+        isOpen={toForceLogout !== null}
+        onClose={() => setToForceLogout(null)}
+        onConfirm={() => toForceLogout && forceLogoutMutation.mutate(toForceLogout.id)}
+        title={t('users.forceLogoutTitle')}
+        message={toForceLogout ? t('users.forceLogoutMessage', { name: `${toForceLogout.firstName} ${toForceLogout.lastName}` }) : ''}
+        confirmLabel={t('users.confirmForceLogout')}
+        loading={forceLogoutMutation.isPending}
+      />
     </div>
   )
 }

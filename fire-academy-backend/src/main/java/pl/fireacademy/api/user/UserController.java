@@ -54,6 +54,12 @@ public class UserController {
         return ResponseEntity.ok(userService.submitConsents(userId, request));
     }
 
+    @PostMapping("/me/logout-all")
+    public ResponseEntity<Void> logoutAllDevices(@CurrentUserId UUID userId) {
+        userService.logoutAllDevices(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/me/avatar")
     public ResponseEntity<UserDtos.UserResponse> uploadAvatar(@CurrentUserId UUID userId, @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(userService.uploadAvatar(userId, file));

@@ -2,6 +2,7 @@ package pl.fireacademy.api.admin;
 
 import jakarta.validation.Valid;
 import org.jspecify.annotations.Nullable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
 import pl.fireacademy.config.CurrentUserId;
@@ -41,6 +42,12 @@ public class AdminUserController {
     public DeleteUserResponse delete(@CurrentUserId UUID adminId, @PathVariable UUID id,
                                      @RequestParam(defaultValue = "true") boolean notify) {
         return service.delete(adminId, id, notify);
+    }
+
+    @PostMapping("/{id}/logout-all")
+    public ResponseEntity<Void> forceLogout(@PathVariable UUID id) {
+        service.forceLogout(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/promote")
