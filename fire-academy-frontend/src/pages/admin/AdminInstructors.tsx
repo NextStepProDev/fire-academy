@@ -128,6 +128,7 @@ export function AdminInstructors() {
       <Modal
         isOpen={isCreating || !!editItem}
         onClose={() => { setIsCreating(false); setEditItem(null) }}
+        size="xl"
         title={editItem ? t('kadra.editTitle') : t('kadra.createTitle')}
       >
         <div className="space-y-4">

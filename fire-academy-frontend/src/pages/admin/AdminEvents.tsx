@@ -449,6 +449,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
       <Modal
         isOpen={isCreating || !!editItem}
         onClose={closeForm}
+        size="xl"
         title={editItem ? t('events.editTitle') : t('events.createTitle')}
       >
         <div className="space-y-4">

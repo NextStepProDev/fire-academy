@@ -2,17 +2,29 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+type ModalSize = 'md' | 'lg' | 'xl' | '2xl'
+
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title: string
   children: ReactNode
+  /** Max width on desktop; mobile always stays full-width (minus container padding). Defaults to 'md'. */
+  size?: ModalSize
+}
+
+// Mobile keeps full width via `w-full`; these caps only kick in on wider viewports.
+const SIZE_CLASS: Record<ModalSize, string> = {
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-3xl',
+  '2xl': 'max-w-5xl',
 }
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   const { t } = useTranslation('common')
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -80,7 +92,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative bg-surface-900 rounded-xl border border-surface-700 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto focus:outline-none"
+        className={`relative bg-surface-900 rounded-xl border border-surface-700 shadow-xl ${SIZE_CLASS[size]} w-full max-h-[90vh] overflow-y-auto focus:outline-none`}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-surface-800">
           <h2 id={titleId} className="text-lg font-semibold text-surface-100">{title}</h2>

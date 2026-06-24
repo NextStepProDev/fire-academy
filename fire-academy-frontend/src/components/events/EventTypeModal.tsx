@@ -49,7 +49,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
   if (!eventType) return null
   return (
     <>
-      <Modal isOpen={!!eventType} onClose={onClose} title={eventType.name}>
+      <Modal isOpen={!!eventType} onClose={onClose} size="xl" title={eventType.name}>
         <div className="space-y-6">
           {eventType.thumbnailUrl && (
             <div className="relative -mx-6 -mt-2 overflow-hidden">
