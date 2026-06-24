@@ -10,7 +10,7 @@ interface InstructorModalProps {
 export function InstructorModal({ instructor, onClose }: InstructorModalProps) {
   if (!instructor) return null
   return (
-    <Modal isOpen={!!instructor} onClose={onClose} title={`${instructor.firstName} ${instructor.lastName}`}>
+    <Modal isOpen={!!instructor} onClose={onClose} size="lg" title={`${instructor.firstName} ${instructor.lastName}`}>
       <div className="flex flex-col gap-4">
         <div className="w-40 h-40 rounded-full overflow-hidden bg-surface-800 flex items-center justify-center mx-auto">
           {instructor.photoUrl ? (

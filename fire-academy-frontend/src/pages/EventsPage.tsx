@@ -186,7 +186,7 @@ export function EventsPage({ category }: EventsPageProps) {
         onClose={() => setSelectedEventType(null)}
       />
       {descriptionEvent && (
-        <Modal isOpen onClose={() => setDescriptionEvent(null)} title={descriptionEvent.eventTypeName}>
+        <Modal isOpen onClose={() => setDescriptionEvent(null)} size="lg" title={descriptionEvent.eventTypeName}>
           <p className="text-surface-300 whitespace-pre-wrap">{descriptionEvent.description}</p>
         </Modal>
       )}
