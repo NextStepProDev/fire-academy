@@ -9,7 +9,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95'
+    const isInteractive = !disabled && !loading
+    // Press animation only on an interactive button — a disabled/loading button must give no
+    // tactile "click" feedback (it ignores the click anyway).
+    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
     const variants = {
       primary: 'bg-primary-600 text-white hover:bg-primary-700 focus-visible:outline-primary-400',
@@ -27,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        className={clsx(baseStyles, variants[variant], sizes[size], className)}
+        className={clsx(baseStyles, variants[variant], sizes[size], isInteractive && 'active:scale-95', className)}
         disabled={disabled || loading}
         {...props}
       >
