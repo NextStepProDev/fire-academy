@@ -67,6 +67,15 @@ export function AdminInstructors() {
     }
   }
 
+  // In edit mode, disable Save until something actually changes (compare against the loaded item).
+  const isDirty = !editItem || (
+    form.firstName !== editItem.firstName ||
+    form.lastName !== editItem.lastName ||
+    form.bio !== (editItem.bio ?? '') ||
+    form.categories.length !== editItem.categories.length ||
+    !form.categories.every(c => editItem.categories.includes(c))
+  )
+
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -167,7 +176,7 @@ export function AdminInstructors() {
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={form.categories.length === 0}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={form.categories.length === 0 || !isDirty}>{t('actions.save')}</Button>
           </div>
         </div>
       </Modal>

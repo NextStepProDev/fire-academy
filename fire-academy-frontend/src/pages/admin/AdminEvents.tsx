@@ -421,6 +421,20 @@ export function AdminEvents({ category }: AdminEventsProps) {
     }
   }
 
+  // In edit mode, disable Save until something actually changes (compare against the loaded item,
+  // using the same normalization openEdit applies when seeding the form).
+  const isDirty = !editItem || (
+    form.eventTypeName !== editItem.eventTypeName ||
+    form.description !== (editItem.description ?? '') ||
+    form.startDate !== editItem.startDate ||
+    form.endDate !== (editItem.endDate ?? '') ||
+    form.startTime !== (editItem.startTime ?? '') ||
+    form.endTime !== (editItem.endTime ?? '') ||
+    form.location !== (editItem.location ?? '') ||
+    form.price !== (editItem.price?.toString() ?? '') ||
+    form.maxParticipants !== (editItem.maxParticipants?.toString() ?? '')
+  )
+
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -508,7 +522,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={closeForm}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={!isDirty}>{t('actions.save')}</Button>
           </div>
         </div>
       </Modal>
