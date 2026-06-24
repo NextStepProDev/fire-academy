@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import clsx from 'clsx'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'waitlist'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
 }
@@ -16,6 +16,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary: 'bg-primary-600 text-white hover:bg-primary-700 focus-visible:outline-primary-400',
+      // Same orange as primary but at ~70% opacity, so the dark surface shows through and the
+      // button reads as a lighter/secondary action — used for "Lista rezerwowa" when an event is full.
+      waitlist: 'bg-primary-600/70 text-white hover:bg-primary-600/85 focus-visible:outline-primary-400',
       secondary: 'bg-surface-700 text-surface-100 hover:bg-surface-600 focus-visible:outline-surface-300',
       ghost: 'bg-transparent text-surface-300 hover:bg-surface-800 hover:text-surface-100 focus-visible:outline-surface-400',
       danger: 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/20 focus-visible:outline-rose-400',
