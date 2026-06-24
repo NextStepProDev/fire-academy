@@ -85,6 +85,12 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     }
   }
 
+  // In edit mode, disable Save until something actually changes (compare against the loaded item).
+  const isDirty = !editItem || (
+    form.name !== editItem.name ||
+    form.description !== (editItem.description ?? '')
+  )
+
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -163,7 +169,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending}>{t('actions.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={!isDirty}>{t('actions.save')}</Button>
           </div>
         </div>
       </Modal>
