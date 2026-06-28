@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CalendarCheck, LogIn, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { publicApi } from '../api/public'
 import { Seo } from '../components/seo/Seo'
@@ -21,8 +20,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 
 export function TrainingsPage() {
   const { t } = useTranslation('events')
-  const { t: tAccount } = useTranslation('account')
-  const { isAuthenticated, isAdmin, user } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   const months = visibleMonths()
   const [selectedMonth, setSelectedMonth] = useState(months[0])
@@ -59,25 +57,6 @@ export function TrainingsPage() {
   const findInstructor = (instructorId: string | null) =>
     instructorId ? instructorsQuery.data?.find(i => i.id === instructorId) ?? null : null
 
-  // Personalized banner — login is tied to trainings (not shown to an admin).
-  const banner = isAdmin ? null : isAuthenticated ? (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3">
-      <p className="text-surface-200 text-sm">{tAccount('banner.loggedIn', { name: user?.firstName })}</p>
-      <Link to="/moje-konto" className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors">
-        <CalendarCheck className="w-4 h-4" />
-        {tAccount('banner.myReservations')}
-      </Link>
-    </div>
-  ) : (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3">
-      <p className="text-surface-300 text-sm">{tAccount('banner.guest')}</p>
-      <Link to="/logowanie" className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors">
-        <LogIn className="w-4 h-4" />
-        {tAccount('banner.login')}
-      </Link>
-    </div>
-  )
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-16">
       <Seo
@@ -89,8 +68,6 @@ export function TrainingsPage() {
           { name: t('trainings.title'), path: '/treningi' },
         ]}
       />
-
-      {banner && <div>{banner}</div>}
 
       <h1 className="text-3xl md:text-4xl font-bold text-surface-100">{t('trainings.title')}</h1>
 
