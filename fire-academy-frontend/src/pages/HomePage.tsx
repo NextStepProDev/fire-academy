@@ -8,7 +8,7 @@ const sections = [
   {
     key: 'trainings',
     to: '/treningi',
-    bg: 'https://images.unsplash.com/photo-1575800605380-ca1d27744f2c?w=1920&q=80',
+    bg: '/images/hero/hero-treningi.jpeg',
     clipPath: 'polygon(0 0, 100% 0, 100% 40%, 0 34%)',
     textTop: '17%',
     overlayClass: 'bg-black/55 group-hover:bg-black/40',
@@ -18,7 +18,6 @@ const sections = [
   {
     key: 'camps',
     to: '/obozy',
-    // bg: 'https://images.unsplash.com/photo-1578592391689-0e3d1a1b52b9?w=1920&q=80',
     bg: '/images/posters/przemo-alpinizm.jpeg',
     clipPath: 'polygon(0 31%, 100% 37%, 100% 73%, 0 67%)',
     textTop: '52%',
@@ -31,7 +30,7 @@ const sections = [
   {
     key: 'courses',
     to: '/szkolenia',
-    bg: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1920&q=80',
+    bg: '/images/hero/hero-szkolenia.jpeg',
     clipPath: 'polygon(0 64%, 100% 70%, 100% 100%, 0 100%)',
     textTop: '83%',
     overlayClass: 'bg-black/35 group-hover:bg-black/20',
