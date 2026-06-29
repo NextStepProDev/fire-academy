@@ -333,8 +333,10 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const [form, setForm] = useState({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
 
   const queryKey = ['admin', 'events', category]
-  const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: 0 })
-  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: 0 })
+  // Opt out of the global keepPreviousData: switching category tabs is a different dataset,
+  // so we'd rather show a spinner than briefly flash the other category's events/types.
+  const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: 0, placeholderData: undefined })
+  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: 0, placeholderData: undefined })
 
   const today = new Date().toISOString().split('T')[0]
   const events = allEvents?.filter(ev => (ev.endDate ?? ev.startDate) >= today)

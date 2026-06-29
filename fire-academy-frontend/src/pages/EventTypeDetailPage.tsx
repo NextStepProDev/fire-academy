@@ -42,6 +42,9 @@ export function EventTypeDetailPage() {
     queryKey: ['public', 'event-type', id],
     queryFn: () => publicApi.getEventType(id!),
     enabled: !!id && !!category,
+    // Opt out of the global keepPreviousData: navigating to a different type should show a
+    // spinner, not briefly flash the previous type's photo/description.
+    placeholderData: undefined,
   })
 
   // Camps/courses list dated event instances; trainings list recurring weekly slots.
@@ -207,7 +210,7 @@ export function EventTypeDetailPage() {
             {slotsQuery.isLoading ? (
               <LoadingSpinner />
             ) : relatedSlots.length ? (
-              <div className="space-y-6">
+              <div className={clsx('space-y-6 transition-opacity', slotsQuery.isFetching && 'opacity-60')}>
                 {DAYS.map(day => {
                   const daySlots = relatedSlots.filter(s => s.dayOfWeek === day)
                   if (!daySlots.length) return null

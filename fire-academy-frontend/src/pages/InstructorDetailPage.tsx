@@ -16,6 +16,9 @@ export function InstructorDetailPage() {
     queryKey: ['public', 'instructor', id],
     queryFn: () => publicApi.getInstructor(id!),
     enabled: !!id,
+    // Opt out of the global keepPreviousData: navigating to a different instructor should
+    // show a spinner, not briefly flash the previous person's photo/bio.
+    placeholderData: undefined,
   })
 
   if (query.isLoading) {

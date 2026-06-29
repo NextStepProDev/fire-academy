@@ -10,9 +10,11 @@ interface TrainingSlotCardProps {
   onEnroll: () => void
   onOpenType?: () => void
   onOpenInstructor?: () => void
+  // Hide the event-type name (e.g. inside that type's own modal, where it would be redundant).
+  hideType?: boolean
 }
 
-export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, onOpenInstructor }: TrainingSlotCardProps) {
+export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, onOpenInstructor, hideType = false }: TrainingSlotCardProps) {
   const { t } = useTranslation('events')
   const isFull = slot.availableSpots <= 0
   const time = `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`
@@ -23,12 +25,14 @@ export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, 
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
       <div className="flex-1 min-w-0 space-y-1">
-        {onOpenType ? (
-          <button onClick={onOpenType} className="font-semibold text-surface-100 hover:text-primary-400 transition-colors text-left">
-            {slot.eventTypeName}
-          </button>
-        ) : (
-          <h4 className="font-semibold text-surface-100">{slot.eventTypeName}</h4>
+        {!hideType && (
+          onOpenType ? (
+            <button onClick={onOpenType} className="font-semibold text-surface-100 hover:text-primary-400 transition-colors text-left">
+              {slot.eventTypeName}
+            </button>
+          ) : (
+            <h4 className="font-semibold text-surface-100">{slot.eventTypeName}</h4>
+          )
         )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-400">
           <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{time}</span>

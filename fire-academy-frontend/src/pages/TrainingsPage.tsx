@@ -94,7 +94,7 @@ export function TrainingsPage() {
         {slotsQuery.isLoading ? (
           <LoadingSpinner />
         ) : slots.length ? (
-          <div className="space-y-3">
+          <div className={clsx('space-y-3 transition-opacity', slotsQuery.isFetching && 'opacity-60')}>
             {DAYS.map(day => {
               const daySlots = slots.filter(s => s.dayOfWeek === day)
               if (!daySlots.length) return null
@@ -177,6 +177,8 @@ export function TrainingsPage() {
       <EventTypeModal
         eventType={selectedEventType}
         events={[]}
+        category="TRAINING"
+        isAuthenticated={isAuthenticated}
         onEnroll={() => {}}
         onClose={() => setSelectedEventType(null)}
       />

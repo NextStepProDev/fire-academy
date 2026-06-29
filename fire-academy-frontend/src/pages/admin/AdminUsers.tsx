@@ -209,7 +209,7 @@ export function AdminUsers() {
         ) : users.length === 0 ? (
           <p className="text-surface-500 text-sm p-6">{t('users.noResults')}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className={clsx('overflow-x-auto transition-opacity', usersQuery.isFetching && 'opacity-60')}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-800 text-left text-surface-400">

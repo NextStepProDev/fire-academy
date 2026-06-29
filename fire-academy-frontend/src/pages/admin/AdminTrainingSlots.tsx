@@ -201,7 +201,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
           ) : !roster.length ? (
             <p className="text-sm text-surface-500 py-2">{t('trainingSlots.rosterEmpty')}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className={clsx('overflow-x-auto transition-opacity', rosterQuery.isFetching && 'opacity-60')}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-surface-800 text-left text-surface-400">
@@ -410,7 +410,7 @@ export function AdminTrainingSlots() {
     enabled: showArchive,
   })
 
-  const { data: slots, isLoading } = useQuery({
+  const { data: slots, isLoading, isFetching } = useQuery({
     queryKey: ['admin', 'training-slots', month],
     queryFn: () => adminApi.getTrainingSlots(month),
     staleTime: 0,
@@ -528,7 +528,7 @@ export function AdminTrainingSlots() {
       {!slots?.length ? (
         <p className="text-surface-500">{t('trainingSlots.noItems')}</p>
       ) : (
-        <div className="space-y-6">
+        <div className={clsx('space-y-6 transition-opacity', isFetching && 'opacity-60')}>
           {DAYS.map(day => {
             const daySlots = slots.filter(s => s.dayOfWeek === day)
             if (!daySlots.length) return null

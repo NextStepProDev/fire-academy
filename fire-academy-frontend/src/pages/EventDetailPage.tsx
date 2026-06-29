@@ -33,6 +33,9 @@ export function EventDetailPage() {
     queryKey: ['public', 'event', id],
     queryFn: () => publicApi.getEvent(id!),
     enabled: !!id && !!category,
+    // Opt out of the global keepPreviousData: navigating to a different event should show a
+    // spinner, not briefly flash the previous event's details.
+    placeholderData: undefined,
   })
 
   const eventTypeQuery = useQuery({
