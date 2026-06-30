@@ -80,7 +80,11 @@ public class SecurityConfig {
                 }
                 auth.requestMatchers("/actuator/health").permitAll();
                 auth.requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll();
+                    // Public file serving: allow GET and HEAD. HEAD is read-only and used
+                    // by crawlers/CDNs to preflight a file; matching only GET let HEAD fall
+                    // through to anyRequest().authenticated() and return 401.
+                    .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                    .requestMatchers(HttpMethod.HEAD, "/api/files/**").permitAll();
                 if (oAuth2UserService != null) {
                     auth.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll();
                 }
