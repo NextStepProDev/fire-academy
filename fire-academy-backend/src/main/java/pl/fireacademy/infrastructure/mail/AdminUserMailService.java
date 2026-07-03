@@ -27,6 +27,28 @@ public class AdminUserMailService {
     }
 
     /**
+     * A campaign recipient detached from the {@code User} entity — plain values captured inside the caller's
+     * transaction, safe to carry across the {@code @Async} boundary. {@code unsubscribeToken} follows the
+     * single-send contract: non-null for marketing (adds the unsubscribe footer), null for service messages.
+     */
+    public record CampaignRecipient(String email, String firstName, @Nullable String unsubscribeToken) {
+    }
+
+    /**
+     * Bulk send (admin broadcast/newsletter) as ONE background task: a sequential loop building one message at a
+     * time, on the dedicated single-thread {@code mailCampaignExecutor}. Never dispatch a bulk send as one
+     * {@code @Async} task per recipient on {@code mailExecutor} — its queue (100) overflows past ~104 recipients
+     * (TaskRejectedException cuts the campaign short) and a flooded queue starves transactional mail.
+     */
+    @Async("mailCampaignExecutor")
+    public void sendCampaign(List<CampaignRecipient> recipients, String subject, String message) {
+        for (CampaignRecipient recipient : recipients) {
+            doSendCustomMessage(recipient.email(), recipient.firstName(), subject, message,
+                    recipient.unsubscribeToken());
+        }
+    }
+
+    /**
      * Email written manually by the administrator. When {@code unsubscribeToken != null}, the message is
      * marketing: a paragraph with an unsubscribe link ({siteUrl}/wypisz-sie?token=...) is added to the footer,
      * separate from any service mechanism. For service messages the token is null.
@@ -34,6 +56,11 @@ public class AdminUserMailService {
     @Async("mailExecutor")
     public void sendCustomMessage(String recipientEmail, String firstName, String subject, String message,
                                   @Nullable String unsubscribeToken) {
+        doSendCustomMessage(recipientEmail, firstName, subject, message, unsubscribeToken);
+    }
+
+    private void doSendCustomMessage(String recipientEmail, String firstName, String subject, String message,
+                                     @Nullable String unsubscribeToken) {
         // Email subject without HTML escaping — otherwise Polish characters would end up as entities (&oacute; etc.).
         String safeFirstName = HtmlUtils.htmlEscape(firstName);
         String safeMessage = HtmlUtils.htmlEscape(message).replace("\n", "<br/>");

@@ -13,7 +13,9 @@ spring:
     username: ${DB_USER:fireacademy}
     password: ${DB_PASSWORD:fireacademy_dev}
     hikari:
-      maximum-pool-size: ${HIKARI_MAX_POOL:10}
+      # Each connection is a Postgres backend process sharing the same ~1 GB box; traffic is tiny.
+      # Raise only when HikariCP metrics actually show pool saturation.
+      maximum-pool-size: ${HIKARI_MAX_POOL:8}
       minimum-idle: ${HIKARI_MIN_IDLE:2}
       keepalive-time: 120000
       max-lifetime: 1200000
