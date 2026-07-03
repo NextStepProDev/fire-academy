@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.TrainingSlotDtos.*;
-import pl.fireacademy.api.user.TrainingEnrollmentService;
 import pl.fireacademy.domain.training.*;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -21,6 +20,9 @@ public class AdminTrainingEnrollmentService {
     private final TrainingSlotRepository slotRepository;
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingPaymentRepository paymentRepository;
+    private final TrainingBillingService billing;
+    private final TrainingCreditService creditService;
+    private final TrainingRefundService refundService;
     private final UserRepository userRepository;
     private final MessageService msg;
     private final TrainingMailService trainingMail;
@@ -28,12 +30,18 @@ public class AdminTrainingEnrollmentService {
     public AdminTrainingEnrollmentService(TrainingSlotRepository slotRepository,
                                           TrainingEnrollmentRepository enrollmentRepository,
                                           TrainingPaymentRepository paymentRepository,
+                                          TrainingBillingService billing,
+                                          TrainingCreditService creditService,
+                                          TrainingRefundService refundService,
                                           UserRepository userRepository,
                                           MessageService msg,
                                           TrainingMailService trainingMail) {
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.paymentRepository = paymentRepository;
+        this.billing = billing;
+        this.creditService = creditService;
+        this.refundService = refundService;
         this.userRepository = userRepository;
         this.msg = msg;
         this.trainingMail = trainingMail;
@@ -51,7 +59,8 @@ public class AdminTrainingEnrollmentService {
             var u = te.getUser();
             return new RosterEntry(
                     te.getId(), u.getId(), u.getFirstName(), u.getLastName(), u.getEmail(), u.getPhone(),
-                    te.getStartMonth(), te.getEndMonth(), te.getEndMonth() == null, paidIds.contains(te.getId())
+                    te.getStartMonth(), te.getEndMonth(), te.getEndMonth() == null, paidIds.contains(te.getId()),
+                    creditService.availableBalance(te.getId())
             );
         }).toList();
     }
@@ -82,7 +91,7 @@ public class AdminTrainingEnrollmentService {
         // G: notify the user that the organizer added them.
         var info = slotInfo(slot);
         var billingMonth = start.isAfter(current) ? start : current;
-        int sessions = TrainingEnrollmentService.sessionsInMonth(slot.getDayOfWeek(), billingMonth);
+        int sessions = billing.sessions(slot, billingMonth);
         var amount = slot.getPrice() != null
                 ? slot.getPrice().multiply(java.math.BigDecimal.valueOf(sessions)) : null;
         trainingMail.sendAdminAddedConfirmation(user.getEmail(), user.getFirstName(), info,
@@ -109,17 +118,122 @@ public class AdminTrainingEnrollmentService {
                 slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());
     }
 
+    /**
+     * Monthly payment roster grouped by person: each subscriber with the total they owe for the whole month
+     * (net of surplus credit) across all their trainings, whether it's fully paid, and a per-training breakdown.
+     */
+    @Transactional(readOnly = true)
+    public List<UserMonthlyPayment> listMonthlyByUser(YearMonth month) {
+        var enrollments = enrollmentRepository.findAllCoveringMonth(month.toString());
+        if (enrollments.isEmpty()) {
+            return List.of();
+        }
+        var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
+        var paidIds = new java.util.HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month.toString()));
+
+        var byUser = new java.util.LinkedHashMap<java.util.UUID, List<TrainingEnrollment>>();
+        for (var te : enrollments) {
+            byUser.computeIfAbsent(te.getUser().getId(), k -> new java.util.ArrayList<>()).add(te);
+        }
+        var result = new java.util.ArrayList<UserMonthlyPayment>();
+        for (var group : byUser.values()) {
+            var user = group.getFirst().getUser();
+            var lines = new java.util.ArrayList<MonthlyTrainingLine>();
+            var total = java.math.BigDecimal.ZERO;
+            boolean allPaid = true;
+            var creditBalance = java.math.BigDecimal.ZERO;
+            for (var te : group) {
+                var slot = te.getSlot();
+                var gross = billing.amount(slot, month);                       // price × sessions, or null
+                var credit = creditService.appliedFor(te, month);
+                var net = gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
+                boolean paid = paidIds.contains(te.getId());
+                if (!paid) allPaid = false;
+                total = total.add(net);
+                creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
+                lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
+                        slot.getStartTime(), slot.getEndTime(), net, paid));
+            }
+            result.add(new UserMonthlyPayment(user.getId(), user.getFirstName(), user.getLastName(),
+                    user.getEmail(), user.getPhone(), lines, total, allPaid, creditBalance));
+        }
+        return result;
+    }
+
     @Transactional
     public void setPayment(UUID enrollmentId, SetPaymentRequest request) {
         var te = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.not.found")));
-        var month = request.month().toString();
-        if (request.paid()) {
-            if (!paymentRepository.existsByEnrollmentIdAndYearMonth(enrollmentId, month)) {
-                paymentRepository.save(new TrainingPayment(te, request.month()));
+        applyPayment(te, request.month(), request.paid());
+    }
+
+    /**
+     * Marks/reverts a whole month's payment for one subscriber across ALL their trainings at once — a person pays
+     * for the month, not per training. Atomic: either every covered training flips or none (an error rolls back).
+     */
+    @Transactional
+    public void payUserMonth(UUID userId, YearMonth month, boolean paid) {
+        var enrollments = enrollmentRepository.findCoveringByUserAndMonth(userId, month.toString());
+        for (var te : enrollments) {
+            applyPayment(te, month, paid);
+        }
+    }
+
+    private void applyPayment(TrainingEnrollment te, YearMonth requestMonth, boolean requestPaid) {
+        var enrollmentId = te.getId();
+        var month = requestMonth.toString();
+        var paidMonths = new HashSet<>(paymentRepository.findPaidMonths(enrollmentId));
+        if (requestPaid) {
+            if (!paidMonths.contains(month)) {
+                // A month opens for payment only in the last week before it starts (same window as the
+                // next-month estimate) — you don't pay August in early July; payment happens right before
+                // its first sessions. Current and past months are always open (corrections).
+                requireMonthOpenForPayment(requestMonth);
+                // Payments run in calendar order: a month can be marked paid only once every earlier payable
+                // month (from the current month, within coverage) is already paid — you cannot pay August with
+                // July still open. This keeps paid months a contiguous prefix, so surplus never lands backwards.
+                requireEarlierMonthsPaid(te, requestMonth, paidMonths);
+                // Freeze how much surplus this month absorbs, so the same credit is never applied twice.
+                var applied = creditService.liveAppliedFor(te, requestMonth);
+                paymentRepository.save(new TrainingPayment(te, requestMonth, applied));
             }
         } else {
+            // Symmetrically, a month can be un-paid only if no later month is still paid (no gaps).
+            for (var pm : paidMonths) {
+                if (YearMonth.parse(pm).isAfter(requestMonth)) {
+                    throw new IllegalStateException(msg.get("trainingpayment.unpay.out.of.order"));
+                }
+            }
             paymentRepository.deleteByEnrollmentIdAndYearMonth(enrollmentId, month);
+            // Reverting the payment cancels any refund that was owed for this month — nothing was actually paid.
+            refundService.revokeForPayment(enrollmentId, requestMonth);
+        }
+    }
+
+    /** How many days before a month starts it opens for payment (matches the next-month estimate window). */
+    private static final int PAYMENT_OPENS_DAYS_BEFORE = 7;
+
+    /** Rejects paying a month too early — before its payment window (last week of the previous month) opens. */
+    private void requireMonthOpenForPayment(YearMonth month) {
+        var opensOn = month.atDay(1).minusDays(PAYMENT_OPENS_DAYS_BEFORE);
+        if (java.time.LocalDate.now().isBefore(opensOn)) {
+            throw new IllegalStateException(msg.get("trainingpayment.too.early"));
+        }
+    }
+
+    /** Rejects paying {@code month} while an earlier covered payable month (from the current month) is unpaid. */
+    private void requireEarlierMonthsPaid(TrainingEnrollment te, YearMonth month, java.util.Set<String> paidMonths) {
+        var current = YearMonth.now();
+        var start = te.getStartMonth();
+        var firstPayable = start.isAfter(current) ? start : current;   // max(current, start)
+        var end = te.getEndMonth();
+        for (var e = firstPayable; e.isBefore(month); e = e.plusMonths(1)) {
+            if (end != null && e.isAfter(end)) {
+                break;
+            }
+            if (!paidMonths.contains(e.toString())) {
+                throw new IllegalStateException(msg.get("trainingpayment.pay.out.of.order"));
+            }
         }
     }
 }

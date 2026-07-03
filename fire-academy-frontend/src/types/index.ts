@@ -165,6 +165,8 @@ export interface TrainingSlot {
   active: boolean
   /** Date (ISO YYYY-MM-DD) from which the slot is deactivated; null = active. */
   deactivatedFrom: string | null
+  /** For a deactivated slot: false once a cash refund was paid out (or credited surplus spent) → reactivation blocked. */
+  reactivatable: boolean
   createdAt: string
 }
 
@@ -191,6 +193,67 @@ export interface CancelledSession {
   sessionDate: string
 }
 
+/** A participant affected by a cancelled session. `owedRefund` = had paid that month. */
+export interface AffectedParticipant {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string | null
+  paid: boolean
+  owedRefund: boolean
+}
+
+/** Club-wide cancelled session with the people it affected (admin overview, upcoming + archive). */
+export interface CancelledSessionOverview {
+  id: string
+  slotId: string
+  sessionDate: string
+  eventTypeName: string
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  price: number | null
+  /** Session date is today or later — it can still be restored. */
+  future: boolean
+  /** false when a cash refund was already paid out (or credited surplus spent) → restore is blocked. */
+  restorable: boolean
+  participants: AffectedParticipant[]
+}
+
+/** Whole-club day off (public schedule + admin panel). */
+export interface TrainingHolidayItem {
+  date: string
+  label: string | null
+}
+
+/** Day off with id (admin management). */
+export interface TrainingHoliday extends TrainingHolidayItem {
+  id: string
+  /** Paid participants who got the day-off email — >0 means removing it should warn to phone them. */
+  notifiedCount: number
+  /** false when a cash refund was already paid out (or credited surplus spent) → removal is blocked. */
+  restorable: boolean
+}
+
+/** A refund owed (or settled) for a paid session that was cancelled — admin "Zwroty" view. */
+export interface RefundEntry {
+  id: string
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  trainingName: string
+  sessionDate: string
+  yearMonth: string
+  amount: number
+  type: 'HOLIDAY' | 'SESSION'
+  label: string | null
+  settledAt: string | null
+  settlementType: 'REFUNDED' | 'CREDITED' | null
+}
+
 /** Deleted (archived) slot with data of former participants. */
 export interface DeletedTrainingSlot {
   id: string
@@ -201,6 +264,28 @@ export interface DeletedTrainingSlot {
   endTime: string | null
   deletedAt: string
   participants: ArchivedParticipant[]
+}
+
+/** One subscriber's whole-month bill across all their trainings (admin "Płatności miesięczne"). */
+export interface UserMonthlyPayment {
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  trainings: MonthlyTrainingLine[]
+  totalAmount: number
+  allPaid: boolean
+  creditBalance: number
+}
+
+export interface MonthlyTrainingLine {
+  trainingName: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  amount: number
+  paid: boolean
 }
 
 export interface ArchivedParticipant {
@@ -232,6 +317,8 @@ export interface TrainingRosterEntry {
   endMonth: string | null
   indefinite: boolean
   paid: boolean
+  /** Surplus (credited refunds) still available to discount this subscriber's upcoming bills. */
+  creditBalance: number
 }
 
 /** Logged-in user's subscription to a slot — account view. */
@@ -249,9 +336,29 @@ export interface MyTrainingEnrollment {
   endMonth: string | null
   billingMonth: string
   sessionsInBillingMonth: number
+  /** NET amount after subtracting surplus credit. */
   monthlyAmount: number | null
+  /** Surplus (credited refund) applied to this month, 0 if none. */
+  monthlyCreditApplied: number
+  /** Whether the organizer has marked the billing month as paid. */
+  billingMonthPaid: boolean
+  /** What the client actually paid for the billing month (real amount even if later cut by a cancellation). */
+  billingMonthPaidAmount: number | null
+  /** Money owed for cancelled paid sessions not yet resolved — claim as refund or credit toward a future month. */
+  pendingRefundAmount: number
+  /** Surplus (credited refunds) waiting to reduce upcoming bills — visible year-round, not only in the estimate window. */
+  upcomingCreditBalance: number
+  /** Estimated billing for next month — only set within ~7 days before it starts, else null. */
+  nextBillingMonth: string | null
+  nextMonthSessions: number | null
+  nextMonthAmount: number | null
+  nextMonthCreditApplied: number | null
   /** Upcoming cancelled sessions of this slot (ISO YYYY-MM-DD). */
   cancelledDates: string[]
+  /** Upcoming days off landing on this slot's weekday (ISO YYYY-MM-DD). */
+  holidayDates: string[]
+  /** Set when the whole training was scheduled to stop from this date — no sessions/bill after it. */
+  slotDeactivatedFrom: string | null
 }
 
 export interface Enrollment {

@@ -198,22 +198,112 @@ public class TrainingMailService {
 
     // ── F: cancelled individual session (user) ───────────────────────────────
     @Async("mailExecutor")
-    public void sendSessionCancelled(String email, String firstName, SlotInfo slot, LocalDate date) {
+    public void sendSessionCancelled(String email, String firstName, SlotInfo slot, LocalDate date,
+                                     @Nullable BigDecimal refund) {
         String timeLabel = slot.startTime().format(TIME_FMT)
                 + (slot.endTime() != null ? "–" + slot.endTime().format(TIME_FMT) : "");
         String content = """
                 <h1 style="color: #f97316; font-size: 20px;">%s</h1>
                 <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
                 <p style="font-size: 16px; line-height: 1.6;">%s</p>
                 %s
             """.formatted(
                 msg.get("email.training.session.greeting", esc(firstName)),
                 msg.get("email.training.session.body", esc(slot.trainingName()),
                         date.format(DATE_FMT), timeLabel),
+                refundLine(refund),
                 msg.get("email.training.session.footer"),
                 trainingsButton()
         );
         mail.send(email, msg.get("email.training.session.subject", date.format(DATE_FMT), slot.trainingName()), branded(content, false));
+    }
+
+    /** One cancelled session in the grouped cancellation emails (day off / instructor day). */
+    public record SessionLine(String trainingName, LocalTime startTime, @Nullable LocalTime endTime) {}
+
+    /** Bulleted list of the person's cancelled sessions for a grouped email. */
+    private String sessionListHtml(List<SessionLine> sessions) {
+        var items = new StringBuilder();
+        for (var s : sessions) {
+            String time = s.startTime().format(TIME_FMT)
+                    + (s.endTime() != null ? "–" + s.endTime().format(TIME_FMT) : "");
+            items.append("<li style=\"margin: 4px 0;\">%s · %s</li>".formatted(esc(s.trainingName()), time));
+        }
+        return "<ul style=\"font-size: 16px; line-height: 1.6; padding-left: 20px; margin: 8px 0;\">%s</ul>"
+                .formatted(items);
+    }
+
+    // ── Whole-club day off — ONE grouped email per person, listing their cancelled sessions that day ──
+    @Async("mailExecutor")
+    public void sendDayOffCancellation(String email, String firstName, LocalDate date, @Nullable String label,
+                                       List<SessionLine> sessions, @Nullable BigDecimal totalRefund) {
+        String dayOff = label != null && !label.isBlank()
+                ? date.format(DATE_FMT) + " (" + esc(label) + ")" : date.format(DATE_FMT);
+        String content = """
+                <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+                %s
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+            """.formatted(
+                msg.get("email.training.dayoff.greeting", esc(firstName)),
+                msg.get("email.training.dayoff.body", dayOff),
+                sessionListHtml(sessions),
+                refundLineTotal(totalRefund),
+                msg.get("email.training.dayoff.footer"),
+                trainingsButton()
+        );
+        mail.send(email, msg.get("email.training.dayoff.subject", date.format(DATE_FMT)), branded(content, true));
+    }
+
+    // ── Instructor cancels all their sessions on a date — ONE grouped email per person ──
+    @Async("mailExecutor")
+    public void sendInstructorDayCancellation(String email, String firstName, String instructorName, LocalDate date,
+                                              List<SessionLine> sessions, @Nullable BigDecimal totalRefund) {
+        String content = """
+                <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+                %s
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+            """.formatted(
+                msg.get("email.training.instructorday.greeting", esc(firstName)),
+                msg.get("email.training.instructorday.body", esc(instructorName), date.format(DATE_FMT)),
+                sessionListHtml(sessions),
+                refundLineTotal(totalRefund),
+                msg.get("email.training.instructorday.footer"),
+                trainingsButton()
+        );
+        // Subject: raw values (no HTML escaping in subjects).
+        mail.send(email, msg.get("email.training.instructorday.subject", instructorName, date.format(DATE_FMT)),
+                branded(content, false));
+    }
+
+    /** Highlighted line about the total money owed back for several cancelled, already-paid sessions. */
+    private String refundLineTotal(@Nullable BigDecimal refund) {
+        if (refund == null || refund.signum() <= 0) {
+            return "";
+        }
+        return """
+            <div style="background-color: #292524; border-left: 3px solid #f97316; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+                <p style="font-size: 14px; margin: 0;">%s</p>
+            </div>
+            """.formatted(msg.get("email.training.refund.line.total", refund.toPlainString()));
+    }
+
+    /** Optional highlighted line about money owed back when the subscriber already paid for the session. */
+    private String refundLine(@Nullable BigDecimal refund) {
+        if (refund == null) {
+            return "";
+        }
+        return """
+            <div style="background-color: #292524; border-left: 3px solid #f97316; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+                <p style="font-size: 14px; margin: 0;">%s</p>
+            </div>
+            """.formatted(msg.get("email.training.refund.line", refund.toPlainString()));
     }
 
     // ── H: organizer removed the user (user) ─────────────────────────────────

@@ -37,7 +37,7 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan (gałąź `feat/trainings-types-scheduling`): V23. Kolejna migracja: V24.**
+**Obecny stan (gałąź `feat/trainings-types-scheduling`): V25. Kolejna migracja: V26.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana — kolejne migracje numerujemy od V24 w górę.
 
 | Wersja | Co dodaje |
@@ -62,6 +62,8 @@ VERSION
 | V21 | training_payment — rejestr płatności miesięcznych per subskrypcja (oznaczanie opłacone/nieopłacone w rosterze) |
 | V22 | training_cancelled_session — odwołania pojedynczych zajęć (soft-delete) + archiwum |
 | V23 | dezaktywacja slotu od konkretnej daty + wygaśnięcie subskrypcji terminowej (scheduler) |
+| V24 | training_holidays (globalne dni wolne klubu — obniżają liczbę zajęć/cenę wszystkich slotów tego dnia tygodnia) + training_refunds (rejestr zwrotów: opłacone zajęcia, które się nie odbyły = należność; typ HOLIDAY/SESSION; rozliczenie `settled_at` + `settlement_type` REFUNDED (zwrot gotówki) / CREDITED (zaliczone na poczet miesiąca)). Billing scentralizowany w `TrainingBillingService` (odejmuje dni wolne + odwołane zajęcia); zwroty w `TrainingRefundService` (rejestracja przy odwołaniu opłaconego miesiąca, cofnięcie przy przywróceniu/odznaczeniu płatności). Odwołania zajęć: pojedyncze (per slot+data), **odwołanie wszystkich zajęć trenera w danym dniu** (`POST /admin/training-slots/cancel-instructor-day`), oraz dzień wolny = cały klub. Zakładki admina „Dni wolne" i „Zwroty" w sekcji Treningi |
+| V25 | training_payments.credit_applied — nadwyżka ze zwrotu rozliczonego jako CREDITED realnie obniża rachunek. `TrainingCreditService`: saldo nadwyżki = suma zwrotów CREDITED − nadwyżka skonsumowana (zamrożona na opłaconych miesiącach w `credit_applied`); obniża najbliższy nieopłacony miesiąc **nie wcześniejszy niż miesiąc źródłowy nadwyżki** (nadpłata za sierpień idzie na wrzesień, nie na lipiec), overflow roluje na kolejne; docinana do żywego rachunku (`cena × zajęcia`). Konsumpcja przy oznaczeniu „opłacone", zwrot przy odznaczeniu. Bezpiecznik: nie można cofnąć rozliczenia CREDITED, którego nadwyżka już skonsumowana (`trainingrefund.credit.consumed`). User widzi NET + „uwzględniono nadwyżkę −X zł"; roster pokazuje saldo nadwyżki. **Płatności: okno + chronologia** (`setPayment`): miesiąc otwiera się do płatności dopiero na 7 dni przed startem (`too.early`, to samo okno co estymata) — nie da się opłacić sierpnia w środku lipca; dodatkowo chronologia (nie opłacisz miesiąca, gdy wcześniejszy nieopłacony; nie cofniesz, gdy późniejszy opłacony) → opłacone miesiące = ciągły prefiks, stan „sierpień opłacony, lipiec nie" nie powstaje. Testy: `TrainingCreditServiceTest`/`AdminTrainingRefundServiceTest`/`AdminTrainingEnrollmentServiceTest` (jednostkowe, niezależne od zegara) |
 
 ---
 

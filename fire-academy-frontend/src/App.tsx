@@ -19,6 +19,8 @@ const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage
 const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ProfileCompletionPage = lazyWithReload(() => import('./pages/ProfileCompletionPage').then(m => ({ default: m.ProfileCompletionPage })))
 const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
+const MojeRezerwacjePage = lazyWithReload(() => import('./pages/MojeRezerwacjePage').then(m => ({ default: m.MojeRezerwacjePage })))
+const MojeTreningiPage = lazyWithReload(() => import('./pages/MojeTreningiPage').then(m => ({ default: m.MojeTreningiPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
 const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
@@ -63,6 +65,14 @@ export default function App() {
               element={<ProtectedRoute><MojeKontoPage /></ProtectedRoute>}
             />
             <Route
+              path="moje-konto/rezerwacje"
+              element={<ProtectedRoute><MojeRezerwacjePage /></ProtectedRoute>}
+            />
+            <Route
+              path="moje-konto/treningi"
+              element={<ProtectedRoute><MojeTreningiPage /></ProtectedRoute>}
+            />
+            <Route
               path="settings"
               element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
             />
@@ -76,7 +86,7 @@ export default function App() {
             />
             <Route
               path="admin"
-              element={<AdminRoute><Navigate to="/admin/kadra" replace /></AdminRoute>}
+              element={<AdminRoute><Navigate to="/admin/treningi" replace /></AdminRoute>}
             />
             <Route path="login" element={<Navigate to="/logowanie" replace />} />
             <Route path="register" element={<Navigate to="/rejestracja" replace />} />

@@ -7,8 +7,8 @@ import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
-import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
-import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive } from 'lucide-react'
+import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
+import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive, UserX } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 
@@ -70,6 +70,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   const [isDeactivating, setIsDeactivating] = useState(false)
   const [deactivateDate, setDeactivateDate] = useState(TODAY_ISO)
   const [confirmCancelDate, setConfirmCancelDate] = useState<string | null>(null)
+  const [confirmRestoreDate, setConfirmRestoreDate] = useState<string | null>(null)
   const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1 })
 
   const userSearch = useQuery({
@@ -90,6 +91,9 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   const invalidateCounts = () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'training-slots'] })
     queryClient.invalidateQueries({ queryKey: ['public', 'training-slots'] })
+  }
+  const invalidateRefunds = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
   }
 
   const addMut = useMutation({
@@ -120,6 +124,8 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   const cancelledSet = new Set((cancelledQuery.data ?? []).map(c => c.sessionDate))
   const invalidateCancelled = () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-sessions', slot.id] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-overview'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
     invalidateCounts()
   }
   const cancelSessionMut = useMutation({
@@ -134,17 +140,19 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   })
   const deactivateMut = useMutation({
     mutationFn: (date: string) => adminApi.deactivateTrainingSlot(slot.id, date),
-    onSuccess: () => { invalidateCounts(); setIsDeactivating(false); showToast(t('trainingSlots.deactivateSuccess'), 'success') },
+    onSuccess: () => { invalidateCounts(); invalidateRefunds(); setIsDeactivating(false); showToast(t('trainingSlots.deactivateSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const reactivateMut = useMutation({
     mutationFn: () => adminApi.reactivateTrainingSlot(slot.id),
-    onSuccess: () => { invalidateCounts(); showToast(t('trainingSlots.reactivateSuccess'), 'success') },
+    onSuccess: () => { invalidateCounts(); invalidateRefunds(); showToast(t('trainingSlots.reactivateSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
-  const upcomingDates = useMemo(
-    () => sessionDatesInMonth(month, slot.dayOfWeek).filter(d => d >= TODAY_ISO),
+  // All session dates of the month — past ones included so historical sessions that did not take place can be
+  // cancelled too (that refunds subscribers who paid the month).
+  const sessionDates = useMemo(
+    () => sessionDatesInMonth(month, slot.dayOfWeek),
     [month, slot.dayOfWeek],
   )
 
@@ -174,9 +182,15 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {slot.deactivatedFrom ? (
-            <button onClick={() => reactivateMut.mutate()} className="px-2 py-1 text-xs rounded bg-green-900/30 text-green-400">
-              {t('actions.activate')}
-            </button>
+            slot.reactivatable ? (
+              <button onClick={() => reactivateMut.mutate()} className="px-2 py-1 text-xs rounded bg-green-900/30 text-green-400">
+                {t('actions.activate')}
+              </button>
+            ) : (
+              <span className="px-2 py-1 text-xs rounded bg-rose-500/10 text-rose-300 cursor-not-allowed" title={t('trainingSlots.reactivateBlockedHint')}>
+                {t('trainingSlots.reactivateBlocked')}
+              </span>
+            )
           ) : (
             <button onClick={() => { setDeactivateDate(TODAY_ISO); setIsDeactivating(true) }} className="px-2 py-1 text-xs rounded bg-surface-800 text-surface-400 hover:text-amber-400">
               {t('actions.deactivate')}
@@ -222,6 +236,11 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
                       <td className="py-2.5 pr-4 text-surface-500">
                         {t('trainingSlots.since', { from: formatMonth(r.startMonth) })}
                         {r.indefinite ? ` · ${t('trainingSlots.indefinite').toLowerCase()}` : r.endMonth ? ` ${t('trainingSlots.until', { to: formatMonth(r.endMonth) })}` : ''}
+                        {r.creditBalance > 0 && (
+                          <span className="ml-2 inline-block px-2 py-0.5 text-xs rounded-full bg-emerald-900/30 text-emerald-400" title={t('trainingSlots.creditBalanceHint')}>
+                            {t('trainingSlots.creditBalance', { amount: r.creditBalance })}
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 pr-4">
                         <button
@@ -250,22 +269,29 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-surface-400 mb-2">
               <CalendarOff className="w-3.5 h-3.5" /> {t('trainingSlots.cancelSessions')}
             </p>
-            {!upcomingDates.length ? (
+            {!sessionDates.length ? (
               <p className="text-sm text-surface-500">{t('trainingSlots.noUpcomingSessions')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {upcomingDates.map(date => {
+                {sessionDates.map(date => {
                   const isCancelled = cancelledSet.has(date)
+                  const isPast = date < TODAY_ISO
+                  // Past cancellations can't be undone (a session that didn't happen can't un-happen).
+                  const canRestore = isCancelled && !isPast
                   return (
                     <button
                       key={date}
-                      onClick={() => isCancelled ? restoreSessionMut.mutate(date) : setConfirmCancelDate(date)}
-                      disabled={cancelSessionMut.isPending || restoreSessionMut.isPending}
+                      onClick={() => { if (isCancelled) { if (canRestore) setConfirmRestoreDate(date) } else setConfirmCancelDate(date) }}
+                      disabled={cancelSessionMut.isPending || restoreSessionMut.isPending || (isCancelled && !canRestore)}
                       className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border transition-colors',
                         isCancelled
                           ? 'bg-amber-900/20 border-amber-700/50 text-amber-400 hover:bg-amber-900/30'
-                          : 'bg-surface-800 border-surface-700 text-surface-300 hover:border-rose-500/60 hover:text-rose-400')}
-                      title={isCancelled ? t('trainingSlots.restoreSession') : t('trainingSlots.cancelSession')}
+                          : 'bg-surface-800 border-surface-700 text-surface-300 hover:border-rose-500/60 hover:text-rose-400',
+                        isPast && 'opacity-60',
+                        isCancelled && !canRestore && 'cursor-default hover:bg-amber-900/20')}
+                      title={isCancelled
+                        ? (canRestore ? t('trainingSlots.restoreSession') : t('trainingSlots.cancelledPast'))
+                        : (isPast ? t('trainingSlots.cancelSessionPast') : t('trainingSlots.cancelSession'))}
                     >
                       {isCancelled ? <RotateCcw className="w-3.5 h-3.5" /> : <CalendarOff className="w-3.5 h-3.5" />}
                       {fmtDayMonth(date)}
@@ -385,6 +411,15 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
         confirmLabel={t('trainingSlots.cancelSession')}
         danger
       />
+
+      <ConfirmDialog
+        isOpen={!!confirmRestoreDate}
+        onClose={() => setConfirmRestoreDate(null)}
+        onConfirm={() => { if (confirmRestoreDate) { restoreSessionMut.mutate(confirmRestoreDate); setConfirmRestoreDate(null) } }}
+        title={t('cancelledSessions.restoreConfirmTitle')}
+        message={t('cancelledSessions.restoreConfirm', { date: confirmRestoreDate ? fmtDayMonth(confirmRestoreDate) : '' })}
+        confirmLabel={t('cancelledSessions.restore')}
+      />
     </div>
   )
 }
@@ -393,11 +428,18 @@ export function AdminTrainingSlots() {
   const { t } = useTranslation('admin')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
-  const months = visibleMonths()
-  const [month, setMonth] = useState(months[0])
+  const months = adminVisibleMonths()   // includes a couple of past months for historical cancellations
+  const [month, setMonth] = useState(currentMonth())
+  // Day sections start collapsed — the admin expands the day they want.
+  const [openDays, setOpenDays] = useState<Set<number>>(new Set())
+  const toggleDay = (day: number) =>
+    setOpenDays(prev => { const n = new Set(prev); if (n.has(day)) n.delete(day); else n.add(day); return n })
   const [editItem, setEditItem] = useState<TrainingSlot | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [isCancellingInstructor, setIsCancellingInstructor] = useState(false)
+  const [cancelInstructorId, setCancelInstructorId] = useState('')
+  const [cancelDate, setCancelDate] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [createForm, setCreateForm] = useState(emptyCreate())
   const [showCreateErrors, setShowCreateErrors] = useState(false)
@@ -465,6 +507,19 @@ export function AdminTrainingSlots() {
     onSuccess: invalidate,
     onError: (e: Error) => showToast(e.message, 'error'),
   })
+  const cancelInstructorDayMut = useMutation({
+    mutationFn: () => adminApi.cancelInstructorDay(cancelInstructorId, cancelDate),
+    onSuccess: (res) => {
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-overview'] })
+      queryClient.invalidateQueries({ queryKey: ['public', 'training-slots'] })
+      setIsCancellingInstructor(false)
+      showToast(t('trainingSlots.cancelInstructorSuccess', { count: res.cancelled }), 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
 
   const openCreate = () => { setCreateForm(emptyCreate()); setShowCreateErrors(false); setIsCreating(true) }
   const handleCreate = () => {
@@ -506,7 +561,12 @@ export function AdminTrainingSlots() {
     <div>
       <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h2 className="text-xl font-semibold text-surface-100">{t('trainingSlots.title')}</h2>
-        <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onClick={() => { setCancelInstructorId(''); setCancelDate(''); setIsCancellingInstructor(true) }} disabled={!trainingInstructors.length}>
+            <UserX className="w-4 h-4 mr-1.5" />{t('trainingSlots.cancelInstructor')}
+          </Button>
+          <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
+        </div>
       </div>
 
       {/* Month selector */}
@@ -532,14 +592,24 @@ export function AdminTrainingSlots() {
           {DAYS.map(day => {
             const daySlots = slots.filter(s => s.dayOfWeek === day)
             if (!daySlots.length) return null
+            const open = openDays.has(day)
             return (
               <div key={day}>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-primary-400 mb-2">{t(`days.${day}`)}</h3>
-                <div className="space-y-2">
-                  {daySlots.map(s => (
-                    <SlotRow key={s.id} slot={s} month={month} onEdit={openEdit} onDelete={setDeleteId} />
-                  ))}
-                </div>
+                <button
+                  onClick={() => toggleDay(day)}
+                  className="flex w-full items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-primary-400 mb-2 hover:text-primary-300 transition-colors"
+                >
+                  {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  {t(`days.${day}`)}
+                  <span className="text-surface-500 normal-case font-normal">({daySlots.length})</span>
+                </button>
+                {open && (
+                  <div className="space-y-2">
+                    {daySlots.map(s => (
+                      <SlotRow key={s.id} slot={s} month={month} onEdit={openEdit} onDelete={setDeleteId} />
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -733,6 +803,32 @@ export function AdminTrainingSlots() {
         confirmLabel={t('actions.delete')}
         danger
       />
+
+      {/* Cancel all of one instructor's sessions on a date (e.g. instructor unavailable) */}
+      <Modal isOpen={isCancellingInstructor} onClose={() => setIsCancellingInstructor(false)} title={t('trainingSlots.cancelInstructorTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400">{t('trainingSlots.cancelInstructorHint')}</p>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.instructor')}</label>
+            <select value={cancelInstructorId} onChange={e => setCancelInstructorId(e.target.value)} className={inputClass}>
+              <option value="">{t('trainingSlots.selectInstructor')}</option>
+              {trainingInstructors.map(i => <option key={i.id} value={i.id}>{i.firstName} {i.lastName}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.cancelInstructorDate')}</label>
+            {/* Past dates allowed — a historical day that didn't take place still refunds paid subscribers. */}
+            <input type="date" value={cancelDate} onChange={e => setCancelDate(e.target.value)} className={clsx(inputClass, !cancelDate && 'text-surface-500')} />
+            <p className="text-xs text-surface-500 mt-1">{t('trainingSlots.cancelInstructorPastHint')}</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setIsCancellingInstructor(false)}>{t('actions.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={() => cancelInstructorDayMut.mutate()} disabled={!cancelInstructorId || !cancelDate} loading={cancelInstructorDayMut.isPending}>
+              {t('trainingSlots.cancelInstructorConfirm')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

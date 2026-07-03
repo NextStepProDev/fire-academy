@@ -83,6 +83,12 @@ public class AdminTrainingSlotController {
         return service.getCancelledSessions(id);
     }
 
+    /** Club-wide overview of cancelled sessions (who + when, upcoming and archive). */
+    @GetMapping("/cancelled-sessions/overview")
+    public List<CancelledSessionOverviewItem> getCancelledOverview() {
+        return service.getCancelledOverview();
+    }
+
     @PostMapping("/{id}/cancel-session")
     public ResponseEntity<Void> cancelSession(@PathVariable UUID id,
                                               @Valid @RequestBody CancelSessionRequest request) {
@@ -95,6 +101,12 @@ public class AdminTrainingSlotController {
                                                @RequestParam java.time.LocalDate date) {
         service.restoreSession(id, date);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Cancel all of one instructor's sessions on a date (e.g. the instructor is unavailable). */
+    @PostMapping("/cancel-instructor-day")
+    public CancelInstructorDayResponse cancelInstructorDay(@Valid @RequestBody CancelInstructorDayRequest request) {
+        return new CancelInstructorDayResponse(service.cancelInstructorDay(request.instructorId(), request.date()));
     }
 
     // --- Enrollment management (roster) ---

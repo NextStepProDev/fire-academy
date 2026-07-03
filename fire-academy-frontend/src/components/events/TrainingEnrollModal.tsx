@@ -5,16 +5,17 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { userApi } from '../../api/user'
 import { useToast } from '../../context/ToastContext'
-import { remainingOccurrences, formatMonth, addMonths } from '../../utils/trainingSchedule'
-import type { TrainingSlotCard } from '../../types'
+import { remainingOccurrences, formatMonth, addMonths, holidaysForDay } from '../../utils/trainingSchedule'
+import type { TrainingSlotCard, TrainingHolidayItem } from '../../types'
 
 interface TrainingEnrollModalProps {
   slot: TrainingSlotCard | null
   startMonth: string
+  holidays: TrainingHolidayItem[]
   onClose: () => void
 }
 
-export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrollModalProps) {
+export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: TrainingEnrollModalProps) {
   const { t } = useTranslation('events')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
@@ -43,15 +44,26 @@ export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrol
 
   if (!slot) return null
 
-  // Price for the first month calculated from the REMAINING sessions (when enrolling mid-month).
-  const sessions = remainingOccurrences(slot.dayOfWeek, startMonth)
+  // Dates the slot does not take place this month: cancelled sessions + days off on its weekday.
+  const slotHolidays = holidaysForDay(holidays, slot.dayOfWeek)
+  const closedForSlot = [...slot.cancelledDates, ...slotHolidays]
+
+  // Price for the first month calculated from the REMAINING sessions (when enrolling mid-month), minus days off.
+  const sessions = remainingOccurrences(slot.dayOfWeek, startMonth, closedForSlot)
   const amount = slot.price != null ? slot.price * sessions : null
 
   // Total including the user's existing reservations covering the selected month.
   const existingForMonth = (myEnrollments.data ?? [])
     .filter(e => e.startMonth <= startMonth && (e.endMonth == null || e.endMonth >= startMonth) && e.price != null)
-    .reduce((sum, e) => sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth)), 0)
+    .reduce((sum, e) => {
+      const closed = [...e.cancelledDates, ...e.holidayDates].filter(d => d.slice(0, 7) === startMonth)
+      return sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth, closed))
+    }, 0)
   const cumulative = existingForMonth + (amount ?? 0)
+
+  const holidayLabel = slotHolidays
+    .map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` })
+    .join(', ')
 
   const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
@@ -100,6 +112,9 @@ export function TrainingEnrollModal({ slot, startMonth, onClose }: TrainingEnrol
           <p className="text-sm text-primary-400 font-medium">
             {t('enrollTraining.summaryAmount', { month: formatMonth(startMonth), amount, sessions, price: slot.price })}
           </p>
+        )}
+        {slotHolidays.length > 0 && (
+          <p className="text-xs text-amber-400">{t('enrollTraining.holidayNote', { dates: holidayLabel })}</p>
         )}
         {existingForMonth > 0 && (
           <p className="text-sm text-surface-200">

@@ -5,11 +5,12 @@ import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
 import { Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react'
 import { formatDateRange } from '../../utils/dates'
-import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
+import { visibleMonths, formatMonth, holidaysForDay } from '../../utils/trainingSchedule'
 import { publicApi } from '../../api/public'
 import clsx from 'clsx'
 import { TrainingSlotCard } from './TrainingSlotCard'
 import { TrainingEnrollModal } from './TrainingEnrollModal'
+import { useEnrolledSlot } from '../../hooks/useEnrolledSlot'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { FadeImage } from '../ui/FadeImage'
 import type { EventType, EventInstance, EventCategory, TrainingSlotCard as TrainingSlot } from '../../types'
@@ -32,6 +33,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose, category,
   const touchStart = useRef<number | null>(null)
 
   const isTraining = category === 'TRAINING'
+  const isEnrolled = useEnrolledSlot()
   const months = visibleMonths()
   const [selectedMonth, setSelectedMonth] = useState(months[0])
   const [enrollSlot, setEnrollSlot] = useState<TrainingSlot | null>(null)
@@ -48,6 +50,12 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose, category,
     queryFn: () => publicApi.getTrainingSlots(selectedMonth),
     enabled: isTraining && !!eventType,
   })
+  const holidaysQuery = useQuery({
+    queryKey: ['public', 'training-holidays', selectedMonth],
+    queryFn: () => publicApi.getTrainingHolidays(selectedMonth),
+    enabled: isTraining && !!eventType,
+  })
+  const holidays = holidaysQuery.data ?? []
   const relatedSlots = slotsQuery.data?.filter(s => s.eventTypeId === eventType?.id) ?? []
 
   const photos = eventType?.photos ?? []
@@ -148,7 +156,9 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose, category,
                               <TrainingSlotCard
                                 key={slot.id}
                                 slot={slot}
+                                holidayDates={holidaysForDay(holidays, slot.dayOfWeek)}
                                 isAuthenticated={isAuthenticated}
+                                alreadyEnrolled={isEnrolled(slot.id, selectedMonth)}
                                 onEnroll={() => setEnrollSlot(slot)}
                                 hideType
                               />
@@ -283,6 +293,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose, category,
       <TrainingEnrollModal
         slot={enrollSlot}
         startMonth={selectedMonth}
+        holidays={holidays}
         onClose={() => setEnrollSlot(null)}
       />
     </>

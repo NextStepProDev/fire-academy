@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, DeletedTrainingSlot } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UserMonthlyPayment } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -196,13 +196,41 @@ export const adminApi = {
   setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
     fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
 
+  // Monthly payments grouped by person
+  getMonthlyPayments: (month: string) =>
+    fetchApi<UserMonthlyPayment[]>(`/admin/training-payments?month=${month}`),
+  payUserMonth: (userId: string, month: string, paid: boolean) =>
+    fetchApi<void>(`/admin/training-payments/pay-user/${userId}`, { method: 'POST', body: JSON.stringify({ month, paid }) }),
+
   // Cancelling individual sessions
   getCancelledSessions: (slotId: string) =>
     fetchApi<CancelledSession[]>(`/admin/training-slots/${slotId}/cancelled-sessions`),
+  getCancelledSessionsOverview: () =>
+    fetchApi<CancelledSessionOverview[]>(`/admin/training-slots/cancelled-sessions/overview`),
   cancelTrainingSession: (slotId: string, sessionDate: string) =>
     fetchApi<void>(`/admin/training-slots/${slotId}/cancel-session`, { method: 'POST', body: JSON.stringify({ sessionDate }) }),
   restoreTrainingSession: (slotId: string, date: string) =>
     fetchApi<void>(`/admin/training-slots/${slotId}/cancel-session?date=${date}`, { method: 'DELETE' }),
+  cancelInstructorDay: (instructorId: string, date: string) =>
+    fetchApi<{ cancelled: number }>(`/admin/training-slots/cancel-instructor-day`, { method: 'POST', body: JSON.stringify({ instructorId, date }) }),
+
+  // Days off (whole-club closures)
+  getTrainingHolidays: (month: string) =>
+    fetchApi<TrainingHoliday[]>(`/admin/training-holidays?month=${month}`),
+  addTrainingHoliday: (data: { date: string; label?: string }) =>
+    fetchApi<TrainingHoliday>('/admin/training-holidays', { method: 'POST', body: JSON.stringify(data) }),
+  removeTrainingHoliday: (id: string) =>
+    fetchApi<void>(`/admin/training-holidays/${id}`, { method: 'DELETE' }),
+
+  // Refunds ("Zwroty")
+  getTrainingRefunds: (settled = false) =>
+    fetchApi<RefundEntry[]>(`/admin/training-refunds?settled=${settled}`),
+  settleRefund: (id: string, settlementType: 'REFUNDED' | 'CREDITED') =>
+    fetchApi<void>(`/admin/training-refunds/${id}/settle`, { method: 'POST', body: JSON.stringify({ settlementType }) }),
+  settleUserRefunds: (userId: string, settlementType: 'REFUNDED' | 'CREDITED') =>
+    fetchApi<void>(`/admin/training-refunds/settle-user/${userId}`, { method: 'POST', body: JSON.stringify({ settlementType }) }),
+  unsettleRefund: (id: string) =>
+    fetchApi<void>(`/admin/training-refunds/${id}/unsettle`, { method: 'POST' }),
 
   // Archive of deleted slots
   getDeletedTrainingSlots: () =>

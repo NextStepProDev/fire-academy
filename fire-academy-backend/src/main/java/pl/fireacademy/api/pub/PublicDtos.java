@@ -59,4 +59,10 @@ public final class PublicDtos {
             int availableSpots,
             java.util.List<java.time.LocalDate> cancelledDates
     ) {}
+
+    /** Whole-club day off in the selected month (public schedule). */
+    public record TrainingHolidayItem(
+            java.time.LocalDate date,
+            @Nullable String label
+    ) {}
 }

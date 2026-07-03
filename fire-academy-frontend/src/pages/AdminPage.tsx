@@ -5,6 +5,10 @@ import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminTrainingSlots } from './admin/AdminTrainingSlots'
+import { AdminTrainingPayments } from './admin/AdminTrainingPayments'
+import { AdminCancelledSessions } from './admin/AdminCancelledSessions'
+import { AdminTrainingHolidays } from './admin/AdminTrainingHolidays'
+import { AdminTrainingRefunds } from './admin/AdminTrainingRefunds'
 import { AdminArchive } from './admin/AdminArchive'
 import { AdminUsers } from './admin/AdminUsers'
 import type { EventCategory } from '../types'
@@ -32,7 +36,7 @@ export function AdminPage() {
   const navigate = useNavigate()
 
   if (!tab || !validTabs.has(tab)) {
-    return <Navigate to="/admin/kadra" replace />
+    return <Navigate to="/admin/treningi" replace />
   }
 
   return (
@@ -61,7 +65,13 @@ export function AdminPage() {
       {categoryTabs[tab] && (
         <div className="space-y-12">
           {categoryTabs[tab] === 'TRAINING'
-            ? <AdminTrainingSlots />
+            ? <>
+                <AdminTrainingSlots />
+                <AdminTrainingPayments />
+                <AdminCancelledSessions />
+                <AdminTrainingHolidays />
+                <AdminTrainingRefunds />
+              </>
             : <AdminEvents category={categoryTabs[tab]} />}
           <AdminEventTypes category={categoryTabs[tab]} />
         </div>

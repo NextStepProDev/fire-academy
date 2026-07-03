@@ -21,22 +21,47 @@ export function visibleMonths(): string[] {
   return result
 }
 
+/** How many past months the admin can browse — to cancel historical sessions that did not take place. */
+export const ADMIN_PAST_MONTHS = 2
+
+/** Admin trainings view: a couple of past months (to fix history) + the bookable ones. Current is the default. */
+export function adminVisibleMonths(): string[] {
+  const cur = currentMonth()
+  const past: string[] = []
+  for (let i = ADMIN_PAST_MONTHS; i >= 1; i--) past.push(addMonths(cur, -i))
+  return [...past, ...visibleMonths()]
+}
+
 /**
  * Number of sessions to be paid for in a given month:
  * for the current month counted from TODAY to the end (remaining), for future months — all of them.
+ * `closedDates` (ISO YYYY-MM-DD) are dates the slot does NOT take place — days off + cancelled sessions.
  */
-export function remainingOccurrences(dayOfWeek: number, month: string): number {
+export function remainingOccurrences(dayOfWeek: number, month: string, closedDates: string[] = []): number {
   const now = new Date()
   const [year, m] = month.split('-').map(Number)
   const isCurrent = year === now.getFullYear() && m === now.getMonth() + 1
   const targetJsDay = dayOfWeek === 7 ? 0 : dayOfWeek
   const daysInMonth = new Date(year, m, 0).getDate()
   const fromDay = isCurrent ? now.getDate() : 1
+  const closed = new Set(closedDates)
   let count = 0
   for (let day = fromDay; day <= daysInMonth; day++) {
-    if (new Date(year, m - 1, day).getDay() === targetJsDay) count++
+    const iso = `${month}-${String(day).padStart(2, '0')}`
+    if (new Date(year, m - 1, day).getDay() === targetJsDay && !closed.has(iso)) count++
   }
   return count
+}
+
+/** Days off (ISO) for the given month that land on the slot's weekday — i.e. that close this slot. */
+export function holidaysForDay(holidays: { date: string }[], dayOfWeek: number): string[] {
+  const targetJsDay = dayOfWeek === 7 ? 0 : dayOfWeek
+  return holidays
+    .filter(h => {
+      const [y, m, d] = h.date.split('-').map(Number)
+      return new Date(y, m - 1, d).getDay() === targetJsDay
+    })
+    .map(h => h.date)
 }
 
 /** Formats 'YYYY-MM' into a Polish name, e.g. 'czerwiec 2026'. */

@@ -12,6 +12,7 @@ import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.domain.training.TrainingCancelledSessionRepository;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
+import pl.fireacademy.domain.training.TrainingHolidayRepository;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
@@ -32,6 +33,7 @@ public class PublicService {
     private final TrainingSlotRepository trainingSlotRepository;
     private final TrainingEnrollmentRepository trainingEnrollmentRepository;
     private final TrainingCancelledSessionRepository trainingCancelledSessionRepository;
+    private final TrainingHolidayRepository trainingHolidayRepository;
     private final MessageService msg;
 
     public PublicService(InstructorRepository instructorRepository,
@@ -41,6 +43,7 @@ public class PublicService {
                          TrainingSlotRepository trainingSlotRepository,
                          TrainingEnrollmentRepository trainingEnrollmentRepository,
                          TrainingCancelledSessionRepository trainingCancelledSessionRepository,
+                         TrainingHolidayRepository trainingHolidayRepository,
                          MessageService msg) {
         this.instructorRepository = instructorRepository;
         this.eventTypeRepository = eventTypeRepository;
@@ -49,7 +52,17 @@ public class PublicService {
         this.trainingSlotRepository = trainingSlotRepository;
         this.trainingEnrollmentRepository = trainingEnrollmentRepository;
         this.trainingCancelledSessionRepository = trainingCancelledSessionRepository;
+        this.trainingHolidayRepository = trainingHolidayRepository;
         this.msg = msg;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainingHolidayItem> getTrainingHolidays(YearMonth month) {
+        return trainingHolidayRepository
+                .findByHolidayDateBetweenOrderByHolidayDateAsc(month.atDay(1), month.atEndOfMonth())
+                .stream()
+                .map(h -> new TrainingHolidayItem(h.getHolidayDate(), h.getLabel()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

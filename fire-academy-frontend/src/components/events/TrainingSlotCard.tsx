@@ -1,12 +1,16 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Clock, User as UserIcon, Users, CalendarOff } from 'lucide-react'
+import { Clock, User as UserIcon, Users, CalendarOff, Check } from 'lucide-react'
 import { Button } from '../ui/Button'
 import type { TrainingSlotCard as TrainingSlotCardType } from '../../types'
 
 interface TrainingSlotCardProps {
   slot: TrainingSlotCardType
+  // Days off (ISO) that land on this slot's weekday in the displayed month.
+  holidayDates?: string[]
   isAuthenticated: boolean
+  // The logged-in user already has an active subscription to this slot → can't enroll again.
+  alreadyEnrolled?: boolean
   onEnroll: () => void
   onOpenType?: () => void
   onOpenInstructor?: () => void
@@ -14,13 +18,13 @@ interface TrainingSlotCardProps {
   hideType?: boolean
 }
 
-export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, onOpenInstructor, hideType = false }: TrainingSlotCardProps) {
+export function TrainingSlotCard({ slot, holidayDates = [], isAuthenticated, alreadyEnrolled = false, onEnroll, onOpenType, onOpenInstructor, hideType = false }: TrainingSlotCardProps) {
   const { t } = useTranslation('events')
   const isFull = slot.availableSpots <= 0
   const time = `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`
-  const cancelledLabel = slot.cancelledDates
-    .map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` })
-    .join(', ')
+  const fmt = (iso: string) => { const [, m, d] = iso.split('-'); return `${d}.${m}` }
+  const cancelledLabel = slot.cancelledDates.map(fmt).join(', ')
+  const holidayLabel = holidayDates.map(fmt).join(', ')
 
   return (
     <div className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -59,9 +63,23 @@ export function TrainingSlotCard({ slot, isAuthenticated, onEnroll, onOpenType, 
             {t('slots.cancelledDates', { dates: cancelledLabel })}
           </p>
         )}
+        {holidayDates.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-400">
+            <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+            {t('slots.holidayDates', { dates: holidayLabel })}
+          </p>
+        )}
       </div>
       <div className="sm:ml-auto">
-        {isFull ? (
+        {isAuthenticated && alreadyEnrolled ? (
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-green-500/10 text-green-400 border border-green-500/30 cursor-default"
+            title={t('slots.alreadyEnrolledHint')}
+          >
+            <Check className="w-4 h-4" />
+            {t('slots.alreadyEnrolled')}
+          </span>
+        ) : isFull ? (
           <Button variant="ghost" size="sm" disabled>{t('slots.full')}</Button>
         ) : isAuthenticated ? (
           <Button variant="primary" size="sm" onClick={onEnroll}>{t('slots.enroll')}</Button>

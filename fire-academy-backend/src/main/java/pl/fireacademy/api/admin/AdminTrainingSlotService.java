@@ -12,7 +12,11 @@ import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
 import pl.fireacademy.domain.training.TrainingCancelledSession;
 import pl.fireacademy.domain.training.TrainingCancelledSessionRepository;
+import pl.fireacademy.domain.training.TrainingEnrollment;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
+import pl.fireacademy.domain.training.TrainingPaymentRepository;
+import pl.fireacademy.domain.training.TrainingRefund;
+import pl.fireacademy.domain.training.TrainingRefundService;
 import pl.fireacademy.domain.training.TrainingSlot;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -22,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +42,8 @@ public class AdminTrainingSlotService {
     private final TrainingSlotRepository slotRepository;
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingCancelledSessionRepository cancelledSessionRepository;
+    private final TrainingPaymentRepository paymentRepository;
+    private final TrainingRefundService refundService;
     private final EventTypeRepository eventTypeRepository;
     private final InstructorRepository instructorRepository;
     private final MessageService msg;
@@ -45,6 +52,8 @@ public class AdminTrainingSlotService {
     public AdminTrainingSlotService(TrainingSlotRepository slotRepository,
                                     TrainingEnrollmentRepository enrollmentRepository,
                                     TrainingCancelledSessionRepository cancelledSessionRepository,
+                                    TrainingPaymentRepository paymentRepository,
+                                    TrainingRefundService refundService,
                                     EventTypeRepository eventTypeRepository,
                                     InstructorRepository instructorRepository,
                                     MessageService msg,
@@ -52,6 +61,8 @@ public class AdminTrainingSlotService {
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.cancelledSessionRepository = cancelledSessionRepository;
+        this.paymentRepository = paymentRepository;
+        this.refundService = refundService;
         this.eventTypeRepository = eventTypeRepository;
         this.instructorRepository = instructorRepository;
         this.msg = msg;
@@ -137,6 +148,12 @@ public class AdminTrainingSlotService {
         slot.setDeactivatedFrom(from);
         var saved = slotRepository.save(slot);
 
+        // Every session from `from` on no longer happens — register refunds for already-paid subscribers,
+        // exactly as if each of those sessions were cancelled. Bounded to the booking horizon; unpaid
+        // months are no-ops (a refund arises only for a session in a month the subscriber has paid).
+        forEachSessionInDeactivationWindow(from, saved.getDayOfWeek(),
+                d -> refundService.registerForSlotSession(saved, d, TrainingRefund.TYPE_SESSION, null));
+
         var info = mailInfo(saved);
         String month = YearMonth.from(from).toString();
         for (var te : enrollmentRepository.findActiveSubscribersForSlot(id, month)) {
@@ -146,13 +163,43 @@ public class AdminTrainingSlotService {
         return toResponse(saved, YearMonth.now().toString());
     }
 
-    /** Undo deactivation — the slot becomes active again (no email). */
+    /** Undo deactivation — the slot becomes active again; drops the pending refunds the deactivation created (no email). */
     @Transactional
     public TrainingSlotResponse reactivate(UUID id) {
         var slot = findOrThrow(id);
+        var former = slot.getDeactivatedFrom();
         slot.setDeactivatedFrom(null);
         slot.setActive(true);
-        return toResponse(slotRepository.save(slot), YearMonth.now().toString());
+        var saved = slotRepository.save(slot);
+        if (former != null) {
+            // Blocked if any deactivated session already had a cash refund / spent credit; otherwise revoke them.
+            forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
+                    d -> requireRefundsReversibleForSlotSession(id, d));
+            forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
+                    d -> refundService.revokeForSlotSession(id, d));
+        }
+        return toResponse(saved, YearMonth.now().toString());
+    }
+
+    /** Blocks a restore/reactivation when the refunds for a session can no longer be cleanly reversed. */
+    private void requireRefundsReversibleForSlotSession(UUID slotId, java.time.LocalDate date) {
+        if (refundService.hasCashRefundForSlotSession(slotId, date)) {
+            throw new IllegalStateException(msg.get("trainingrefund.restore.cash"));
+        }
+        if (refundService.hasConsumedCreditForSlotSession(slotId, date)) {
+            throw new IllegalStateException(msg.get("trainingrefund.restore.credit.consumed"));
+        }
+    }
+
+    /** Runs an action for every slot-weekday date from {@code from} up to the end of the booking horizon. */
+    private void forEachSessionInDeactivationWindow(java.time.LocalDate from, int dayOfWeek,
+                                                    java.util.function.Consumer<java.time.LocalDate> action) {
+        var horizon = YearMonth.now().plusMonths(2).atEndOfMonth();
+        for (var d = from; !d.isAfter(horizon); d = d.plusDays(1)) {
+            if (d.getDayOfWeek().getValue() == dayOfWeek) {
+                action.accept(d);
+            }
+        }
     }
 
     /**
@@ -199,6 +246,41 @@ public class AdminTrainingSlotService {
                 .toList();
     }
 
+    /**
+     * Club-wide overview of cancelled sessions with the people each one affected (current subscribers of the
+     * slot for that session's month). Used by the admin "Cancelled sessions" view — newest first, the frontend
+     * splits it into upcoming (restorable) and archive by the {@code future} flag.
+     */
+    @Transactional(readOnly = true)
+    public List<CancelledSessionOverviewItem> getCancelledOverview() {
+        var today = java.time.LocalDate.now();
+        return cancelledSessionRepository.findAllForOverview().stream().map(cs -> {
+            var slot = cs.getSlot();
+            var instr = slot.getInstructor();
+            String month = YearMonth.from(cs.getSessionDate()).toString();
+            var subscribers = enrollmentRepository.findCoveringForSlot(slot.getId(), month);
+            var ids = subscribers.stream().map(TrainingEnrollment::getId).toList();
+            var paid = ids.isEmpty() ? new HashSet<UUID>()
+                    : new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
+            var participants = subscribers.stream().map(te -> {
+                var u = te.getUser();
+                boolean isPaid = paid.contains(te.getId());
+                // A refund is owed only when a paid session of a priced slot is cancelled.
+                boolean owed = isPaid && slot.getPrice() != null;
+                return new AffectedParticipant(u.getFirstName(), u.getLastName(), u.getEmail(),
+                        u.getPhone(), isPaid, owed);
+            }).toList();
+            boolean restorable = !refundService.hasCashRefundForSlotSession(slot.getId(), cs.getSessionDate())
+                    && !refundService.hasConsumedCreditForSlotSession(slot.getId(), cs.getSessionDate());
+            return new CancelledSessionOverviewItem(
+                    cs.getId(), slot.getId(), cs.getSessionDate(),
+                    slot.getEventType().getName(),
+                    instr != null ? instr.getFirstName() + " " + instr.getLastName() : null,
+                    slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime(), slot.getPrice(),
+                    !cs.getSessionDate().isBefore(today), restorable, participants);
+        }).toList();
+    }
+
     /** Cancels a specific session of a given slot (e.g. the instructor is ill) and notifies those enrolled for that month. */
     @Transactional
     public void cancelSession(UUID slotId, java.time.LocalDate date) {
@@ -209,27 +291,109 @@ public class AdminTrainingSlotService {
         if (date.getDayOfWeek().getValue() != slot.getDayOfWeek()) {
             throw new IllegalArgumentException(msg.get("trainingsession.wrong.day"));
         }
-        if (date.isBefore(java.time.LocalDate.now())) {
-            throw new IllegalArgumentException(msg.get("trainingsession.past"));
-        }
+        // Past dates are allowed on purpose: a session that already happened but did NOT take place must still
+        // generate a refund for subscribers who paid that month (they paid while the price covered this session).
         if (cancelledSessionRepository.existsBySlotIdAndSessionDate(slotId, date)) {
             throw new IllegalStateException(msg.get("trainingsession.already.cancelled"));
         }
 
         cancelledSessionRepository.save(new TrainingCancelledSession(slot, date));
+        notifyAndRefundForCancelledSession(slot, date);
+    }
 
-        var info = mailInfo(slot);
+    /**
+     * Cancels every session of one instructor on a given date (e.g. the instructor is unavailable), leaving
+     * the rest of the schedule intact. Skips slots already cancelled for that date. Returns how many were cancelled.
+     */
+    @Transactional
+    public int cancelInstructorDay(UUID instructorId, java.time.LocalDate date) {
+        // Past dates allowed on purpose — a historical session that did not take place must still refund paid subscribers.
+        var instructor = instructorRepository.findById(instructorId)
+                .orElseThrow(() -> new NotFoundException(msg.get("instructor.not.found")));
+        String instructorName = instructor.getFirstName() + " " + instructor.getLastName();
         String month = YearMonth.from(date).toString();
-        for (var te : enrollmentRepository.findCoveringForSlot(slotId, month)) {
-            var u = te.getUser();
-            trainingMail.sendSessionCancelled(u.getEmail(), u.getFirstName(), info, date);
+        // A past day already happened — the "don't come" email is pointless retroactively; only refund.
+        boolean notify = !date.isBefore(java.time.LocalDate.now());
+        // Accumulate each affected PAID subscriber's cancelled sessions so they get ONE grouped email.
+        var buckets = new java.util.LinkedHashMap<UUID, PersonCancellationBucket>();
+        int cancelled = 0;
+        for (var slot : slotRepository.findActiveByInstructorAndDayOfWeek(instructorId, date.getDayOfWeek().getValue())) {
+            // Skip slots already deactivated by that date or already cancelled for it.
+            if (slot.getDeactivatedFrom() != null && !slot.getDeactivatedFrom().isAfter(date)) {
+                continue;
+            }
+            if (cancelledSessionRepository.existsBySlotIdAndSessionDate(slot.getId(), date)) {
+                continue;
+            }
+            cancelledSessionRepository.save(new TrainingCancelledSession(slot, date));
+            if (notify) {
+                collectPaidCancellations(buckets, slot, month);
+            }
+            refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null);
+            cancelled++;
+        }
+        if (notify) {
+            for (var b : buckets.values()) {
+                trainingMail.sendInstructorDayCancellation(b.user.getEmail(), b.user.getFirstName(),
+                        instructorName, date, b.lines, b.refundOrNull());
+            }
+        }
+        return cancelled;
+    }
+
+    /** Adds a slot's paid subscribers (and their would-be refund) to the per-person grouping for a grouped email. */
+    private void collectPaidCancellations(java.util.Map<UUID, PersonCancellationBucket> buckets, TrainingSlot slot, String month) {
+        for (var te : paidSubscribers(slot, month)) {
+            buckets.computeIfAbsent(te.getUser().getId(), k -> new PersonCancellationBucket(te.getUser()))
+                    .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());
         }
     }
 
-    /** Undo cancellation — the session will take place again (no email). */
+    /**
+     * Registers refunds and emails the affected subscribers about a single cancelled session. Only subscribers who
+     * have PAID that month are emailed — for the unpaid ones the training just gets cheaper (their estimate updates),
+     * no notification. Refunds are registered for paid subscribers regardless.
+     */
+    private void notifyAndRefundForCancelledSession(TrainingSlot slot, java.time.LocalDate date) {
+        // A past session already happened — the cancellation email exists to tell people not to come, which is
+        // pointless retroactively. Skip the email; still register the refund for paid subscribers.
+        if (!date.isBefore(java.time.LocalDate.now())) {
+            var info = mailInfo(slot);
+            String month = YearMonth.from(date).toString();
+            for (var te : paidSubscribers(slot, month)) {
+                var u = te.getUser();
+                trainingMail.sendSessionCancelled(u.getEmail(), u.getFirstName(), info, date, slot.getPrice());
+            }
+        }
+        refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null);
+    }
+
+    /** Subscribers of a slot who have paid the given month — the only ones notified about a cancellation. */
+    private List<TrainingEnrollment> paidSubscribers(TrainingSlot slot, String month) {
+        var subs = enrollmentRepository.findCoveringForSlot(slot.getId(), month);
+        var ids = subs.stream().map(TrainingEnrollment::getId).toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        var paid = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
+        return subs.stream().filter(te -> paid.contains(te.getId())).toList();
+    }
+
+    /**
+     * Undo cancellation — the session will take place again; drops any pending refunds, which restores the
+     * next-month cost for affected subscribers. Restricted to today-or-future sessions: a past session already
+     * did not happen, and re-counting it would reopen a possibly settled month. No email is sent — the admin is
+     * reminded (in the UI) to phone participants, since the cancellation email already went out.
+     */
     @Transactional
     public void restoreSession(UUID slotId, java.time.LocalDate date) {
+        if (date.isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException(msg.get("trainingsession.restore.past"));
+        }
+        // Cannot restore if the refund was already paid out in cash (or the credited surplus already spent).
+        requireRefundsReversibleForSlotSession(slotId, date);
         cancelledSessionRepository.deleteBySlotIdAndSessionDate(slotId, date);
+        refundService.revokeForSlotSession(slotId, date);
     }
 
     private record SlotSnapshot(String type, String instructor, String day, String time, String price) {}
@@ -315,7 +479,24 @@ public class AdminTrainingSlotService {
                 s.getMaxParticipants(),
                 s.getDisplayOrder(),
                 enrollmentRepository.countCovering(s.getId(), month),
-                s.isActive(), s.getDeactivatedFrom(), s.getCreatedAt()
+                s.isActive(), s.getDeactivatedFrom(), isReactivatable(s), s.getCreatedAt()
         );
+    }
+
+    /** A deactivated slot can be reactivated only while every skipped session's refund is still reversible. */
+    private boolean isReactivatable(TrainingSlot s) {
+        var from = s.getDeactivatedFrom();
+        if (from == null) {
+            return true;
+        }
+        var horizon = YearMonth.now().plusMonths(2).atEndOfMonth();
+        for (var d = from; !d.isAfter(horizon); d = d.plusDays(1)) {
+            if (d.getDayOfWeek().getValue() == s.getDayOfWeek()
+                    && (refundService.hasCashRefundForSlotSession(s.getId(), d)
+                        || refundService.hasConsumedCreditForSlotSession(s.getId(), d))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -135,7 +135,7 @@ class TrainingMailServiceTest {
 
     @Test
     void shouldSendSessionCancelledWithoutSignOff() throws Exception {
-        service.sendSessionCancelled(EMAIL, "Jan", SLOT, LocalDate.of(2026, 7, 13));
+        service.sendSessionCancelled(EMAIL, "Jan", SLOT, LocalDate.of(2026, 7, 13), null);
         String html = sentHtml();
         assertTrue(html.contains("13.07.2026"));
         assertFalse(html.contains("Pozdrawiam"));                // F ends with „do zobaczenia na kolejnym treningu"

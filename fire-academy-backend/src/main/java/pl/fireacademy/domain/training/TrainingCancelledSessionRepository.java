@@ -15,6 +15,16 @@ public interface TrainingCancelledSessionRepository extends JpaRepository<Traini
 
     List<TrainingCancelledSession> findBySlotIdOrderBySessionDateAsc(UUID slotId);
 
+    /** All cancelled sessions across the club, newest first (admin overview). Slot graph fetched for the listing. */
+    @Query("""
+        SELECT cs FROM TrainingCancelledSession cs
+        JOIN FETCH cs.slot s
+        JOIN FETCH s.eventType
+        LEFT JOIN FETCH s.instructor
+        ORDER BY cs.sessionDate DESC
+        """)
+    List<TrainingCancelledSession> findAllForOverview();
+
     void deleteBySlotIdAndSessionDate(UUID slotId, LocalDate sessionDate);
 
     /** Cancelled dates for a set of slots within a range (public schedule / user account). */

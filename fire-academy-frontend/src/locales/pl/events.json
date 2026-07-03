@@ -51,7 +51,7 @@
     "readMore": "Czytaj więcej"
   },
   "detail": {
-    "backToList": "Wróć do listy",
+    "back": "Wróć",
     "relatedEvents": "Dostępne terminy",
     "gallery": "Galeria"
   },
@@ -73,9 +73,12 @@
     "full": "Brak miejsc",
     "pricePerSession": "{{price}} zł / zajęcia",
     "enroll": "Zapisz się",
+    "alreadyEnrolled": "Już zapisano",
+    "alreadyEnrolledHint": "Masz już aktywny zapis na ten trening — nie można zapisać się drugi raz. Swój zapis znajdziesz w „Moje konto”.",
     "loginToEnroll": "Zaloguj się, aby zapisać",
     "schedule": "Harmonogram zajęć",
-    "cancelledDates": "Odwołane zajęcia: {{dates}}"
+    "cancelledDates": "Odwołane zajęcia: {{dates}}",
+    "holidayDates": "Dni wolne: {{dates}}"
   },
   "enrollTraining": {
     "title": "Zapis na trening",
@@ -87,6 +90,7 @@
     "fixed": "Na określoną liczbę miesięcy",
     "monthsCount": "Liczba miesięcy",
     "summaryAmount": "Za ten trening w {{month}}: {{amount}} zł ({{sessions}} zajęć × {{price}} zł)",
+    "holidayNote": "W tym miesiącu wypada dzień wolny ({{dates}}) — uwzględniliśmy go w cenie.",
     "cumulative": "Razem z Twoimi rezerwacjami na {{month}}: {{amount}} zł",
     "paymentNote": "Płatność z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
     "accountHint": "Łączną kwotę za miesiąc za wszystkie treningi zobaczysz w zakładce „Moje konto\".",

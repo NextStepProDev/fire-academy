@@ -33,6 +33,23 @@ public interface TrainingSlotRepository extends JpaRepository<TrainingSlot, UUID
     @Query("SELECT s FROM TrainingSlot s WHERE s.deletedAt IS NOT NULL ORDER BY s.deletedAt DESC")
     List<TrainingSlot> findDeleted();
 
+    /** Active, non-deleted slots on a given weekday (ISO 1–7) — for applying a day off. */
+    @Query("""
+        SELECT s FROM TrainingSlot s
+        WHERE s.dayOfWeek = :dayOfWeek AND s.active = true AND s.deletedAt IS NULL
+        """)
+    List<TrainingSlot> findActiveByDayOfWeek(@Param("dayOfWeek") int dayOfWeek);
+
+    /** Active, non-deleted slots of one instructor on a given weekday — for cancelling an instructor's day. */
+    @Query("""
+        SELECT s FROM TrainingSlot s
+        WHERE s.instructor.id = :instructorId AND s.dayOfWeek = :dayOfWeek
+          AND s.active = true AND s.deletedAt IS NULL
+        ORDER BY s.startTime ASC
+        """)
+    List<TrainingSlot> findActiveByInstructorAndDayOfWeek(@Param("instructorId") UUID instructorId,
+                                                          @Param("dayOfWeek") int dayOfWeek);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM TrainingSlot s WHERE s.id = :id")
     Optional<TrainingSlot> findByIdForUpdate(@Param("id") UUID id);

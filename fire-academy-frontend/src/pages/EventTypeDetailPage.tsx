@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link, Navigate } from 'react-router-dom'
+import { useParams, Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { publicApi } from '../api/public'
 import { slugToCategory } from '../utils/categorySlug'
 import { formatDateRange } from '../utils/dates'
-import { visibleMonths, formatMonth } from '../utils/trainingSchedule'
+import { visibleMonths, formatMonth, holidaysForDay } from '../utils/trainingSchedule'
 import clsx from 'clsx'
 import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
@@ -17,6 +17,8 @@ import { TrainingSlotCard } from '../components/events/TrainingSlotCard'
 import { TrainingEnrollModal } from '../components/events/TrainingEnrollModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useEnrollGuard } from '../hooks/useEnrollGuard'
+import { useEnrolledSlot } from '../hooks/useEnrolledSlot'
+import { useSmartBack } from '../hooks/useSmartBack'
 import type { TrainingSlotCard as TrainingSlot } from '../types'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
@@ -25,6 +27,8 @@ export function EventTypeDetailPage() {
   const { categorySlug, id } = useParams<{ categorySlug: string; id: string }>()
   const { t } = useTranslation('events')
   const { isAuthenticated } = useAuth()
+  const isEnrolled = useEnrolledSlot()
+  const goBack = useSmartBack(`/${categorySlug}`)
   const category = categorySlug ? slugToCategory(categorySlug) : undefined
   const isTraining = category === 'TRAINING'
 
@@ -59,6 +63,12 @@ export function EventTypeDetailPage() {
     queryFn: () => publicApi.getTrainingSlots(selectedMonth),
     enabled: isTraining,
   })
+  const holidaysQuery = useQuery({
+    queryKey: ['public', 'training-holidays', selectedMonth],
+    queryFn: () => publicApi.getTrainingHolidays(selectedMonth),
+    enabled: isTraining,
+  })
+  const holidays = holidaysQuery.data ?? []
 
   const photos = eventTypeQuery.data?.photos ?? []
   const relatedEvents = eventsQuery.data?.filter(e => e.eventTypeId === id) ?? []
@@ -144,13 +154,13 @@ export function EventTypeDetailPage() {
       />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-        <Link
-          to={`/${categorySlug}`}
+        <button
+          onClick={goBack}
           className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-primary-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {t('detail.backToList')}
-        </Link>
+          {t('detail.back')}
+        </button>
 
         {et.thumbnailUrl && (
           <div className="aspect-square overflow-hidden rounded-xl bg-surface-800 max-w-md mx-auto">
@@ -221,7 +231,9 @@ export function EventTypeDetailPage() {
                         <TrainingSlotCard
                           key={slot.id}
                           slot={slot}
+                          holidayDates={holidaysForDay(holidays, slot.dayOfWeek)}
                           isAuthenticated={isAuthenticated}
+                          alreadyEnrolled={isEnrolled(slot.id, selectedMonth)}
                           onEnroll={() => setEnrollSlot(slot)}
                         />
                       ))}
@@ -365,6 +377,7 @@ export function EventTypeDetailPage() {
       <TrainingEnrollModal
         slot={enrollSlot}
         startMonth={selectedMonth}
+        holidays={holidays}
         onClose={() => setEnrollSlot(null)}
       />
     </>

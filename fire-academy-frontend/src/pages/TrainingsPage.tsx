@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useEnrolledSlot } from '../hooks/useEnrolledSlot'
 import { publicApi } from '../api/public'
 import { Seo } from '../components/seo/Seo'
 import { InstructorCard } from '../components/events/InstructorCard'
@@ -12,7 +13,7 @@ import { EventTypeModal } from '../components/events/EventTypeModal'
 import { TrainingSlotCard } from '../components/events/TrainingSlotCard'
 import { TrainingEnrollModal } from '../components/events/TrainingEnrollModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { visibleMonths, formatMonth } from '../utils/trainingSchedule'
+import { visibleMonths, formatMonth, holidaysForDay } from '../utils/trainingSchedule'
 import clsx from 'clsx'
 import type { Instructor, EventType, TrainingSlotCard as TrainingSlot } from '../types'
 
@@ -21,6 +22,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 export function TrainingsPage() {
   const { t } = useTranslation('events')
   const { isAuthenticated } = useAuth()
+  const isEnrolled = useEnrolledSlot()
 
   const months = visibleMonths()
   const [selectedMonth, setSelectedMonth] = useState(months[0])
@@ -39,6 +41,10 @@ export function TrainingsPage() {
     queryKey: ['public', 'training-slots', selectedMonth],
     queryFn: () => publicApi.getTrainingSlots(selectedMonth),
   })
+  const holidaysQuery = useQuery({
+    queryKey: ['public', 'training-holidays', selectedMonth],
+    queryFn: () => publicApi.getTrainingHolidays(selectedMonth),
+  })
   const eventTypesQuery = useQuery({
     queryKey: ['public', 'event-types', 'TRAINING'],
     queryFn: () => publicApi.getEventTypes('TRAINING'),
@@ -49,6 +55,7 @@ export function TrainingsPage() {
   })
 
   const slots = slotsQuery.data ?? []
+  const holidays = holidaysQuery.data ?? []
 
   const openType = (eventTypeId: string) => {
     const et = eventTypesQuery.data?.find(e => e.id === eventTypeId)
@@ -119,7 +126,9 @@ export function TrainingsPage() {
                           <TrainingSlotCard
                             key={slot.id}
                             slot={slot}
+                            holidayDates={holidaysForDay(holidays, slot.dayOfWeek)}
                             isAuthenticated={isAuthenticated}
+                            alreadyEnrolled={isEnrolled(slot.id, selectedMonth)}
                             onEnroll={() => setEnrollSlot(slot)}
                             onOpenType={() => openType(slot.eventTypeId)}
                             onOpenInstructor={instr ? () => setSelectedInstructor(instr) : undefined}
@@ -185,6 +194,7 @@ export function TrainingsPage() {
       <TrainingEnrollModal
         slot={enrollSlot}
         startMonth={selectedMonth}
+        holidays={holidays}
         onClose={() => setEnrollSlot(null)}
       />
     </div>

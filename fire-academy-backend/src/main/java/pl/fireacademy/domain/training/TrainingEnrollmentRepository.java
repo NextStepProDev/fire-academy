@@ -56,6 +56,26 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<TrainingEnrollment> findCoveringForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
 
+    /** All subscriptions covering a month across every (non-deleted) slot — the monthly payment roster, grouped per user. */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user u
+        JOIN FETCH te.slot s
+        JOIN FETCH s.eventType
+        WHERE s.deletedAt IS NULL
+          AND te.startMonth <= :month AND (te.endMonth IS NULL OR te.endMonth >= :month)
+        ORDER BY u.lastName ASC, u.firstName ASC, s.dayOfWeek ASC, s.startTime ASC
+        """)
+    List<TrainingEnrollment> findAllCoveringMonth(@Param("month") String month);
+
+    /** One user's subscriptions covering a month — for the "pay the whole month for this person" bulk action. */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        WHERE te.user.id = :userId AND te.slot.deletedAt IS NULL
+          AND te.startMonth <= :month AND (te.endMonth IS NULL OR te.endMonth >= :month)
+        """)
+    List<TrainingEnrollment> findCoveringByUserAndMonth(@Param("userId") UUID userId, @Param("month") String month);
+
     /**
      * Current recipients of slot notifications: subscriptions not yet ended
      * (indefinite or ending in/after the current month, including future ones). For emails D/E.
