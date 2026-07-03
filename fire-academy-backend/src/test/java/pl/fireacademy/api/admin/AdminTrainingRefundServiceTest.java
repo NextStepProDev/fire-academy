@@ -3,6 +3,7 @@ package pl.fireacademy.api.admin;
 import org.junit.jupiter.api.Test;
 import pl.fireacademy.domain.training.TrainingCreditService;
 import pl.fireacademy.domain.training.TrainingEnrollment;
+import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
 import pl.fireacademy.domain.training.TrainingRefund;
 import pl.fireacademy.domain.training.TrainingRefundRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -22,9 +23,10 @@ import static org.mockito.Mockito.when;
 class AdminTrainingRefundServiceTest {
 
     private final TrainingRefundRepository refunds = mock(TrainingRefundRepository.class);
+    private final TrainingEnrollmentRepository enrollments = mock(TrainingEnrollmentRepository.class);
     private final TrainingCreditService credit = mock(TrainingCreditService.class);
     private final MessageService msg = mock(MessageService.class);
-    private final AdminTrainingRefundService service = new AdminTrainingRefundService(refunds, credit, msg);
+    private final AdminTrainingRefundService service = new AdminTrainingRefundService(refunds, enrollments, credit, msg);
 
     private TrainingRefund creditedRefund(UUID enrollmentId) {
         var te = mock(TrainingEnrollment.class);

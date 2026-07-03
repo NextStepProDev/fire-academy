@@ -4,12 +4,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.TrainingSlotDtos.RefundEntry;
+import pl.fireacademy.api.admin.TrainingSlotDtos.UnconsumedCreditEntry;
 import pl.fireacademy.domain.training.TrainingCreditService;
+import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
 import pl.fireacademy.domain.training.TrainingRefund;
 import pl.fireacademy.domain.training.TrainingRefundRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,14 +21,37 @@ import java.util.UUID;
 public class AdminTrainingRefundService {
 
     private final TrainingRefundRepository refundRepository;
+    private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingCreditService creditService;
     private final MessageService msg;
 
     public AdminTrainingRefundService(TrainingRefundRepository refundRepository,
+                                      TrainingEnrollmentRepository enrollmentRepository,
                                       TrainingCreditService creditService, MessageService msg) {
         this.refundRepository = refundRepository;
+        this.enrollmentRepository = enrollmentRepository;
         this.creditService = creditService;
         this.msg = msg;
+    }
+
+    /**
+     * Ended subscriptions still sitting on unconsumed CREDITED surplus — nothing applies it automatically once
+     * there is no future month left to bill, so without this list the money would just sit forgotten in the ledger.
+     */
+    @Transactional(readOnly = true)
+    public List<UnconsumedCreditEntry> listUnconsumedCredit() {
+        return enrollmentRepository.findEndedWithCreditedRefund(YearMonth.now().toString()).stream()
+                .map(te -> new java.util.AbstractMap.SimpleEntry<>(te, creditService.availableBalance(te.getId())))
+                .filter(e -> e.getValue().signum() > 0)
+                .map(e -> {
+                    var te = e.getKey();
+                    var u = te.getUser();
+                    return new UnconsumedCreditEntry(
+                            te.getId(), u.getId(), u.getFirstName(), u.getLastName(), u.getEmail(), u.getPhone(),
+                            te.getSlot().getEventType().getName(), te.getEndMonth(), e.getValue()
+                    );
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)

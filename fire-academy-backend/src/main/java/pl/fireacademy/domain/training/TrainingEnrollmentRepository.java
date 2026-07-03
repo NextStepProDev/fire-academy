@@ -112,4 +112,19 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
           AND s.deletedAt IS NULL
         """)
     List<TrainingEnrollment> findExpiredNotNotified(@Param("month") String month);
+
+    /**
+     * Ended subscriptions (endMonth passed) that still carry a CREDITED refund — candidates for surplus that was
+     * never consumed because the subscription ended before a future billable month could absorb it. The admin
+     * "Zwroty" view filters these further by remaining balance, since part of a refund may already be spent.
+     */
+    @Query("""
+        SELECT DISTINCT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        JOIN FETCH te.slot s
+        JOIN FETCH s.eventType
+        WHERE te.endMonth IS NOT NULL AND te.endMonth < :month
+          AND EXISTS (SELECT 1 FROM TrainingRefund r WHERE r.enrollment = te AND r.settlementType = 'CREDITED')
+        """)
+    List<TrainingEnrollment> findEndedWithCreditedRefund(@Param("month") String month);
 }

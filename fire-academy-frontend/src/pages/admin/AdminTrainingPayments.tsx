@@ -6,7 +6,7 @@ import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
-import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
+import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
 import { formatDate } from '../../utils/dates'
 import type { UserMonthlyPayment } from '../../types'
 import clsx from 'clsx'
@@ -16,8 +16,8 @@ export function AdminTrainingPayments() {
   const { t } = useTranslation('admin')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
-  const months = visibleMonths()
-  const [month, setMonth] = useState(months[0])
+  const months = adminVisibleMonths()
+  const [month, setMonth] = useState(currentMonth())
   const [openUsers, setOpenUsers] = useState<Set<string>>(new Set())
   const toggleUser = (id: string) =>
     setOpenUsers(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })

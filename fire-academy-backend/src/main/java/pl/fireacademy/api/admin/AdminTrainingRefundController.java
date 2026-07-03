@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.TrainingSlotDtos.RefundEntry;
 import pl.fireacademy.api.admin.TrainingSlotDtos.SettleRefundRequest;
+import pl.fireacademy.api.admin.TrainingSlotDtos.UnconsumedCreditEntry;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,12 @@ public class AdminTrainingRefundController {
     @GetMapping
     public List<RefundEntry> list(@RequestParam(defaultValue = "false") boolean settled) {
         return service.list(settled);
+    }
+
+    /** Ended subscriptions still sitting on unconsumed CREDITED surplus — needs a manual cash refund. */
+    @GetMapping("/unconsumed-credit")
+    public List<UnconsumedCreditEntry> unconsumedCredit() {
+        return service.listUnconsumedCredit();
     }
 
     /** Resolve a refund as REFUNDED (money back) or CREDITED (counted toward this/next month). */

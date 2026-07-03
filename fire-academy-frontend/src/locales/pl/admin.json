@@ -230,7 +230,7 @@
   },
   "monthlyPayments": {
     "title": "Płatności miesięczne",
-    "hint": "Płatność jest za miesiąc, nie za pojedynczy trening. Wybierz miesiąc i dla każdej osoby oznacz „Opłać” — obejmie to wszystkie jej treningi naraz. Możesz też wycofać płatność, gdyby ktoś się pomylił.",
+    "hint": "Płatność jest za miesiąc, nie za pojedynczy trening. Wybierz miesiąc i dla każdej osoby oznacz „Opłać” — obejmie to wszystkie jej treningi naraz. Możesz też wycofać płatność, gdyby ktoś się pomylił. Dostępne są też 2 poprzednie miesiące — na wypadek gdyby coś trzeba było poprawić po czasie.",
     "empty": "Brak zapisów na ten miesiąc.",
     "totalDue": "Łącznie do zapłaty (nieopłaceni):",
     "trainingsCount_one": "{{count}} trening",
@@ -308,6 +308,10 @@
     "unsettle": "Cofnij",
     "methodRefunded": "Zwrot pieniędzy",
     "methodCredited": "Zaliczone na poczet miesiąca",
+    "unconsumedTitle": "Niewykorzystane nadwyżki po zakończonych subskrypcjach",
+    "unconsumedHint": "Subskrypcja się zakończyła (rezygnacja lub wygaśnięcie), zanim cała zaliczona nadwyżka zdążyła obniżyć jakiś rachunek. Rozlicz ją ręcznie — w Historii poniżej cofnij rozliczenie odpowiedniego zwrotu i zaznacz „Zwrócono pieniądze”.",
+    "unconsumedEmpty": "Brak niewykorzystanych nadwyżek.",
+    "unconsumedEndedOn": "Zakończono",
     "historyTitle": "Historia zwrotów",
     "historyEmpty": "Brak rozliczonych zwrotów."
   },

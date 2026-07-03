@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Wallet, Coins, CalendarPlus, RotateCcw, ChevronDown, ChevronRight, Phone } from 'lucide-react'
+import { Wallet, Coins, CalendarPlus, RotateCcw, ChevronDown, ChevronRight, Phone, AlertTriangle } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
@@ -28,6 +28,10 @@ export function AdminTrainingRefunds() {
     queryKey: ['admin', 'training-refunds', 'history'],
     queryFn: () => adminApi.getTrainingRefunds(true),
     enabled: showHistory,
+  })
+  const unconsumedQuery = useQuery({
+    queryKey: ['admin', 'training-refunds', 'unconsumed-credit'],
+    queryFn: adminApi.getUnconsumedTrainingCredit,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
@@ -151,6 +155,31 @@ export function AdminTrainingRefunds() {
             })}
           </div>
         </>
+      )}
+
+      {/* Ended subscriptions still sitting on unconsumed CREDITED surplus — nothing applies it automatically once there's no future month left to bill, so it needs a manual cash refund. */}
+      {!!unconsumedQuery.data?.length && (
+        <div className="mt-6 rounded-xl border border-amber-800/40 bg-amber-950/20 px-4 py-3">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <h3 className="text-sm font-semibold text-amber-300">{t('trainingRefunds.unconsumedTitle')}</h3>
+          </div>
+          <p className="text-xs text-surface-400 mb-3">{t('trainingRefunds.unconsumedHint')}</p>
+          <div className="space-y-2">
+            {unconsumedQuery.data.map(e => (
+              <div key={e.enrollmentId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-900/60 px-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <span className="text-surface-200">{e.firstName} {e.lastName}</span>
+                  <span className="block text-xs text-surface-500">
+                    {e.trainingName} · {t('trainingRefunds.unconsumedEndedOn')} <span className="capitalize">{formatMonth(e.endMonth)}</span> · {e.email}
+                    {e.phone && <span className="inline-flex items-center gap-1"> · <Phone className="w-3 h-3" />{e.phone}</span>}
+                  </span>
+                </div>
+                <span className="font-semibold text-amber-400 shrink-0">{e.balance} zł</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Settled history */}

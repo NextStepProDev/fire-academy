@@ -178,6 +178,11 @@ public class TrainingEnrollmentService {
         }
         YearMonth activeUntil;
         if (startsInFuture) {
+            // A CREDITED refund's surplus would cascade-delete along with the enrollment, taking the money owed
+            // with it — same guard as the admin's hard-delete path.
+            if (creditService.availableBalance(te.getId()).signum() > 0) {
+                throw new IllegalStateException(msg.get("trainingenrollment.cancel.credit"));
+            }
             // Subscription has not started yet — remove it entirely.
             enrollmentRepository.delete(te);
             activeUntil = null;

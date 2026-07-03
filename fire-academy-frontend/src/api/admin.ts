@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UserMonthlyPayment } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -231,6 +231,8 @@ export const adminApi = {
     fetchApi<void>(`/admin/training-refunds/settle-user/${userId}`, { method: 'POST', body: JSON.stringify({ settlementType }) }),
   unsettleRefund: (id: string) =>
     fetchApi<void>(`/admin/training-refunds/${id}/unsettle`, { method: 'POST' }),
+  getUnconsumedTrainingCredit: () =>
+    fetchApi<UnconsumedCreditEntry[]>(`/admin/training-refunds/unconsumed-credit`),
 
   // Archive of deleted slots
   getDeletedTrainingSlots: () =>

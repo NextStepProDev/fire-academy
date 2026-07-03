@@ -247,6 +247,19 @@ public final class TrainingSlotDtos {
             @Nullable String settlementType
     ) {}
 
+    /** An ended subscription still sitting on unconsumed CREDITED surplus — nobody will ever apply it automatically. */
+    public record UnconsumedCreditEntry(
+            UUID enrollmentId,
+            UUID userId,
+            String firstName,
+            String lastName,
+            String email,
+            String phone,
+            String trainingName,
+            YearMonth endMonth,
+            BigDecimal balance
+    ) {}
+
     public record SettleRefundRequest(
             @NotNull String settlementType
     ) {}

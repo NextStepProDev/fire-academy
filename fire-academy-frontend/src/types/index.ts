@@ -254,6 +254,19 @@ export interface RefundEntry {
   settlementType: 'REFUNDED' | 'CREDITED' | null
 }
 
+/** An ended subscription still sitting on unconsumed CREDITED surplus — admin "Zwroty" view. */
+export interface UnconsumedCreditEntry {
+  enrollmentId: string
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  trainingName: string
+  endMonth: string
+  balance: number
+}
+
 /** Deleted (archived) slot with data of former participants. */
 export interface DeletedTrainingSlot {
   id: string

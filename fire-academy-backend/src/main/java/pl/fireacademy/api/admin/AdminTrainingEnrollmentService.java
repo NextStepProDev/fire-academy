@@ -119,6 +119,10 @@ public class AdminTrainingEnrollmentService {
                 throw new IllegalStateException(msg.get("trainingenrollment.remove.paid"));
             }
         }
+        // A CREDITED refund's surplus would cascade-delete with the enrollment, taking the money owed with it.
+        if (creditService.availableBalance(enrollmentId).signum() > 0) {
+            throw new IllegalStateException(msg.get("trainingenrollment.remove.credit"));
+        }
         var user = te.getUser();
         var info = slotInfo(te.getSlot());
         enrollmentRepository.delete(te);
