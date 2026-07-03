@@ -61,6 +61,23 @@ class AdminUserMailServiceTest {
     }
 
     @Test
+    void shouldSendCampaignSequentiallyToAllRecipientsWithPerRecipientToken() {
+        service.sendCampaign(java.util.List.of(
+                new AdminUserMailService.CampaignRecipient("jan@test.com", "Jan", "tok-jan"),
+                new AdminUserMailService.CampaignRecipient("anna@test.com", "Anna", null)
+        ), "Temat", "Treść");
+
+        var order = inOrder(mailDispatcher);
+        order.verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        order.verify(mailDispatcher).sendHtml(eq("anna@test.com"), anyString(), bodyCaptor.capture());
+        var bodies = bodyCaptor.getAllValues();
+        assertTrue(bodies.get(0).contains("/wypisz-sie?token=tok-jan"),
+                "odbiorca z tokenem dostaje link rezygnacji");
+        assertFalse(bodies.get(1).contains("/wypisz-sie"),
+                "odbiorca bez tokenu (mail serwisowy) nie ma linku rezygnacji");
+    }
+
+    @Test
     void shouldKeepSubjectRawWithoutHtmlEscaping() {
         // A subject with Polish and special characters must stay raw (no HTML entities).
         String subject = "Zniżka 50% <wyjątkowo> ąćę";

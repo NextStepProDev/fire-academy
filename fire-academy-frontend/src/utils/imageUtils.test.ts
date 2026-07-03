@@ -7,35 +7,41 @@ function createFile(name: string, size: number, type: string): File {
 }
 
 describe('validateImageFile', () => {
-  it('should accept valid JPEG under 10MB', () => {
+  it('should accept valid JPEG under 50MB', () => {
     const file = createFile('photo.jpg', 5 * 1024 * 1024, 'image/jpeg')
     expect(validateImageFile(file)).toBeNull()
   })
 
-  it('should accept valid PNG under 10MB', () => {
+  it('should accept valid PNG under 50MB', () => {
     const file = createFile('image.png', 1 * 1024 * 1024, 'image/png')
     expect(validateImageFile(file)).toBeNull()
   })
 
-  it('should accept valid WebP under 10MB', () => {
+  it('should accept valid WebP under 50MB', () => {
     const file = createFile('image.webp', 2 * 1024 * 1024, 'image/webp')
     expect(validateImageFile(file)).toBeNull()
   })
 
-  it('should reject file exceeding 10MB', () => {
-    const file = createFile('huge.jpg', 11 * 1024 * 1024, 'image/jpeg')
+  it('should accept a large photo that used to exceed the old 10MB limit', () => {
+    // Big camera/phone photos must pass validation — they get compressed client-side afterwards.
+    const file = createFile('camera.jpg', 25 * 1024 * 1024, 'image/jpeg')
+    expect(validateImageFile(file)).toBeNull()
+  })
+
+  it('should reject file exceeding 50MB', () => {
+    const file = createFile('huge.jpg', 51 * 1024 * 1024, 'image/jpeg')
     const error = validateImageFile(file)
     expect(error).not.toBeNull()
-    expect(error).toContain('10 MB')
+    expect(error).toContain('50 MB')
   })
 
   it('should reject file exactly at boundary', () => {
-    const file = createFile('edge.jpg', 10 * 1024 * 1024 + 1, 'image/jpeg')
+    const file = createFile('edge.jpg', 50 * 1024 * 1024 + 1, 'image/jpeg')
     expect(validateImageFile(file)).not.toBeNull()
   })
 
-  it('should accept file exactly at 10MB', () => {
-    const file = createFile('exact.jpg', 10 * 1024 * 1024, 'image/jpeg')
+  it('should accept file exactly at 50MB', () => {
+    const file = createFile('exact.jpg', 50 * 1024 * 1024, 'image/jpeg')
     expect(validateImageFile(file)).toBeNull()
   })
 
@@ -57,8 +63,8 @@ describe('validateImageFile', () => {
   })
 
   it('should include file size in error message', () => {
-    const file = createFile('big.jpg', 15 * 1024 * 1024, 'image/jpeg')
+    const file = createFile('big.jpg', 55 * 1024 * 1024, 'image/jpeg')
     const error = validateImageFile(file)
-    expect(error).toContain('15.0')
+    expect(error).toContain('55.0')
   })
 })

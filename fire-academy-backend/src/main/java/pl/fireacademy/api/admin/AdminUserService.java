@@ -163,11 +163,15 @@ public class AdminUserService {
             throw new IllegalStateException(msg.get("email.admin.no.recipients"));
         }
 
-        for (User user : recipients) {
-            adminUserMailService.sendCustomMessage(
-                    user.getEmail(), user.getFirstName(), request.subject(), request.message(),
-                    marketing ? user.getMarketingUnsubscribeToken().toString() : null);
-        }
+        // One background campaign task (sequential loop on mailCampaignExecutor) — not one @Async task per
+        // recipient, which would overflow the mailExecutor queue and starve transactional mail. Recipients are
+        // detached to plain values inside this transaction before crossing the @Async boundary.
+        List<AdminUserMailService.CampaignRecipient> campaign = recipients.stream()
+                .map(u -> new AdminUserMailService.CampaignRecipient(
+                        u.getEmail(), u.getFirstName(),
+                        marketing ? u.getMarketingUnsubscribeToken().toString() : null))
+                .toList();
+        adminUserMailService.sendCampaign(campaign, request.subject(), request.message());
 
         return new SendEmailResponse(recipients.size());
     }

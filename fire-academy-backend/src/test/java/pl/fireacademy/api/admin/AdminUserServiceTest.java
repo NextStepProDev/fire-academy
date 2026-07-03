@@ -263,8 +263,19 @@ class AdminUserServiceTest {
                 new SendEmailRequest("Temat", "Treść", "ALL", null));
 
         assertEquals(2, result.recipientCount());
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
-        verify(adminUserMailService).sendCustomMessage("anna@test.com", "Anna", "Temat", "Treść", null);
+        List<AdminUserMailService.CampaignRecipient> sent = capturedCampaign("Temat", "Treść");
+        assertEquals(2, sent.size());
+        assertEquals(new AdminUserMailService.CampaignRecipient("jan@test.com", "Jan", null), sent.get(0));
+        assertEquals(new AdminUserMailService.CampaignRecipient("anna@test.com", "Anna", null), sent.get(1));
+    }
+
+    /** Verifies a single sendCampaign dispatch (one background task, not one @Async per recipient) and returns its recipients. */
+    private List<AdminUserMailService.CampaignRecipient> capturedCampaign(String subject, String message) {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<AdminUserMailService.CampaignRecipient>> captor =
+                ArgumentCaptor.forClass((Class<List<AdminUserMailService.CampaignRecipient>>) (Class<?>) List.class);
+        verify(adminUserMailService).sendCampaign(captor.capture(), eq(subject), eq(message));
+        return captor.getValue();
     }
 
     @Test
@@ -277,8 +288,8 @@ class AdminUserServiceTest {
                 new SendEmailRequest("Temat", "Treść", "ALL", null));
 
         assertEquals(1, result.recipientCount());
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
-        verify(adminUserMailService, never()).sendCustomMessage(eq("dev@test.com"), any(), any(), any(), any());
+        List<AdminUserMailService.CampaignRecipient> sent = capturedCampaign("Temat", "Treść");
+        assertEquals(List.of(new AdminUserMailService.CampaignRecipient("jan@test.com", "Jan", null)), sent);
     }
 
     @Test
@@ -290,7 +301,8 @@ class AdminUserServiceTest {
 
         assertEquals(1, result.recipientCount());
         verify(userRepository, never()).findAllByOrderByCreatedAtDesc();
-        verify(adminUserMailService).sendCustomMessage("jan@test.com", "Jan", "Temat", "Treść", null);
+        List<AdminUserMailService.CampaignRecipient> sent = capturedCampaign("Temat", "Treść");
+        assertEquals(List.of(new AdminUserMailService.CampaignRecipient("jan@test.com", "Jan", null)), sent);
     }
 
     @Test
@@ -312,8 +324,10 @@ class AdminUserServiceTest {
         verify(userRepository).findAllByMarketingConsentAtIsNotNullOrderByCreatedAtDesc();
         verify(userRepository, never()).findAllByOrderByCreatedAtDesc();
         // A marketing mail gets an unsubscribe token (non-null); a service mail got null.
-        verify(adminUserMailService).sendCustomMessage(
-                eq("jan@test.com"), eq("Jan"), eq("Nowy obóz!"), eq("Zapraszamy"), notNull());
+        List<AdminUserMailService.CampaignRecipient> sent = capturedCampaign("Nowy obóz!", "Zapraszamy");
+        assertEquals(1, sent.size());
+        assertEquals("jan@test.com", sent.getFirst().email());
+        assertNotNull(sent.getFirst().unsubscribeToken());
     }
 
     @Test
