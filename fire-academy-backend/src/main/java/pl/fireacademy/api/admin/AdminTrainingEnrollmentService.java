@@ -75,23 +75,31 @@ public class AdminTrainingEnrollmentService {
 
         var slot = slotRepository.findByIdForUpdate(slotId)
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingslot.not.found")));
+        if (slot.isDeleted()) {
+            throw new NotFoundException(msg.get("trainingslot.not.found"));
+        }
+        // No adding people to a slot that stops before their subscription would even start.
+        if (slot.getDeactivatedFrom() != null && !slot.getDeactivatedFrom().isAfter(start.atDay(1))) {
+            throw new IllegalStateException(msg.get("trainingslot.inactive"));
+        }
 
         var user = userRepository.findById(request.userId())
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.user.not.found")));
 
         var end = request.months() != null ? start.plusMonths(request.months() - 1L) : null;
 
-        if (enrollmentRepository.existsActiveFor(user.getId(), slotId, start.toString())) {
+        if (enrollmentRepository.existsOverlapping(user.getId(), slotId, start.toString(),
+                end != null ? end.toString() : null)) {
             throw new IllegalStateException(msg.get("trainingenrollment.duplicate"));
         }
 
         // Admin may add participants beyond the capacity limit (deliberate overbooking) — no capacity check.
-        enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
+        var saved = enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
 
         // G: notify the user that the organizer added them.
         var info = slotInfo(slot);
         var billingMonth = start.isAfter(current) ? start : current;
-        int sessions = billing.sessions(slot, billingMonth);
+        int sessions = billing.sessions(saved, billingMonth);
         var amount = slot.getPrice() != null
                 ? slot.getPrice().multiply(java.math.BigDecimal.valueOf(sessions)) : null;
         trainingMail.sendAdminAddedConfirmation(user.getEmail(), user.getFirstName(), info,
@@ -103,6 +111,14 @@ public class AdminTrainingEnrollmentService {
     public void remove(UUID enrollmentId) {
         var te = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.not.found")));
+        // Hard delete cascades the payment rows away. A paid current/future month would vanish without a
+        // trace (money collected, no service, no refund) — the admin has to revert those payments first.
+        var current = YearMonth.now();
+        for (var pm : paymentRepository.findPaidMonths(enrollmentId)) {
+            if (!YearMonth.parse(pm).isBefore(current)) {
+                throw new IllegalStateException(msg.get("trainingenrollment.remove.paid"));
+            }
+        }
         var user = te.getUser();
         var info = slotInfo(te.getSlot());
         enrollmentRepository.delete(te);
@@ -129,11 +145,11 @@ public class AdminTrainingEnrollmentService {
             return List.of();
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paidAtByEnrollment = new java.util.HashMap<java.util.UUID, java.time.Instant>();
+        var paymentByEnrollment = new java.util.HashMap<java.util.UUID, TrainingPayment>();
         for (var p : paymentRepository.findPaidForMonth(ids, month.toString())) {
-            paidAtByEnrollment.put(p.getEnrollment().getId(), p.getCreatedAt());
+            paymentByEnrollment.put(p.getEnrollment().getId(), p);
         }
-        var paidIds = paidAtByEnrollment.keySet();
+        var paidIds = paymentByEnrollment.keySet();
 
         var byUser = new java.util.LinkedHashMap<java.util.UUID, List<TrainingEnrollment>>();
         for (var te : enrollments) {
@@ -149,13 +165,22 @@ public class AdminTrainingEnrollmentService {
             var creditBalance = java.math.BigDecimal.ZERO;
             for (var te : group) {
                 var slot = te.getSlot();
-                var gross = billing.amount(slot, month);                       // price × sessions, or null
-                var credit = creditService.appliedFor(te, month);
-                var net = gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
                 boolean paid = paidIds.contains(te.getId());
                 if (!paid) allPaid = false;
-                var at = paidAtByEnrollment.get(te.getId());
-                if (at != null && (paidAt == null || at.isAfter(paidAt))) paidAt = at;
+                var payment = paymentByEnrollment.get(te.getId());
+                if (payment != null && (paidAt == null || payment.getCreatedAt().isAfter(paidAt))) {
+                    paidAt = payment.getCreatedAt();
+                }
+                // A paid line shows the amount frozen at payment time (never drifts); an unpaid one the live
+                // NET bill. Legacy paid rows without a stored amount fall back to the live figure.
+                java.math.BigDecimal net;
+                if (payment != null && payment.getAmount() != null) {
+                    net = payment.getAmount();
+                } else {
+                    var gross = billing.amount(te, month);                     // price × sessions, or null
+                    var credit = creditService.appliedFor(te, month);
+                    net = gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
+                }
                 total = total.add(net);
                 creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
@@ -200,9 +225,12 @@ public class AdminTrainingEnrollmentService {
                 // month (from the current month, within coverage) is already paid — you cannot pay August with
                 // July still open. This keeps paid months a contiguous prefix, so surplus never lands backwards.
                 requireEarlierMonthsPaid(te, requestMonth, paidMonths);
-                // Freeze how much surplus this month absorbs, so the same credit is never applied twice.
+                // Freeze how much surplus this month absorbs, so the same credit is never applied twice,
+                // and the NET amount collected, so displays never drift with passing days or price edits.
                 var applied = creditService.liveAppliedFor(te, requestMonth);
-                paymentRepository.save(new TrainingPayment(te, requestMonth, applied));
+                var gross = billing.amount(te, requestMonth);
+                var net = gross != null ? gross.subtract(applied).max(java.math.BigDecimal.ZERO) : null;
+                paymentRepository.save(new TrainingPayment(te, requestMonth, applied, net));
             }
         } else {
             // Symmetrically, a month can be un-paid only if no later month is still paid (no gaps).
@@ -210,6 +238,11 @@ public class AdminTrainingEnrollmentService {
                 if (YearMonth.parse(pm).isAfter(requestMonth)) {
                     throw new IllegalStateException(msg.get("trainingpayment.unpay.out.of.order"));
                 }
+            }
+            // A month with an already-settled refund cannot be un-paid: the cash was handed back / the surplus
+            // credited against this very payment. The admin must unsettle the refund first.
+            if (refundService.hasSettledForMonth(enrollmentId, requestMonth)) {
+                throw new IllegalStateException(msg.get("trainingpayment.unpay.settled.refund"));
             }
             paymentRepository.deleteByEnrollmentIdAndYearMonth(enrollmentId, month);
             // Reverting the payment cancels any refund that was owed for this month — nothing was actually paid.

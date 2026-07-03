@@ -44,6 +44,7 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     @Autowired private pl.fireacademy.domain.instructor.InstructorRepository instructorRepository;
     @Autowired private TrainingSlotRepository trainingSlotRepository;
     @Autowired private TrainingEnrollmentRepository trainingEnrollmentRepository;
+    @Autowired private pl.fireacademy.domain.training.TrainingPaymentRepository trainingPaymentRepository;
     @Autowired private TrainingSubscriptionExpiryScheduler expiryScheduler;
 
     /** Mock to verify email sending without real SMTP (and without @Async on the mock side). */
@@ -1165,5 +1166,218 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"date\":\"" + LocalDate.now().minusDays(1) + "\"}"))
             .andExpect(status().isBadRequest());
+    }
+
+    // ── Cross-closure correctness: a date can be closed by a holiday, a single cancellation and a
+    //    deactivation at once — refunds must arise once and survive undoing only the OTHER closures. ──
+
+    private void cancelSession(UUID slotId, LocalDate date, String admin,
+                               org.springframework.test.web.servlet.ResultMatcher expect) throws Exception {
+        mockMvc.perform(post("/api/admin/training-slots/" + slotId + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + date + "\"}"))
+            .andExpect(expect);
+    }
+
+    @Test
+    void shouldKeepSessionRefundWhenOverlappingHolidayRemoved() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        markPaid(trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId(), month, admin);
+
+        // Single cancellation first → one refund. A holiday stacked on the same date must NOT add a second one.
+        cancelSession(slot.getId(), date, admin, status().isCreated());
+        mockMvc.perform(post("/api/admin/training-holidays")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(1));
+
+        // Removing the day off must keep the refund — the session is still individually cancelled.
+        String holidayId = JsonPath.read(
+                mockMvc.perform(get("/api/admin/training-holidays").param("month", month)
+                        .header("Authorization", "Bearer " + admin))
+                    .andReturn().getResponse().getContentAsString(), "$[0].id");
+        mockMvc.perform(delete("/api/admin/training-holidays/" + holidayId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(1));
+
+        // Only undoing the cancellation itself (the last closure) revokes it.
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .param("date", date.toString())
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldRejectCancellingSessionOnAnExistingDayOff() throws Exception {
+        // The classic money leak: holiday added while the month was unpaid (bill already reduced), payment made
+        // afterwards, then a redundant per-slot cancellation of the same date must NOT mint a refund for a
+        // session the subscriber never paid for — it is rejected outright.
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        mockMvc.perform(post("/api/admin/training-holidays")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+        markPaid(trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId(), month, admin);
+
+        cancelSession(slot.getId(), date, admin, status().isConflict());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldRejectUnpayingMonthWithSettledRefundUntilUnsettled() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        markPaid(enrollmentId, month, admin);
+        cancelSession(slot.getId(), date, admin, status().isCreated());
+        String refundId = settleRefund(firstRefundId(admin), "CREDITED", admin);
+
+        // The credited surplus hangs off this payment — reverting it is blocked until the refund is unsettled.
+        setPaid(enrollmentId, month, false, admin, status().isConflict());
+        mockMvc.perform(post("/api/admin/training-refunds/" + refundId + "/unsettle")
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+        setPaid(enrollmentId, month, false, admin, status().isNoContent());
+    }
+
+    @Test
+    void shouldBlockUserCancellationWhenAFutureMonthIsPaid() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String token = userToken();
+        enroll(token, slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        var te = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst();
+        // Simulate a payment made in the pre-month window (the endpoint is time-gated, so insert directly).
+        trainingPaymentRepository.save(new pl.fireacademy.domain.training.TrainingPayment(
+                te, YearMonth.now().plusMonths(1)));
+
+        // Cancelling would orphan the paid future month — blocked until the organizer settles it.
+        mockMvc.perform(delete("/api/user/training-enrollments/" + te.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldBlockAdminRemovalWhilePaidThenAllowAfterUnpay() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+        markPaid(enrollmentId, CURRENT, admin);
+
+        // Hard delete would cascade the payment row away without a trace — revert the payment first.
+        mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isConflict());
+        setPaid(enrollmentId, CURRENT, false, admin, status().isNoContent());
+        mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldRejectEnrollingForMonthAfterSlotStops() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        LocalDate stops = YearMonth.now().plusMonths(1).atDay(1);
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/deactivate")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"from\":\"" + stops + "\"}"))
+            .andExpect(status().isOk());
+
+        // The month after the slot stops has zero sessions — booking it makes no sense.
+        mockMvc.perform(post("/api/user/training-slots/" + slot.getId() + "/enroll")
+                .header("Authorization", "Bearer " + userToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startMonth\":\"" + NEXT + "\"}"))
+            .andExpect(status().isConflict());
+
+        // The public catalog hides the slot when browsing that month, but still shows it for the current one.
+        mockMvc.perform(get("/api/public/training-slots").param("month", NEXT))
+            .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void shouldRejectAdminAddToDeletedSlot() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        createUserAndGetToken("extra@fireacademy.test", "Ekstra", "Osoba", UserRole.USER);
+        UUID extraId = userRepository.findByEmail("extra@fireacademy.test").orElseThrow().getId();
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/enrollments")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + extraId + "\",\"startMonth\":\"" + CURRENT + "\"}"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldNotifyOrganizerWhenAccountWithSubscriptionIsDeleted() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+
+        mockMvc.perform(delete("/api/admin/users/" + regularUserId())
+                .param("notify", "false")
+                .header("Authorization", "Bearer " + adminToken()))
+            .andExpect(status().isOk());
+
+        // The subscription is cascade-deleted with the account — the organizer learns the spot freed up.
+        verify(trainingMail).sendAdminEnrollmentNotification(eq(false), anyString(), eq(USER_EMAIL),
+                any(), anyString(), anyLong(), anyInt());
+        assertEquals(0, trainingEnrollmentRepository.count());
+    }
+
+    @Test
+    void shouldFreezePaidAmountAgainstLaterCancellations() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+        int remaining = sessionsInCurrentMonth();
+        org.junit.jupiter.api.Assumptions.assumeTrue(YearMonth.from(date).toString().equals(CURRENT) && remaining > 0);
+
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        markPaid(enrollmentId, month, admin);
+
+        // Cancel one paid session, then settle its refund in CASH — the pending amount drops to zero,
+        // yet the account keeps showing the amount that was actually collected (frozen at payment time).
+        cancelSession(slot.getId(), date, admin, status().isCreated());
+        settleRefund(firstRefundId(admin), "REFUNDED", admin);
+
+        String body = mockMvc.perform(get("/api/user/training-enrollments")
+                .header("Authorization", "Bearer " + userToken()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].billingMonthPaid").value(true))
+            .andReturn().getResponse().getContentAsString();
+        assertAmount(body, "$[0].billingMonthPaidAmount", 90L * remaining);
+        assertAmount(body, "$[0].monthlyAmount", 90L * (remaining - 1));
+        assertAmount(body, "$[0].pendingRefundAmount", 0);
     }
 }

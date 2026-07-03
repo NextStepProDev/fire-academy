@@ -52,10 +52,14 @@ export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: Tra
   const sessions = remainingOccurrences(slot.dayOfWeek, startMonth, closedForSlot)
   const amount = slot.price != null ? slot.price * sessions : null
 
-  // Total including the user's existing reservations covering the selected month.
+  // Total including the user's existing reservations covering the selected month. For the month the backend
+  // already priced (billingMonth) use its NET amount — an existing subscription is billed from its enrollment
+  // date, not from today, so recomputing "remaining from today" here would underestimate it.
   const existingForMonth = (myEnrollments.data ?? [])
     .filter(e => e.startMonth <= startMonth && (e.endMonth == null || e.endMonth >= startMonth) && e.price != null)
     .reduce((sum, e) => {
+      if (e.billingMonth === startMonth && e.monthlyAmount != null) return sum + e.monthlyAmount
+      if (e.nextBillingMonth === startMonth && e.nextMonthAmount != null) return sum + e.nextMonthAmount
       const closed = [...e.cancelledDates, ...e.holidayDates].filter(d => d.slice(0, 7) === startMonth)
       return sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth, closed))
     }, 0)

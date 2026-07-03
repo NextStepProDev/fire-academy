@@ -39,12 +39,13 @@ public class UserService {
     private final FileStorageService fileStorageService;
     private final AdminEmailConfig adminEmailConfig;
     private final PasswordPolicyValidator passwordPolicy;
+    private final TrainingEnrollmentService trainingEnrollmentService;
 
     public UserService(UserRepository userRepository, AuthTokenRepository authTokenRepository,
                        EnrollmentErasureService enrollmentErasureService, EnrollmentMailService enrollmentMailService,
                        PasswordEncoder passwordEncoder, MessageService msg, JwtAuthenticationFilter jwtAuthenticationFilter,
                        FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig,
-                       PasswordPolicyValidator passwordPolicy) {
+                       PasswordPolicyValidator passwordPolicy, TrainingEnrollmentService trainingEnrollmentService) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentErasureService = enrollmentErasureService;
@@ -55,6 +56,7 @@ public class UserService {
         this.fileStorageService = fileStorageService;
         this.adminEmailConfig = adminEmailConfig;
         this.passwordPolicy = passwordPolicy;
+        this.trainingEnrollmentService = trainingEnrollmentService;
     }
 
     public UserDtos.UserResponse getMe(UUID userId) {
@@ -143,6 +145,9 @@ public class UserService {
     // tokens, the account itself, and eviction from the JWT filter cache. Call within a transaction, after permission checks.
     private EnrollmentErasureService.ErasureResult eraseAndDeleteAccount(User user) {
         UUID userId = user.getId();
+        // Training subscriptions go with the account — notify the organizer of the freed spots and remove
+        // them first, exactly like a cancellation would (no-op when the user has none).
+        trainingEnrollmentService.closeSubscriptionsBeforeAccountDeletion(userId);
         // Future enrollments are freed, past ones anonymized — BEFORE deleting the account
         // (after delete the FK nulls user_id and the enrollments can't be found). Shared logic with the admin panel.
         var erasure = enrollmentErasureService.eraseForUser(userId);

@@ -30,6 +30,14 @@ public class TrainingPayment {
     @Column(name = "credit_applied", nullable = false, precision = 10, scale = 2)
     private BigDecimal creditApplied = BigDecimal.ZERO;
 
+    /**
+     * NET amount (bill minus surplus credit) frozen when the month was marked paid, so displays never drift
+     * with the passing days or later price edits. NULL only on legacy rows from before the column existed.
+     */
+    @org.jspecify.annotations.Nullable
+    @Column(precision = 10, scale = 2)
+    private BigDecimal amount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -40,10 +48,12 @@ public class TrainingPayment {
         this.yearMonth = yearMonth.toString();
     }
 
-    public TrainingPayment(TrainingEnrollment enrollment, YearMonth yearMonth, BigDecimal creditApplied) {
+    public TrainingPayment(TrainingEnrollment enrollment, YearMonth yearMonth, BigDecimal creditApplied,
+                           @org.jspecify.annotations.Nullable BigDecimal amount) {
         this.enrollment = enrollment;
         this.yearMonth = yearMonth.toString();
         this.creditApplied = creditApplied;
+        this.amount = amount;
     }
 
     @PrePersist
@@ -55,5 +65,6 @@ public class TrainingPayment {
     public TrainingEnrollment getEnrollment() { return enrollment; }
     public YearMonth getYearMonth() { return YearMonth.parse(yearMonth); }
     public BigDecimal getCreditApplied() { return creditApplied; }
+    @org.jspecify.annotations.Nullable public BigDecimal getAmount() { return amount; }
     public Instant getCreatedAt() { return createdAt; }
 }

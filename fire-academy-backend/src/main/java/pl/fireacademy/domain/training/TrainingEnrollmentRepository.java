@@ -27,13 +27,16 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<Object[]> countCoveringBySlotIds(@Param("slotIds") Collection<UUID> slotIds, @Param("month") String month);
 
-    /** Whether the user already has a slot subscription active in/after the given month (collision). */
+    /** Whether the user already has a subscription of this slot overlapping [startMonth, endMonth] (null end = indefinite). */
     @Query("""
         SELECT COUNT(te) > 0 FROM TrainingEnrollment te
         WHERE te.user.id = :userId AND te.slot.id = :slotId
-          AND (te.endMonth IS NULL OR te.endMonth >= :month)
+          AND (te.endMonth IS NULL OR te.endMonth >= :startMonth)
+          AND (:endMonth IS NULL OR te.startMonth <= :endMonth)
         """)
-    boolean existsActiveFor(@Param("userId") UUID userId, @Param("slotId") UUID slotId, @Param("month") String month);
+    boolean existsOverlapping(@Param("userId") UUID userId, @Param("slotId") UUID slotId,
+                              @Param("startMonth") String startMonth,
+                              @Param("endMonth") @org.jspecify.annotations.Nullable String endMonth);
 
     /** Active subscriptions of the user (not ended and on non-deleted slots). */
     @Query("""
@@ -104,8 +107,9 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
     @Query("""
         SELECT te FROM TrainingEnrollment te
         JOIN FETCH te.user
-        JOIN FETCH te.slot
+        JOIN FETCH te.slot s
         WHERE te.endMonth IS NOT NULL AND te.endMonth < :month AND te.expiryNotified = false
+          AND s.deletedAt IS NULL
         """)
     List<TrainingEnrollment> findExpiredNotNotified(@Param("month") String month);
 }

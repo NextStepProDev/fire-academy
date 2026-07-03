@@ -32,10 +32,17 @@ public class TrainingBillingService {
     /**
      * Number of sessions on a given weekday (ISO 1–7) to be paid for in the month, after subtracting the
      * closed dates: for the current month counted from TODAY to the end (remaining ones), for future months
-     * — all of them.
+     * — all of them. This "from today" flavor is for previews of a would-be NEW enrollment (public catalog,
+     * enroll modal); an existing subscription bills via {@link #sessions(TrainingEnrollment, YearMonth)},
+     * which prorates from the enrollment date instead, so paying late never shrinks the bill.
      */
     public static int sessionsInMonth(int isoDayOfWeek, YearMonth month, Set<LocalDate> closedDates) {
         int fromDay = month.equals(YearMonth.now()) ? LocalDate.now().getDayOfMonth() : 1;
+        return sessionsInMonth(isoDayOfWeek, month, closedDates, fromDay);
+    }
+
+    /** Same count, but from an explicit day of the month (1 = the whole month). */
+    public static int sessionsInMonth(int isoDayOfWeek, YearMonth month, Set<LocalDate> closedDates, int fromDay) {
         int count = 0;
         for (int day = fromDay; day <= month.lengthOfMonth(); day++) {
             LocalDate date = LocalDate.of(month.getYear(), month.getMonthValue(), day);
@@ -63,8 +70,39 @@ public class TrainingBillingService {
         return closed;
     }
 
+    /** Preview flavor (would-be new enrollment): current month counted from today. */
     @Transactional(readOnly = true)
     public int sessions(TrainingSlot slot, YearMonth month) {
+        return sessionsInMonth(slot.getDayOfWeek(), month, closedIncludingDeactivation(slot, month));
+    }
+
+    /**
+     * Billable sessions of an existing subscription: the full month, prorated from the enrollment date only
+     * in the month the subscription was created in (a mid-month joiner pays from their join day; a regular
+     * who pays late still owes the whole month — the bill must not shrink as the days pass).
+     */
+    @Transactional(readOnly = true)
+    public int sessions(TrainingEnrollment te, YearMonth month) {
+        var slot = te.getSlot();
+        return sessionsInMonth(slot.getDayOfWeek(), month, closedIncludingDeactivation(slot, month),
+                billableFromDay(te, month));
+    }
+
+    @Nullable
+    @Transactional(readOnly = true)
+    public BigDecimal amount(TrainingEnrollment te, YearMonth month) {
+        var price = te.getSlot().getPrice();
+        return price != null ? price.multiply(BigDecimal.valueOf(sessions(te, month))) : null;
+    }
+
+    /** First billable day of the month: the join day when the enrollment was created in that month, else 1. */
+    private static int billableFromDay(TrainingEnrollment te, YearMonth month) {
+        LocalDate created = LocalDate.ofInstant(te.getCreatedAt(), java.time.ZoneId.systemDefault());
+        return YearMonth.from(created).equals(month) ? created.getDayOfMonth() : 1;
+    }
+
+    /** Closed dates of the month plus the slot's weekday dates on/after a scheduled deactivation. */
+    private Set<LocalDate> closedIncludingDeactivation(TrainingSlot slot, YearMonth month) {
         Set<LocalDate> closed = new HashSet<>(closedDates(slot.getId(), slot.getDayOfWeek(), month));
         // A scheduled deactivation stops the slot from a date on — those sessions no longer take place,
         // so they must drop out of the bill too (not just days off / single cancellations).
@@ -77,15 +115,6 @@ public class TrainingBillingService {
                 }
             }
         }
-        return sessionsInMonth(slot.getDayOfWeek(), month, closed);
-    }
-
-    @Nullable
-    @Transactional(readOnly = true)
-    public BigDecimal amount(TrainingSlot slot, YearMonth month) {
-        if (slot.getPrice() == null) {
-            return null;
-        }
-        return slot.getPrice().multiply(BigDecimal.valueOf(sessions(slot, month)));
+        return closed;
     }
 }

@@ -37,6 +37,7 @@ class UserServiceTest {
     @Mock private pl.fireacademy.infrastructure.storage.FileStorageService fileStorageService;
     @Mock private pl.fireacademy.config.AdminEmailConfig adminEmailConfig;
     @Mock private pl.fireacademy.infrastructure.security.PasswordPolicyValidator passwordPolicy;
+    @Mock private TrainingEnrollmentService trainingEnrollmentService;
 
     @InjectMocks private UserService service;
 

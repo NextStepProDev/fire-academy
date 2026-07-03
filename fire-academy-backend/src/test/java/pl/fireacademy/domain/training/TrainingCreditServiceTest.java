@@ -30,12 +30,12 @@ class TrainingCreditServiceTest {
     private TrainingEnrollment enrollment(YearMonth start) {
         var slot = mock(TrainingSlot.class);
         when(slot.getPrice()).thenReturn(BigDecimal.valueOf(60));
-        when(billing.sessions(eq(slot), any())).thenReturn(4);           // every month costs 4 × 60 = 240
         var te = mock(TrainingEnrollment.class);
         when(te.getId()).thenReturn(ID);
         when(te.getSlot()).thenReturn(slot);
         when(te.getStartMonth()).thenReturn(start);
         when(te.getEndMonth()).thenReturn(null);
+        when(billing.sessions(eq(te), any(YearMonth.class))).thenReturn(4);   // every month costs 4 × 60 = 240
         return te;
     }
 

@@ -53,6 +53,14 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
     List<TrainingRefund> findPendingByEnrollmentAndMonth(@Param("enrollmentId") UUID enrollmentId,
                                                          @Param("month") String month);
 
+    /** Whether the month has an already-settled refund (cash paid out / surplus credited) — blocks un-paying it. */
+    @Query("""
+        SELECT COUNT(r) > 0 FROM TrainingRefund r
+        WHERE r.enrollment.id = :enrollmentId AND r.yearMonth = :month AND r.settledAt IS NOT NULL
+        """)
+    boolean existsSettledByEnrollmentAndMonth(@Param("enrollmentId") UUID enrollmentId,
+                                              @Param("month") String month);
+
     /** Refunds list for the admin "Zwroty" view (pending or settled), with subscriber + slot data. */
     @Query("""
         SELECT r FROM TrainingRefund r

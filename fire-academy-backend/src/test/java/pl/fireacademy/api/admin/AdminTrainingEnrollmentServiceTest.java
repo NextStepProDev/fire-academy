@@ -64,4 +64,20 @@ class AdminTrainingEnrollmentServiceTest {
         verify(payments).deleteByEnrollmentIdAndYearMonth(id, current.toString());
         verify(refundService).revokeForPayment(eq(id), eq(current));
     }
+
+    @Test
+    void rejectsUnpayingAMonthWithAnAlreadySettledRefund() {
+        // The refund was resolved against this payment (cash handed back / surplus credited) — reverting the
+        // payment would leave that settlement hanging in the air. The refund must be unsettled first.
+        var id = UUID.randomUUID();
+        var current = YearMonth.now();
+        var te = mock(TrainingEnrollment.class);
+        when(te.getId()).thenReturn(id);
+        when(enrollments.findById(id)).thenReturn(Optional.of(te));
+        when(payments.findPaidMonths(id)).thenReturn(List.of(current.toString()));
+        when(refundService.hasSettledForMonth(id, current)).thenReturn(true);
+
+        assertThrows(IllegalStateException.class, () -> service.setPayment(id, new SetPaymentRequest(current, false)));
+        verify(payments, never()).deleteByEnrollmentIdAndYearMonth(any(), any());
+    }
 }

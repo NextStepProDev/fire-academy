@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,7 +13,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** A scheduled slot deactivation must drop the no-longer-happening sessions from the bill. */
+/**
+ * A scheduled slot deactivation must drop the no-longer-happening sessions from the bill, and an existing
+ * subscription is prorated from its enrollment date only in the month it was created in — never "from today"
+ * (a regular who pays late still owes the whole month).
+ */
 class TrainingBillingServiceTest {
 
     private final TrainingHolidayRepository holidays = mock(TrainingHolidayRepository.class);
@@ -45,5 +50,25 @@ class TrainingBillingServiceTest {
     void zeroWhenDeactivatedBeforeTheWholeMonth() {
         // Deactivated from before the month starts → nothing is billed.
         assertEquals(0, billing.sessions(mondaySlot(LocalDate.of(2027, 1, 1)), YearMonth.of(2027, 2)));
+    }
+
+    private TrainingEnrollment enrollmentCreatedOn(LocalDate created) {
+        var slot = mondaySlot(null);   // build first — stubbing inside thenReturn() breaks Mockito
+        var te = mock(TrainingEnrollment.class);
+        when(te.getSlot()).thenReturn(slot);
+        when(te.getCreatedAt()).thenReturn(created.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return te;
+    }
+
+    @Test
+    void proratesTheMonthTheEnrollmentWasCreatedInFromItsJoinDay() {
+        // Joined 2027-02-10 → only the Mondays from that day on (15, 22) are billed for February.
+        assertEquals(2, billing.sessions(enrollmentCreatedOn(LocalDate.of(2027, 2, 10)), YearMonth.of(2027, 2)));
+    }
+
+    @Test
+    void billsTheFullMonthWhenTheEnrollmentPredatesIt() {
+        // Joined in January → February is a full month (4 Mondays), regardless of when it is viewed/paid.
+        assertEquals(4, billing.sessions(enrollmentCreatedOn(LocalDate.of(2027, 1, 20)), YearMonth.of(2027, 2)));
     }
 }

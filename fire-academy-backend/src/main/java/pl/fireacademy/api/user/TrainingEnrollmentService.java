@@ -91,13 +91,17 @@ public class TrainingEnrollmentService {
         if (!slot.isActive() || slot.isDeleted()) {
             throw new IllegalStateException(msg.get("trainingslot.inactive"));
         }
-        if (slot.getDeactivatedFrom() != null && !slot.getDeactivatedFrom().isAfter(LocalDate.now())) {
+        // Already stopped, or scheduled to stop before the chosen month even starts (no sessions to attend).
+        if (slot.getDeactivatedFrom() != null
+                && (!slot.getDeactivatedFrom().isAfter(LocalDate.now())
+                    || !slot.getDeactivatedFrom().isAfter(start.atDay(1)))) {
             throw new IllegalStateException(msg.get("trainingslot.inactive"));
         }
 
         var end = request.months() != null ? start.plusMonths(request.months() - 1L) : null;
 
-        if (enrollmentRepository.existsActiveFor(userId, slotId, start.toString())) {
+        if (enrollmentRepository.existsOverlapping(userId, slotId, start.toString(),
+                end != null ? end.toString() : null)) {
             throw new IllegalStateException(msg.get("trainingenrollment.duplicate"));
         }
 
@@ -112,11 +116,11 @@ public class TrainingEnrollmentService {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
-        enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
+        var saved = enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
 
         var info = slotInfo(slot);
         var billingMonth = start.isAfter(current) ? start : current;
-        int sessions = billing.sessions(slot, billingMonth);
+        int sessions = billing.sessions(saved, billingMonth);
         BigDecimal amount = slot.getPrice() != null
                 ? slot.getPrice().multiply(BigDecimal.valueOf(sessions)) : null;
         long taken = enrollmentRepository.countCovering(slotId, current.toString());
@@ -164,8 +168,16 @@ public class TrainingEnrollmentService {
         var slot = te.getSlot();
         var user = te.getUser();
         var info = slotInfo(slot);
+        // Cancelling keeps only the current month — a month already paid beyond that would be orphaned
+        // (money collected, no service, no refund trace). Settle it with the organizer first.
+        boolean startsInFuture = te.getStartMonth().isAfter(current);
+        for (var pm : paymentRepository.findPaidMonths(te.getId())) {
+            if (startsInFuture || YearMonth.parse(pm).isAfter(current)) {
+                throw new IllegalStateException(msg.get("trainingenrollment.cancel.paid.future"));
+            }
+        }
         YearMonth activeUntil;
-        if (te.getStartMonth().isAfter(current)) {
+        if (startsInFuture) {
             // Subscription has not started yet — remove it entirely.
             enrollmentRepository.delete(te);
             activeUntil = null;
@@ -184,6 +196,28 @@ public class TrainingEnrollmentService {
                 periodLabel(te.getStartMonth(), activeUntil),
                 enrollmentRepository.countCovering(slot.getId(), current.toString()),
                 slot.getMaxParticipants());
+    }
+
+    /**
+     * Account deletion removes the user's training subscriptions (freeing their spots) — tell the organizer
+     * which ones, exactly like a regular cancellation would. Call BEFORE the account is deleted. The active
+     * subscriptions are deleted here explicitly: they are managed in this persistence context, and leaving
+     * them to the DB-level ON DELETE CASCADE would fail the flush (stale reference to the deleted user);
+     * ended/archived ones are never loaded, so the cascade handles those. No-op without subscriptions.
+     */
+    @Transactional
+    public void closeSubscriptionsBeforeAccountDeletion(UUID userId) {
+        var current = YearMonth.now();
+        var enrollments = enrollmentRepository.findActiveByUser(userId, current.toString());
+        for (var te : enrollments) {
+            var user = te.getUser();
+            var slot = te.getSlot();
+            long takenAfter = Math.max(0, enrollmentRepository.countCovering(slot.getId(), current.toString()) - 1);
+            trainingMail.sendAdminEnrollmentNotification(false,
+                    user.getFirstName() + " " + user.getLastName(), user.getEmail(), slotInfo(slot),
+                    periodLabel(te.getStartMonth(), te.getEndMonth()), takenAfter, slot.getMaxParticipants());
+        }
+        enrollmentRepository.deleteAll(enrollments);
     }
 
     private TrainingMailService.SlotInfo slotInfo(TrainingSlot slot) {
@@ -207,21 +241,27 @@ public class TrainingEnrollmentService {
         var instr = slot.getInstructor();
         var start = te.getStartMonth();
         var billingMonth = start.isAfter(current) ? start : current;
-        int sessions = billing.sessions(slot, billingMonth);
+        int sessions = billing.sessions(te, billingMonth);
         // Surplus credit (from CREDITED refunds) discounts the bill; monthlyAmount is the NET the user pays.
         BigDecimal monthlyCredit = creditService.appliedFor(te, billingMonth);
         BigDecimal monthlyAmount = slot.getPrice() != null
                 ? slot.getPrice().multiply(BigDecimal.valueOf(sessions)).subtract(monthlyCredit).max(BigDecimal.ZERO)
                 : null;
-        boolean billingMonthPaid = paymentRepository
-                .existsByEnrollmentIdAndYearMonth(te.getId(), billingMonth.toString());
+        var billingPayment = paymentRepository
+                .findByEnrollmentIdAndYearMonth(te.getId(), billingMonth.toString());
+        boolean billingMonthPaid = billingPayment.isPresent();
         // Money owed for cancelled paid sessions not yet resolved by the organizer.
         BigDecimal pendingRefundAmount = refundRepository.sumPendingForEnrollment(te.getId());
-        // What the client actually paid for the billing month = current bill + this month's still-unresolved refunds
-        // (so a paid month later cut by a cancellation/deactivation shows the real amount, not the recomputed 0).
-        BigDecimal billingMonthPaidAmount = (billingMonthPaid && monthlyAmount != null)
-                ? monthlyAmount.add(refundRepository.sumPendingForEnrollmentAndMonth(te.getId(), billingMonth.toString()))
-                : null;
+        // What the client actually paid for the billing month — the amount frozen on the payment row. Legacy
+        // rows without it fall back to the live bill + this month's still-unresolved refunds (so a paid month
+        // later cut by a cancellation/deactivation shows the real amount, not the recomputed 0).
+        BigDecimal billingMonthPaidAmount = null;
+        if (billingMonthPaid) {
+            var stored = billingPayment.get().getAmount();
+            billingMonthPaidAmount = stored != null ? stored : (monthlyAmount != null
+                    ? monthlyAmount.add(refundRepository.sumPendingForEnrollmentAndMonth(te.getId(), billingMonth.toString()))
+                    : null);
+        }
         // Surplus still waiting for upcoming months = total available minus the part already shown on the
         // (unpaid) current bill; when the current month is paid, nothing was applied to it, so it's the full balance.
         BigDecimal upcomingCreditBalance = creditService.availableBalance(te.getId())
@@ -238,7 +278,7 @@ public class TrainingEnrollmentService {
         boolean activeNextMonth = te.getEndMonth() == null || !te.getEndMonth().isBefore(nextMonth);
         if (inPreviewWindow && activeNextMonth) {
             nextBillingMonth = nextMonth;
-            nextMonthSessions = billing.sessions(slot, nextMonth);
+            nextMonthSessions = billing.sessions(te, nextMonth);
             nextMonthCredit = creditService.appliedFor(te, nextMonth);
             nextMonthAmount = slot.getPrice() != null
                     ? slot.getPrice().multiply(BigDecimal.valueOf(nextMonthSessions)).subtract(nextMonthCredit).max(BigDecimal.ZERO)

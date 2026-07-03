@@ -43,6 +43,7 @@ public class AdminTrainingSlotService {
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingCancelledSessionRepository cancelledSessionRepository;
     private final TrainingPaymentRepository paymentRepository;
+    private final pl.fireacademy.domain.training.TrainingHolidayRepository holidayRepository;
     private final TrainingRefundService refundService;
     private final EventTypeRepository eventTypeRepository;
     private final InstructorRepository instructorRepository;
@@ -53,6 +54,7 @@ public class AdminTrainingSlotService {
                                     TrainingEnrollmentRepository enrollmentRepository,
                                     TrainingCancelledSessionRepository cancelledSessionRepository,
                                     TrainingPaymentRepository paymentRepository,
+                                    pl.fireacademy.domain.training.TrainingHolidayRepository holidayRepository,
                                     TrainingRefundService refundService,
                                     EventTypeRepository eventTypeRepository,
                                     InstructorRepository instructorRepository,
@@ -62,6 +64,7 @@ public class AdminTrainingSlotService {
         this.enrollmentRepository = enrollmentRepository;
         this.cancelledSessionRepository = cancelledSessionRepository;
         this.paymentRepository = paymentRepository;
+        this.holidayRepository = holidayRepository;
         this.refundService = refundService;
         this.eventTypeRepository = eventTypeRepository;
         this.instructorRepository = instructorRepository;
@@ -152,7 +155,8 @@ public class AdminTrainingSlotService {
         // exactly as if each of those sessions were cancelled. Bounded to the booking horizon; unpaid
         // months are no-ops (a refund arises only for a session in a month the subscriber has paid).
         forEachSessionInDeactivationWindow(from, saved.getDayOfWeek(),
-                d -> refundService.registerForSlotSession(saved, d, TrainingRefund.TYPE_SESSION, null));
+                d -> refundService.registerForSlotSession(saved, d, TrainingRefund.TYPE_SESSION, null,
+                        TrainingRefundService.ClosureCause.DEACTIVATION));
 
         var info = mailInfo(saved);
         String month = YearMonth.from(from).toString();
@@ -174,19 +178,20 @@ public class AdminTrainingSlotService {
         if (former != null) {
             // Blocked if any deactivated session already had a cash refund / spent credit; otherwise revoke them.
             forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
-                    d -> requireRefundsReversibleForSlotSession(id, d));
+                    d -> requireRefundsReversibleForSlotSession(id, d, TrainingRefundService.ClosureCause.DEACTIVATION));
             forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
-                    d -> refundService.revokeForSlotSession(id, d));
+                    d -> refundService.revokeForSlotSession(id, d, TrainingRefundService.ClosureCause.DEACTIVATION));
         }
         return toResponse(saved, YearMonth.now().toString());
     }
 
-    /** Blocks a restore/reactivation when the refunds for a session can no longer be cleanly reversed. */
-    private void requireRefundsReversibleForSlotSession(UUID slotId, java.time.LocalDate date) {
-        if (refundService.hasCashRefundForSlotSession(slotId, date)) {
+    /** Blocks a restore/reactivation when the refunds it would revive can no longer be cleanly reversed. */
+    private void requireRefundsReversibleForSlotSession(UUID slotId, java.time.LocalDate date,
+                                                        TrainingRefundService.ClosureCause undone) {
+        if (refundService.hasCashRefundForSlotSession(slotId, date, undone)) {
             throw new IllegalStateException(msg.get("trainingrefund.restore.cash"));
         }
-        if (refundService.hasConsumedCreditForSlotSession(slotId, date)) {
+        if (refundService.hasConsumedCreditForSlotSession(slotId, date, undone)) {
             throw new IllegalStateException(msg.get("trainingrefund.restore.credit.consumed"));
         }
     }
@@ -270,8 +275,9 @@ public class AdminTrainingSlotService {
                 return new AffectedParticipant(u.getFirstName(), u.getLastName(), u.getEmail(),
                         u.getPhone(), isPaid, owed);
             }).toList();
-            boolean restorable = !refundService.hasCashRefundForSlotSession(slot.getId(), cs.getSessionDate())
-                    && !refundService.hasConsumedCreditForSlotSession(slot.getId(), cs.getSessionDate());
+            var cause = TrainingRefundService.ClosureCause.SINGLE_SESSION;
+            boolean restorable = !refundService.hasCashRefundForSlotSession(slot.getId(), cs.getSessionDate(), cause)
+                    && !refundService.hasConsumedCreditForSlotSession(slot.getId(), cs.getSessionDate(), cause);
             return new CancelledSessionOverviewItem(
                     cs.getId(), slot.getId(), cs.getSessionDate(),
                     slot.getEventType().getName(),
@@ -296,6 +302,12 @@ public class AdminTrainingSlotService {
         if (cancelledSessionRepository.existsBySlotIdAndSessionDate(slotId, date)) {
             throw new IllegalStateException(msg.get("trainingsession.already.cancelled"));
         }
+        // A whole-club day off or an effective deactivation already closed this date — the session does not
+        // take place anyway, and cancelling it again would double-count it (emails, possible refunds).
+        if (holidayRepository.existsByHolidayDate(date)
+                || (slot.getDeactivatedFrom() != null && !slot.getDeactivatedFrom().isAfter(date))) {
+            throw new IllegalStateException(msg.get("trainingsession.already.cancelled"));
+        }
 
         cancelledSessionRepository.save(new TrainingCancelledSession(slot, date));
         notifyAndRefundForCancelledSession(slot, date);
@@ -310,6 +322,10 @@ public class AdminTrainingSlotService {
         // Past dates allowed on purpose — a historical session that did not take place must still refund paid subscribers.
         var instructor = instructorRepository.findById(instructorId)
                 .orElseThrow(() -> new NotFoundException(msg.get("instructor.not.found")));
+        // A whole-club day off already cancels every session that date — nothing left to cancel per instructor.
+        if (holidayRepository.existsByHolidayDate(date)) {
+            throw new IllegalStateException(msg.get("traininginstructorday.holiday"));
+        }
         String instructorName = instructor.getFirstName() + " " + instructor.getLastName();
         String month = YearMonth.from(date).toString();
         // A past day already happened — the "don't come" email is pointless retroactively; only refund.
@@ -329,7 +345,8 @@ public class AdminTrainingSlotService {
             if (notify) {
                 collectPaidCancellations(buckets, slot, month);
             }
-            refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null);
+            refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null,
+                    TrainingRefundService.ClosureCause.SINGLE_SESSION);
             cancelled++;
         }
         if (notify) {
@@ -365,7 +382,8 @@ public class AdminTrainingSlotService {
                 trainingMail.sendSessionCancelled(u.getEmail(), u.getFirstName(), info, date, slot.getPrice());
             }
         }
-        refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null);
+        refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null,
+                TrainingRefundService.ClosureCause.SINGLE_SESSION);
     }
 
     /** Subscribers of a slot who have paid the given month — the only ones notified about a cancellation. */
@@ -391,9 +409,9 @@ public class AdminTrainingSlotService {
             throw new IllegalArgumentException(msg.get("trainingsession.restore.past"));
         }
         // Cannot restore if the refund was already paid out in cash (or the credited surplus already spent).
-        requireRefundsReversibleForSlotSession(slotId, date);
+        requireRefundsReversibleForSlotSession(slotId, date, TrainingRefundService.ClosureCause.SINGLE_SESSION);
         cancelledSessionRepository.deleteBySlotIdAndSessionDate(slotId, date);
-        refundService.revokeForSlotSession(slotId, date);
+        refundService.revokeForSlotSession(slotId, date, TrainingRefundService.ClosureCause.SINGLE_SESSION);
     }
 
     private record SlotSnapshot(String type, String instructor, String day, String time, String price) {}
@@ -490,10 +508,11 @@ public class AdminTrainingSlotService {
             return true;
         }
         var horizon = YearMonth.now().plusMonths(2).atEndOfMonth();
+        var cause = TrainingRefundService.ClosureCause.DEACTIVATION;
         for (var d = from; !d.isAfter(horizon); d = d.plusDays(1)) {
             if (d.getDayOfWeek().getValue() == s.getDayOfWeek()
-                    && (refundService.hasCashRefundForSlotSession(s.getId(), d)
-                        || refundService.hasConsumedCreditForSlotSession(s.getId(), d))) {
+                    && (refundService.hasCashRefundForSlotSession(s.getId(), d, cause)
+                        || refundService.hasConsumedCreditForSlotSession(s.getId(), d, cause))) {
                 return false;
             }
         }

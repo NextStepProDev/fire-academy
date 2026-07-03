@@ -97,15 +97,15 @@ public class TrainingCreditService {
             if (paidMonths.contains(m.toString())) {
                 continue;                                        // already consumed — its share is out of `balance`
             }
-            balance = balance.subtract(balance.min(cost(slot, m)));
+            balance = balance.subtract(balance.min(cost(te, m)));
             if (balance.signum() <= 0) {
                 return BigDecimal.ZERO;
             }
         }
-        return balance.min(cost(slot, month));
+        return balance.min(cost(te, month));
     }
 
-    private BigDecimal cost(TrainingSlot slot, YearMonth month) {
-        return slot.getPrice().multiply(BigDecimal.valueOf(billing.sessions(slot, month)));
+    private BigDecimal cost(TrainingEnrollment te, YearMonth month) {
+        return te.getSlot().getPrice().multiply(BigDecimal.valueOf(billing.sessions(te, month)));
     }
 }

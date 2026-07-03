@@ -17,32 +17,74 @@ import java.util.UUID;
  *
  * <p>A cancellable session is always in the future, and the payment that covered it was made earlier, so the
  * cancelled session was necessarily part of what the subscriber paid — the single-session price is the refund.
+ *
+ * <p>Three mechanisms can close the same date (a day off, a single-session cancellation, a scheduled
+ * deactivation), and they may stack. The ledger is cause-aware in both directions: registering skips a date
+ * already closed by ANOTHER mechanism (that session was never part of what a later payer paid — the bill
+ * already excluded it, or the first closure already produced the refund), and revoking touches only refunds
+ * whose date actually comes back to life (still closed by another mechanism → the refund stays owed).
  */
 @Service
 public class TrainingRefundService {
+
+    /** Which mechanism closed (or is being reopened for) a slot's session date. */
+    public enum ClosureCause { SINGLE_SESSION, HOLIDAY, DEACTIVATION }
 
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingPaymentRepository paymentRepository;
     private final TrainingRefundRepository refundRepository;
     private final TrainingSlotRepository slotRepository;
+    private final TrainingHolidayRepository holidayRepository;
+    private final TrainingCancelledSessionRepository cancelledSessionRepository;
     private final TrainingCreditService creditService;
 
     public TrainingRefundService(TrainingEnrollmentRepository enrollmentRepository,
                                  TrainingPaymentRepository paymentRepository,
                                  TrainingRefundRepository refundRepository,
                                  TrainingSlotRepository slotRepository,
+                                 TrainingHolidayRepository holidayRepository,
+                                 TrainingCancelledSessionRepository cancelledSessionRepository,
                                  TrainingCreditService creditService) {
         this.enrollmentRepository = enrollmentRepository;
         this.paymentRepository = paymentRepository;
         this.refundRepository = refundRepository;
         this.slotRepository = slotRepository;
+        this.holidayRepository = holidayRepository;
+        this.cancelledSessionRepository = cancelledSessionRepository;
         this.creditService = creditService;
     }
 
-    /** A single session of one slot was cancelled — register refunds for its paid subscribers. */
+    /** True if the date is closed for the slot by a mechanism other than {@code cause}. */
+    private boolean closedByOtherCause(TrainingSlot slot, LocalDate date, ClosureCause cause) {
+        if (cause != ClosureCause.HOLIDAY && holidayRepository.existsByHolidayDate(date)) {
+            return true;
+        }
+        if (cause != ClosureCause.SINGLE_SESSION
+                && cancelledSessionRepository.existsBySlotIdAndSessionDate(slot.getId(), date)) {
+            return true;
+        }
+        return cause != ClosureCause.DEACTIVATION && slot.getDeactivatedFrom() != null
+                && !slot.getDeactivatedFrom().isAfter(date);
+    }
+
+    /** Refunds that would actually come back to life when the {@code undone} closure is reversed. */
+    private List<TrainingRefund> refundsToRevert(List<TrainingRefund> refunds, ClosureCause undone) {
+        return refunds.stream()
+                .filter(r -> !closedByOtherCause(r.getEnrollment().getSlot(), r.getSessionDate(), undone))
+                .toList();
+    }
+
+    /** A single session of one slot was closed by {@code cause} — register refunds for its paid subscribers. */
     @Transactional
-    public void registerForSlotSession(TrainingSlot slot, LocalDate date, String type, @Nullable String label) {
+    public void registerForSlotSession(TrainingSlot slot, LocalDate date, String type, @Nullable String label,
+                                       ClosureCause cause) {
         if (slot.getPrice() == null) {
+            return;
+        }
+        // Already closed by another mechanism → the session was not part of anyone's live bill anymore
+        // (a subscriber who paid before the first closure got their refund then; one who paid after it
+        // paid a bill that already excluded this date). Registering again would refund unpaid money.
+        if (closedByOtherCause(slot, date, cause)) {
             return;
         }
         var month = YearMonth.from(date).toString();
@@ -63,51 +105,53 @@ public class TrainingRefundService {
         }
     }
 
-    /** A day off was added — register refunds for paid subscribers of every active slot on that weekday. */
+    /** A day off was added — register refunds for paid subscribers of every affected slot on that weekday. */
     @Transactional
     public void registerForHoliday(LocalDate date, @Nullable String label) {
         for (var slot : slotRepository.findActiveByDayOfWeek(date.getDayOfWeek().getValue())) {
-            registerForSlotSession(slot, date, TrainingRefund.TYPE_HOLIDAY, label);
+            registerForSlotSession(slot, date, TrainingRefund.TYPE_HOLIDAY, label, ClosureCause.HOLIDAY);
         }
     }
 
-    /** A single-session cancellation was undone — drop its reversible refunds (pending + credited, never cash). */
+    /** A closure of one slot's date was undone — drop the refunds that come back to life (never cash ones). */
     @Transactional
-    public void revokeForSlotSession(UUID slotId, LocalDate date) {
-        deleteReversible(refundRepository.findBySlotAndDate(slotId, date));
+    public void revokeForSlotSession(UUID slotId, LocalDate date, ClosureCause undone) {
+        deleteReversible(refundsToRevert(refundRepository.findBySlotAndDate(slotId, date), undone));
     }
 
-    /** A day off was removed — drop reversible refunds for that date across all slots. */
+    /** A day off was removed — drop the refunds that come back to life across all slots of that date. */
     @Transactional
     public void revokeForHoliday(LocalDate date) {
-        deleteReversible(refundRepository.findByDate(date));
+        deleteReversible(refundsToRevert(refundRepository.findByDate(date), ClosureCause.HOLIDAY));
     }
 
     // ── Restore guards: a refund is reversible unless the cash was already handed back, or the credited
-    //    surplus was already spent on a paid month. The caller blocks the restore when these return true. ──
+    //    surplus was already spent on a paid month. Only refunds the undo would actually revive count —
+    //    one kept alive by another closure is left untouched, so it never blocks. The caller blocks the
+    //    restore when these return true. ──
 
-    /** True if a cash refund (REFUNDED) was already paid out for this cancelled session — restore must be blocked. */
+    /** True if a cash refund (REFUNDED) the undo would revive was already paid out — restore must be blocked. */
     @Transactional(readOnly = true)
-    public boolean hasCashRefundForSlotSession(UUID slotId, LocalDate date) {
-        return anyCash(refundRepository.findBySlotAndDate(slotId, date));
+    public boolean hasCashRefundForSlotSession(UUID slotId, LocalDate date, ClosureCause undone) {
+        return anyCash(refundsToRevert(refundRepository.findBySlotAndDate(slotId, date), undone));
     }
 
-    /** True if a cash refund was already paid out for any slot on this day off — restore must be blocked. */
+    /** True if a cash refund the day-off removal would revive was already paid out — removal must be blocked. */
     @Transactional(readOnly = true)
     public boolean hasCashRefundForDate(LocalDate date) {
-        return anyCash(refundRepository.findByDate(date));
+        return anyCash(refundsToRevert(refundRepository.findByDate(date), ClosureCause.HOLIDAY));
     }
 
-    /** True if a credited surplus from this session was already consumed by a paid month — cannot cleanly reverse. */
+    /** True if a credited surplus the undo would revive was already consumed by a paid month. */
     @Transactional(readOnly = true)
-    public boolean hasConsumedCreditForSlotSession(UUID slotId, LocalDate date) {
-        return anyConsumedCredit(refundRepository.findBySlotAndDate(slotId, date));
+    public boolean hasConsumedCreditForSlotSession(UUID slotId, LocalDate date, ClosureCause undone) {
+        return anyConsumedCredit(refundsToRevert(refundRepository.findBySlotAndDate(slotId, date), undone));
     }
 
-    /** True if a credited surplus from this day off was already consumed by a paid month — cannot cleanly reverse. */
+    /** True if a credited surplus the day-off removal would revive was already consumed by a paid month. */
     @Transactional(readOnly = true)
     public boolean hasConsumedCreditForDate(LocalDate date) {
-        return anyConsumedCredit(refundRepository.findByDate(date));
+        return anyConsumedCredit(refundsToRevert(refundRepository.findByDate(date), ClosureCause.HOLIDAY));
     }
 
     private boolean anyCash(List<TrainingRefund> refunds) {
@@ -136,5 +180,15 @@ public class TrainingRefundService {
     @Transactional
     public void revokeForPayment(UUID enrollmentId, YearMonth month) {
         refundRepository.deleteAll(refundRepository.findPendingByEnrollmentAndMonth(enrollmentId, month.toString()));
+    }
+
+    /**
+     * True if the month has an already-settled refund. Un-paying such a month must be blocked: the cash was
+     * handed back (REFUNDED) or the surplus credited (CREDITED) against a payment that would no longer exist —
+     * the admin has to unsettle the refund first (where the credit-consumed safety net applies).
+     */
+    @Transactional(readOnly = true)
+    public boolean hasSettledForMonth(UUID enrollmentId, YearMonth month) {
+        return refundRepository.existsSettledByEnrollmentAndMonth(enrollmentId, month.toString());
     }
 }

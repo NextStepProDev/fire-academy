@@ -25,6 +25,7 @@ public class AdminTrainingHolidayService {
     private final TrainingSlotRepository slotRepository;
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingPaymentRepository paymentRepository;
+    private final TrainingCancelledSessionRepository cancelledSessionRepository;
     private final TrainingRefundService refundService;
     private final TrainingMailService trainingMail;
     private final MessageService msg;
@@ -33,6 +34,7 @@ public class AdminTrainingHolidayService {
                                        TrainingSlotRepository slotRepository,
                                        TrainingEnrollmentRepository enrollmentRepository,
                                        TrainingPaymentRepository paymentRepository,
+                                       TrainingCancelledSessionRepository cancelledSessionRepository,
                                        TrainingRefundService refundService,
                                        TrainingMailService trainingMail,
                                        MessageService msg) {
@@ -40,9 +42,22 @@ public class AdminTrainingHolidayService {
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.paymentRepository = paymentRepository;
+        this.cancelledSessionRepository = cancelledSessionRepository;
         this.refundService = refundService;
         this.trainingMail = trainingMail;
         this.msg = msg;
+    }
+
+    /**
+     * Whether the day off actually cancels this slot's session that date — false when the slot is already
+     * stopped by then (scheduled deactivation) or the session was already cancelled individually. Those
+     * subscribers were informed/refunded by the earlier closure; the day off changes nothing for them.
+     */
+    private boolean affectedByHoliday(TrainingSlot slot, LocalDate date) {
+        if (slot.getDeactivatedFrom() != null && !slot.getDeactivatedFrom().isAfter(date)) {
+            return false;
+        }
+        return !cancelledSessionRepository.existsBySlotIdAndSessionDate(slot.getId(), date);
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +79,9 @@ public class AdminTrainingHolidayService {
         String month = YearMonth.from(date).toString();
         var users = new HashSet<UUID>();
         for (var slot : slotRepository.findActiveByDayOfWeek(date.getDayOfWeek().getValue())) {
+            if (!affectedByHoliday(slot, date)) {
+                continue;
+            }
             for (var te : paidSubscribers(slot, month)) {
                 users.add(te.getUser().getId());
             }
@@ -90,6 +108,9 @@ public class AdminTrainingHolidayService {
         var month = YearMonth.from(date).toString();
         var buckets = new java.util.LinkedHashMap<UUID, PersonCancellationBucket>();
         for (var slot : slotRepository.findActiveByDayOfWeek(date.getDayOfWeek().getValue())) {
+            if (!affectedByHoliday(slot, date)) {
+                continue;   // stopped/cancelled earlier — informed and refunded by that closure, not this one
+            }
             for (var te : paidSubscribers(slot, month)) {
                 buckets.computeIfAbsent(te.getUser().getId(), k -> new PersonCancellationBucket(te.getUser()))
                         .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());

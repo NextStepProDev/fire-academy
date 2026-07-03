@@ -67,7 +67,10 @@ public class PublicService {
 
     @Transactional(readOnly = true)
     public List<TrainingSlotCard> getTrainingSlots(YearMonth month) {
-        var slots = trainingSlotRepository.findPublicSlots();
+        // Also hide slots fully stopped before the browsed month starts — nothing to attend or book there.
+        var slots = trainingSlotRepository.findPublicSlots().stream()
+                .filter(s -> s.getDeactivatedFrom() == null || s.getDeactivatedFrom().isAfter(month.atDay(1)))
+                .toList();
         if (slots.isEmpty()) {
             return List.of();
         }
