@@ -1,6 +1,7 @@
 import { Outlet, useLocation, Navigate } from 'react-router-dom'
 import { Navbar } from './Navbar'
 import { Footer } from './Footer'
+import { GlobalLoadingBar } from '../ui/GlobalLoadingBar'
 import { useAuth } from '../../context/AuthContext'
 import { needsProfileCompletion } from '../../utils/profileCompletion'
 
@@ -22,6 +23,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <GlobalLoadingBar />
       {!isHome && <Navbar />}
       <main className="flex-1">
         <div key={location.pathname}>
