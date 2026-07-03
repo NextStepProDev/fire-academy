@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
+import { formatDate } from '../../utils/dates'
 import type { UserMonthlyPayment } from '../../types'
 import clsx from 'clsx'
 
@@ -99,6 +100,7 @@ export function AdminTrainingPayments() {
                     {u.allPaid ? (
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-emerald-900/30 text-emerald-400"><Check className="w-3.5 h-3.5" />{t('monthlyPayments.paidBadge')}</span>
+                        {u.paidAt && <span className="text-xs text-surface-500">{t('monthlyPayments.paidOn', { date: formatDate(u.paidAt) })}</span>}
                         <Button variant="ghost" size="sm" onClick={() => payMut.mutate({ userId: u.userId, paid: false })} disabled={payMut.isPending} className="text-surface-400">
                           {t('monthlyPayments.revert')}
                         </Button>

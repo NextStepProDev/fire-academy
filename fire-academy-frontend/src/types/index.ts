@@ -276,6 +276,8 @@ export interface UserMonthlyPayment {
   trainings: MonthlyTrainingLine[]
   totalAmount: number
   allPaid: boolean
+  /** When the whole month was marked paid (ISO instant); null if nothing paid yet. */
+  paidAt: string | null
   creditBalance: number
 }
 

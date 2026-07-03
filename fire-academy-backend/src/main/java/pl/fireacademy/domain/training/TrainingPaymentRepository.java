@@ -24,6 +24,10 @@ public interface TrainingPaymentRepository extends JpaRepository<TrainingPayment
     @Query("SELECT p.enrollment.id FROM TrainingPayment p WHERE p.enrollment.id IN :ids AND p.yearMonth = :month")
     List<UUID> findPaidEnrollmentIds(@Param("ids") Collection<UUID> ids, @Param("month") String month);
 
+    /** Payment records for a given month among the provided subscriptions — carries when each was marked paid. */
+    @Query("SELECT p FROM TrainingPayment p WHERE p.enrollment.id IN :ids AND p.yearMonth = :month")
+    List<TrainingPayment> findPaidForMonth(@Param("ids") Collection<UUID> ids, @Param("month") String month);
+
     /** Months (YYYY-MM) already paid for a subscription — to know where surplus credit has landed. */
     @Query("SELECT p.yearMonth FROM TrainingPayment p WHERE p.enrollment.id = :enrollmentId")
     List<String> findPaidMonths(@Param("enrollmentId") UUID enrollmentId);

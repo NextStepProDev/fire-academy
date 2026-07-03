@@ -129,7 +129,11 @@ public class AdminTrainingEnrollmentService {
             return List.of();
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paidIds = new java.util.HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month.toString()));
+        var paidAtByEnrollment = new java.util.HashMap<java.util.UUID, java.time.Instant>();
+        for (var p : paymentRepository.findPaidForMonth(ids, month.toString())) {
+            paidAtByEnrollment.put(p.getEnrollment().getId(), p.getCreatedAt());
+        }
+        var paidIds = paidAtByEnrollment.keySet();
 
         var byUser = new java.util.LinkedHashMap<java.util.UUID, List<TrainingEnrollment>>();
         for (var te : enrollments) {
@@ -141,6 +145,7 @@ public class AdminTrainingEnrollmentService {
             var lines = new java.util.ArrayList<MonthlyTrainingLine>();
             var total = java.math.BigDecimal.ZERO;
             boolean allPaid = true;
+            java.time.Instant paidAt = null;
             var creditBalance = java.math.BigDecimal.ZERO;
             for (var te : group) {
                 var slot = te.getSlot();
@@ -149,13 +154,15 @@ public class AdminTrainingEnrollmentService {
                 var net = gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
                 boolean paid = paidIds.contains(te.getId());
                 if (!paid) allPaid = false;
+                var at = paidAtByEnrollment.get(te.getId());
+                if (at != null && (paidAt == null || at.isAfter(paidAt))) paidAt = at;
                 total = total.add(net);
                 creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
                         slot.getStartTime(), slot.getEndTime(), net, paid));
             }
             result.add(new UserMonthlyPayment(user.getId(), user.getFirstName(), user.getLastName(),
-                    user.getEmail(), user.getPhone(), lines, total, allPaid, creditBalance));
+                    user.getEmail(), user.getPhone(), lines, total, allPaid, paidAt, creditBalance));
         }
         return result;
     }

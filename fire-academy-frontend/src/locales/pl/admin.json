@@ -243,6 +243,7 @@
     "paid": "Miesiąc oznaczony jako opłacony.",
     "reverted": "Cofnięto opłacenie miesiąca.",
     "paidBadge": "Opłacone",
+    "paidOn": "opłacono {{date}}",
     "unpaidBadge": "Nieopłacone"
   },
   "cancelledSessions": {

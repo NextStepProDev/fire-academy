@@ -119,6 +119,8 @@ public final class TrainingSlotDtos {
             List<MonthlyTrainingLine> trainings,
             BigDecimal totalAmount,
             boolean allPaid,
+            // When the whole month was marked paid (latest of the paid trainings); null if nothing paid yet.
+            @Nullable Instant paidAt,
             // Surplus (credited refunds) the person still has waiting for upcoming months.
             BigDecimal creditBalance
     ) {}
