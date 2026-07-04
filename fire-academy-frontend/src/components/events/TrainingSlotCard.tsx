@@ -73,7 +73,7 @@ export function TrainingSlotCard({ slot, holidayDates = [], isAuthenticated, alr
       <div className="sm:ml-auto">
         {isAuthenticated && alreadyEnrolled ? (
           <span
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-green-500/10 text-green-400 border border-green-500/30 cursor-default"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-surface-800 text-surface-300 border border-surface-700 cursor-default"
             title={t('slots.alreadyEnrolledHint')}
           >
             <Check className="w-4 h-4" />
