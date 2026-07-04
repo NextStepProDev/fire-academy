@@ -20,7 +20,7 @@ const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m 
 const ProfileCompletionPage = lazyWithReload(() => import('./pages/ProfileCompletionPage').then(m => ({ default: m.ProfileCompletionPage })))
 const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
 const MojeRezerwacjePage = lazyWithReload(() => import('./pages/MojeRezerwacjePage').then(m => ({ default: m.MojeRezerwacjePage })))
-const MojeTreningiPage = lazyWithReload(() => import('./pages/MojeTreningiPage').then(m => ({ default: m.MojeTreningiPage })))
+const MyTrainingsPage = lazyWithReload(() => import('./pages/MyTrainingsPage').then(m => ({ default: m.MyTrainingsPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
 const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
@@ -70,7 +70,7 @@ export default function App() {
             />
             <Route
               path="moje-konto/treningi"
-              element={<ProtectedRoute><MojeTreningiPage /></ProtectedRoute>}
+              element={<ProtectedRoute><MyTrainingsPage /></ProtectedRoute>}
             />
             <Route
               path="settings"
