@@ -6,6 +6,7 @@ import pl.fireacademy.domain.training.TrainingBillingService;
 import pl.fireacademy.domain.training.TrainingCreditService;
 import pl.fireacademy.domain.training.TrainingEnrollment;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
+import pl.fireacademy.domain.training.TrainingPayment;
 import pl.fireacademy.domain.training.TrainingPaymentRepository;
 import pl.fireacademy.domain.training.TrainingRefundService;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
@@ -38,6 +39,11 @@ class AdminTrainingEnrollmentServiceTest {
             mock(TrainingCreditService.class), refundService, mock(UserRepository.class), msg,
             mock(TrainingMailService.class));
 
+    /** A stand-in paid payment row (pinned state irrelevant here — the individual toggle clears rows regardless). */
+    private static TrainingPayment paidRow() {
+        return mock(TrainingPayment.class);
+    }
+
     @Test
     void rejectsUnpayingAMonthWhileALaterMonthIsPaid() {
         var id = UUID.randomUUID();
@@ -45,7 +51,8 @@ class AdminTrainingEnrollmentServiceTest {
         var te = mock(TrainingEnrollment.class);
         when(te.getId()).thenReturn(id);
         when(enrollments.findById(id)).thenReturn(Optional.of(te));
-        when(payments.findPaidMonths(id)).thenReturn(List.of(current.plusMonths(1).toString()));
+        when(payments.findPaidMonths(id)).thenReturn(List.of(current.toString(), current.plusMonths(1).toString()));
+        when(payments.findByEnrollmentIdAndYearMonth(id, current.toString())).thenReturn(Optional.of(paidRow()));
 
         assertThrows(IllegalStateException.class, () -> service.setPayment(id, new SetPaymentRequest(current, false)));
         verify(payments, never()).deleteByEnrollmentIdAndYearMonth(any(), any());
@@ -59,6 +66,7 @@ class AdminTrainingEnrollmentServiceTest {
         when(te.getId()).thenReturn(id);
         when(enrollments.findById(id)).thenReturn(Optional.of(te));
         when(payments.findPaidMonths(id)).thenReturn(List.of(current.toString()));
+        when(payments.findByEnrollmentIdAndYearMonth(id, current.toString())).thenReturn(Optional.of(paidRow()));
 
         service.setPayment(id, new SetPaymentRequest(current, false));
         verify(payments).deleteByEnrollmentIdAndYearMonth(id, current.toString());
@@ -75,6 +83,7 @@ class AdminTrainingEnrollmentServiceTest {
         when(te.getId()).thenReturn(id);
         when(enrollments.findById(id)).thenReturn(Optional.of(te));
         when(payments.findPaidMonths(id)).thenReturn(List.of(current.toString()));
+        when(payments.findByEnrollmentIdAndYearMonth(id, current.toString())).thenReturn(Optional.of(paidRow()));
         when(refundService.hasSettledForMonth(id, current)).thenReturn(true);
 
         assertThrows(IllegalStateException.class, () -> service.setPayment(id, new SetPaymentRequest(current, false)));

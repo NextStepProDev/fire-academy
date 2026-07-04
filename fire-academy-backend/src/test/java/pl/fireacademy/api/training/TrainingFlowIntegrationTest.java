@@ -852,6 +852,77 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldPreserveIndividuallyPaidTrainingWhenPayingWholeMonth() throws Exception {
+        TrainingSlot s1 = seedSlot(8);
+        TrainingSlot s2 = seedSlot(8);
+        String admin = adminToken();
+        String user = userToken();
+        enroll(user, s1.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        enroll(user, s2.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+
+        UUID e1 = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).stream()
+                .filter(te -> te.getSlot().getId().equals(s1.getId())).findFirst().orElseThrow().getId();
+
+        // Mark only s1 paid individually first (e.g. via the per-slot roster toggle).
+        markPaid(e1, CURRENT, admin);
+        var before = trainingPaymentRepository.findByEnrollmentIdAndYearMonth(e1, CURRENT).orElseThrow();
+
+        // Now pay the whole month for the user (both trainings at once, via the "monthly payments" tab).
+        mockMvc.perform(post("/api/admin/training-payments/pay-user/" + regularUserId())
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"month\":\"" + CURRENT + "\",\"paid\":true}"))
+            .andExpect(status().isNoContent());
+
+        // s1's original payment row must be untouched (same id/timestamp) — not deleted+reinserted.
+        var after = trainingPaymentRepository.findByEnrollmentIdAndYearMonth(e1, CURRENT).orElseThrow();
+        assertEquals(before.getId(), after.getId());
+        assertEquals(before.getCreatedAt(), after.getCreatedAt());
+
+        mockMvc.perform(get("/api/admin/training-payments").param("month", CURRENT)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$[0].allPaid").value(true));
+    }
+
+    @Test
+    void shouldKeepIndividuallyPaidTrainingWhenRevertingWholeMonth() throws Exception {
+        TrainingSlot s1 = seedSlot(8);
+        TrainingSlot s2 = seedSlot(8);
+        String admin = adminToken();
+        String user = userToken();
+        enroll(user, s1.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        enroll(user, s2.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+
+        UUID e1 = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).stream()
+                .filter(te -> te.getSlot().getId().equals(s1.getId())).findFirst().orElseThrow().getId();
+        UUID e2 = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).stream()
+                .filter(te -> te.getSlot().getId().equals(s2.getId())).findFirst().orElseThrow().getId();
+
+        // The admin marks ONLY s1 as paid individually (per-slot roster toggle).
+        markPaid(e1, CURRENT, admin);
+
+        // Then pays the whole month for the person (adds s2), then reverts the whole month.
+        payUserMonth(CURRENT, true, admin);
+        payUserMonth(CURRENT, false, admin);
+
+        // The individually-paid s1 must remain paid; only the batch-added s2 is reverted.
+        org.junit.jupiter.api.Assertions.assertTrue(
+                trainingPaymentRepository.findByEnrollmentIdAndYearMonth(e1, CURRENT).isPresent(),
+                "individually paid training should survive the whole-month revert");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                trainingPaymentRepository.findByEnrollmentIdAndYearMonth(e2, CURRENT).isEmpty(),
+                "batch-added training should be reverted");
+    }
+
+    private void payUserMonth(String month, boolean paid, String admin) throws Exception {
+        mockMvc.perform(post("/api/admin/training-payments/pay-user/" + regularUserId())
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"month\":\"" + month + "\",\"paid\":" + paid + "}"))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
     void shouldNotDiscountBillWhenRefundSettledAsCash() throws Exception {
         TrainingSlot slot = seedSlot(8);
         String admin = adminToken();

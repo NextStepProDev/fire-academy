@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Wallet, Check, X, ChevronDown, ChevronRight, Phone } from 'lucide-react'
+import { Wallet, Check, X, ChevronDown, ChevronRight, Phone, Pin } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
@@ -81,6 +81,12 @@ export function AdminTrainingPayments() {
           <div className={clsx('space-y-2 transition-opacity', isFetching && 'opacity-60')}>
             {users.map(u => {
               const open = openUsers.has(u.userId)
+              const paidAmount = u.trainings.filter(l => l.paid).reduce((s, l) => s + l.amount, 0)
+              const remaining = Math.max(0, u.totalAmount - paidAmount)
+              const partiallyPaid = !u.allPaid && paidAmount > 0
+              // Whole-month revert only clears trainings paid via the batch action, never individually-pinned ones,
+              // so hide it when there is nothing it would actually undo.
+              const hasRevertible = u.trainings.some(l => l.paid && !l.pinned)
               return (
                 <div key={u.userId} className={clsx('rounded-xl border bg-surface-900 overflow-hidden',
                   u.allPaid ? 'border-emerald-800/50' : 'border-surface-800')}>
@@ -95,15 +101,22 @@ export function AdminTrainingPayments() {
                           {u.creditBalance > 0 && ` · ${t('monthlyPayments.credit', { amount: u.creditBalance })}`}
                           {' · '}{u.phone && <span className="inline-flex items-center gap-1"><Phone className="w-3 h-3" />{u.phone} · </span>}{u.email}
                         </span>
+                        {partiallyPaid && (
+                          <span className="block text-xs text-primary-300 mt-0.5">
+                            {t('monthlyPayments.partialSummary', { paid: paidAmount, remaining })}
+                          </span>
+                        )}
                       </span>
                     </button>
                     {u.allPaid ? (
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-emerald-900/30 text-emerald-400"><Check className="w-3.5 h-3.5" />{t('monthlyPayments.paidBadge')}</span>
                         {u.paidAt && <span className="text-xs text-surface-500">{t('monthlyPayments.paidOn', { date: formatDate(u.paidAt) })}</span>}
-                        <Button variant="ghost" size="sm" onClick={() => payMut.mutate({ userId: u.userId, paid: false })} disabled={payMut.isPending} className="text-surface-400">
-                          {t('monthlyPayments.revert')}
-                        </Button>
+                        {hasRevertible && (
+                          <Button variant="ghost" size="sm" onClick={() => payMut.mutate({ userId: u.userId, paid: false })} disabled={payMut.isPending} className="text-surface-400">
+                            {t('monthlyPayments.revert')}
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <Button variant="primary" size="sm" onClick={() => payMut.mutate({ userId: u.userId, paid: true })} disabled={payMut.isPending} className="shrink-0">
@@ -122,7 +135,7 @@ export function AdminTrainingPayments() {
                           <span className="flex items-center gap-2">
                             <span className="text-surface-200">{l.amount} zł</span>
                             {l.paid
-                              ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="w-3 h-3" />{t('monthlyPayments.paidBadge')}</span>
+                              ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400" title={l.pinned ? t('monthlyPayments.pinnedHint') : undefined}><Check className="w-3 h-3" />{t('monthlyPayments.paidBadge')}{l.pinned && <Pin className="w-3 h-3" />}</span>
                               : <span className="inline-flex items-center gap-1 text-xs text-surface-500"><X className="w-3 h-3" />{t('monthlyPayments.unpaidBadge')}</span>}
                           </span>
                         </div>

@@ -131,7 +131,9 @@ public final class TrainingSlotDtos {
             LocalTime startTime,
             @Nullable LocalTime endTime,
             BigDecimal amount,
-            boolean paid
+            boolean paid,
+            // Paid individually via the per-slot roster toggle → a whole-month revert leaves it alone.
+            boolean pinned
     ) {}
 
     public record PayUserMonthRequest(

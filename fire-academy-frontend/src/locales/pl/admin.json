@@ -244,7 +244,9 @@
     "reverted": "Cofnięto opłacenie miesiąca.",
     "paidBadge": "Opłacone",
     "paidOn": "opłacono {{date}}",
-    "unpaidBadge": "Nieopłacone"
+    "unpaidBadge": "Nieopłacone",
+    "partialSummary": "Opłacono {{paid}} zł · pozostało {{remaining}} zł",
+    "pinnedHint": "Opłacone pojedynczo w zakładce „Terminy cykliczne” — cofnięcie całego miesiąca tego nie usunie."
   },
   "cancelledSessions": {
     "title": "Odwołane zajęcia",

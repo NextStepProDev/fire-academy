@@ -301,6 +301,8 @@ export interface MonthlyTrainingLine {
   endTime: string | null
   amount: number
   paid: boolean
+  /** Paid individually via the per-slot roster toggle → a whole-month revert leaves it alone. */
+  pinned: boolean
 }
 
 export interface ArchivedParticipant {

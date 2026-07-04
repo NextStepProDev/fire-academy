@@ -188,7 +188,7 @@ public class AdminTrainingEnrollmentService {
                 total = total.add(net);
                 creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
-                        slot.getStartTime(), slot.getEndTime(), net, paid));
+                        slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned()));
             }
             result.add(new UserMonthlyPayment(user.getId(), user.getFirstName(), user.getLastName(),
                     user.getEmail(), user.getPhone(), lines, total, allPaid, paidAt, creditBalance));
@@ -200,22 +200,30 @@ public class AdminTrainingEnrollmentService {
     public void setPayment(UUID enrollmentId, SetPaymentRequest request) {
         var te = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.not.found")));
-        applyPayment(te, request.month(), request.paid());
+        // A per-slot roster toggle targets one specific training deliberately → pin it so a later whole-month
+        // revert leaves it alone; only this same toggle can clear it.
+        applyPayment(te, request.month(), request.paid(), true);
     }
 
     /**
      * Marks/reverts a whole month's payment for one subscriber across ALL their trainings at once — a person pays
      * for the month, not per training. Atomic: either every covered training flips or none (an error rolls back).
+     * A revert leaves individually-pinned trainings paid — undoing it only clears what this action added.
      */
     @Transactional
     public void payUserMonth(UUID userId, YearMonth month, boolean paid) {
         var enrollments = enrollmentRepository.findCoveringByUserAndMonth(userId, month.toString());
         for (var te : enrollments) {
-            applyPayment(te, month, paid);
+            applyPayment(te, month, paid, false);
         }
     }
 
-    private void applyPayment(TrainingEnrollment te, YearMonth requestMonth, boolean requestPaid) {
+    /**
+     * @param individual whether this is a deliberate single-training action (per-slot roster toggle) as opposed
+     *                   to a whole-month batch. On payment it decides whether the row is pinned; on revert an
+     *                   individual action clears any row, while a batch revert leaves pinned rows untouched.
+     */
+    private void applyPayment(TrainingEnrollment te, YearMonth requestMonth, boolean requestPaid, boolean individual) {
         var enrollmentId = te.getId();
         var month = requestMonth.toString();
         var paidMonths = new HashSet<>(paymentRepository.findPaidMonths(enrollmentId));
@@ -234,9 +242,19 @@ public class AdminTrainingEnrollmentService {
                 var applied = creditService.liveAppliedFor(te, requestMonth);
                 var gross = billing.amount(te, requestMonth);
                 var net = gross != null ? gross.subtract(applied).max(java.math.BigDecimal.ZERO) : null;
-                paymentRepository.save(new TrainingPayment(te, requestMonth, applied, net));
+                paymentRepository.save(new TrainingPayment(te, requestMonth, applied, net, individual));
             }
         } else {
+            // A whole-month (batch) revert leaves individually-pinned payments alone — once a single training is
+            // marked paid on the roster it stays until the admin un-marks that very training. An individual
+            // revert (the same roster toggle) always clears the row.
+            var existing = paymentRepository.findByEnrollmentIdAndYearMonth(enrollmentId, month).orElse(null);
+            if (existing == null) {
+                return;
+            }
+            if (!individual && existing.isPinned()) {
+                return;
+            }
             // Symmetrically, a month can be un-paid only if no later month is still paid (no gaps).
             for (var pm : paidMonths) {
                 if (YearMonth.parse(pm).isAfter(requestMonth)) {

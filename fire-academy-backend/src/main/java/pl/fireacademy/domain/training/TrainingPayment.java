@@ -38,6 +38,14 @@ public class TrainingPayment {
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
 
+    /**
+     * How this payment was set. {@code true} = marked individually via the per-slot roster toggle (one
+     * specific training) — it survives a whole-month revert and is cleared only by un-marking that training.
+     * {@code false} = added by the whole-month "pay for the person" action (or a legacy row).
+     */
+    @Column(nullable = false)
+    private boolean pinned = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -49,11 +57,12 @@ public class TrainingPayment {
     }
 
     public TrainingPayment(TrainingEnrollment enrollment, YearMonth yearMonth, BigDecimal creditApplied,
-                           @org.jspecify.annotations.Nullable BigDecimal amount) {
+                           @org.jspecify.annotations.Nullable BigDecimal amount, boolean pinned) {
         this.enrollment = enrollment;
         this.yearMonth = yearMonth.toString();
         this.creditApplied = creditApplied;
         this.amount = amount;
+        this.pinned = pinned;
     }
 
     @PrePersist
@@ -66,5 +75,6 @@ public class TrainingPayment {
     public YearMonth getYearMonth() { return YearMonth.parse(yearMonth); }
     public BigDecimal getCreditApplied() { return creditApplied; }
     @org.jspecify.annotations.Nullable public BigDecimal getAmount() { return amount; }
+    public boolean isPinned() { return pinned; }
     public Instant getCreatedAt() { return createdAt; }
 }
