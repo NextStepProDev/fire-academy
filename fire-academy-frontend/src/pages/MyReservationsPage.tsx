@@ -12,7 +12,7 @@ import { formatSchedule } from '../utils/dates'
 import { categoryToSlug } from '../utils/categorySlug'
 import type { MyEnrollment } from '../types'
 
-export function MojeRezerwacjePage() {
+export function MyReservationsPage() {
   const { t } = useTranslation('account')
   const queryClient = useQueryClient()
   const [cancelError, setCancelError] = useState<string | null>(null)

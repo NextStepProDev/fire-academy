@@ -9,7 +9,7 @@ import { Seo } from '../components/seo/Seo'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 
-export function MojeKontoPage() {
+export function MyAccountPage() {
   const { t } = useTranslation('account')
   const { user } = useAuth()
 

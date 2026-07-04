@@ -18,8 +18,8 @@ const ResendVerificationPage = lazyWithReload(() => import('./pages/ResendVerifi
 const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ProfileCompletionPage = lazyWithReload(() => import('./pages/ProfileCompletionPage').then(m => ({ default: m.ProfileCompletionPage })))
-const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
-const MojeRezerwacjePage = lazyWithReload(() => import('./pages/MojeRezerwacjePage').then(m => ({ default: m.MojeRezerwacjePage })))
+const MyAccountPage = lazyWithReload(() => import('./pages/MyAccountPage').then(m => ({ default: m.MyAccountPage })))
+const MyReservationsPage = lazyWithReload(() => import('./pages/MyReservationsPage').then(m => ({ default: m.MyReservationsPage })))
 const MyTrainingsPage = lazyWithReload(() => import('./pages/MyTrainingsPage').then(m => ({ default: m.MyTrainingsPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
@@ -62,11 +62,11 @@ export default function App() {
             <Route path="rejestracja" element={<RegisterPage />} />
             <Route
               path="moje-konto"
-              element={<ProtectedRoute><MojeKontoPage /></ProtectedRoute>}
+              element={<ProtectedRoute><MyAccountPage /></ProtectedRoute>}
             />
             <Route
               path="moje-konto/rezerwacje"
-              element={<ProtectedRoute><MojeRezerwacjePage /></ProtectedRoute>}
+              element={<ProtectedRoute><MyReservationsPage /></ProtectedRoute>}
             />
             <Route
               path="moje-konto/treningi"
