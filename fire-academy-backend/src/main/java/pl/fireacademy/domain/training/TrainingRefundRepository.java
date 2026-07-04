@@ -28,6 +28,11 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
             + "WHERE r.enrollment.id = :enrollmentId AND r.yearMonth = :month AND r.settledAt IS NULL")
     BigDecimal sumPendingForEnrollmentAndMonth(@Param("enrollmentId") UUID enrollmentId, @Param("month") String month);
 
+    /** All refunds (pending or settled) already registered for one month — the running total a new one must not push past what was paid. */
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM TrainingRefund r "
+            + "WHERE r.enrollment.id = :enrollmentId AND r.yearMonth = :month")
+    BigDecimal sumForEnrollmentAndMonth(@Param("enrollmentId") UUID enrollmentId, @Param("month") String month);
+
     /** Months (YYYY-MM) a subscription's surplus came from, earliest first — the surplus never discounts a month before this. */
     @Query("SELECT r.yearMonth FROM TrainingRefund r "
             + "WHERE r.enrollment.id = :enrollmentId AND r.settlementType = 'CREDITED' ORDER BY r.yearMonth ASC")

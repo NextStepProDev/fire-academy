@@ -101,6 +101,16 @@ public class TrainingRefundService {
             if (refundRepository.existsByEnrollmentIdAndSessionDate(te.getId(), date)) {
                 continue;
             }
+            // Safety net: whatever combination of closures led here, refunds for one paid month must never
+            // exceed what that month's payment actually collected (a frozen payment.amount is the ceiling;
+            // legacy rows without one, pre-V26, are left uncapped since there is nothing to cap against).
+            var payment = paymentRepository.findByEnrollmentIdAndYearMonth(te.getId(), month).orElse(null);
+            if (payment != null && payment.getAmount() != null) {
+                var alreadyRefunded = refundRepository.sumForEnrollmentAndMonth(te.getId(), month);
+                if (alreadyRefunded.add(slot.getPrice()).compareTo(payment.getAmount()) > 0) {
+                    continue;
+                }
+            }
             refundRepository.save(new TrainingRefund(te, date, slot.getPrice(), type, label));
         }
     }
