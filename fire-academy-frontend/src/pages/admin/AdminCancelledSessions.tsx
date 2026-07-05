@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CalendarOff, RotateCcw, ChevronDown, ChevronRight, Phone, Check, Lock } from 'lucide-react'
+import { CalendarOff, RotateCcw, ChevronDown, ChevronRight, Phone, Check, Lock, UserX } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../context/ToastContext'
 import type { CancelledSessionOverview } from '../../types'
 import clsx from 'clsx'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
+
+const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 /** Who has cancelled sessions, and when — club-wide. Upcoming sessions can be restored; the rest is archive. */
 export function AdminCancelledSessions() {
@@ -20,11 +23,34 @@ export function AdminCancelledSessions() {
   const [open, setOpen] = useState(false)   // whole section collapsed by default
   const [showArchive, setShowArchive] = useState(false)
   const [restoreTarget, setRestoreTarget] = useState<CancelledSessionOverview | null>(null)
+  // Cancel a whole trainer's day up front (e.g. sickness) — lives here, the home of cancellations.
+  const [isCancellingInstructor, setIsCancellingInstructor] = useState(false)
+  const [cancelInstructorId, setCancelInstructorId] = useState('')
+  const [cancelDate, setCancelDate] = useState('')
 
   const overviewQuery = useQuery({
     queryKey: ['admin', 'cancelled-overview'],
     queryFn: adminApi.getCancelledSessionsOverview,
     staleTime: 0,
+  })
+  const { data: instructors } = useQuery({
+    queryKey: ['admin', 'instructors'],
+    queryFn: adminApi.getInstructors,
+  })
+  const trainingInstructors = instructors?.filter(i => i.categories.includes('TRAINING')) ?? []
+
+  const cancelInstructorDayMut = useMutation({
+    mutationFn: () => adminApi.cancelInstructorDay(cancelInstructorId, cancelDate),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-overview'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-slots'] })
+      queryClient.invalidateQueries({ queryKey: ['public', 'training-slots'] })
+      setIsCancellingInstructor(false)
+      showToast(t('cancelledSessions.cancelInstructorSuccess', { count: res.cancelled }), 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
   })
 
   const restoreMut = useMutation({
@@ -105,12 +131,19 @@ export function AdminCancelledSessions() {
 
   return (
     <div>
-      <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 mb-1 w-full text-left">
-        {open ? <ChevronDown className="w-5 h-5 text-surface-400 shrink-0" /> : <ChevronRight className="w-5 h-5 text-surface-400 shrink-0" />}
-        <CalendarOff className="w-5 h-5 text-primary-400 shrink-0" />
-        <h2 className="text-xl font-semibold text-surface-100">{t('cancelledSessions.title')}</h2>
-        {upcoming.length > 0 && <span className="text-xs text-surface-500">({t('cancelledSessions.upcomingCount', { count: upcoming.length })})</span>}
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+        <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 text-left min-w-0">
+          {open ? <ChevronDown className="w-5 h-5 text-surface-400 shrink-0" /> : <ChevronRight className="w-5 h-5 text-surface-400 shrink-0" />}
+          <CalendarOff className="w-5 h-5 text-primary-400 shrink-0" />
+          <h2 className="text-xl font-semibold text-surface-100">{t('cancelledSessions.title')}</h2>
+          {upcoming.length > 0 && <span className="text-xs text-surface-500">({t('cancelledSessions.upcomingCount', { count: upcoming.length })})</span>}
+        </button>
+        <Button variant="secondary" size="sm"
+          onClick={() => { setCancelInstructorId(''); setCancelDate(''); setIsCancellingInstructor(true) }}
+          disabled={!trainingInstructors.length}>
+          <UserX className="w-4 h-4 mr-1.5" />{t('cancelledSessions.cancelInstructor')}
+        </Button>
+      </div>
 
       {open && (overviewQuery.isLoading ? (
         <LoadingSpinner />
@@ -148,6 +181,32 @@ export function AdminCancelledSessions() {
           </div>
         </>
       ))}
+
+      {/* Cancel all of one instructor's sessions on a date (e.g. instructor unavailable) */}
+      <Modal isOpen={isCancellingInstructor} onClose={() => setIsCancellingInstructor(false)} title={t('cancelledSessions.cancelInstructorTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-surface-400">{t('cancelledSessions.cancelInstructorHint')}</p>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('cancelledSessions.instructor')}</label>
+            <select value={cancelInstructorId} onChange={e => setCancelInstructorId(e.target.value)} className={inputClass}>
+              <option value="">{t('cancelledSessions.selectInstructor')}</option>
+              {trainingInstructors.map(i => <option key={i.id} value={i.id}>{i.firstName} {i.lastName}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('cancelledSessions.cancelInstructorDate')}</label>
+            {/* Past dates allowed — a historical day that didn't take place still refunds paid subscribers. */}
+            <input type="date" value={cancelDate} onChange={e => setCancelDate(e.target.value)} className={clsx(inputClass, !cancelDate && 'text-surface-500')} />
+            <p className="text-xs text-surface-500 mt-1">{t('cancelledSessions.cancelInstructorPastHint')}</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setIsCancellingInstructor(false)}>{t('actions.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={() => cancelInstructorDayMut.mutate()} disabled={!cancelInstructorId || !cancelDate} loading={cancelInstructorDayMut.isPending}>
+              {t('cancelledSessions.cancelInstructorConfirm')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         isOpen={!!restoreTarget}

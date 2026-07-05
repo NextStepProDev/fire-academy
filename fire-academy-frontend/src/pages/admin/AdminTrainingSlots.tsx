@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
-import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive, UserX } from 'lucide-react'
+import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 
@@ -471,9 +471,6 @@ export function AdminTrainingSlots() {
   const [editItem, setEditItem] = useState<TrainingSlot | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [isCancellingInstructor, setIsCancellingInstructor] = useState(false)
-  const [cancelInstructorId, setCancelInstructorId] = useState('')
-  const [cancelDate, setCancelDate] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [createForm, setCreateForm] = useState(emptyCreate())
   const [showCreateErrors, setShowCreateErrors] = useState(false)
@@ -541,20 +538,6 @@ export function AdminTrainingSlots() {
     onSuccess: invalidate,
     onError: (e: Error) => showToast(e.message, 'error'),
   })
-  const cancelInstructorDayMut = useMutation({
-    mutationFn: () => adminApi.cancelInstructorDay(cancelInstructorId, cancelDate),
-    onSuccess: (res) => {
-      invalidate()
-      queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-sessions'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'cancelled-overview'] })
-      queryClient.invalidateQueries({ queryKey: ['public', 'training-slots'] })
-      setIsCancellingInstructor(false)
-      showToast(t('trainingSlots.cancelInstructorSuccess', { count: res.cancelled }), 'success')
-    },
-    onError: (e: Error) => showToast(e.message, 'error'),
-  })
-
   const openCreate = () => { setCreateForm(emptyCreate()); setShowCreateErrors(false); setIsCreating(true) }
   const handleCreate = () => {
     if (!createValid) { setShowCreateErrors(true); return }
@@ -596,9 +579,6 @@ export function AdminTrainingSlots() {
       <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
         <h2 className="text-xl font-semibold text-surface-100">{t('trainingSlots.title')}</h2>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={() => { setCancelInstructorId(''); setCancelDate(''); setIsCancellingInstructor(true) }} disabled={!trainingInstructors.length}>
-            <UserX className="w-4 h-4 mr-1.5" />{t('trainingSlots.cancelInstructor')}
-          </Button>
           <Button variant="primary" size="sm" onClick={openCreate} disabled={!eventTypes?.length}>{t('actions.create')}</Button>
         </div>
       </div>
@@ -837,32 +817,6 @@ export function AdminTrainingSlots() {
         confirmLabel={t('actions.delete')}
         danger
       />
-
-      {/* Cancel all of one instructor's sessions on a date (e.g. instructor unavailable) */}
-      <Modal isOpen={isCancellingInstructor} onClose={() => setIsCancellingInstructor(false)} title={t('trainingSlots.cancelInstructorTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-surface-400">{t('trainingSlots.cancelInstructorHint')}</p>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.instructor')}</label>
-            <select value={cancelInstructorId} onChange={e => setCancelInstructorId(e.target.value)} className={inputClass}>
-              <option value="">{t('trainingSlots.selectInstructor')}</option>
-              {trainingInstructors.map(i => <option key={i.id} value={i.id}>{i.firstName} {i.lastName}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.cancelInstructorDate')}</label>
-            {/* Past dates allowed — a historical day that didn't take place still refunds paid subscribers. */}
-            <input type="date" value={cancelDate} onChange={e => setCancelDate(e.target.value)} className={clsx(inputClass, !cancelDate && 'text-surface-500')} />
-            <p className="text-xs text-surface-500 mt-1">{t('trainingSlots.cancelInstructorPastHint')}</p>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setIsCancellingInstructor(false)}>{t('actions.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={() => cancelInstructorDayMut.mutate()} disabled={!cancelInstructorId || !cancelDate} loading={cancelInstructorDayMut.isPending}>
-              {t('trainingSlots.cancelInstructorConfirm')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }
