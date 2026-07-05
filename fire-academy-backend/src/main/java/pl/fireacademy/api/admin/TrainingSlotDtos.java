@@ -150,7 +150,12 @@ public final class TrainingSlotDtos {
             // Identity + start info so the monthly view can also set the first-month "count from" date in place.
             UUID enrollmentId,
             YearMonth startMonth,
-            @Nullable LocalDate billableFrom
+            @Nullable LocalDate billableFrom,
+            // Slot / type / trainer, so the participants overview can filter by them.
+            UUID slotId,
+            UUID eventTypeId,
+            @Nullable UUID instructorId,
+            @Nullable String instructorName
     ) {}
 
     public record PayUserMonthRequest(

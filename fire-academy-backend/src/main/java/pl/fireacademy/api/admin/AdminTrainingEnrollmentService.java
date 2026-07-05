@@ -220,9 +220,13 @@ public class AdminTrainingEnrollmentService {
                 boolean overdue = !paid && billing.isPaymentOverdue(te, month);
                 total = total.add(net);
                 creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
+                var instr = slot.getInstructor();
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
                         slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned(), overdue,
-                        te.getId(), te.getStartMonth(), te.getBillableFrom()));
+                        te.getId(), te.getStartMonth(), te.getBillableFrom(),
+                        slot.getId(), slot.getEventType().getId(),
+                        instr != null ? instr.getId() : null,
+                        instr != null ? instr.getFirstName() + " " + instr.getLastName() : null));
             }
             result.add(new UserMonthlyPayment(user.getId(), user.getFirstName(), user.getLastName(),
                     user.getEmail(), user.getPhone(), lines, total, allPaid, paidAt, creditBalance));

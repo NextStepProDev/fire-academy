@@ -310,6 +310,11 @@ export interface MonthlyTrainingLine {
   startMonth: string
   /** Organizer's explicit first-month start override (ISO date), or null when billing runs from signup. */
   billableFrom: string | null
+  /** Slot / type / trainer, so the participants overview can filter by them. */
+  slotId: string
+  eventTypeId: string
+  instructorId: string | null
+  instructorName: string | null
 }
 
 export interface ArchivedParticipant {

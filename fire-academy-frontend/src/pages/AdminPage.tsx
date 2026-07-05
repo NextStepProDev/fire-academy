@@ -5,6 +5,7 @@ import { AdminInstructors } from './admin/AdminInstructors'
 import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminTrainingSlots } from './admin/AdminTrainingSlots'
+import { AdminTrainingParticipants } from './admin/AdminTrainingParticipants'
 import { AdminTrainingPayments } from './admin/AdminTrainingPayments'
 import { AdminCancelledSessions } from './admin/AdminCancelledSessions'
 import { AdminTrainingHolidays } from './admin/AdminTrainingHolidays'
@@ -66,6 +67,7 @@ export function AdminPage() {
         <div className="space-y-12">
           {categoryTabs[tab] === 'TRAINING'
             ? <>
+                <AdminTrainingParticipants />
                 <AdminTrainingSlots />
                 <AdminTrainingPayments />
                 <AdminCancelledSessions />
