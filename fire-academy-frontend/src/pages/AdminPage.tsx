@@ -6,7 +6,6 @@ import { AdminEventTypes } from './admin/AdminEventTypes'
 import { AdminEvents } from './admin/AdminEvents'
 import { AdminTrainingSlots } from './admin/AdminTrainingSlots'
 import { AdminTrainingParticipants } from './admin/AdminTrainingParticipants'
-import { AdminTrainingPayments } from './admin/AdminTrainingPayments'
 import { AdminCancelledSessions } from './admin/AdminCancelledSessions'
 import { AdminTrainingHolidays } from './admin/AdminTrainingHolidays'
 import { AdminTrainingRefunds } from './admin/AdminTrainingRefunds'
@@ -69,7 +68,6 @@ export function AdminPage() {
             ? <>
                 <AdminTrainingParticipants />
                 <AdminTrainingSlots />
-                <AdminTrainingPayments />
                 <AdminCancelledSessions />
                 <AdminTrainingHolidays />
                 <AdminTrainingRefunds />
