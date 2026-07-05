@@ -379,6 +379,22 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         return d;
     }
 
+    /** First occurrence of the slot weekday in the given month. */
+    private LocalDate firstSlotDateIn(YearMonth ym) {
+        LocalDate d = ym.atDay(1);
+        while (d.getDayOfWeek().getValue() != DAY) d = d.plusDays(1);
+        return d;
+    }
+
+    /** How many times the slot weekday occurs across the whole given month. */
+    private int slotDaysIn(YearMonth ym) {
+        int count = 0;
+        for (int d = 1; d <= ym.lengthOfMonth(); d++) {
+            if (LocalDate.of(ym.getYear(), ym.getMonthValue(), d).getDayOfWeek().getValue() == DAY) count++;
+        }
+        return count;
+    }
+
     @Test
     void shouldSoftDeleteSlotHideFromPublicAndKeepArchive() throws Exception {
         TrainingSlot slot = seedSlot(8);
@@ -1120,6 +1136,82 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
         // The paid subscriber gets ONE grouped "day off" email listing their cancelled session(s) that day.
         verify(trainingMail).sendDayOffCancellation(eq(USER_EMAIL), anyString(), eq(date), any(), any(), any());
+    }
+
+    @Test
+    void shouldRevokeHolidayRefundWhenDayOffRemoved() throws Exception {
+        // Clean symmetric case with no other closure stacked: adding a day off in a PAID month owes a refund,
+        // removing that same day off takes it straight back off the ledger.
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        markPaid(enrollmentId, month, admin);
+
+        mockMvc.perform(post("/api/admin/training-holidays")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].type").value("HOLIDAY"));
+
+        String holidayId = JsonPath.read(
+                mockMvc.perform(get("/api/admin/training-holidays").param("month", month)
+                        .header("Authorization", "Bearer " + admin))
+                    .andReturn().getResponse().getContentAsString(), "$[0].id");
+        mockMvc.perform(delete("/api/admin/training-holidays/" + holidayId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        // Nothing else keeps the session closed → the refund is gone.
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldUpdateEstimateWithoutRefundWhenDayOffAddedAndRemovedForUnpaidFutureMonth() throws Exception {
+        // An UNPAID future month never produces a refund — the bill is recomputed live. Adding a day off in
+        // that month lowers the estimate by one session; removing it restores it. No ledger entry either way.
+        TrainingSlot slot = seedSlot(8);
+        YearMonth next = YearMonth.now().plusMonths(1);
+        LocalDate date = firstSlotDateIn(next);
+        String admin = adminToken();
+        String token = userToken();
+
+        // Indefinite subscription starting next month → its billing month (and estimate) is that future month.
+        enroll(token, slot.getId(), "{\"startMonth\":\"" + next + "\"}");
+        int fullMonth = slotDaysIn(next);
+        mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
+            .andExpect(jsonPath("$[0].sessionsInBillingMonth").value(fullMonth));
+
+        mockMvc.perform(post("/api/admin/training-holidays")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+
+        // Estimate dropped by one session, but NO refund (nothing was paid).
+        mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
+            .andExpect(jsonPath("$[0].sessionsInBillingMonth").value(fullMonth - 1));
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
+
+        String holidayId = JsonPath.read(
+                mockMvc.perform(get("/api/admin/training-holidays").param("month", next.toString())
+                        .header("Authorization", "Bearer " + admin))
+                    .andReturn().getResponse().getContentAsString(), "$[0].id");
+        mockMvc.perform(delete("/api/admin/training-holidays/" + holidayId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        // Removing the day off brings the estimate back to the full month.
+        mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + token))
+            .andExpect(jsonPath("$[0].sessionsInBillingMonth").value(fullMonth));
     }
 
     @Test
