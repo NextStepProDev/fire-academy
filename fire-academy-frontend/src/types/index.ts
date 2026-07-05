@@ -251,8 +251,11 @@ export interface RefundEntry {
   type: 'HOLIDAY' | 'SESSION'
   label: string | null
   settledAt: string | null
-  settlementType: 'REFUNDED' | 'CREDITED' | null
+  settlementType: SettlementType | null
 }
+
+/** How a refund was resolved: cash back, credited toward a month, or made up in another group (nothing owed). */
+export type SettlementType = 'REFUNDED' | 'CREDITED' | 'MADE_UP'
 
 /** An ended subscription still sitting on unconsumed CREDITED surplus — admin "Zwroty" view. */
 export interface UnconsumedCreditEntry {

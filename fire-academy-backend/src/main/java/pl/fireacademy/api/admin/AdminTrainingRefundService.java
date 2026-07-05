@@ -59,7 +59,10 @@ public class AdminTrainingRefundService {
         return refundRepository.findForAdmin(settled).stream().map(this::toEntry).toList();
     }
 
-    /** Resolve a refund: {@code REFUNDED} (money handed back) or {@code CREDITED} (counted toward a month). */
+    /**
+     * Resolve a refund: {@code REFUNDED} (money handed back), {@code CREDITED} (counted toward a month), or
+     * {@code MADE_UP} (the session was made up in another group — nothing owed, no cash, no credit).
+     */
     @Transactional
     public void settle(UUID id, String settlementType) {
         requireValidType(settlementType);
@@ -81,7 +84,8 @@ public class AdminTrainingRefundService {
 
     private void requireValidType(String settlementType) {
         if (!TrainingRefund.SETTLEMENT_REFUNDED.equals(settlementType)
-                && !TrainingRefund.SETTLEMENT_CREDITED.equals(settlementType)) {
+                && !TrainingRefund.SETTLEMENT_CREDITED.equals(settlementType)
+                && !TrainingRefund.SETTLEMENT_MADE_UP.equals(settlementType)) {
             throw new IllegalArgumentException(msg.get("trainingrefund.settlement.invalid"));
         }
     }

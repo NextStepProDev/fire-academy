@@ -770,6 +770,41 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldClearOwedBadgeOnceRefundIsSettledButKeepSessionCancelled() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        String month = YearMonth.from(date).toString();
+        String admin = adminToken();
+
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        markPaid(enrollmentId, month, admin);
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + date + "\"}"))
+            .andExpect(status().isCreated());
+
+        // The session was made up in another group → resolve the refund as MADE_UP (no cash, no credit).
+        settleRefund(firstRefundId(admin), "MADE_UP", admin);
+
+        // The cancelled session still shows in the overview, but the "do zwrotu" badge is gone.
+        mockMvc.perform(get("/api/admin/training-slots/cancelled-sessions/overview")
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].sessionDate").value(date.toString()))
+            .andExpect(jsonPath("$[0].participants[0].paid").value(true))
+            .andExpect(jsonPath("$[0].participants[0].owedRefund").value(false));
+
+        // And the client owes/gets nothing back — the pending refund is cleared.
+        String mine = mockMvc.perform(get("/api/user/training-enrollments").header("Authorization", "Bearer " + userToken()))
+                .andReturn().getResponse().getContentAsString();
+        assertAmount(mine, "$[0].pendingRefundAmount", 0);
+    }
+
+    @Test
     void shouldRejectRestoringPastSession() throws Exception {
         TrainingSlot slot = seedSlot(8);
         String admin = adminToken();

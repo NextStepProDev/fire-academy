@@ -25,6 +25,7 @@ public class TrainingRefund {
     /** How a refund was resolved. */
     public static final String SETTLEMENT_REFUNDED = "REFUNDED";   // money handed back
     public static final String SETTLEMENT_CREDITED = "CREDITED";   // counted toward this/next month
+    public static final String SETTLEMENT_MADE_UP = "MADE_UP";     // session made up in another group — nothing owed
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

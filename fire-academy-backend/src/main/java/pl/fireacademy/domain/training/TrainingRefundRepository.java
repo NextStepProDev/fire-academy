@@ -42,6 +42,11 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
     @Query("SELECT r FROM TrainingRefund r WHERE r.sessionDate = :date AND r.enrollment.slot.id = :slotId")
     List<TrainingRefund> findBySlotAndDate(@Param("slotId") UUID slotId, @Param("date") LocalDate date);
 
+    /** Enrollment ids that still have an unresolved refund for a slot's session date — drives the "do zwrotu" badge. */
+    @Query("SELECT r.enrollment.id FROM TrainingRefund r "
+            + "WHERE r.enrollment.slot.id = :slotId AND r.sessionDate = :date AND r.settledAt IS NULL")
+    List<UUID> findPendingEnrollmentIdsForSlotAndDate(@Param("slotId") UUID slotId, @Param("date") LocalDate date);
+
     /** All refunds for a date across all slots (any settlement) — to decide/undo a day-off removal. */
     @Query("SELECT r FROM TrainingRefund r WHERE r.sessionDate = :date")
     List<TrainingRefund> findByDate(@Param("date") LocalDate date);

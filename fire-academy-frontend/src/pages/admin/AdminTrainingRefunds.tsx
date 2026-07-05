@@ -1,16 +1,28 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Wallet, Coins, CalendarPlus, RotateCcw, ChevronDown, ChevronRight, Phone, AlertTriangle } from 'lucide-react'
+import { Wallet, Coins, CalendarPlus, CheckCheck, RotateCcw, ChevronDown, ChevronRight, Phone, AlertTriangle } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { formatMonth } from '../../utils/trainingSchedule'
-import type { RefundEntry } from '../../types'
+import type { RefundEntry, SettlementType } from '../../types'
 import clsx from 'clsx'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
+
+/** One person's pending refunds, grouped so the organizer can settle them all at once or one by one. */
+interface RefundGroup {
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  refunds: RefundEntry[]
+  total: number
+}
 
 /** Money owed back to subscribers for paid sessions that were later cancelled. */
 export function AdminTrainingRefunds() {
@@ -36,17 +48,21 @@ export function AdminTrainingRefunds() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'training-refunds'] })
 
+  // Bulk actions apply to ALL of a person's pending sessions, so they go through a confirm that spells out
+  // the scope ("wszystkie zaległe") and the effect — kept distinct from the per-session buttons, which act at once.
+  const [confirmAll, setConfirmAll] = useState<{ group: RefundGroup; type: SettlementType } | null>(null)
+
   const [openUsers, setOpenUsers] = useState<Set<string>>(new Set())
   const toggleUser = (userId: string) =>
     setOpenUsers(prev => { const n = new Set(prev); if (n.has(userId)) n.delete(userId); else n.add(userId); return n })
 
   const settleMut = useMutation({
-    mutationFn: ({ id, type }: { id: string; type: 'REFUNDED' | 'CREDITED' }) => adminApi.settleRefund(id, type),
+    mutationFn: ({ id, type }: { id: string; type: SettlementType }) => adminApi.settleRefund(id, type),
     onSuccess: () => { invalidate(); showToast(t('trainingRefunds.settled'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const settleUserMut = useMutation({
-    mutationFn: ({ userId, type }: { userId: string; type: 'REFUNDED' | 'CREDITED' }) => adminApi.settleUserRefunds(userId, type),
+    mutationFn: ({ userId, type }: { userId: string; type: SettlementType }) => adminApi.settleUserRefunds(userId, type),
     onSuccess: () => { invalidate(); showToast(t('trainingRefunds.settled'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
@@ -61,7 +77,9 @@ export function AdminTrainingRefunds() {
       ? (r.label ? `${t('trainingRefunds.reasonHoliday')} · ${r.label}` : t('trainingRefunds.reasonHoliday'))
       : t('trainingRefunds.reasonSession')
   const methodLabel = (r: RefundEntry) =>
-    r.settlementType === 'CREDITED' ? t('trainingRefunds.methodCredited') : t('trainingRefunds.methodRefunded')
+    r.settlementType === 'CREDITED' ? t('trainingRefunds.methodCredited')
+      : r.settlementType === 'MADE_UP' ? t('trainingRefunds.methodMadeUp')
+      : t('trainingRefunds.methodRefunded')
 
   const pending = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data])
   const total = pending.reduce((sum, r) => sum + r.amount, 0)
@@ -69,7 +87,7 @@ export function AdminTrainingRefunds() {
   // Group the pending refunds by person, so the admin can settle everything for someone at once,
   // or expand to decide each cancelled session separately.
   const groups = useMemo(() => {
-    const map = new Map<string, { userId: string; firstName: string; lastName: string; email: string; phone: string; refunds: RefundEntry[]; total: number }>()
+    const map = new Map<string, RefundGroup>()
     for (const r of pending) {
       const g = map.get(r.userId) ?? { userId: r.userId, firstName: r.firstName, lastName: r.lastName, email: r.email, phone: r.phone, refunds: [], total: 0 }
       g.refunds.push(r)
@@ -116,12 +134,15 @@ export function AdminTrainingRefunds() {
                         </span>
                       </span>
                     </button>
-                    <div className="flex gap-2 shrink-0">
-                      <Button variant="primary" size="sm" onClick={() => settleUserMut.mutate({ userId: g.userId, type: 'REFUNDED' })} disabled={busy}>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Button variant="primary" size="sm" onClick={() => setConfirmAll({ group: g, type: 'REFUNDED' })} disabled={busy}>
                         <Coins className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleAllRefunded')}
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={() => settleUserMut.mutate({ userId: g.userId, type: 'CREDITED' })} disabled={busy}>
+                      <Button variant="secondary" size="sm" onClick={() => setConfirmAll({ group: g, type: 'CREDITED' })} disabled={busy}>
                         <CalendarPlus className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleAllCredited')}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmAll({ group: g, type: 'MADE_UP' })} disabled={busy} className="text-violet-300">
+                        <CheckCheck className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleAllMadeUp')}
                       </Button>
                     </div>
                   </div>
@@ -129,6 +150,7 @@ export function AdminTrainingRefunds() {
                   {/* Per-session detail: a separate decision for each cancelled training */}
                   {open && (
                     <div className="border-t border-surface-800 px-4 py-3 space-y-2">
+                      <p className="text-xs font-medium text-surface-400">{t('trainingRefunds.perSessionLabel')}</p>
                       {g.refunds.map(r => (
                         <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-800/40 px-3 py-2">
                           <div className="min-w-0 text-sm">
@@ -137,13 +159,16 @@ export function AdminTrainingRefunds() {
                               {fmtDate(r.sessionDate)} · <span className="capitalize">{formatMonth(r.yearMonth)}</span> · {reason(r)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
                             <span className="font-medium text-primary-400 text-sm">{r.amount} zł</span>
                             <Button variant="primary" size="sm" onClick={() => settleMut.mutate({ id: r.id, type: 'REFUNDED' })} disabled={busy}>
                               <Coins className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleRefunded')}
                             </Button>
                             <Button variant="secondary" size="sm" onClick={() => settleMut.mutate({ id: r.id, type: 'CREDITED' })} disabled={busy}>
                               <CalendarPlus className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleCredited')}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => settleMut.mutate({ id: r.id, type: 'MADE_UP' })} disabled={busy} className="text-violet-300">
+                              <CheckCheck className="w-3.5 h-3.5 mr-1" />{t('trainingRefunds.settleMadeUp')}
                             </Button>
                           </div>
                         </div>
@@ -207,7 +232,10 @@ export function AdminTrainingRefunds() {
                         <td className="py-2 pr-4 text-surface-400">{r.trainingName} · {fmtDate(r.sessionDate)}</td>
                         <td className="py-2 pr-4 text-surface-300">{r.amount} zł</td>
                         <td className="py-2 pr-4 text-xs">
-                          <span className={clsx('px-2 py-0.5 rounded-full', r.settlementType === 'CREDITED' ? 'bg-sky-900/30 text-sky-300' : 'bg-green-900/30 text-green-400')}>
+                          <span className={clsx('px-2 py-0.5 rounded-full',
+                            r.settlementType === 'CREDITED' ? 'bg-sky-900/30 text-sky-300'
+                              : r.settlementType === 'MADE_UP' ? 'bg-violet-900/30 text-violet-300'
+                              : 'bg-green-900/30 text-green-400')}>
                             {methodLabel(r)}
                           </span>
                           {r.settledAt && <span className="block text-surface-500 mt-0.5">{r.settledAt.slice(0, 10).split('-').reverse().join('.')}</span>}
@@ -226,6 +254,22 @@ export function AdminTrainingRefunds() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmAll}
+        onClose={() => setConfirmAll(null)}
+        onConfirm={() => {
+          if (confirmAll) settleUserMut.mutate({ userId: confirmAll.group.userId, type: confirmAll.type })
+          setConfirmAll(null)
+        }}
+        title={t('trainingRefunds.confirmAllTitle')}
+        message={confirmAll ? t(`trainingRefunds.${confirmAll.type === 'REFUNDED' ? 'confirmAllRefunded' : confirmAll.type === 'CREDITED' ? 'confirmAllCredited' : 'confirmAllMadeUp'}`, {
+          name: `${confirmAll.group.firstName} ${confirmAll.group.lastName}`,
+          sessions: t('trainingRefunds.sessionsCount', { count: confirmAll.group.refunds.length }),
+          amount: confirmAll.group.total,
+        }) : ''}
+        confirmLabel={t('trainingRefunds.confirmAllConfirm')}
+      />
     </div>
   )
 }

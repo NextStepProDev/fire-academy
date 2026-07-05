@@ -74,6 +74,15 @@ public class TrainingRefundService {
                 .toList();
     }
 
+    /**
+     * Enrollment ids that still have an unresolved refund for a slot's session date. Drives the "do zwrotu" badge in
+     * the cancelled-sessions overview: it reflects the refund ledger (still owed?), not merely "was the month paid".
+     */
+    @Transactional(readOnly = true)
+    public java.util.Set<UUID> pendingRefundEnrollmentIds(UUID slotId, LocalDate date) {
+        return new HashSet<>(refundRepository.findPendingEnrollmentIdsForSlotAndDate(slotId, date));
+    }
+
     /** A single session of one slot was closed by {@code cause} — register refunds for its paid subscribers. */
     @Transactional
     public void registerForSlotSession(TrainingSlot slot, LocalDate date, String type, @Nullable String label,

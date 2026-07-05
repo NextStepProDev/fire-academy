@@ -267,11 +267,15 @@ public class AdminTrainingSlotService {
             var ids = subscribers.stream().map(TrainingEnrollment::getId).toList();
             var paid = ids.isEmpty() ? new HashSet<UUID>()
                     : new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
+            // "Owed" follows the refund ledger, not just "paid the month": a refund still shows only while it is
+            // unresolved. Once it is refunded / credited / made up, the badge clears (same truth as the Zwroty tab
+            // and the client's panel). This also skips people who paid after the cancellation — their bill already
+            // excluded the session, so nothing was ever owed to them.
+            var owedIds = refundService.pendingRefundEnrollmentIds(slot.getId(), cs.getSessionDate());
             var participants = subscribers.stream().map(te -> {
                 var u = te.getUser();
                 boolean isPaid = paid.contains(te.getId());
-                // A refund is owed only when a paid session of a priced slot is cancelled.
-                boolean owed = isPaid && slot.getPrice() != null;
+                boolean owed = owedIds.contains(te.getId());
                 return new AffectedParticipant(u.getFirstName(), u.getLastName(), u.getEmail(),
                         u.getPhone(), isPaid, owed);
             }).toList();

@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -227,9 +227,9 @@ export const adminApi = {
   // Refunds ("Zwroty")
   getTrainingRefunds: (settled = false) =>
     fetchApi<RefundEntry[]>(`/admin/training-refunds?settled=${settled}`),
-  settleRefund: (id: string, settlementType: 'REFUNDED' | 'CREDITED') =>
+  settleRefund: (id: string, settlementType: SettlementType) =>
     fetchApi<void>(`/admin/training-refunds/${id}/settle`, { method: 'POST', body: JSON.stringify({ settlementType }) }),
-  settleUserRefunds: (userId: string, settlementType: 'REFUNDED' | 'CREDITED') =>
+  settleUserRefunds: (userId: string, settlementType: SettlementType) =>
     fetchApi<void>(`/admin/training-refunds/settle-user/${userId}`, { method: 'POST', body: JSON.stringify({ settlementType }) }),
   unsettleRefund: (id: string) =>
     fetchApi<void>(`/admin/training-refunds/${id}/unsettle`, { method: 'POST' }),

@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** The safety net: a credited surplus already spent on a paid month cannot be un-credited. */
@@ -61,5 +62,36 @@ class AdminTrainingRefundServiceTest {
         service.unsettle(id);
         verify(refund).setSettledAt(null);
         verify(refund).setSettlementType(null);
+    }
+
+    @Test
+    void settlesRefundAsMadeUp() {
+        var id = UUID.randomUUID();
+        var refund = mock(TrainingRefund.class);
+        when(refunds.findById(id)).thenReturn(Optional.of(refund));
+
+        service.settle(id, TrainingRefund.SETTLEMENT_MADE_UP);
+
+        verify(refund).setSettledAt(any());
+        verify(refund).setSettlementType(TrainingRefund.SETTLEMENT_MADE_UP);
+    }
+
+    @Test
+    void rejectsUnknownSettlementType() {
+        assertThrows(IllegalArgumentException.class, () -> service.settle(UUID.randomUUID(), "BOGUS"));
+    }
+
+    @Test
+    void unsettlingMadeUpNeverConsultsCreditAndIsAlwaysAllowed() {
+        var id = UUID.randomUUID();
+        var refund = mock(TrainingRefund.class);
+        when(refund.getSettlementType()).thenReturn(TrainingRefund.SETTLEMENT_MADE_UP);
+        when(refunds.findById(id)).thenReturn(Optional.of(refund));
+
+        service.unsettle(id);
+
+        verify(refund).setSettledAt(null);
+        verify(refund).setSettlementType(null);
+        verifyNoInteractions(credit);   // made-up has no cash and no surplus — the credit guard never runs
     }
 }
