@@ -106,6 +106,21 @@ public class TrainingBillingService {
         return YearMonth.from(anchor).equals(month) ? anchor.getDayOfMonth() : 1;
     }
 
+    /**
+     * The date a partial first month effectively starts — its first attendable session — when it is billed from a
+     * later day (organizer's {@code billableFrom} override, or a mid-month signup). Returns null for a whole month
+     * billed from day 1 (an ongoing month, or a first month that starts at the beginning), so callers only ever
+     * surface a "valid from" hint when the start is genuinely partial. Stays meaningful after payment: it lets the
+     * organizer see from which day a paid month is actually valid, not just that it is paid.
+     */
+    @Nullable
+    @Transactional(readOnly = true)
+    public LocalDate partialStartDate(TrainingEnrollment te, YearMonth month) {
+        if (!te.getStartMonth().equals(month)) return null;
+        if (billableFromDay(te, month) <= 1) return null;
+        return firstSessionDate(te, month);
+    }
+
     /** How many days after the month's first session a payment stays "on time" before it counts as overdue. */
     private static final int OVERDUE_GRACE_DAYS = 1;
 

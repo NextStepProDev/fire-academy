@@ -313,6 +313,9 @@ export interface MonthlyTrainingLine {
   startMonth: string
   /** Organizer's explicit first-month start override (ISO date), or null when billing runs from signup. */
   billableFrom: string | null
+  /** First attendable session of a partial first month (ISO date); null for a whole from-day-1 month. Stays set
+   *  after payment, so the roster can show from which day a paid month is actually valid. */
+  validFrom: string | null
   /** Slot / type / trainer, so the participants overview can filter by them. */
   slotId: string
   eventTypeId: string

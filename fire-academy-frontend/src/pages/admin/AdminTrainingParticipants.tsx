@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Users, Check, X, Phone, Search, Mail, ChevronDown, ChevronRight, Pin, UserRound } from 'lucide-react'
+import { Users, Check, X, Phone, Search, Mail, ChevronDown, ChevronRight, Pin, UserRound, CalendarClock } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
@@ -299,6 +299,9 @@ export function AdminTrainingParticipants() {
                 const startIds = firstUnpaid.map(l => l.enrollmentId)
                 const starts = new Set(firstUnpaid.map(l => l.billableFrom ?? ''))
                 const commonStart = starts.size === 1 ? [...starts][0] : ''
+                // Distinct "valid from" dates across the person's trainings — persists after payment, so the
+                // organizer sees a paid month is only valid from day X (not just that it is paid).
+                const validFroms = [...new Set(u.trainings.filter(l => l.validFrom).map(l => l.validFrom!))].sort()
                 return (
                   <div key={u.userId} className={clsx('rounded-xl border bg-surface-900 overflow-hidden',
                     u.allPaid ? 'border-emerald-800/50' : hasOverdue ? 'border-rose-900/40' : 'border-surface-800')}>
@@ -316,6 +319,17 @@ export function AdminTrainingParticipants() {
                           {partiallyPaid && (
                             <span className="block text-xs text-primary-300 mt-0.5">
                               {t('participants.partialSummary', { paid: paidAmount, remaining })}
+                            </span>
+                          )}
+                          {validFroms.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 text-xs text-amber-300 mt-0.5"
+                              title={t('participants.validFromHint') + (validFroms.length > 1 ? ` (${validFroms.map(formatDate).join(', ')})` : '')}
+                            >
+                              <CalendarClock className="w-3 h-3" />
+                              {validFroms.length === 1
+                                ? t('participants.validFrom', { date: formatDate(validFroms[0]) })
+                                : t('participants.validFromPartial')}
                             </span>
                           )}
                         </span>
@@ -390,6 +404,14 @@ export function AdminTrainingParticipants() {
                                 )}
                               </span>
                             </div>
+                            {/* Once paid the editable picker is gone, so surface the effective start read-only —
+                                otherwise a month paid "from day 20" looks identical to one paid for the whole month. */}
+                            {l.paid && l.validFrom && (
+                              <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-300" title={t('participants.validFromHint')}>
+                                <CalendarClock className="w-3 h-3" />
+                                {t('participants.validFrom', { date: formatDate(l.validFrom) })}
+                              </div>
+                            )}
                             {/* First-month "count from day X" — set the real start here so the total updates before paying. */}
                             {!l.paid && l.startMonth === month && (
                               <div className="flex items-center gap-1.5 mt-1 text-xs text-surface-400">

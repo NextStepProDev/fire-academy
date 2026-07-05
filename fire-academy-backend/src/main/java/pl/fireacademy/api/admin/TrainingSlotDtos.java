@@ -151,6 +151,9 @@ public final class TrainingSlotDtos {
             UUID enrollmentId,
             YearMonth startMonth,
             @Nullable LocalDate billableFrom,
+            // First attendable session of a partial first month (organizer override or mid-month signup); null for a
+            // whole from-day-1 month. Persists after payment so the organizer sees from which day a paid month is valid.
+            @Nullable LocalDate validFrom,
             // Slot / type / trainer, so the participants overview can filter by them.
             UUID slotId,
             UUID eventTypeId,

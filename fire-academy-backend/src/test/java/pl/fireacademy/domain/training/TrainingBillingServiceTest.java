@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -96,6 +97,40 @@ class TrainingBillingServiceTest {
     void firstSessionDateIsTheFirstBillableMonday() {
         var te = enrollment(LocalDate.of(2027, 2, 1), LocalDate.of(2027, 2, 10));
         assertEquals(LocalDate.of(2027, 2, 15), billing.firstSessionDate(te, YearMonth.of(2027, 2)));
+    }
+
+    @Test
+    void partialStartDateIsTheFirstSessionWhenBilledFromALaterDay() {
+        // Organizer counts February from the 10th → the paid month is only valid from the first Monday on/after: the 15th.
+        var te = enrollment(LocalDate.of(2027, 2, 1), LocalDate.of(2027, 2, 10));
+        when(te.getStartMonth()).thenReturn(YearMonth.of(2027, 2));
+        assertEquals(LocalDate.of(2027, 2, 15), billing.partialStartDate(te, YearMonth.of(2027, 2)));
+    }
+
+    @Test
+    void partialStartDateAlsoReflectsAMidMonthSignupWithoutOverride() {
+        // No explicit override, but joined on the 10th → still a partial start (first Monday 15th).
+        var te = enrollmentCreatedOn(LocalDate.of(2027, 2, 10));
+        when(te.getStartMonth()).thenReturn(YearMonth.of(2027, 2));
+        assertEquals(LocalDate.of(2027, 2, 15), billing.partialStartDate(te, YearMonth.of(2027, 2)));
+    }
+
+    @Test
+    void partialStartDateIsNullForAWholeMonthFromDayOne() {
+        // Joined on the 1st → the whole month is billed, so there is no partial "valid from" to show.
+        var te = mock(TrainingEnrollment.class);
+        when(te.getStartMonth()).thenReturn(YearMonth.of(2027, 2));
+        when(te.getBillableFrom()).thenReturn(null);
+        when(te.getCreatedAt()).thenReturn(LocalDate.of(2027, 2, 1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+        assertNull(billing.partialStartDate(te, YearMonth.of(2027, 2)));
+    }
+
+    @Test
+    void partialStartDateIsNullForMonthsAfterTheStartMonth() {
+        // The partial start only concerns the first month; March is a full month regardless of the override.
+        var te = mock(TrainingEnrollment.class);
+        when(te.getStartMonth()).thenReturn(YearMonth.of(2027, 2));
+        assertNull(billing.partialStartDate(te, YearMonth.of(2027, 3)));
     }
 
     @Test

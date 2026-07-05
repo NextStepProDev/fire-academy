@@ -223,7 +223,7 @@ public class AdminTrainingEnrollmentService {
                 var instr = slot.getInstructor();
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
                         slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned(), overdue,
-                        te.getId(), te.getStartMonth(), te.getBillableFrom(),
+                        te.getId(), te.getStartMonth(), te.getBillableFrom(), billing.partialStartDate(te, month),
                         slot.getId(), slot.getEventType().getId(),
                         instr != null ? instr.getId() : null,
                         instr != null ? instr.getFirstName() + " " + instr.getLastName() : null));
