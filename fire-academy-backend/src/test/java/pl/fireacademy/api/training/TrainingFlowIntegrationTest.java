@@ -386,6 +386,13 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         return d;
     }
 
+    /** Last occurrence of the slot weekday in the given month. */
+    private LocalDate lastSlotDateIn(YearMonth ym) {
+        LocalDate d = ym.atEndOfMonth();
+        while (d.getDayOfWeek().getValue() != DAY) d = d.minusDays(1);
+        return d;
+    }
+
     /** How many times the slot weekday occurs across the whole given month. */
     private int slotDaysIn(YearMonth ym) {
         int count = 0;
@@ -570,6 +577,45 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         setStart(enrollmentId, YearMonth.now().atDay(2).toString(), admin).andExpect(status().isConflict());
     }
 
+    @Test
+    void shouldNotRefundCancelledSessionBeforeBillingStartDate() throws Exception {
+        // Regression: a subscriber billed from a later start day (organizer's billableFrom override) is owed NO
+        // refund for a cancelled session that falls BEFORE that start — those sessions were never part of the bill.
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        YearMonth month = YearMonth.now();
+        LocalDate firstDay = firstSlotDateIn(month);
+        LocalDate lastDay = lastSlotDateIn(month);
+        org.junit.jupiter.api.Assumptions.assumeTrue(lastDay.isAfter(firstDay),
+                "needs at least two slot-weekday occurrences this month");
+
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+
+        // Bill from the last occurrence → only that session is paid for.
+        setStart(enrollmentId, lastDay.toString(), admin).andExpect(status().isNoContent());
+        markPaid(enrollmentId, CURRENT, admin);
+
+        // Cancelling the FIRST occurrence (before the start day) must not invent a refund.
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + firstDay + "\"}"))
+            .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
+
+        // But cancelling the billed (last) session still owes a refund — the fix is precise, not a blanket off-switch.
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + lastDay + "\"}"))
+            .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].sessionDate").value(lastDay.toString()));
+    }
+
     private org.springframework.test.web.servlet.ResultActions setStart(UUID enrollmentId, String date, String admin) throws Exception {
         return mockMvc.perform(put("/api/admin/training-enrollments/" + enrollmentId + "/start")
                 .header("Authorization", "Bearer " + admin)
@@ -672,6 +718,8 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
         UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        // Established full-month client: billed from the 1st, so yesterday's session is genuinely part of the paid bill.
+        setStart(enrollmentId, YearMonth.now().atDay(1).toString(), admin).andExpect(status().isNoContent());
         markPaid(enrollmentId, month, admin);
 
         mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
@@ -1354,6 +1402,8 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         String admin = adminToken();
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
         UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        // Established full-month client: billed from the 1st, so yesterday's session is genuinely part of the paid bill.
+        setStart(enrollmentId, YearMonth.now().atDay(1).toString(), admin).andExpect(status().isNoContent());
         markPaid(enrollmentId, month, admin);
 
         assertEquals(1, (int) JsonPath.read(cancelInstructorDay(instr.getId(),yesterday, admin), "$.cancelled"));

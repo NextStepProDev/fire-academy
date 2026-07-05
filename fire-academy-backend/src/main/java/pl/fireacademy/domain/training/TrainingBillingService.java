@@ -96,6 +96,16 @@ public class TrainingBillingService {
     }
 
     /**
+     * Whether a specific session date is part of what the subscription is billed for: it must not fall before the
+     * subscription's billable-from anchor in its own month (a mid-month joiner, or an organizer's {@code billableFrom}
+     * override, is not charged for — and so is owed no refund for — sessions before their start day). Callers already
+     * ensure the date's month is covered by the subscription; this only guards the intra-month proration.
+     */
+    public boolean isBillableSession(TrainingEnrollment te, LocalDate date) {
+        return date.getDayOfMonth() >= billableFromDay(te, YearMonth.from(date));
+    }
+
+    /**
      * First billable day of the month: the anchor day when the anchor falls in that month, else 1. The anchor is
      * the organizer's explicit override ({@code billableFrom}) if set, otherwise the signup date ({@code createdAt}).
      */

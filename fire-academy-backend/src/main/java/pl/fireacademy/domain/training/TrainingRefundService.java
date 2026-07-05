@@ -37,6 +37,7 @@ public class TrainingRefundService {
     private final TrainingHolidayRepository holidayRepository;
     private final TrainingCancelledSessionRepository cancelledSessionRepository;
     private final TrainingCreditService creditService;
+    private final TrainingBillingService billingService;
 
     public TrainingRefundService(TrainingEnrollmentRepository enrollmentRepository,
                                  TrainingPaymentRepository paymentRepository,
@@ -44,7 +45,8 @@ public class TrainingRefundService {
                                  TrainingSlotRepository slotRepository,
                                  TrainingHolidayRepository holidayRepository,
                                  TrainingCancelledSessionRepository cancelledSessionRepository,
-                                 TrainingCreditService creditService) {
+                                 TrainingCreditService creditService,
+                                 TrainingBillingService billingService) {
         this.enrollmentRepository = enrollmentRepository;
         this.paymentRepository = paymentRepository;
         this.refundRepository = refundRepository;
@@ -52,6 +54,7 @@ public class TrainingRefundService {
         this.holidayRepository = holidayRepository;
         this.cancelledSessionRepository = cancelledSessionRepository;
         this.creditService = creditService;
+        this.billingService = billingService;
     }
 
     /** True if the date is closed for the slot by a mechanism other than {@code cause}. */
@@ -105,6 +108,12 @@ public class TrainingRefundService {
         var paid = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
         for (var te : enrollments) {
             if (!paid.contains(te.getId())) {
+                continue;
+            }
+            // The date must actually be part of what this subscriber paid: a mid-month joiner (or an organizer's
+            // billableFrom override) is not billed for sessions before their start day, so cancelling one owes no
+            // refund. Without this, cancelling a session before the start day invents a refund for money never paid.
+            if (!billingService.isBillableSession(te, date)) {
                 continue;
             }
             if (refundRepository.existsByEnrollmentIdAndSessionDate(te.getId(), date)) {
