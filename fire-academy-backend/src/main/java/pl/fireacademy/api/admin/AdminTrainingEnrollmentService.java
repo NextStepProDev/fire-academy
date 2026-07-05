@@ -54,15 +54,55 @@ public class AdminTrainingEnrollmentService {
             return List.of();
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paidIds = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month.toString()));
+        var paymentByEnrollment = new java.util.HashMap<UUID, TrainingPayment>();
+        for (var p : paymentRepository.findPaidForMonth(ids, month.toString())) {
+            paymentByEnrollment.put(p.getEnrollment().getId(), p);
+        }
         return enrollments.stream().map(te -> {
             var u = te.getUser();
+            var payment = paymentByEnrollment.get(te.getId());
+            boolean paid = payment != null;
+            boolean overdue = !paid && billing.isPaymentOverdue(te, month);
             return new RosterEntry(
                     te.getId(), u.getId(), u.getFirstName(), u.getLastName(), u.getEmail(), u.getPhone(),
-                    te.getStartMonth(), te.getEndMonth(), te.getEndMonth() == null, paidIds.contains(te.getId()),
-                    creditService.availableBalance(te.getId())
+                    te.getStartMonth(), te.getEndMonth(), te.getEndMonth() == null, paid,
+                    creditService.availableBalance(te.getId()), te.getBillableFrom(),
+                    netFor(te, month, payment), overdue
             );
         }).toList();
+    }
+
+    /**
+     * NET amount owed for the month: the amount frozen at payment time when paid (never drifts), otherwise the live
+     * bill (price × sessions) minus the surplus credit that would apply. Legacy paid rows without a stored amount
+     * fall back to the live figure.
+     */
+    private java.math.BigDecimal netFor(TrainingEnrollment te, YearMonth month, @org.jspecify.annotations.Nullable TrainingPayment payment) {
+        if (payment != null && payment.getAmount() != null) {
+            return payment.getAmount();
+        }
+        var gross = billing.amount(te, month);
+        var credit = creditService.appliedFor(te, month);
+        return gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
+    }
+
+    /**
+     * Sets (or clears, when null) the first-month billing start date of a subscription — the organizer's discretionary
+     * "count from day X" at first payment. The date must fall in the subscription's start month, and the start month
+     * must not already be paid (its NET was frozen at payment time and would drift — revert the payment first).
+     */
+    @Transactional
+    public void setStartDate(UUID enrollmentId, SetStartRequest request) {
+        var te = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.not.found")));
+        var startDate = request.startDate();
+        if (startDate != null && !YearMonth.from(startDate).equals(te.getStartMonth())) {
+            throw new IllegalArgumentException(msg.get("trainingenrollment.start.invalid"));
+        }
+        if (paymentRepository.findByEnrollmentIdAndYearMonth(enrollmentId, te.getStartMonth().toString()).isPresent()) {
+            throw new IllegalStateException(msg.get("trainingenrollment.start.paid"));
+        }
+        te.setBillableFrom(startDate);
     }
 
     @Transactional
@@ -175,20 +215,14 @@ public class AdminTrainingEnrollmentService {
                 if (payment != null && (paidAt == null || payment.getCreatedAt().isAfter(paidAt))) {
                     paidAt = payment.getCreatedAt();
                 }
-                // A paid line shows the amount frozen at payment time (never drifts); an unpaid one the live
-                // NET bill. Legacy paid rows without a stored amount fall back to the live figure.
-                java.math.BigDecimal net;
-                if (payment != null && payment.getAmount() != null) {
-                    net = payment.getAmount();
-                } else {
-                    var gross = billing.amount(te, month);                     // price × sessions, or null
-                    var credit = creditService.appliedFor(te, month);
-                    net = gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
-                }
+                // A paid line shows the amount frozen at payment time (never drifts); an unpaid one the live NET bill.
+                var net = netFor(te, month, payment);
+                boolean overdue = !paid && billing.isPaymentOverdue(te, month);
                 total = total.add(net);
                 creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
-                        slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned()));
+                        slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned(), overdue,
+                        te.getId(), te.getStartMonth(), te.getBillableFrom()));
             }
             result.add(new UserMonthlyPayment(user.getId(), user.getFirstName(), user.getLastName(),
                     user.getEmail(), user.getPhone(), lines, total, allPaid, paidAt, creditBalance));

@@ -195,6 +195,8 @@ export const adminApi = {
     fetchApi<void>(`/admin/training-enrollments/${id}`, { method: 'DELETE' }),
   setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
     fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
+  setTrainingStart: (id: string, startDate: string | null) =>
+    fetchApi<void>(`/admin/training-enrollments/${id}/start`, { method: 'PUT', body: JSON.stringify({ startDate }) }),
 
   // Monthly payments grouped by person
   getMonthlyPayments: (month: string) =>

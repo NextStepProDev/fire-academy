@@ -532,6 +532,35 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$[?(@.firstName == 'Maria')]").exists());
     }
 
+    @Test
+    void shouldSetBillingStartDateAndBlockChangeOncePaid() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+
+        // A discretionary start date within the start month is accepted and persisted.
+        LocalDate startDate = YearMonth.now().atDay(1);
+        setStart(enrollmentId, startDate.toString(), admin).andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertEquals(startDate,
+                trainingEnrollmentRepository.findById(enrollmentId).orElseThrow().getBillableFrom());
+
+        // A date outside the start month is rejected (400).
+        setStart(enrollmentId, YearMonth.now().plusMonths(1).atDay(5).toString(), admin)
+                .andExpect(status().isBadRequest());
+
+        // Once the month is paid its NET is frozen → the start date can no longer be changed (409).
+        markPaid(enrollmentId, CURRENT, admin);
+        setStart(enrollmentId, YearMonth.now().atDay(2).toString(), admin).andExpect(status().isConflict());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions setStart(UUID enrollmentId, String date, String admin) throws Exception {
+        return mockMvc.perform(put("/api/admin/training-enrollments/" + enrollmentId + "/start")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startDate\":\"" + date + "\"}"));
+    }
+
     private void markPaid(UUID enrollmentId, String month, String admin) throws Exception {
         mockMvc.perform(put("/api/admin/training-enrollments/" + enrollmentId + "/payment")
                 .header("Authorization", "Bearer " + admin)

@@ -93,7 +93,13 @@ public final class TrainingSlotDtos {
             boolean indefinite,
             boolean paid,
             // Surplus (CREDITED refunds) still available to discount this subscriber's upcoming bills.
-            BigDecimal creditBalance
+            BigDecimal creditBalance,
+            // Organizer's explicit first-month start override, or null when billing runs from the signup date.
+            @Nullable LocalDate billableFrom,
+            // Live NET amount owed for the viewed month (frozen amount once paid), so the roster reflects a start edit.
+            BigDecimal amount,
+            // Unpaid and the month's first session already passed — a reserved spot that was never paid for.
+            boolean overdue
     ) {}
 
     public record AdminAddEnrollmentRequest(
@@ -105,6 +111,11 @@ public final class TrainingSlotDtos {
     public record SetPaymentRequest(
             @NotNull YearMonth month,
             boolean paid
+    ) {}
+
+    /** Sets (or clears, when null) the first-month billing start date of a subscription. */
+    public record SetStartRequest(
+            @Nullable LocalDate startDate
     ) {}
 
     // ── Monthly payments grouped by person ───────────────────────────────────
@@ -133,7 +144,13 @@ public final class TrainingSlotDtos {
             BigDecimal amount,
             boolean paid,
             // Paid individually via the per-slot roster toggle → a whole-month revert leaves it alone.
-            boolean pinned
+            boolean pinned,
+            // Unpaid and the month's first session already passed — a reserved spot that was never paid for.
+            boolean overdue,
+            // Identity + start info so the monthly view can also set the first-month "count from" date in place.
+            UUID enrollmentId,
+            YearMonth startMonth,
+            @Nullable LocalDate billableFrom
     ) {}
 
     public record PayUserMonthRequest(

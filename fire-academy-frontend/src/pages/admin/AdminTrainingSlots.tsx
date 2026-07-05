@@ -115,6 +115,17 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
     onSuccess: () => { invalidateRoster(); showToast(t('trainingSlots.paymentUpdated'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
+  const startMut = useMutation({
+    mutationFn: ({ id, startDate }: { id: string; startDate: string | null }) => adminApi.setTrainingStart(id, startDate),
+    onSuccess: () => {
+      invalidateRoster()
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-payments'] })
+      showToast(t('trainingSlots.startUpdated'), 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  // Last day of the viewed month (ISO), to cap the "count from" date picker to that month.
+  const monthLastDay = `${month}-${String(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()).padStart(2, '0')}`
 
   const cancelledQuery = useQuery({
     queryKey: ['admin', 'cancelled-sessions', slot.id],
@@ -241,16 +252,39 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
                             {t('trainingSlots.creditBalance', { amount: r.creditBalance })}
                           </span>
                         )}
+                        {/* First-month discretionary start ("count from day X") — only meaningful in the start month. */}
+                        {r.startMonth === month && !r.paid && (
+                          <span className="flex items-center gap-1.5 mt-1 text-xs text-surface-400">
+                            {t('trainingSlots.billFrom')}
+                            <input
+                              type="date"
+                              min={`${month}-01`}
+                              max={monthLastDay}
+                              value={r.billableFrom ?? ''}
+                              onChange={e => startMut.mutate({ id: r.enrollmentId, startDate: e.target.value || null })}
+                              className="px-1.5 py-0.5 bg-surface-800 border border-surface-700 rounded text-surface-200"
+                              title={t('trainingSlots.billFromHint')}
+                            />
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 pr-4">
-                        <button
-                          onClick={() => paymentMut.mutate({ id: r.enrollmentId, paid: !r.paid })}
-                          className={clsx('inline-flex items-center gap-1 px-2 py-1 text-xs rounded', r.paid ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-400 hover:text-surface-200')}
-                          title={r.paid ? t('trainingSlots.markUnpaid') : t('trainingSlots.markPaid')}
-                        >
-                          {r.paid ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                          {r.paid ? t('trainingSlots.paid') : t('trainingSlots.unpaid')}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => paymentMut.mutate({ id: r.enrollmentId, paid: !r.paid })}
+                            className={clsx('inline-flex items-center gap-1 px-2 py-1 text-xs rounded', r.paid ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-400 hover:text-surface-200')}
+                            title={r.paid ? t('trainingSlots.markUnpaid') : t('trainingSlots.markPaid')}
+                          >
+                            {r.paid ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                            {r.paid ? t('trainingSlots.paid') : t('trainingSlots.unpaid')}
+                          </button>
+                          <span className="text-xs text-surface-400">{r.amount} zł</span>
+                          {r.overdue && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-rose-500/10 text-rose-300" title={t('trainingSlots.overdueHint')}>
+                              {t('trainingSlots.overdue')}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2.5 text-right">
                         <button onClick={() => setRemoveId(r.enrollmentId)} className="p-1 text-surface-400 hover:text-rose-400" title={t('trainingSlots.removeParticipant')}>

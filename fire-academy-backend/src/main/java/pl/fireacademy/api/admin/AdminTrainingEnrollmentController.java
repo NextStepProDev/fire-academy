@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.TrainingSlotDtos.SetPaymentRequest;
+import pl.fireacademy.api.admin.TrainingSlotDtos.SetStartRequest;
 
 import java.util.UUID;
 
@@ -26,6 +27,12 @@ public class AdminTrainingEnrollmentController {
     @PutMapping("/{id}/payment")
     public ResponseEntity<Void> setPayment(@PathVariable UUID id, @Valid @RequestBody SetPaymentRequest request) {
         service.setPayment(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/start")
+    public ResponseEntity<Void> setStart(@PathVariable UUID id, @Valid @RequestBody SetStartRequest request) {
+        service.setStartDate(id, request);
         return ResponseEntity.noContent().build();
     }
 }

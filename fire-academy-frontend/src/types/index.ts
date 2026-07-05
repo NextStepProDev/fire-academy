@@ -303,6 +303,13 @@ export interface MonthlyTrainingLine {
   paid: boolean
   /** Paid individually via the per-slot roster toggle → a whole-month revert leaves it alone. */
   pinned: boolean
+  /** Unpaid and the month's first session already passed — a reserved spot that was never paid for. */
+  overdue: boolean
+  enrollmentId: string
+  /** Subscription's start month (YYYY-MM) — the "count from" date is only editable in this month. */
+  startMonth: string
+  /** Organizer's explicit first-month start override (ISO date), or null when billing runs from signup. */
+  billableFrom: string | null
 }
 
 export interface ArchivedParticipant {
@@ -336,6 +343,12 @@ export interface TrainingRosterEntry {
   paid: boolean
   /** Surplus (credited refunds) still available to discount this subscriber's upcoming bills. */
   creditBalance: number
+  /** Organizer's explicit first-month start override (ISO date), or null when billing runs from signup. */
+  billableFrom: string | null
+  /** Live NET amount owed for the viewed month (frozen once paid). */
+  amount: number
+  /** Unpaid and the month's first session already passed — a reserved spot that was never paid for. */
+  overdue: boolean
 }
 
 /** Logged-in user's subscription to a slot — account view. */

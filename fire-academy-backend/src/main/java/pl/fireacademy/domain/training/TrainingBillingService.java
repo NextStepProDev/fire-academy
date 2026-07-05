@@ -95,10 +95,43 @@ public class TrainingBillingService {
         return price != null ? price.multiply(BigDecimal.valueOf(sessions(te, month))) : null;
     }
 
-    /** First billable day of the month: the join day when the enrollment was created in that month, else 1. */
+    /**
+     * First billable day of the month: the anchor day when the anchor falls in that month, else 1. The anchor is
+     * the organizer's explicit override ({@code billableFrom}) if set, otherwise the signup date ({@code createdAt}).
+     */
     private static int billableFromDay(TrainingEnrollment te, YearMonth month) {
-        LocalDate created = LocalDate.ofInstant(te.getCreatedAt(), java.time.ZoneId.systemDefault());
-        return YearMonth.from(created).equals(month) ? created.getDayOfMonth() : 1;
+        LocalDate anchor = te.getBillableFrom() != null
+                ? te.getBillableFrom()
+                : LocalDate.ofInstant(te.getCreatedAt(), java.time.ZoneId.systemDefault());
+        return YearMonth.from(anchor).equals(month) ? anchor.getDayOfMonth() : 1;
+    }
+
+    /** How many days after the month's first session a payment stays "on time" before it counts as overdue. */
+    private static final int OVERDUE_GRACE_DAYS = 1;
+
+    /** The first billable session date of the subscription in the month, or null if there is none (all closed). */
+    @Nullable
+    @Transactional(readOnly = true)
+    public LocalDate firstSessionDate(TrainingEnrollment te, YearMonth month) {
+        var slot = te.getSlot();
+        Set<LocalDate> closed = closedIncludingDeactivation(slot, month);
+        for (int day = billableFromDay(te, month); day <= month.lengthOfMonth(); day++) {
+            LocalDate date = LocalDate.of(month.getYear(), month.getMonthValue(), day);
+            if (date.getDayOfWeek().getValue() == slot.getDayOfWeek() && !closed.contains(date)) {
+                return date;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Whether the month's payment is past due: its first session (plus a day of grace) has already passed. A caller
+     * combines this with the paid flag — an overdue AND unpaid month is a reserved spot that was never paid for.
+     */
+    @Transactional(readOnly = true)
+    public boolean isPaymentOverdue(TrainingEnrollment te, YearMonth month) {
+        LocalDate first = firstSessionDate(te, month);
+        return first != null && LocalDate.now().isAfter(first.plusDays(OVERDUE_GRACE_DAYS));
     }
 
     /** Closed dates of the month plus the slot's weekday dates on/after a scheduled deactivation. */

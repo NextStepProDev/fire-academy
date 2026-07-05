@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.user.User;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.UUID;
 
@@ -40,6 +41,12 @@ public class TrainingEnrollment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // Optional override of the first-month proration anchor, set by the organizer at first payment.
+    // NULL = fall back to createdAt (the signup day). See TrainingBillingService#billableFromDay.
+    @Nullable
+    @Column(name = "billable_from")
+    private LocalDate billableFrom;
+
     @Column(name = "expiry_notified", nullable = false)
     private boolean expiryNotified = false;
 
@@ -70,6 +77,8 @@ public class TrainingEnrollment {
     @Nullable public YearMonth getEndMonth() { return endMonth != null ? YearMonth.parse(endMonth) : null; }
     public void setEndMonth(@Nullable YearMonth endMonth) { this.endMonth = endMonth != null ? endMonth.toString() : null; }
     public Instant getCreatedAt() { return createdAt; }
+    @Nullable public LocalDate getBillableFrom() { return billableFrom; }
+    public void setBillableFrom(@Nullable LocalDate billableFrom) { this.billableFrom = billableFrom; }
     public boolean isExpiryNotified() { return expiryNotified; }
     public void setExpiryNotified(boolean expiryNotified) { this.expiryNotified = expiryNotified; }
 }

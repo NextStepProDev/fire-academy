@@ -38,6 +38,18 @@ export function AdminTrainingPayments() {
     },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
+  const startMut = useMutation({
+    mutationFn: ({ id, startDate }: { id: string; startDate: string | null }) => adminApi.setTrainingStart(id, startDate),
+    onSuccess: () => {
+      // The bill is live for unpaid people, so the person's total and the grand total refresh at once.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-payments'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-roster'] })
+      showToast(t('monthlyPayments.startUpdated'), 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  // Last day of the viewed month (ISO), to cap the "count from" date picker to that month.
+  const monthLastDay = `${month}-${String(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()).padStart(2, '0')}`
 
   const users = data ?? []
   const grandTotal = users.filter(u => !u.allPaid).reduce((s, u) => s + u.totalAmount, 0)
@@ -128,16 +140,35 @@ export function AdminTrainingPayments() {
                   {open && (
                     <div className="border-t border-surface-800 px-4 py-2 space-y-1">
                       {u.trainings.map((l, i) => (
-                        <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm py-1">
-                          <span className="text-surface-300">
-                            {t(`days.${l.dayOfWeek}`)} {timeLabel(l)} · {l.trainingName}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <span className="text-surface-200">{l.amount} zł</span>
-                            {l.paid
-                              ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400" title={l.pinned ? t('monthlyPayments.pinnedHint') : undefined}><Check className="w-3 h-3" />{t('monthlyPayments.paidBadge')}{l.pinned && <Pin className="w-3 h-3" />}</span>
-                              : <span className="inline-flex items-center gap-1 text-xs text-surface-500"><X className="w-3 h-3" />{t('monthlyPayments.unpaidBadge')}</span>}
-                          </span>
+                        <div key={i} className="py-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                            <span className="text-surface-300">
+                              {t(`days.${l.dayOfWeek}`)} {timeLabel(l)} · {l.trainingName}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-surface-200">{l.amount} zł</span>
+                              {l.paid
+                                ? <span className="inline-flex items-center gap-1 text-xs text-emerald-400" title={l.pinned ? t('monthlyPayments.pinnedHint') : undefined}><Check className="w-3 h-3" />{t('monthlyPayments.paidBadge')}{l.pinned && <Pin className="w-3 h-3" />}</span>
+                                : l.overdue
+                                  ? <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-rose-500/10 text-rose-300" title={t('monthlyPayments.overdueHint')}>{t('monthlyPayments.overdue')}</span>
+                                  : <span className="inline-flex items-center gap-1 text-xs text-surface-500"><X className="w-3 h-3" />{t('monthlyPayments.unpaidBadge')}</span>}
+                            </span>
+                          </div>
+                          {/* First-month "count from day X" — set the real start here so the total updates before paying. */}
+                          {!l.paid && l.startMonth === month && (
+                            <div className="flex items-center gap-1.5 mt-1 text-xs text-surface-400">
+                              {t('monthlyPayments.billFrom')}
+                              <input
+                                type="date"
+                                min={`${month}-01`}
+                                max={monthLastDay}
+                                value={l.billableFrom ?? ''}
+                                onChange={e => startMut.mutate({ id: l.enrollmentId, startDate: e.target.value || null })}
+                                className="px-1.5 py-0.5 bg-surface-800 border border-surface-700 rounded text-surface-200"
+                                title={t('monthlyPayments.billFromHint')}
+                              />
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

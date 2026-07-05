@@ -186,6 +186,11 @@
     "removeParticipant": "Wypisz",
     "creditBalance": "Nadwyżka: {{amount}} zł",
     "creditBalanceHint": "Niewykorzystana nadwyżka z zaliczonych zwrotów — obniży najbliższy nieopłacony miesiąc.",
+    "billFrom": "Licz od:",
+    "billFromHint": "Ustaw dzień, od którego liczymy pierwszy miesiąc (np. uczestnik zaczął później). Rachunek przeliczy się automatycznie.",
+    "startUpdated": "Zaktualizowano datę startu.",
+    "overdue": "Zaległość po terminie",
+    "overdueHint": "Pierwsze zajęcia miesiąca już były, a płatność nie została oznaczona. Rozlicz płatność lub wypisz uczestnika, aby zwolnić miejsce.",
     "removeConfirmTitle": "Wypisanie uczestnika",
     "removeConfirm": "Wypisać uczestnika z tego treningu? Miejsce zostanie natychmiast zwolnione.",
     "addSuccess": "Dodano uczestnika.",
@@ -246,7 +251,12 @@
     "paidOn": "opłacono {{date}}",
     "unpaidBadge": "Nieopłacone",
     "partialSummary": "Opłacono {{paid}} zł · pozostało {{remaining}} zł",
-    "pinnedHint": "Opłacone pojedynczo w zakładce „Terminy cykliczne” — cofnięcie całego miesiąca tego nie usunie."
+    "pinnedHint": "Opłacone pojedynczo w zakładce „Terminy cykliczne” — cofnięcie całego miesiąca tego nie usunie.",
+    "overdue": "Zaległość po terminie",
+    "overdueHint": "Pierwsze zajęcia miesiąca już były, a płatność nie została oznaczona.",
+    "billFrom": "Licz od:",
+    "billFromHint": "Ustaw dzień, od którego liczymy pierwszy miesiąc tego treningu. Kwota i suma przeliczą się od razu — jeszcze przed opłaceniem.",
+    "startUpdated": "Zaktualizowano datę startu."
   },
   "cancelledSessions": {
     "title": "Odwołane zajęcia",
