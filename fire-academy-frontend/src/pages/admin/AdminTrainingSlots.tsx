@@ -67,11 +67,12 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
   const [expanded, setExpanded] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [removeId, setRemoveId] = useState<string | null>(null)
+  const [removeDate, setRemoveDate] = useState(TODAY_ISO)
   const [isDeactivating, setIsDeactivating] = useState(false)
   const [deactivateDate, setDeactivateDate] = useState(TODAY_ISO)
   const [confirmCancelDate, setConfirmCancelDate] = useState<string | null>(null)
   const [confirmRestoreDate, setConfirmRestoreDate] = useState<string | null>(null)
-  const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1 })
+  const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number; startDate: string }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1, startDate: '' })
 
   const userSearch = useQuery({
     queryKey: ['admin', 'user-search', addForm.query],
@@ -101,13 +102,19 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
       userId: addForm.selectedUser!.id,
       startMonth: month,
       months: addForm.mode === 'fixed' ? addForm.months : undefined,
+      billableFrom: addForm.startDate || undefined,
     }),
     onSuccess: () => { invalidateRoster(); invalidateCounts(); setIsAdding(false); showToast(t('trainingSlots.addSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const removeMut = useMutation({
-    mutationFn: adminApi.removeTrainingEnrollment,
-    onSuccess: () => { invalidateRoster(); invalidateCounts(); showToast(t('trainingSlots.removeSuccess'), 'success') },
+    mutationFn: ({ id, date }: { id: string; date: string }) => adminApi.removeTrainingEnrollment(id, date),
+    onSuccess: () => {
+      invalidateRoster(); invalidateCounts(); invalidateRefunds()
+      // A removal of a paid participant registers a refund and shifts the monthly-payments view, so refresh those too.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'training-payments'] })
+      showToast(t('trainingSlots.removeSuccess'), 'success')
+    },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const paymentMut = useMutation({
@@ -215,7 +222,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
       {expanded && (
         <div className="border-t border-surface-800 px-4 py-3">
           <div className="flex justify-end mb-3">
-            <Button variant="primary" size="sm" onClick={() => { setAddForm({ query: '', selectedUser: null, mode: 'indefinite', months: 1 }); setIsAdding(true) }}>
+            <Button variant="primary" size="sm" onClick={() => { setAddForm({ query: '', selectedUser: null, mode: 'indefinite', months: 1, startDate: '' }); setIsAdding(true) }}>
               <UserPlus className="w-4 h-4 mr-1.5" />
               {t('trainingSlots.addParticipant')}
             </Button>
@@ -287,7 +294,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
                         </div>
                       </td>
                       <td className="py-2.5 text-right">
-                        <button onClick={() => setRemoveId(r.enrollmentId)} className="p-1 text-surface-400 hover:text-rose-400" title={t('trainingSlots.removeParticipant')}>
+                        <button onClick={() => { setRemoveId(r.enrollmentId); setRemoveDate(TODAY_ISO) }} className="p-1 text-surface-400 hover:text-rose-400" title={t('trainingSlots.removeParticipant')}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -390,6 +397,11 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
             <p className="px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 capitalize">{formatMonth(month)}</p>
           </div>
           <div>
+            <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.startDay')}</label>
+            <input type="date" min={`${month}-01`} max={monthLastDay} value={addForm.startDate} onChange={e => setAddForm(f => ({ ...f, startDate: e.target.value }))} className={inputClass} />
+            <p className="mt-1 text-xs text-surface-500">{t('trainingSlots.startDayHint')}</p>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.duration')}</label>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-surface-200 text-sm">
@@ -415,12 +427,16 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
       <ConfirmDialog
         isOpen={!!removeId}
         onClose={() => setRemoveId(null)}
-        onConfirm={() => { if (removeId) { removeMut.mutate(removeId); setRemoveId(null) } }}
+        onConfirm={() => { if (removeId && removeDate) { removeMut.mutate({ id: removeId, date: removeDate }); setRemoveId(null) } }}
         title={t('trainingSlots.removeConfirmTitle')}
         message={t('trainingSlots.removeConfirm')}
         confirmLabel={t('trainingSlots.removeParticipant')}
         danger
-      />
+      >
+        <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.removeDateLabel')}</label>
+        <input type="date" max={TODAY_ISO} value={removeDate} onChange={e => setRemoveDate(e.target.value)} className={inputClass} />
+        <p className="mt-2 text-xs text-surface-500">{t('trainingSlots.removeDateHint')}</p>
+      </ConfirmDialog>
 
       <Modal isOpen={isDeactivating} onClose={() => setIsDeactivating(false)} title={t('trainingSlots.deactivateTitle')}>
         <div className="space-y-4">

@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -147,6 +148,27 @@ public class TrainingBillingService {
             }
         }
         return null;
+    }
+
+    /**
+     * The subscription's billable session dates in the month on or after {@code from} (inclusive), ascending. Same
+     * rule as the monthly bill: the slot's weekday occurrences minus the closed dates (days off, single cancellations,
+     * scheduled deactivation), and never before the subscription's billable-from anchor day. Used to work out which
+     * paid sessions a removed subscriber will not attend and is therefore owed back.
+     */
+    @Transactional(readOnly = true)
+    public List<LocalDate> billableSessionDates(TrainingEnrollment te, YearMonth month, LocalDate from) {
+        var slot = te.getSlot();
+        Set<LocalDate> closed = closedIncludingDeactivation(slot, month);
+        List<LocalDate> dates = new ArrayList<>();
+        for (int day = billableFromDay(te, month); day <= month.lengthOfMonth(); day++) {
+            LocalDate date = LocalDate.of(month.getYear(), month.getMonthValue(), day);
+            if (date.getDayOfWeek().getValue() == slot.getDayOfWeek() && !closed.contains(date)
+                    && !date.isBefore(from)) {
+                dates.add(date);
+            }
+        }
+        return dates;
     }
 
     /**

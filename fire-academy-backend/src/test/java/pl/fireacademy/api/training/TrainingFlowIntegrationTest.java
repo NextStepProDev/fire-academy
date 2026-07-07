@@ -1555,21 +1555,149 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldBlockAdminRemovalWhilePaidThenAllowAfterUnpay() throws Exception {
+    void shouldRemovePaidParticipantRegisteringRefundAndKeepingArchive() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        var te = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst();
+        UUID enrollmentId = te.getId();
+        // A paid future month (insert directly — the pay endpoint is time-gated to the week before the month).
+        trainingPaymentRepository.save(new pl.fireacademy.domain.training.TrainingPayment(te, YearMonth.now().plusMonths(1)));
+
+        // Removal is now allowed even with a paid month: the unused sessions become a pending refund.
+        mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        // The subscription is kept as an archived record (it anchors the refund) and no longer covers the future month.
+        org.junit.jupiter.api.Assertions.assertTrue(trainingEnrollmentRepository.findById(enrollmentId).isPresent());
+        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(NEXT, slot.getId())); // spot freed going forward
+        // The paid month's row stays (not reverted) and a pending refund is now owed for every session of it.
+        org.junit.jupiter.api.Assertions.assertTrue(
+                trainingPaymentRepository.findByEnrollmentIdAndYearMonth(enrollmentId, NEXT).isPresent());
+        int mondaysNext = mondaysIn(YearMonth.now().plusMonths(1));
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(mondaysNext)); // full future month refunded
+    }
+
+    @Test
+    void shouldReject400WhenRemovalDateIsInTheFuture() throws Exception {
         TrainingSlot slot = seedSlot(8);
         String admin = adminToken();
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
         UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
-        markPaid(enrollmentId, CURRENT, admin);
 
-        // Hard delete would cascade the payment row away without a trace — revert the payment first.
         mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+                .param("date", LocalDate.now().plusDays(1).toString())
                 .header("Authorization", "Bearer " + admin))
-            .andExpect(status().isConflict());
-        setPaid(enrollmentId, CURRENT, false, admin, status().isNoContent());
-        mockMvc.perform(delete("/api/admin/training-enrollments/" + enrollmentId)
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRemoveUserFromAllTrainingsAtOnceWithGroupedRefund() throws Exception {
+        TrainingSlot slot1 = seedSlot(8);
+        TrainingSlot slot2 = seedSlot(8);
+        String admin = adminToken();
+        String token = userToken();
+        enroll(token, slot1.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        enroll(token, slot2.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID userId = regularUserId();
+        // Prepay a future month on each subscription (insert directly — the pay endpoint is time-gated).
+        for (var te : trainingEnrollmentRepository.findActiveByUser(userId, CURRENT)) {
+            trainingPaymentRepository.save(new pl.fireacademy.domain.training.TrainingPayment(te, YearMonth.now().plusMonths(1)));
+        }
+
+        mockMvc.perform(delete("/api/admin/training-enrollments/user/" + userId)
                 .header("Authorization", "Bearer " + admin))
             .andExpect(status().isNoContent());
+
+        // Both trainings ended (no longer active for the future month) but kept as archives anchoring the refunds.
+        org.junit.jupiter.api.Assertions.assertTrue(
+                trainingEnrollmentRepository.findActiveByUser(userId, NEXT).isEmpty());
+        org.junit.jupiter.api.Assertions.assertEquals(8, availableSpots(NEXT, slot1.getId()));
+        // A pending refund for every session of both prepaid future months.
+        int expected = mondaysIn(YearMonth.now().plusMonths(1)) * 2;
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(expected));
+        // ONE grouped e-mail per person — never a per-training one for a bulk removal.
+        verify(trainingMail).sendAdminRemovedAll(eq(USER_EMAIL), anyString(), any(), any());
+        verify(trainingMail, org.mockito.Mockito.never()).sendAdminRemoved(any(), any(), any());
+    }
+
+    @Test
+    void shouldAddParticipantWithAMidMonthStartDayAndProrateFirstMonth() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        createUserAndGetToken("mid@fireacademy.test", "Mid", "Month", UserRole.USER);
+        UUID uid = userRepository.findByEmail("mid@fireacademy.test").orElseThrow().getId();
+        String from = NEXT + "-15";
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/enrollments")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + uid + "\",\"startMonth\":\"" + NEXT + "\",\"billableFrom\":\"" + from + "\"}"))
+            .andExpect(status().isCreated());
+
+        // The first month bills only the sessions on/after the start day, not the whole month.
+        int expectedSessions = mondaysInFrom(YearMonth.now().plusMonths(1), 15);
+        var json = mockMvc.perform(get("/api/admin/training-slots/" + slot.getId() + "/enrollments")
+                .param("month", NEXT).header("Authorization", "Bearer " + admin))
+            .andReturn().getResponse().getContentAsString();
+        double amount = ((Number) com.jayway.jsonpath.JsonPath.read(json, "$[0].amount")).doubleValue();
+        org.junit.jupiter.api.Assertions.assertEquals(90.0 * expectedSessions, amount, 0.001);
+    }
+
+    @Test
+    void shouldReject400WhenAddStartDayIsOutsideTheStartMonth() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        createUserAndGetToken("out@fireacademy.test", "Out", "Range", UserRole.USER);
+        UUID uid = userRepository.findByEmail("out@fireacademy.test").orElseThrow().getId();
+        // Start day in the current month while the subscription starts NEXT month → invalid.
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/enrollments")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + uid + "\",\"startMonth\":\"" + NEXT + "\",\"billableFrom\":\"" + CURRENT + "-01\"}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnTrainingHistoryForOneClient() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        String admin = adminToken();
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID userId = regularUserId();
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(userId, CURRENT).getFirst().getId();
+        markPaid(enrollmentId, CURRENT, admin);
+
+        mockMvc.perform(get("/api/admin/training-enrollments/user/" + userId + "/history")
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.subscriptions.length()").value(1))
+            .andExpect(jsonPath("$.subscriptions[0].active").value(true))
+            .andExpect(jsonPath("$.payments.length()").value(1))
+            .andExpect(jsonPath("$.payments[0].yearMonth").value(CURRENT))
+            .andExpect(jsonPath("$.refunds.length()").value(0));
+    }
+
+    /** Count of Mondays (the seeded slot's weekday) in a month — for asserting a full-month refund deterministically. */
+    private static int mondaysIn(YearMonth month) {
+        int count = 0;
+        for (int day = 1; day <= month.lengthOfMonth(); day++) {
+            if (month.atDay(day).getDayOfWeek().getValue() == DAY) count++;
+        }
+        return count;
+    }
+
+    /** Count of Mondays on/after {@code fromDay} in a month — for asserting a prorated first-month bill. */
+    private static int mondaysInFrom(YearMonth month, int fromDay) {
+        int count = 0;
+        for (int day = fromDay; day <= month.lengthOfMonth(); day++) {
+            if (month.atDay(day).getDayOfWeek().getValue() == DAY) count++;
+        }
+        return count;
     }
 
     @Test

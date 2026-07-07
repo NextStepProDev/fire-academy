@@ -105,7 +105,10 @@ public final class TrainingSlotDtos {
     public record AdminAddEnrollmentRequest(
             @NotNull UUID userId,
             @NotNull YearMonth startMonth,
-            @Nullable @Min(1) @Max(24) Integer months
+            @Nullable @Min(1) @Max(24) Integer months,
+            // Optional real start day within the start month — the first month is then billed from this day
+            // (a mid-month joiner). Null = whole first month (billed from the sign-up day, as before).
+            @Nullable LocalDate billableFrom
     ) {}
 
     public record SetPaymentRequest(

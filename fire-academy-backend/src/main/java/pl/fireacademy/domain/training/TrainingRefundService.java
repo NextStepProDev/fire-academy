@@ -133,6 +133,55 @@ public class TrainingRefundService {
         }
     }
 
+    /**
+     * The organizer removed a subscriber outright, effective {@code effectiveFrom} (possibly backdated). Register a
+     * refund for every paid session on or after that date that the subscriber will no longer attend — one session's
+     * price each. Mirrors {@link #registerForSlotSession}: only months already paid count, a date already closed by
+     * another mechanism owes nothing (it was never part of the live bill), and the per-month total can never exceed
+     * what that month's payment actually collected (frozen {@code payment.amount} as the ceiling). In the effective
+     * month only sessions from the removal date on are refunded (already-attended ones stay paid); whole later paid
+     * months are refunded in full.
+     *
+     * @return how many refunds were created — 0 means nothing was paid ahead, so the caller can hard-delete the
+     *         subscription instead of keeping it as an archived record that anchors the refunds.
+     */
+    @Transactional
+    public int registerForEnrollmentRemoval(TrainingEnrollment te, LocalDate effectiveFrom, @Nullable String label) {
+        var slot = te.getSlot();
+        if (slot.getPrice() == null) {
+            return 0;
+        }
+        var fromMonth = YearMonth.from(effectiveFrom);
+        int created = 0;
+        for (var pm : paymentRepository.findPaidMonths(te.getId())) {
+            var month = YearMonth.parse(pm);
+            if (month.isBefore(fromMonth)) {
+                continue;
+            }
+            var start = month.equals(fromMonth) ? effectiveFrom : month.atDay(1);
+            var payment = paymentRepository.findByEnrollmentIdAndYearMonth(te.getId(), pm).orElse(null);
+            // Running total for this month so the cap holds across the several rows we save in one pass (a single
+            // re-query would not see the rows we just saved before the transaction flushes).
+            var refundedSoFar = refundRepository.sumForEnrollmentAndMonth(te.getId(), pm);
+            for (var date : billingService.billableSessionDates(te, month, start)) {
+                if (closedByOtherCause(slot, date, ClosureCause.SINGLE_SESSION)) {
+                    continue;
+                }
+                if (refundRepository.existsByEnrollmentIdAndSessionDate(te.getId(), date)) {
+                    continue;
+                }
+                if (payment != null && payment.getAmount() != null
+                        && refundedSoFar.add(slot.getPrice()).compareTo(payment.getAmount()) > 0) {
+                    break;   // no room left in what this month collected
+                }
+                refundRepository.save(new TrainingRefund(te, date, slot.getPrice(), TrainingRefund.TYPE_SESSION, label));
+                refundedSoFar = refundedSoFar.add(slot.getPrice());
+                created++;
+            }
+        }
+        return created;
+    }
+
     /** A day off was added — register refunds for paid subscribers of every affected slot on that weekday. */
     @Transactional
     public void registerForHoliday(LocalDate date, @Nullable String label) {

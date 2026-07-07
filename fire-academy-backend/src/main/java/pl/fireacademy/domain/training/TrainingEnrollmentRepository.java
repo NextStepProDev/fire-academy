@@ -91,6 +91,17 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<TrainingEnrollment> findActiveSubscribersForSlot(@Param("slotId") UUID slotId, @Param("month") String month);
 
+    /** All of a user's subscriptions (any status), newest first — for the admin training history of one person. */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.slot s
+        JOIN FETCH s.eventType
+        LEFT JOIN FETCH s.instructor
+        WHERE te.user.id = :userId
+        ORDER BY te.createdAt DESC
+        """)
+    List<TrainingEnrollment> findAllByUserWithSlot(@Param("userId") UUID userId);
+
     /** Everyone ever enrolled in the slot (archive of a deleted slot — contact data). */
     @Query("""
         SELECT te FROM TrainingEnrollment te

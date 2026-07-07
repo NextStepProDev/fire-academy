@@ -321,6 +321,26 @@ public class TrainingMailService {
         mail.send(email, msg.get("email.training.adminremove.subject", slot.trainingName()), branded(content, true));
     }
 
+    // ── Organizer removed the user from ALL their trainings — ONE grouped email per person ──
+    @Async("mailExecutor")
+    public void sendAdminRemovedAll(String email, String firstName, List<SessionLine> sessions,
+                                    @Nullable BigDecimal totalRefund) {
+        String content = """
+                <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+                %s
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+            """.formatted(
+                msg.get("email.training.adminremoveall.greeting", esc(firstName)),
+                msg.get("email.training.adminremoveall.body"),
+                sessionListHtml(sessions),
+                refundLineTotal(totalRefund),
+                msg.get("email.training.adminremoveall.footer")
+        );
+        mail.send(email, msg.get("email.training.adminremoveall.subject"), branded(content, true));
+    }
+
     // ── J: slot deactivated from a specific date (user) ─────────────────────
     @Async("mailExecutor")
     public void sendSlotDeactivation(String email, String firstName, SlotInfo slot, LocalDate from) {

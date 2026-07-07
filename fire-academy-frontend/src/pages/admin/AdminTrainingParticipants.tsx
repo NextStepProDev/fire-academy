@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Users, Check, X, Phone, Search, Mail, ChevronDown, ChevronRight, Pin, UserRound, CalendarClock } from 'lucide-react'
+import { Users, Check, X, Phone, Search, Mail, ChevronDown, ChevronRight, Pin, UserRound, UserMinus, CalendarClock } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
 import { formatDate } from '../../utils/dates'
 import type { MonthlyTrainingLine, UserMonthlyPayment } from '../../types'
-import { AdminUserDetail } from './AdminUserDetail'
 import clsx from 'clsx'
 
 type Status = '' | 'paid' | 'unpaid' | 'overdue'
@@ -18,6 +18,7 @@ const selectClass =
   'px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 const money = (n: number) => `${Math.round(n * 100) / 100} zł`
+const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
 const timeLabel = (l: MonthlyTrainingLine) =>
   `${l.startTime.slice(0, 5)}${l.endTime ? `–${l.endTime.slice(0, 5)}` : ''}`
@@ -27,7 +28,7 @@ const timeLabel = (l: MonthlyTrainingLine) =>
  * per training). Filter by trainer / type / payment status; expand a person to see their trainings, settle
  * payments (whole month or a single training), and set the discretionary first-month start date.
  */
-export function AdminTrainingParticipants() {
+export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId: string) => void }) {
   const { t } = useTranslation('admin')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
@@ -41,7 +42,6 @@ export function AdminTrainingParticipants() {
   const [type, setType] = useState('') // '' = all, otherwise eventTypeId
   const [status, setStatus] = useState<Status>('')
   const [openUsers, setOpenUsers] = useState<Set<string>>(new Set())
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -87,6 +87,15 @@ export function AdminTrainingParticipants() {
     mutationFn: (userIds: string[]) =>
       adminApi.sendUserEmail({ subject, message, audience: 'SELECTED', userIds }),
     onSuccess: () => { showToast(t('participants.remindSent'), 'success'); setComposerOpen(false) },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  // Remove a person from ALL their trainings at once, effective from a chosen date.
+  const [removeAll, setRemoveAll] = useState<{ userId: string; name: string } | null>(null)
+  const [removeAllDate, setRemoveAllDate] = useState(TODAY_ISO)
+  const removeAllMut = useMutation({
+    mutationFn: ({ userId, date }: { userId: string; date: string }) => adminApi.removeAllTrainingEnrollments(userId, date),
+    onSuccess: () => { invalidate(); showToast(t('participants.removeAllSuccess'), 'success') },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
@@ -172,10 +181,6 @@ export function AdminTrainingParticipants() {
 
   // Last day of the viewed month (ISO), to cap the "count from" date pickers to that month.
   const monthLastDay = `${month}-${String(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()).padStart(2, '0')}`
-
-  if (selectedUserId) {
-    return <AdminUserDetail userId={selectedUserId} onBack={() => setSelectedUserId(null)} />
-  }
 
   return (
     <div>
@@ -336,12 +341,21 @@ export function AdminTrainingParticipants() {
                       </button>
 
                       <button
-                        onClick={() => setSelectedUserId(u.userId)}
+                        onClick={() => onOpenUser(u.userId)}
                         title={t('participants.openProfile')}
                         aria-label={t('participants.openProfile')}
                         className="shrink-0 text-surface-400 hover:text-primary-300"
                       >
                         <UserRound className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => { setRemoveAll({ userId: u.userId, name: `${u.firstName} ${u.lastName}` }); setRemoveAllDate(TODAY_ISO) }}
+                        title={t('participants.removeAll')}
+                        aria-label={t('participants.removeAll')}
+                        className="shrink-0 text-surface-400 hover:text-rose-400"
+                      >
+                        <UserMinus className="w-4 h-4" />
                       </button>
 
                       {/* Global first-month start date for this person — applies to all their first, unpaid trainings. */}
@@ -440,6 +454,20 @@ export function AdminTrainingParticipants() {
         </>
       )}
       </>)}
+
+      <ConfirmDialog
+        isOpen={!!removeAll}
+        onClose={() => setRemoveAll(null)}
+        onConfirm={() => { if (removeAll && removeAllDate) { removeAllMut.mutate({ userId: removeAll.userId, date: removeAllDate }); setRemoveAll(null) } }}
+        title={t('participants.removeAllTitle')}
+        message={t('participants.removeAllConfirm', { name: removeAll?.name ?? '' })}
+        confirmLabel={t('participants.removeAll')}
+        danger
+      >
+        <label className="block text-sm font-medium text-surface-300 mb-1">{t('participants.removeAllDateLabel')}</label>
+        <input type="date" max={TODAY_ISO} value={removeAllDate} onChange={e => setRemoveAllDate(e.target.value)} className={selectClass} />
+        <p className="mt-2 text-xs text-surface-500">{t('participants.removeAllDateHint')}</p>
+      </ConfirmDialog>
     </div>
   )
 }

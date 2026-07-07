@@ -55,6 +55,17 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
     @Query("SELECT r FROM TrainingRefund r WHERE r.enrollment.user.id = :userId AND r.settledAt IS NULL")
     List<TrainingRefund> findPendingByUser(@Param("userId") UUID userId);
 
+    /** All refunds of a user's subscriptions (pending or settled), newest first — the admin training history. */
+    @Query("""
+        SELECT r FROM TrainingRefund r
+        JOIN FETCH r.enrollment e
+        JOIN FETCH e.slot s
+        JOIN FETCH s.eventType
+        WHERE e.user.id = :userId
+        ORDER BY r.createdAt DESC
+        """)
+    List<TrainingRefund> findByUserWithSlot(@Param("userId") UUID userId);
+
     /** Pending refunds of a subscription in a month — to revoke when its payment is reverted. */
     @Query("""
         SELECT r FROM TrainingRefund r

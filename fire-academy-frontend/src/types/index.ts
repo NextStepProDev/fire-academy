@@ -362,6 +362,57 @@ export interface TrainingRosterEntry {
   overdue: boolean
 }
 
+/** One client's training-focused profile (admin), opened from the trainings section. */
+export interface TrainingUserSubscription {
+  enrollmentId: string
+  trainingName: string
+  instructorName: string | null
+  dayOfWeek: number
+  startTime: string
+  endTime: string | null
+  price: number | null
+  startMonth: string
+  endMonth: string | null
+  billableFrom: string | null
+  enrolledAt: string
+  active: boolean
+}
+
+export interface TrainingUserPayment {
+  trainingName: string
+  yearMonth: string
+  amount: number | null
+  creditApplied: number
+  pinned: boolean
+  paidAt: string
+}
+
+export interface TrainingUserRefund {
+  trainingName: string
+  sessionDate: string
+  amount: number
+  type: string
+  label: string | null
+  owedSince: string
+  settledAt: string | null
+  settlementType: SettlementType | null
+  /** For a CREDITED surplus: the month whose paid bill it discounted (YYYY-MM), or null if not yet consumed. */
+  consumedInMonth: string | null
+}
+
+export interface TrainingUserHistory {
+  userId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string | null
+  joinedAt: string
+  creditBalance: number
+  subscriptions: TrainingUserSubscription[]
+  payments: TrainingUserPayment[]
+  refunds: TrainingUserRefund[]
+}
+
 /** Logged-in user's subscription to a slot — account view. */
 export interface MyTrainingEnrollment {
   id: string

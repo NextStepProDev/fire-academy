@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import clsx from 'clsx'
@@ -9,6 +10,7 @@ import { AdminTrainingParticipants } from './admin/AdminTrainingParticipants'
 import { AdminCancelledSessions } from './admin/AdminCancelledSessions'
 import { AdminTrainingHolidays } from './admin/AdminTrainingHolidays'
 import { AdminTrainingRefunds } from './admin/AdminTrainingRefunds'
+import { AdminTrainingUserDetail } from './admin/AdminTrainingUserDetail'
 import { AdminArchive } from './admin/AdminArchive'
 import { AdminUsers } from './admin/AdminUsers'
 import type { EventCategory } from '../types'
@@ -34,6 +36,9 @@ export function AdminPage() {
   const { t } = useTranslation('common')
   const { tab } = useParams<{ tab: string }>()
   const navigate = useNavigate()
+  // When a person's profile is opened from the "Uczestnicy" section, it takes over the whole Treningi tab
+  // (the global training sections below it are hidden) so it never looks like they belong to that one person.
+  const [trainingUserId, setTrainingUserId] = useState<string | null>(null)
 
   if (!tab || !validTabs.has(tab)) {
     return <Navigate to="/admin/treningi" replace />
@@ -47,7 +52,7 @@ export function AdminPage() {
         {tabs.map(item => (
           <button
             key={item.key}
-            onClick={() => navigate(`/admin/${item.key}`)}
+            onClick={() => { setTrainingUserId(null); navigate(`/admin/${item.key}`) }}
             className={clsx(
               'px-4 py-2 text-sm font-medium rounded-t-lg transition-colors',
               tab === item.key
@@ -63,18 +68,20 @@ export function AdminPage() {
       {tab === 'kadra' && <AdminInstructors />}
 
       {categoryTabs[tab] && (
-        <div className="space-y-12">
-          {categoryTabs[tab] === 'TRAINING'
-            ? <>
-                <AdminTrainingParticipants />
-                <AdminTrainingSlots />
-                <AdminCancelledSessions />
-                <AdminTrainingHolidays />
-                <AdminTrainingRefunds />
-              </>
-            : <AdminEvents category={categoryTabs[tab]} />}
-          <AdminEventTypes category={categoryTabs[tab]} />
-        </div>
+        categoryTabs[tab] === 'TRAINING' && trainingUserId
+          ? <AdminTrainingUserDetail userId={trainingUserId} onBack={() => setTrainingUserId(null)} />
+          : <div className="space-y-12">
+              {categoryTabs[tab] === 'TRAINING'
+                ? <>
+                    <AdminTrainingParticipants onOpenUser={setTrainingUserId} />
+                    <AdminTrainingSlots />
+                    <AdminCancelledSessions />
+                    <AdminTrainingHolidays />
+                    <AdminTrainingRefunds />
+                  </>
+                : <AdminEvents category={categoryTabs[tab]} />}
+              <AdminEventTypes category={categoryTabs[tab]} />
+            </div>
       )}
 
       {tab === 'uzytkownicy' && <AdminUsers />}

@@ -35,4 +35,15 @@ public interface TrainingPaymentRepository extends JpaRepository<TrainingPayment
     /** Total surplus already consumed by this subscription's paid months. */
     @Query("SELECT COALESCE(SUM(p.creditApplied), 0) FROM TrainingPayment p WHERE p.enrollment.id = :enrollmentId")
     BigDecimal sumCreditAppliedForEnrollment(@Param("enrollmentId") UUID enrollmentId);
+
+    /** All payments of a user's subscriptions, newest first — the admin training history of one person. */
+    @Query("""
+        SELECT p FROM TrainingPayment p
+        JOIN FETCH p.enrollment e
+        JOIN FETCH e.slot s
+        JOIN FETCH s.eventType
+        WHERE e.user.id = :userId
+        ORDER BY p.createdAt DESC
+        """)
+    List<TrainingPayment> findByUserWithSlot(@Param("userId") UUID userId);
 }

@@ -139,4 +139,33 @@ class TrainingBillingServiceTest {
         assertEquals(true, billing.isPaymentOverdue(te, YearMonth.of(2020, 2)));   // its sessions are long past
         assertEquals(false, billing.isPaymentOverdue(te, YearMonth.of(2099, 2)));  // its sessions are far ahead
     }
+
+    @Test
+    void billableSessionDatesReturnsWeekdayOccurrencesFromTheGivenDate() {
+        // February 2027 Mondays: 1, 8, 15, 22. From the 9th on → only 15 and 22.
+        var te = enrollmentCreatedOn(LocalDate.of(2020, 1, 1));   // whole month billable (long-standing regular)
+        assertEquals(List.of(LocalDate.of(2027, 2, 15), LocalDate.of(2027, 2, 22)),
+                billing.billableSessionDates(te, YearMonth.of(2027, 2), LocalDate.of(2027, 2, 9)));
+    }
+
+    @Test
+    void billableSessionDatesSkipsSessionsBeforeAMidMonthJoinDay() {
+        // Joined on the 10th → not billed for the Mondays before it; from day 1 the list still starts at the 15th.
+        var te = enrollment(LocalDate.of(2027, 2, 10), null);
+        when(te.getStartMonth()).thenReturn(YearMonth.of(2027, 2));
+        assertEquals(List.of(LocalDate.of(2027, 2, 15), LocalDate.of(2027, 2, 22)),
+                billing.billableSessionDates(te, YearMonth.of(2027, 2), LocalDate.of(2027, 2, 1)));
+    }
+
+    @Test
+    void billableSessionDatesExcludesDeactivatedTail() {
+        // Slot stops from the 15th → only Mondays 1 and 8 remain, and from day 1 that is the whole list.
+        var slot = mondaySlot(LocalDate.of(2027, 2, 15));
+        var te = mock(TrainingEnrollment.class);
+        when(te.getSlot()).thenReturn(slot);
+        when(te.getCreatedAt()).thenReturn(LocalDate.of(2020, 1, 1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+        when(te.getBillableFrom()).thenReturn(null);
+        assertEquals(List.of(LocalDate.of(2027, 2, 1), LocalDate.of(2027, 2, 8)),
+                billing.billableSessionDates(te, YearMonth.of(2027, 2), LocalDate.of(2027, 2, 1)));
+    }
 }

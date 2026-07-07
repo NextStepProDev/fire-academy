@@ -72,10 +72,10 @@ export function AdminTrainingRefunds() {
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
-  const reason = (r: RefundEntry) =>
-    r.type === 'HOLIDAY'
-      ? (r.label ? `${t('trainingRefunds.reasonHoliday')} · ${r.label}` : t('trainingRefunds.reasonHoliday'))
-      : t('trainingRefunds.reasonSession')
+  const reason = (r: RefundEntry) => {
+    const base = r.type === 'HOLIDAY' ? t('trainingRefunds.reasonHoliday') : t('trainingRefunds.reasonSession')
+    return r.label ? `${base} · ${r.label}` : base
+  }
   const methodLabel = (r: RefundEntry) =>
     r.settlementType === 'CREDITED' ? t('trainingRefunds.methodCredited')
       : r.settlementType === 'MADE_UP' ? t('trainingRefunds.methodMadeUp')

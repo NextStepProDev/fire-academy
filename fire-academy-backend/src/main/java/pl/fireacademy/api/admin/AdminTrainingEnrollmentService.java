@@ -9,6 +9,10 @@ import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.TrainingMailService;
 
+import org.jspecify.annotations.Nullable;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashSet;
 import java.util.List;
@@ -20,6 +24,7 @@ public class AdminTrainingEnrollmentService {
     private final TrainingSlotRepository slotRepository;
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingPaymentRepository paymentRepository;
+    private final TrainingRefundRepository refundRepository;
     private final TrainingBillingService billing;
     private final TrainingCreditService creditService;
     private final TrainingRefundService refundService;
@@ -30,6 +35,7 @@ public class AdminTrainingEnrollmentService {
     public AdminTrainingEnrollmentService(TrainingSlotRepository slotRepository,
                                           TrainingEnrollmentRepository enrollmentRepository,
                                           TrainingPaymentRepository paymentRepository,
+                                          TrainingRefundRepository refundRepository,
                                           TrainingBillingService billing,
                                           TrainingCreditService creditService,
                                           TrainingRefundService refundService,
@@ -39,6 +45,7 @@ public class AdminTrainingEnrollmentService {
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.paymentRepository = paymentRepository;
+        this.refundRepository = refundRepository;
         this.billing = billing;
         this.creditService = creditService;
         this.refundService = refundService;
@@ -128,13 +135,21 @@ public class AdminTrainingEnrollmentService {
 
         var end = request.months() != null ? start.plusMonths(request.months() - 1L) : null;
 
+        // An explicit start day must fall inside the start month (the first month is then billed from that day).
+        var billableFrom = request.billableFrom();
+        if (billableFrom != null && !YearMonth.from(billableFrom).equals(start)) {
+            throw new IllegalArgumentException(msg.get("trainingenrollment.start.invalid"));
+        }
+
         if (enrollmentRepository.existsOverlapping(user.getId(), slotId, start.toString(),
                 end != null ? end.toString() : null)) {
             throw new IllegalStateException(msg.get("trainingenrollment.duplicate"));
         }
 
         // Admin may add participants beyond the capacity limit (deliberate overbooking) — no capacity check.
-        var saved = enrollmentRepository.save(new TrainingEnrollment(slot, user, start, end));
+        var enrollment = new TrainingEnrollment(slot, user, start, end);
+        enrollment.setBillableFrom(billableFrom);   // set before saving so the first-month bill prorates from it
+        var saved = enrollmentRepository.save(enrollment);
 
         // G: notify the user that the organizer added them.
         var info = slotInfo(slot);
@@ -146,28 +161,225 @@ public class AdminTrainingEnrollmentService {
                 start, request.months(), billingMonth, sessions, amount);
     }
 
-    /** Removal at any time — hard delete (frees the spot in all months). */
+    /**
+     * Removes a subscriber, effective {@code effectiveFrom} (defaults to today; may be backdated within the
+     * subscription). Every paid session from that date on that the subscriber will no longer attend is registered as
+     * a pending refund the organizer resolves later in the "Zwroty" tab. If nothing was paid ahead — no refund arises
+     * and no surplus credit is owed — the subscription is hard-deleted and leaves no trace on the user's history
+     * (the old behaviour). Otherwise it is kept as an ended record (it has to anchor the refunds / the credit) and
+     * simply stops covering the months after the removal, freeing the spot going forward.
+     */
     @Transactional
-    public void remove(UUID enrollmentId) {
+    public void remove(UUID enrollmentId, @Nullable LocalDate effectiveFrom) {
         var te = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.not.found")));
-        // Hard delete cascades the payment rows away. A paid current/future month would vanish without a
-        // trace (money collected, no service, no refund) — the admin has to revert those payments first.
-        var current = YearMonth.now();
-        for (var pm : paymentRepository.findPaidMonths(enrollmentId)) {
-            if (!YearMonth.parse(pm).isBefore(current)) {
-                throw new IllegalStateException(msg.get("trainingenrollment.remove.paid"));
-            }
-        }
-        // A CREDITED refund's surplus would cascade-delete with the enrollment, taking the money owed with it.
-        if (creditService.availableBalance(enrollmentId).signum() > 0) {
-            throw new IllegalStateException(msg.get("trainingenrollment.remove.credit"));
+        var today = LocalDate.now();
+        var effective = effectiveFrom != null ? effectiveFrom : today;
+        // Immediate effect or backdated within the subscription — never a future date, never before it started.
+        if (effective.isAfter(today) || effective.isBefore(te.getStartMonth().atDay(1))) {
+            throw new IllegalArgumentException(msg.get("trainingenrollment.remove.date.invalid"));
         }
         var user = te.getUser();
         var info = slotInfo(te.getSlot());
-        enrollmentRepository.delete(te);
-        // H: notify the user that the organizer removed them.
+        removeEnrollment(te, effective);
+        // H: notify the user that the organizer removed them from this one training.
         trainingMail.sendAdminRemoved(user.getEmail(), user.getFirstName(), info);
+    }
+
+    /**
+     * Removes a subscriber from ALL their live trainings at once, effective {@code effectiveFrom} (defaults to today;
+     * may be backdated, never a future date). Each subscription is ended exactly as in {@link #remove}: paid, unused
+     * sessions from that date on become pending refunds and the record is kept as an archive, or — if nothing was
+     * paid ahead — hard-deleted without a trace. The user gets ONE grouped e-mail listing everything they were taken
+     * off. For a training that starts after the removal date the effective date is its own start (you cannot remove
+     * someone from before a training even began).
+     */
+    @Transactional
+    public void removeAllForUser(UUID userId, @Nullable LocalDate effectiveFrom) {
+        var today = LocalDate.now();
+        var effective = effectiveFrom != null ? effectiveFrom : today;
+        if (effective.isAfter(today)) {
+            throw new IllegalArgumentException(msg.get("trainingenrollment.remove.date.invalid"));
+        }
+        var enrollments = enrollmentRepository.findActiveByUser(userId, YearMonth.now().toString());
+        if (enrollments.isEmpty()) {
+            throw new NotFoundException(msg.get("trainingenrollment.not.found"));
+        }
+        var user = enrollments.getFirst().getUser();
+        var lines = new java.util.ArrayList<TrainingMailService.SessionLine>();
+        var totalRefund = BigDecimal.ZERO;
+        for (var te : enrollments) {
+            var eff = effective.isBefore(te.getStartMonth().atDay(1)) ? te.getStartMonth().atDay(1) : effective;
+            var slot = te.getSlot();
+            lines.add(new TrainingMailService.SessionLine(slot.getEventType().getName(),
+                    slot.getStartTime(), slot.getEndTime()));
+            totalRefund = totalRefund.add(removeEnrollment(te, eff));
+        }
+        // ONE grouped e-mail per person (like a day-off / instructor-day cancellation), not one per training.
+        trainingMail.sendAdminRemovedAll(user.getEmail(), user.getFirstName(), lines,
+                totalRefund.signum() > 0 ? totalRefund : null);
+    }
+
+    /**
+     * Ends one subscription effective {@code effective}: registers refunds for its paid, unused sessions and keeps it
+     * as an archived record, or hard-deletes it when nothing is owed. Does not send any e-mail — the caller decides
+     * whether to notify per-training or with one grouped message. Returns the money refunded for this training (0 when
+     * nothing was owed), so a bulk caller can sum a grouped total.
+     */
+    private BigDecimal removeEnrollment(TrainingEnrollment te, LocalDate effective) {
+        int refunds = refundService.registerForEnrollmentRemoval(te, effective, msg.get("trainingrefund.label.removal"));
+        var price = te.getSlot().getPrice();
+        var refundAmount = price != null ? price.multiply(BigDecimal.valueOf(refunds)) : BigDecimal.ZERO;
+
+        // Nothing paid ahead and no surplus owed → hard-delete: the row (and its past payment rows) cascades away
+        // entirely, leaving no trace.
+        if (refunds == 0 && creditService.availableBalance(te.getId()).signum() == 0) {
+            enrollmentRepository.delete(te);
+            return refundAmount;
+        }
+
+        // Money is owed back (pending refunds) or credit is still held → keep the subscription as an ended record so
+        // the refunds stay anchored to it. End coverage at the removal: the effective month is retained only if the
+        // subscriber still attended part of it (a session before the removal date), otherwise it ends the month before.
+        var fromMonth = YearMonth.from(effective);
+        boolean attendedPartOfMonth = billing.billableSessionDates(te, fromMonth, fromMonth.atDay(1)).stream()
+                .anyMatch(d -> d.isBefore(effective));
+        var endMonth = attendedPartOfMonth ? fromMonth : fromMonth.minusMonths(1);
+        // Never end before the subscription started (a removal on/before its very first session leaves the start
+        // month as the minimal valid span) — the period check constraint requires end_month >= start_month.
+        te.setEndMonth(endMonth.isBefore(te.getStartMonth()) ? te.getStartMonth() : endMonth);
+        te.setExpiryNotified(true);   // the daily scheduler must not also send a generic "subscription expired" mail
+        return refundAmount;
+    }
+
+    /**
+     * The training-focused profile of one client: their subscriptions (active + ended), every month they paid for
+     * (with when and how much surplus it absorbed), and every refund with how it was resolved — plus the unused
+     * surplus still owed. Everything about this client's trainings in one place.
+     */
+    @Transactional(readOnly = true)
+    public TrainingUserHistoryDtos.TrainingUserHistory getUserHistory(UUID userId) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.user.not.found")));
+        var current = YearMonth.now();
+
+        var subscriptions = new java.util.ArrayList<TrainingUserHistoryDtos.Subscription>();
+        var creditBalance = BigDecimal.ZERO;
+        for (var te : enrollmentRepository.findAllByUserWithSlot(userId)) {
+            var slot = te.getSlot();
+            var instr = slot.getInstructor();
+            boolean active = te.getEndMonth() == null || !te.getEndMonth().isBefore(current);
+            subscriptions.add(new TrainingUserHistoryDtos.Subscription(
+                    te.getId(), slot.getEventType().getName(),
+                    instr != null ? instr.getFirstName() + " " + instr.getLastName() : null,
+                    slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime(), slot.getPrice(),
+                    te.getStartMonth().toString(), te.getEndMonth() != null ? te.getEndMonth().toString() : null,
+                    te.getBillableFrom(), te.getCreatedAt(), active));
+            creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
+        }
+
+        var paymentRows = paymentRepository.findByUserWithSlot(userId);
+        var payments = paymentRows.stream()
+                .map(p -> new TrainingUserHistoryDtos.Payment(
+                        p.getEnrollment().getSlot().getEventType().getName(),
+                        p.getYearMonth().toString(), p.getAmount(), p.getCreditApplied(), p.isPinned(), p.getCreatedAt()))
+                .toList();
+
+        var refundRows = refundRepository.findByUserWithSlot(userId);
+        // Reconstruct which paid month each CREDITED surplus actually discounted (the ledger only stores it as a
+        // balance). Per subscription: credited refunds funnel — earliest source first — into the paid months that
+        // absorbed surplus (credit_applied), in calendar order.
+        var consumedMonthByRefund = mapCreditConsumption(refundRows, paymentRows);
+        var refunds = refundRows.stream()
+                .map(r -> new TrainingUserHistoryDtos.Refund(
+                        r.getEnrollment().getSlot().getEventType().getName(),
+                        r.getSessionDate(), r.getAmount(), r.getType(), r.getLabel(),
+                        r.getCreatedAt(), r.getSettledAt(), r.getSettlementType(),
+                        consumedMonthByRefund.get(r.getId())))
+                .toList();
+
+        return new TrainingUserHistoryDtos.TrainingUserHistory(
+                userId, user.getFirstName(), user.getLastName(), user.getEmail(), user.getPhone(),
+                user.getCreatedAt(), creditBalance, subscriptions, payments, refunds);
+    }
+
+    /**
+     * Which paid month each CREDITED refund's surplus discounted. The ledger stores surplus only as a balance, so we
+     * reconstruct it: per subscription the credited refunds are matched — earliest source month first — to the paid
+     * months that absorbed surplus (their frozen credit_applied), in calendar order.
+     */
+    private static java.util.Map<UUID, String> mapCreditConsumption(List<TrainingRefund> refunds,
+                                                                     List<TrainingPayment> payments) {
+        var creditedByEnrollment = new java.util.HashMap<UUID, List<CreditedRef>>();
+        for (var r : refunds) {
+            if (!TrainingRefund.SETTLEMENT_CREDITED.equals(r.getSettlementType())) {
+                continue;
+            }
+            creditedByEnrollment.computeIfAbsent(r.getEnrollment().getId(), k -> new java.util.ArrayList<>())
+                    .add(new CreditedRef(r.getId(), r.getYearMonth().toString(), r.getCreatedAt(), r.getAmount()));
+        }
+        var consumersByEnrollment = new java.util.HashMap<UUID, List<CreditConsumer>>();
+        for (var p : payments) {
+            if (p.getCreditApplied().signum() <= 0) {
+                continue;
+            }
+            consumersByEnrollment.computeIfAbsent(p.getEnrollment().getId(), k -> new java.util.ArrayList<>())
+                    .add(new CreditConsumer(p.getYearMonth().toString(), p.getCreditApplied()));
+        }
+        var result = new java.util.HashMap<UUID, String>();
+        for (var e : creditedByEnrollment.entrySet()) {
+            allocateCreditConsumption(e.getValue(),
+                    consumersByEnrollment.getOrDefault(e.getKey(), List.of()), result);
+        }
+        return result;
+    }
+
+    /** One CREDITED refund's surplus, with the month it came from. */
+    record CreditedRef(UUID id, String sourceMonth, java.time.Instant createdAt, BigDecimal amount) {}
+
+    /** A paid month that absorbed surplus, with how much of it is still to be attributed to a source. */
+    static final class CreditConsumer {
+        final String month;
+        BigDecimal remaining;
+        CreditConsumer(String month, BigDecimal remaining) { this.month = month; this.remaining = remaining; }
+    }
+
+    /**
+     * Attributes each credited surplus to the paid month(s) that absorbed it — earliest source into the earliest
+     * paying month — recording each surplus's first funded month (the common case is one month). A surplus no paid
+     * month absorbed is left unmapped (still available). Package-private for direct unit testing; does not mutate
+     * its inputs.
+     */
+    static void allocateCreditConsumption(List<CreditedRef> credited, List<CreditConsumer> consumers,
+                                          java.util.Map<UUID, String> out) {
+        var sortedCredited = credited.stream()
+                .sorted(java.util.Comparator.comparing(CreditedRef::sourceMonth).thenComparing(CreditedRef::createdAt))
+                .toList();
+        var queue = consumers.stream()
+                .sorted(java.util.Comparator.comparing(c -> c.month))
+                .map(c -> new CreditConsumer(c.month, c.remaining))
+                .toList();
+        for (var cr : sortedCredited) {
+            var amt = cr.amount();
+            String target = null;
+            for (var c : queue) {
+                if (amt.signum() <= 0) {
+                    break;
+                }
+                if (c.remaining.signum() <= 0) {
+                    continue;
+                }
+                var take = amt.min(c.remaining);
+                if (target == null) {
+                    target = c.month;
+                }
+                c.remaining = c.remaining.subtract(take);
+                amt = amt.subtract(take);
+            }
+            if (target != null) {
+                out.put(cr.id(), target);
+            }
+        }
     }
 
     private TrainingMailService.SlotInfo slotInfo(TrainingSlot slot) {

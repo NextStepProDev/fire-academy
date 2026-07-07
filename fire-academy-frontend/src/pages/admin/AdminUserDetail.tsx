@@ -8,8 +8,10 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { TrainingHistoryPanel } from './TrainingHistoryPanel'
 import { useToast } from '../../context/ToastContext'
 import type { EventCategory, EventInstance, UserEnrollment } from '../../types'
+import clsx from 'clsx'
 
 const categoryLabelKey: Record<EventCategory, string> = {
   TRAINING: 'archive.categoryTraining',
@@ -43,10 +45,20 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const [note, setNote] = useState('')
   const [archiveExpanded, setArchiveExpanded] = useState(false)
   const [archivePage, setArchivePage] = useState(1)
+  // Events and trainings are two separate worlds the admin comes here for one at a time — a segmented switch keeps
+  // each self-contained instead of stacking mixed, half-collapsible blocks.
+  const [section, setSection] = useState<'events' | 'trainings'>('events')
 
   const userQuery = useQuery({
     queryKey: ['admin-user', userId],
     queryFn: () => adminApi.getUser(userId),
+  })
+
+  // The client's training history — fetched up front so the switch shows a count and flips instantly. This makes
+  // the "Users" tab the one place to reach ANY client's trainings, even someone not currently enrolled anywhere.
+  const trainingHistoryQuery = useQuery({
+    queryKey: ['admin', 'training-user-history', userId],
+    queryFn: () => adminApi.getTrainingUserHistory(userId),
   })
 
   const trainingsQuery = useQuery({ queryKey: ['admin', 'events', 'TRAINING'], queryFn: () => adminApi.getEvents('TRAINING'), enabled: addOpen })
@@ -172,68 +184,96 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
         <ProfileRow label={t('users.created')} value={new Date(user.createdAt).toLocaleDateString('pl-PL')} />
       </div>
 
-      {/* Current enrollments */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-surface-100">{t('users.detail.currentTitle')}</h3>
-        <Button variant="primary" size="sm" onClick={openAdd}>
-          <CalendarPlus className="w-4 h-4 mr-2" />
-          {t('users.detail.addToEvent')}
-        </Button>
-      </div>
-      <div className="space-y-2 mb-8">
-        {user.currentEnrollments.length === 0
-          ? <p className="text-surface-500 text-sm">{t('users.detail.noCurrent')}</p>
-          : user.currentEnrollments.map(renderEnrollment)}
-      </div>
-
-      {/* Archive — collapsible, paginated 50/page */}
+      {/* Section switch: events vs trainings — the admin comes here for one or the other. */}
       {(() => {
-        const archiveTotal = user.pastEnrollments.length
-        const totalPages = Math.max(1, Math.ceil(archiveTotal / ARCHIVE_PAGE_SIZE))
-        const pageSafe = Math.min(Math.max(1, archivePage), totalPages)
-        const slice = user.pastEnrollments.slice(
-          (pageSafe - 1) * ARCHIVE_PAGE_SIZE,
-          pageSafe * ARCHIVE_PAGE_SIZE,
+        const eventsCount = user.currentEnrollments.length
+        const trainingsCount = trainingHistoryQuery.data?.subscriptions.filter(s => s.active).length
+        const tabClass = (active: boolean) => clsx(
+          'flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+          active ? 'bg-surface-800 text-primary-400 border border-primary-500/40' : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50',
         )
         return (
-          <>
-            <button
-              type="button"
-              onClick={() => setArchiveExpanded(v => !v)}
-              aria-expanded={archiveExpanded}
-              className="flex items-center gap-2 text-lg font-semibold text-surface-100 hover:text-primary-300 transition-colors mb-3"
-            >
-              {archiveExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-              {t('users.detail.archiveTitle')}
-              <span className="text-sm text-surface-500 font-normal">({archiveTotal})</span>
+          <div className="flex gap-2 mb-6">
+            <button type="button" onClick={() => setSection('events')} className={tabClass(section === 'events')}>
+              {t('users.detail.tabEvents')} <span className="text-surface-500">({eventsCount})</span>
             </button>
-            {archiveExpanded && (
-              archiveTotal === 0 ? (
-                <p className="text-surface-500 text-sm">{t('users.detail.noArchive')}</p>
-              ) : (
-                <>
-                  <div className="space-y-2">{slice.map(renderEnrollment)}</div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-4">
-                      <span className="text-sm text-surface-500">
-                        {t('users.pageOf', { page: pageSafe, total: totalPages })}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" disabled={pageSafe === 1} onClick={() => setArchivePage(p => p - 1)}>
-                          {t('users.prevPage')}
-                        </Button>
-                        <Button variant="ghost" size="sm" disabled={pageSafe === totalPages} onClick={() => setArchivePage(p => p + 1)}>
-                          {t('users.nextPage')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )
-            )}
-          </>
+            <button type="button" onClick={() => setSection('trainings')} className={tabClass(section === 'trainings')}>
+              {t('users.detail.tabTrainings')}{trainingsCount != null && <span className="text-surface-500"> ({trainingsCount})</span>}
+            </button>
+          </div>
         )
       })()}
+
+      {section === 'events' ? (
+        <>
+          {/* Current enrollments */}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-surface-100">{t('users.detail.currentTitle')}</h3>
+            <Button variant="primary" size="sm" onClick={openAdd}>
+              <CalendarPlus className="w-4 h-4 mr-2" />
+              {t('users.detail.addToEvent')}
+            </Button>
+          </div>
+          <div className="space-y-2 mb-8">
+            {user.currentEnrollments.length === 0
+              ? <p className="text-surface-500 text-sm">{t('users.detail.noCurrent')}</p>
+              : user.currentEnrollments.map(renderEnrollment)}
+          </div>
+
+          {/* Archive — collapsible, paginated 50/page */}
+          {(() => {
+            const archiveTotal = user.pastEnrollments.length
+            const totalPages = Math.max(1, Math.ceil(archiveTotal / ARCHIVE_PAGE_SIZE))
+            const pageSafe = Math.min(Math.max(1, archivePage), totalPages)
+            const slice = user.pastEnrollments.slice(
+              (pageSafe - 1) * ARCHIVE_PAGE_SIZE,
+              pageSafe * ARCHIVE_PAGE_SIZE,
+            )
+            return (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setArchiveExpanded(v => !v)}
+                  aria-expanded={archiveExpanded}
+                  className="flex items-center gap-2 text-lg font-semibold text-surface-100 hover:text-primary-300 transition-colors mb-3"
+                >
+                  {archiveExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  {t('users.detail.archiveTitle')}
+                  <span className="text-sm text-surface-500 font-normal">({archiveTotal})</span>
+                </button>
+                {archiveExpanded && (
+                  archiveTotal === 0 ? (
+                    <p className="text-surface-500 text-sm">{t('users.detail.noArchive')}</p>
+                  ) : (
+                    <>
+                      <div className="space-y-2">{slice.map(renderEnrollment)}</div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4">
+                          <span className="text-sm text-surface-500">
+                            {t('users.pageOf', { page: pageSafe, total: totalPages })}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" disabled={pageSafe === 1} onClick={() => setArchivePage(p => p - 1)}>
+                              {t('users.prevPage')}
+                            </Button>
+                            <Button variant="ghost" size="sm" disabled={pageSafe === totalPages} onClick={() => setArchivePage(p => p + 1)}>
+                              {t('users.nextPage')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                )}
+              </>
+            )
+          })()}
+        </>
+      ) : (
+        trainingHistoryQuery.isLoading || !trainingHistoryQuery.data
+          ? <LoadingSpinner />
+          : <TrainingHistoryPanel key={userId} history={trainingHistoryQuery.data} />
+      )}
 
       {/* Add-to-event modal */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={t('users.detail.addToEvent')}>

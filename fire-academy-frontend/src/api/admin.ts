@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -25,6 +25,7 @@ interface AdminAddTrainingEnrollmentRequest {
   userId: string
   startMonth: string
   months?: number
+  billableFrom?: string
 }
 
 interface TrainingSlotRow {
@@ -191,8 +192,14 @@ export const adminApi = {
     fetchApi<TrainingRosterEntry[]>(`/admin/training-slots/${slotId}/enrollments?month=${month}`),
   addTrainingEnrollment: (slotId: string, data: AdminAddTrainingEnrollmentRequest) =>
     fetchApi<void>(`/admin/training-slots/${slotId}/enrollments`, { method: 'POST', body: JSON.stringify(data) }),
-  removeTrainingEnrollment: (id: string) =>
-    fetchApi<void>(`/admin/training-enrollments/${id}`, { method: 'DELETE' }),
+  removeTrainingEnrollment: (id: string, date?: string) =>
+    fetchApi<void>(`/admin/training-enrollments/${id}${date ? `?date=${date}` : ''}`, { method: 'DELETE' }),
+  // Remove a person from ALL their live trainings at once, effective from the given date (defaults to today).
+  removeAllTrainingEnrollments: (userId: string, date?: string) =>
+    fetchApi<void>(`/admin/training-enrollments/user/${userId}${date ? `?date=${date}` : ''}`, { method: 'DELETE' }),
+  // One client's training-focused profile: subscriptions, payment history, refunds/settlements, surplus.
+  getTrainingUserHistory: (userId: string) =>
+    fetchApi<TrainingUserHistory>(`/admin/training-enrollments/user/${userId}/history`),
   setTrainingPayment: (id: string, data: { month: string; paid: boolean }) =>
     fetchApi<void>(`/admin/training-enrollments/${id}/payment`, { method: 'PUT', body: JSON.stringify(data) }),
   setTrainingStart: (id: string, startDate: string | null) =>
