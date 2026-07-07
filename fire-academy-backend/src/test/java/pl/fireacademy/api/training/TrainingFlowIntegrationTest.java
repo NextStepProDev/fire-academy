@@ -675,6 +675,43 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRegisterRefundsWhenDeletingSlotWithPaidFutureSessions() throws Exception {
+        // Regression: soft-deleting a slot must refund a subscriber for the upcoming sessions they already paid
+        // for, exactly as a deactivation would — otherwise the money is collected with no service, no refund trace.
+        TrainingSlot slot = seedSlot(8);
+        LocalDate date = nextSlotDate();
+        YearMonth ym = YearMonth.from(date);
+        String month = ym.toString();
+        String admin = adminToken();
+
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + month + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), month).getFirst().getId();
+        markPaid(enrollmentId, month, admin);
+
+        // Remaining slot occurrences in the paid month (from today on) = the refunds the deletion must create.
+        int expected = 0;
+        for (int d = 1; d <= ym.lengthOfMonth(); d++) {
+            LocalDate day = ym.atDay(d);
+            if (day.getDayOfWeek().getValue() == DAY && !day.isBefore(LocalDate.now())) expected++;
+        }
+
+        mockMvc.perform(delete("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNoContent());
+
+        // One pending refund per paid, upcoming session — each worth a single session's price (90).
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(expected))
+            .andExpect(jsonPath("$[0].amount").value(90))
+            .andExpect(jsonPath("$[0].type").value("SESSION"))
+            .andExpect(jsonPath("$[0].label").value("Usunięcie terminu"));
+        // The slot is gone from the catalog, but its refunds remain visible/settleable.
+        mockMvc.perform(get("/api/public/training-slots").param("month", month))
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void shouldRevokePendingRefundWhenSessionRestored() throws Exception {
         TrainingSlot slot = seedSlot(8);
         LocalDate date = nextSlotDate();

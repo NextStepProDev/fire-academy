@@ -154,7 +154,7 @@ public class AdminTrainingSlotService {
         // Every session from `from` on no longer happens — register refunds for already-paid subscribers,
         // exactly as if each of those sessions were cancelled. Bounded to the booking horizon; unpaid
         // months are no-ops (a refund arises only for a session in a month the subscriber has paid).
-        forEachSessionInDeactivationWindow(from, saved.getDayOfWeek(),
+        forEachSessionInWindow(from, saved.getDayOfWeek(),
                 d -> refundService.registerForSlotSession(saved, d, TrainingRefund.TYPE_SESSION, null,
                         TrainingRefundService.ClosureCause.DEACTIVATION));
 
@@ -177,9 +177,9 @@ public class AdminTrainingSlotService {
         var saved = slotRepository.save(slot);
         if (former != null) {
             // Blocked if any deactivated session already had a cash refund / spent credit; otherwise revoke them.
-            forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
+            forEachSessionInWindow(former, saved.getDayOfWeek(),
                     d -> requireRefundsReversibleForSlotSession(id, d, TrainingRefundService.ClosureCause.DEACTIVATION));
-            forEachSessionInDeactivationWindow(former, saved.getDayOfWeek(),
+            forEachSessionInWindow(former, saved.getDayOfWeek(),
                     d -> refundService.revokeForSlotSession(id, d, TrainingRefundService.ClosureCause.DEACTIVATION));
         }
         return toResponse(saved, YearMonth.now().toString());
@@ -196,8 +196,11 @@ public class AdminTrainingSlotService {
         }
     }
 
-    /** Runs an action for every slot-weekday date from {@code from} up to the end of the booking horizon. */
-    private void forEachSessionInDeactivationWindow(java.time.LocalDate from, int dayOfWeek,
+    /**
+     * Runs an action for every slot-weekday date from {@code from} up to the end of the booking horizon.
+     * Shared by scheduled deactivation, its undo, and permanent deletion — all of which stop upcoming sessions.
+     */
+    private void forEachSessionInWindow(java.time.LocalDate from, int dayOfWeek,
                                                     java.util.function.Consumer<java.time.LocalDate> action) {
         var horizon = YearMonth.now().plusMonths(2).atEndOfMonth();
         for (var d = from; !d.isAfter(horizon); d = d.plusDays(1)) {
@@ -217,6 +220,14 @@ public class AdminTrainingSlotService {
         if (slot.isDeleted()) {
             return;
         }
+        // The slot stops taking place now: every upcoming session a subscriber has already paid for is money owed
+        // back, exactly as a deactivation from today would be. Register those refunds BEFORE the soft-delete — the
+        // covering-subscribers query and the live bill must still see the slot — otherwise a paid-ahead subscriber
+        // is left with no service and no refund trace. DELETION is permanent (no restore), so no revoke path.
+        forEachSessionInWindow(java.time.LocalDate.now(), slot.getDayOfWeek(),
+                d -> refundService.registerForSlotSession(slot, d, TrainingRefund.TYPE_SESSION,
+                        msg.get("trainingrefund.label.deletion"), TrainingRefundService.ClosureCause.DELETION));
+
         var info = mailInfo(slot);
         notifySubscribers(id, (email, firstName) ->
                 trainingMail.sendSlotDeletion(email, firstName, info));

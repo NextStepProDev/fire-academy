@@ -18,17 +18,18 @@ import java.util.UUID;
  * <p>A cancellable session is always in the future, and the payment that covered it was made earlier, so the
  * cancelled session was necessarily part of what the subscriber paid — the single-session price is the refund.
  *
- * <p>Three mechanisms can close the same date (a day off, a single-session cancellation, a scheduled
- * deactivation), and they may stack. The ledger is cause-aware in both directions: registering skips a date
- * already closed by ANOTHER mechanism (that session was never part of what a later payer paid — the bill
- * already excluded it, or the first closure already produced the refund), and revoking touches only refunds
- * whose date actually comes back to life (still closed by another mechanism → the refund stays owed).
+ * <p>Four mechanisms can close the same date (a day off, a single-session cancellation, a scheduled
+ * deactivation, and a permanent slot deletion), and they may stack. The ledger is cause-aware in both
+ * directions: registering skips a date already closed by ANOTHER mechanism (that session was never part of
+ * what a later payer paid — the bill already excluded it, or the first closure already produced the refund),
+ * and revoking touches only refunds whose date actually comes back to life (still closed by another mechanism
+ * → the refund stays owed). DELETION only ever registers — a soft-deleted slot is never restored.
  */
 @Service
 public class TrainingRefundService {
 
     /** Which mechanism closed (or is being reopened for) a slot's session date. */
-    public enum ClosureCause { SINGLE_SESSION, HOLIDAY, DEACTIVATION }
+    public enum ClosureCause { SINGLE_SESSION, HOLIDAY, DEACTIVATION, DELETION }
 
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingPaymentRepository paymentRepository;
