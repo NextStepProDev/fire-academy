@@ -23,8 +23,13 @@ export function LoginPage() {
 
     try {
       const loggedInUser = await login(email, password)
-      const fallback = loggedInUser.isAdmin ? '/admin' : '/moje-konto'
-      navigate(consumeRedirectPath() || fallback, { replace: true })
+      const redirect = consumeRedirectPath()
+      // Admin lands on the admin panel (Trainings tab) by default — honor a redirect only if it points there,
+      // so a stray "/moje-konto" bounce doesn't drop an admin on the user account page.
+      const target = loggedInUser.isAdmin
+        ? (redirect?.startsWith('/admin') ? redirect : '/admin/treningi')
+        : (redirect || '/moje-konto')
+      navigate(target, { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
       setLoading(false)

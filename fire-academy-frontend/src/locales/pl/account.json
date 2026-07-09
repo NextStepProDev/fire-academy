@@ -1,6 +1,35 @@
 {
   "title": "Moje konto",
   "greeting": "Cześć, {{name}}!",
+  "back": "Wróć do konta",
+  "tiles": {
+    "open": "Otwórz",
+    "reservations": {
+      "title": "Rezerwacje na wydarzenia",
+      "description": "Twoje zapisy na obozy i szkolenia — aktualne i archiwum.",
+      "count_one": "{{count}} rezerwacja",
+      "count_few": "{{count}} rezerwacje",
+      "count_many": "{{count}} rezerwacji",
+      "count_other": "{{count}} rezerwacji"
+    },
+    "trainings": {
+      "title": "Treningi",
+      "description": "Twoje cykliczne treningi i miesięczne płatności.",
+      "count_one": "{{count}} trening",
+      "count_few": "{{count}} treningi",
+      "count_many": "{{count}} treningów",
+      "count_other": "{{count}} treningów"
+    }
+  },
+  "days": {
+    "1": "Poniedziałek",
+    "2": "Wtorek",
+    "3": "Środa",
+    "4": "Czwartek",
+    "5": "Piątek",
+    "6": "Sobota",
+    "7": "Niedziela"
+  },
   "profile": {
     "title": "Twoje dane",
     "firstName": "Imię",
@@ -11,17 +40,54 @@
     "edit": "Edytuj dane"
   },
   "reservations": {
-    "title": "Moje rezerwacje",
+    "title": "Rezerwacje na wydarzenia",
+    "subtitle": "Twoje zapisy na obozy i szkolenia.",
     "empty": "Nie masz jeszcze żadnych rezerwacji.",
     "emptyHint": "Zapisz się na obóz lub szkolenie, a Twoje rezerwacje pojawią się tutaj.",
     "browse": "Przeglądaj wydarzenia",
     "current": "Aktualne",
     "past": "Archiwum",
+    "noCurrent": "Brak aktualnych rezerwacji.",
+    "noPast": "Archiwum jest puste.",
     "cancel": "Anuluj rezerwację",
     "cancelConfirm": "Czy na pewno chcesz anulować tę rezerwację?",
     "cancelError": "Nie udało się anulować rezerwacji.",
     "loadError": "Nie udało się wczytać rezerwacji.",
     "noteLabel": "Twoja informacja dla organizatora:"
+  },
+  "trainings": {
+    "title": "Treningi",
+    "subtitle": "Twoje cykliczne treningi i miesięczne płatności.",
+    "empty": "Nie masz jeszcze zapisów na treningi.",
+    "emptyHint": "Zapisz się na trening, aby zobaczyć go tutaj.",
+    "browse": "Przeglądaj treningi",
+    "instructor": "Trener: {{name}}",
+    "period": "Od {{from}}",
+    "periodUntil": "Od {{from}} do {{to}}",
+    "indefinite": "na czas nieokreślony",
+    "monthTotalLabel": "Łącznie do zapłaty za {{month}}:",
+    "nextMonthTotalLabel": "Szacowana kwota za {{month}}:",
+    "totalRefundLabel": "Łącznie do odebrania (zwroty):",
+    "totalCreditLabel": "Łącznie nadwyżka na kolejny miesiąc:",
+    "billing": "Kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
+    "billingPaid": "Opłacone za {{month}}: {{amount}} zł",
+    "creditApplied": "Uwzględniono nadwyżkę: −{{amount}} zł",
+    "upcomingCredit": "Masz nadwyżkę {{amount}} zł na poczet przyszłego miesiąca — nie przepada, zostanie automatycznie odliczona od kolejnego rachunku.",
+    "pendingRefund": "Za odwołane, opłacone zajęcia należy Ci się {{amount}} zł",
+    "pendingRefundNote": "Możesz odebrać ten zwrot u organizatora albo przeznaczyć go na poczet kolejnego miesiąca — ustal to z organizatorem.",
+    "deactivatedFrom": "Trening nieaktywny od {{date}} — brak dalszych zajęć.",
+    "nextBilling": "Szacowana kwota za {{month}}: {{amount}} zł ({{sessions}} zajęć)",
+    "nextBillingNote": "Szacunek na podstawie planu zajęć — może się zmienić, jeśli dojdą dni wolne lub odwołania.",
+    "paymentNote": "Płatne z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
+    "cancelledDates": "Odwołane zajęcia: {{dates}}",
+    "holidayDates": "Dni wolne: {{dates}}",
+    "error": "Nie udało się wczytać rezerwacji.",
+    "retry": "Spróbuj ponownie",
+    "cancel": "Zrezygnuj od kolejnego miesiąca",
+    "endsThisMonth": "Kończy się w tym miesiącu",
+    "cancelConfirmTitle": "Potwierdzenie rezygnacji",
+    "cancelConfirm": "Zrezygnować z tego treningu od kolejnego miesiąca? Twój zapis pozostaje aktywny do końca bieżącego miesiąca.",
+    "cancelSuccess": "Rezygnacja przyjęta."
   },
   "banner": {
     "loggedIn": "Witaj ponownie, {{name}}! Sprawdź swoje rezerwacje.",

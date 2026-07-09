@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, LogIn, Menu, User, X, ChevronDown } from 'lucide-react'
+import { LogOut, LogIn, Menu, User, X, ChevronDown, LayoutGrid } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
@@ -36,13 +36,17 @@ export function Navbar() {
 
   // We highlight "Settings" in the avatar menu when the user is on that subpage ("you are here").
   const isSettingsActive = location.pathname.startsWith('/settings')
+  // Admins reach "My account" through the avatar menu (their navbar slot holds the admin panel
+  // instead), so they can also use the customer side — reservations and trainings.
+  const isAccountActive = location.pathname.startsWith('/moje-konto')
 
   const navLinks = [
     { to: '/', label: t('nav.home') },
     { to: '/treningi', label: t('nav.trainings') },
     { to: '/obozy', label: t('nav.camps') },
     { to: '/szkolenia', label: t('nav.courses') },
-    // "My account" — the main destination for a logged-in user — permanently in the navbar (except for admin).
+    // "My account" — the main destination for a regular user — permanently in the navbar. Admins
+    // get the admin panel in this slot instead and reach "My account" from the avatar menu.
     ...(isAuthenticated && !isAdmin ? [{ to: '/moje-konto', label: t('nav.myAccount') }] : []),
     ...(isAdmin ? [{ to: '/admin', label: t('nav.admin') }] : []),
   ]
@@ -128,6 +132,21 @@ export function Navbar() {
                       <p className="text-xs text-surface-500 mt-0.5">{user?.email}</p>
                     </div>
                     <div className="py-1">
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setUserMenuOpen(false); if (!isAccountActive) navigate('/moje-konto') }}
+                          aria-current={isAccountActive ? 'page' : undefined}
+                          className={clsx(
+                            'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                            isAccountActive
+                              ? 'bg-primary-500/10 text-primary-400 cursor-default'
+                              : 'text-surface-300 hover:bg-surface-800 hover:text-surface-100'
+                          )}
+                        >
+                          <LayoutGrid className="w-4 h-4" />
+                          {t('nav.myAccount')}
+                        </button>
+                      )}
                       <button
                         onClick={() => { setUserMenuOpen(false); if (!isSettingsActive) navigate('/settings') }}
                         aria-current={isSettingsActive ? 'page' : undefined}
@@ -201,6 +220,20 @@ export function Navbar() {
                     <p className="text-xs text-surface-500">{user?.email}</p>
                   </div>
                 </div>
+                {isAdmin && (
+                  <Link
+                    to="/moje-konto"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-current={isAccountActive ? 'page' : undefined}
+                    className={clsx(
+                      'flex items-center gap-3 px-1 py-2 text-sm',
+                      isAccountActive ? 'text-primary-400 font-medium' : 'text-surface-300'
+                    )}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    {t('nav.myAccount')}
+                  </Link>
+                )}
                 <Link
                   to="/settings"
                   onClick={() => setMobileMenuOpen(false)}

@@ -1,3 +1,9 @@
+DELETE FROM training_refunds;
+DELETE FROM training_holidays;
+DELETE FROM training_cancelled_sessions;
+DELETE FROM training_payments;
+DELETE FROM training_enrollments;
+DELETE FROM training_slots;
 DELETE FROM enrollments;
 DELETE FROM events;
 DELETE FROM event_type_photos;

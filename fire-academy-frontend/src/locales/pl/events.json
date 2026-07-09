@@ -51,11 +51,53 @@
     "readMore": "Czytaj więcej"
   },
   "detail": {
-    "backToList": "Wróć do listy",
+    "back": "Wróć",
     "relatedEvents": "Dostępne terminy",
     "gallery": "Galeria"
   },
   "noEvents": "Brak nadchodzących terminów",
   "noEventTypes": "Brak dostępnych rodzajów",
-  "noInstructors": "Brak osób w kadrze"
+  "noInstructors": "Brak osób w kadrze",
+  "days": {
+    "1": "Poniedziałek",
+    "2": "Wtorek",
+    "3": "Środa",
+    "4": "Czwartek",
+    "5": "Piątek",
+    "6": "Sobota",
+    "7": "Niedziela"
+  },
+  "slots": {
+    "noSlots": "Brak terminów w tym miesiącu",
+    "spotsOf": "Wolne miejsca: {{available}} / {{max}}",
+    "full": "Brak miejsc",
+    "pricePerSession": "{{price}} zł / zajęcia",
+    "enroll": "Zapisz się",
+    "alreadyEnrolled": "Już zapisano",
+    "alreadyEnrolledHint": "Masz już aktywny zapis na ten trening — nie można zapisać się drugi raz. Swój zapis znajdziesz w „Moje konto”.",
+    "loginToEnroll": "Zaloguj się, aby zapisać",
+    "schedule": "Harmonogram zajęć",
+    "cancelledDates": "Odwołane zajęcia: {{dates}}",
+    "holidayDates": "Dni wolne: {{dates}}"
+  },
+  "enrollTraining": {
+    "title": "Zapis na trening",
+    "summary": "{{day}}, {{time}} · {{name}}",
+    "instructor": "Trener: {{name}}",
+    "startMonth": "Miesiąc rozpoczęcia",
+    "duration": "Czas trwania zapisu",
+    "indefinite": "Na czas nieokreślony",
+    "fixed": "Na określoną liczbę miesięcy",
+    "monthsCount": "Liczba miesięcy",
+    "summaryAmount": "Za ten trening w {{month}}: {{amount}} zł ({{sessions}} zajęć × {{price}} zł)",
+    "holidayNote": "W tym miesiącu wypada dzień wolny ({{dates}}) — uwzględniliśmy go w cenie.",
+    "cumulative": "Razem z Twoimi rezerwacjami na {{month}}: {{amount}} zł",
+    "paymentNote": "Płatność z góry co miesiąc u organizatora, przed pierwszymi zajęciami.",
+    "accountHint": "Łączną kwotę za miesiąc za wszystkie treningi zobaczysz w zakładce „Moje konto\".",
+    "standingNote": "Zapis trzyma Twoje miejsce w kolejnych miesiącach, dopóki nie zrezygnujesz.",
+    "fixedNote": "Zapis na {{count}} mies.: od {{from}} do {{to}}. Po tym okresie miejsce zwolni się automatycznie.",
+    "submit": "Potwierdź zapis",
+    "cancel": "Anuluj",
+    "success": "Zapis potwierdzony! Szczegóły znajdziesz na swoim koncie."
+  }
 }

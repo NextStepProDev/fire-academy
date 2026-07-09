@@ -54,6 +54,7 @@ class AdminUserServiceTest {
     @Mock private FileStorageService fileStorageService;
     @Mock private JwtAuthenticationFilter jwtAuthenticationFilter;
     @Mock private MessageService msg;
+    @Mock private pl.fireacademy.api.user.TrainingEnrollmentService trainingEnrollmentService;
 
     @InjectMocks private AdminUserService service;
 

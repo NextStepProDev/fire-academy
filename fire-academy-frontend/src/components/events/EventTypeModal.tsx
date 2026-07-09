@@ -1,22 +1,62 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
-import { Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react'
 import { formatDateRange } from '../../utils/dates'
-import type { EventType, EventInstance } from '../../types'
+import { visibleMonths, formatMonth, holidaysForDay } from '../../utils/trainingSchedule'
+import { publicApi } from '../../api/public'
+import clsx from 'clsx'
+import { TrainingSlotCard } from './TrainingSlotCard'
+import { TrainingEnrollModal } from './TrainingEnrollModal'
+import { useEnrolledSlot } from '../../hooks/useEnrolledSlot'
+import { LoadingSpinner } from '../ui/LoadingSpinner'
+import { FadeImage } from '../ui/FadeImage'
+import type { EventType, EventInstance, EventCategory, TrainingSlotCard as TrainingSlot } from '../../types'
+
+const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 
 interface EventTypeModalProps {
   eventType: EventType | null
   events: EventInstance[]
   onEnroll: (eventId: string, eventName: string) => void
   onClose: () => void
+  // When TRAINING, the modal lists recurring weekly slots for this type instead of dated events.
+  category?: EventCategory
+  isAuthenticated?: boolean
 }
 
-export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTypeModalProps) {
+export function EventTypeModal({ eventType, events, onEnroll, onClose, category, isAuthenticated = false }: EventTypeModalProps) {
   const { t } = useTranslation('events')
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const touchStart = useRef<number | null>(null)
+
+  const isTraining = category === 'TRAINING'
+  const isEnrolled = useEnrolledSlot()
+  const months = visibleMonths()
+  const [selectedMonth, setSelectedMonth] = useState(months[0])
+  const [enrollSlot, setEnrollSlot] = useState<TrainingSlot | null>(null)
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set())
+
+  const toggleDay = (day: number) => setExpandedDays(prev => {
+    const nextSet = new Set(prev)
+    if (nextSet.has(day)) nextSet.delete(day); else nextSet.add(day)
+    return nextSet
+  })
+
+  const slotsQuery = useQuery({
+    queryKey: ['public', 'training-slots', selectedMonth],
+    queryFn: () => publicApi.getTrainingSlots(selectedMonth),
+    enabled: isTraining && !!eventType,
+  })
+  const holidaysQuery = useQuery({
+    queryKey: ['public', 'training-holidays', selectedMonth],
+    queryFn: () => publicApi.getTrainingHolidays(selectedMonth),
+    enabled: isTraining && !!eventType,
+  })
+  const holidays = holidaysQuery.data ?? []
+  const relatedSlots = slotsQuery.data?.filter(s => s.eventTypeId === eventType?.id) ?? []
 
   const photos = eventType?.photos ?? []
 
@@ -52,9 +92,8 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
       <Modal isOpen={!!eventType} onClose={onClose} size="xl" title={eventType.name}>
         <div className="space-y-6">
           {eventType.thumbnailUrl && (
-            <div className="relative -mx-6 -mt-2 overflow-hidden">
-              <img src={eventType.thumbnailUrl} alt="" decoding="async" className="w-full aspect-square object-cover" />
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-surface-900 to-transparent" />
+            <div className="-mx-6 -mt-2 aspect-square overflow-hidden bg-surface-800">
+              <FadeImage src={eventType.thumbnailUrl} alt="" decoding="async" className="w-full h-full object-cover" />
             </div>
           )}
 
@@ -69,6 +108,70 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
                   <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {isTraining && (
+            <div>
+              <h3 className="text-lg font-semibold text-surface-100 mb-3 border-l-4 border-primary-500 pl-3">{t('sections.terminy')}</h3>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                {months.map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setSelectedMonth(m)}
+                    className={clsx(
+                      'px-4 py-2 text-sm font-medium rounded-lg capitalize transition-colors',
+                      m === selectedMonth ? 'bg-primary-600 text-white' : 'bg-surface-900 border border-surface-800 text-surface-300 hover:bg-surface-800'
+                    )}
+                  >
+                    {formatMonth(m)}
+                  </button>
+                ))}
+              </div>
+
+              {slotsQuery.isLoading ? (
+                <LoadingSpinner />
+              ) : relatedSlots.length ? (
+                <div className={clsx('space-y-3 transition-opacity', slotsQuery.isFetching && 'opacity-60')}>
+                  {DAYS.map(day => {
+                    const daySlots = relatedSlots.filter(s => s.dayOfWeek === day)
+                    if (!daySlots.length) return null
+                    const expanded = expandedDays.has(day)
+                    return (
+                      <div key={day}>
+                        <button
+                          onClick={() => toggleDay(day)}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-surface-900 border border-surface-800 rounded-xl hover:bg-surface-800/50 transition-colors"
+                        >
+                          <span className="flex items-center gap-2 font-semibold text-surface-100">
+                            {expanded ? <ChevronDown className="w-5 h-5 text-primary-400" /> : <ChevronRight className="w-5 h-5 text-surface-400" />}
+                            {t(`days.${day}`)}
+                            <span className="text-sm font-normal text-surface-500">({daySlots.length})</span>
+                          </span>
+                        </button>
+                        {expanded && (
+                          <div className="space-y-2 mt-2">
+                            {daySlots.map(slot => (
+                              <TrainingSlotCard
+                                key={slot.id}
+                                slot={slot}
+                                holidayDates={holidaysForDay(holidays, slot.dayOfWeek)}
+                                isAuthenticated={isAuthenticated}
+                                alreadyEnrolled={isEnrolled(slot.id, selectedMonth)}
+                                onEnroll={() => setEnrollSlot(slot)}
+                                hideType
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-surface-500">{t('slots.noSlots')}</p>
+              )}
             </div>
           )}
 
@@ -186,6 +289,13 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose }: EventTy
           )}
         </div>
       )}
+
+      <TrainingEnrollModal
+        slot={enrollSlot}
+        startMonth={selectedMonth}
+        holidays={holidays}
+        onClose={() => setEnrollSlot(null)}
+      />
     </>
   )
 }

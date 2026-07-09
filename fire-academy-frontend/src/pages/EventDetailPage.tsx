@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link, Navigate } from 'react-router-dom'
+import { useParams, Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone } from 'lucide-react'
@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useEnrollGuard } from '../hooks/useEnrollGuard'
+import { useSmartBack } from '../hooks/useSmartBack'
 
 function isWithin24h(startDate: string, startTime: string | null): boolean {
   const dt = startTime
@@ -23,6 +24,7 @@ function isWithin24h(startDate: string, startTime: string | null): boolean {
 export function EventDetailPage() {
   const { categorySlug, id } = useParams<{ categorySlug: string; id: string }>()
   const { t } = useTranslation('events')
+  const goBack = useSmartBack(`/${categorySlug}`)
   const category = categorySlug ? slugToCategory(categorySlug) : undefined
 
   const [enrollOpen, setEnrollOpen] = useState(false)
@@ -33,6 +35,9 @@ export function EventDetailPage() {
     queryKey: ['public', 'event', id],
     queryFn: () => publicApi.getEvent(id!),
     enabled: !!id && !!category,
+    // Opt out of the global keepPreviousData: navigating to a different event should show a
+    // spinner, not briefly flash the previous event's details.
+    placeholderData: undefined,
   })
 
   const eventTypeQuery = useQuery({
@@ -121,13 +126,13 @@ export function EventDetailPage() {
       />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-        <Link
-          to={`/${categorySlug}`}
+        <button
+          onClick={goBack}
           className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-primary-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {t('detail.backToList')}
-        </Link>
+          {t('detail.back')}
+        </button>
 
         {thumbnail && (
           <div className="relative overflow-hidden rounded-xl">

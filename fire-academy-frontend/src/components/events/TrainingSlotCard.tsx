@@ -1,0 +1,94 @@
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { Clock, User as UserIcon, Users, CalendarOff, Check } from 'lucide-react'
+import { Button } from '../ui/Button'
+import type { TrainingSlotCard as TrainingSlotCardType } from '../../types'
+
+interface TrainingSlotCardProps {
+  slot: TrainingSlotCardType
+  // Days off (ISO) that land on this slot's weekday in the displayed month.
+  holidayDates?: string[]
+  isAuthenticated: boolean
+  // The logged-in user already has an active subscription to this slot → can't enroll again.
+  alreadyEnrolled?: boolean
+  onEnroll: () => void
+  onOpenType?: () => void
+  onOpenInstructor?: () => void
+  // Hide the event-type name (e.g. inside that type's own modal, where it would be redundant).
+  hideType?: boolean
+}
+
+export function TrainingSlotCard({ slot, holidayDates = [], isAuthenticated, alreadyEnrolled = false, onEnroll, onOpenType, onOpenInstructor, hideType = false }: TrainingSlotCardProps) {
+  const { t } = useTranslation('events')
+  const isFull = slot.availableSpots <= 0
+  const time = `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`
+  const fmt = (iso: string) => { const [, m, d] = iso.split('-'); return `${d}.${m}` }
+  const cancelledLabel = slot.cancelledDates.map(fmt).join(', ')
+  const holidayLabel = holidayDates.map(fmt).join(', ')
+
+  return (
+    <div className="bg-surface-900 border border-surface-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex-1 min-w-0 space-y-1">
+        {!hideType && (
+          onOpenType ? (
+            <button onClick={onOpenType} className="font-semibold text-surface-100 hover:text-primary-400 transition-colors text-left">
+              {slot.eventTypeName}
+            </button>
+          ) : (
+            <h4 className="font-semibold text-surface-100">{slot.eventTypeName}</h4>
+          )
+        )}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-surface-400">
+          <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{time}</span>
+          {slot.instructorName && (
+            onOpenInstructor ? (
+              <button onClick={onOpenInstructor} className="flex items-center gap-1.5 hover:text-primary-400 transition-colors">
+                <UserIcon className="w-4 h-4" />{slot.instructorName}
+              </button>
+            ) : (
+              <span className="flex items-center gap-1.5"><UserIcon className="w-4 h-4" />{slot.instructorName}</span>
+            )
+          )}
+          <span className="flex items-center gap-1.5">
+            <Users className="w-4 h-4" />
+            {t('slots.spotsOf', { available: slot.availableSpots, max: slot.maxParticipants })}
+          </span>
+        </div>
+        {slot.price != null && (
+          <p className="text-primary-400 font-semibold text-sm">{t('slots.pricePerSession', { price: slot.price })}</p>
+        )}
+        {slot.cancelledDates.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-400">
+            <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+            {t('slots.cancelledDates', { dates: cancelledLabel })}
+          </p>
+        )}
+        {holidayDates.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-400">
+            <CalendarOff className="w-3.5 h-3.5 shrink-0" />
+            {t('slots.holidayDates', { dates: holidayLabel })}
+          </p>
+        )}
+      </div>
+      <div className="sm:ml-auto">
+        {isAuthenticated && alreadyEnrolled ? (
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-surface-800 text-surface-300 border border-surface-700 cursor-default"
+            title={t('slots.alreadyEnrolledHint')}
+          >
+            <Check className="w-4 h-4" />
+            {t('slots.alreadyEnrolled')}
+          </span>
+        ) : isFull ? (
+          <Button variant="ghost" size="sm" disabled>{t('slots.full')}</Button>
+        ) : isAuthenticated ? (
+          <Button variant="primary" size="sm" onClick={onEnroll}>{t('slots.enroll')}</Button>
+        ) : (
+          <Link to="/logowanie">
+            <Button variant="secondary" size="sm">{t('slots.loginToEnroll')}</Button>
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}

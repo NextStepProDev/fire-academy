@@ -1,26 +1,43 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, Link, Navigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useParams, Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import { publicApi } from '../api/public'
 import { slugToCategory } from '../utils/categorySlug'
 import { formatDateRange } from '../utils/dates'
+import { visibleMonths, formatMonth, holidaysForDay } from '../utils/trainingSchedule'
+import clsx from 'clsx'
 import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { Button } from '../components/ui/Button'
 import { EnrollmentModal } from '../components/events/EnrollmentModal'
+import { TrainingSlotCard } from '../components/events/TrainingSlotCard'
+import { TrainingEnrollModal } from '../components/events/TrainingEnrollModal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useEnrollGuard } from '../hooks/useEnrollGuard'
+import { useEnrolledSlot } from '../hooks/useEnrolledSlot'
+import { useSmartBack } from '../hooks/useSmartBack'
+import type { TrainingSlotCard as TrainingSlot } from '../types'
+
+const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 
 export function EventTypeDetailPage() {
   const { categorySlug, id } = useParams<{ categorySlug: string; id: string }>()
   const { t } = useTranslation('events')
+  const { isAuthenticated } = useAuth()
+  const isEnrolled = useEnrolledSlot()
+  const goBack = useSmartBack(`/${categorySlug}`)
   const category = categorySlug ? slugToCategory(categorySlug) : undefined
+  const isTraining = category === 'TRAINING'
 
+  const months = visibleMonths()
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [enrollEventId, setEnrollEventId] = useState<string | null>(null)
   const [enrollEventName, setEnrollEventName] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState(months[0])
+  const [enrollSlot, setEnrollSlot] = useState<TrainingSlot | null>(null)
   const touchStart = useRef<number | null>(null)
   const guardEnroll = useEnrollGuard()
   const queryClient = useQueryClient()
@@ -29,37 +46,48 @@ export function EventTypeDetailPage() {
     queryKey: ['public', 'event-type', id],
     queryFn: () => publicApi.getEventType(id!),
     enabled: !!id && !!category,
+    // Opt out of the global keepPreviousData: navigating to a different type should show a
+    // spinner, not briefly flash the previous type's photo/description.
+    placeholderData: undefined,
   })
 
+  // Camps/courses list dated event instances; trainings list recurring weekly slots.
   const eventsQuery = useQuery({
     queryKey: ['public', 'events', category],
     queryFn: () => publicApi.getUpcomingEvents(category!),
-    enabled: !!category,
+    enabled: !!category && !isTraining,
   })
+
+  const slotsQuery = useQuery({
+    queryKey: ['public', 'training-slots', selectedMonth],
+    queryFn: () => publicApi.getTrainingSlots(selectedMonth),
+    enabled: isTraining,
+  })
+  const holidaysQuery = useQuery({
+    queryKey: ['public', 'training-holidays', selectedMonth],
+    queryFn: () => publicApi.getTrainingHolidays(selectedMonth),
+    enabled: isTraining,
+  })
+  const holidays = holidaysQuery.data ?? []
 
   const photos = eventTypeQuery.data?.photos ?? []
   const relatedEvents = eventsQuery.data?.filter(e => e.eventTypeId === id) ?? []
+  const relatedSlots = slotsQuery.data?.filter(s => s.eventTypeId === id) ?? []
 
-  const prev = useCallback(() => {
-    if (lightboxIndex === null) return
-    setLightboxIndex(lightboxIndex > 0 ? lightboxIndex - 1 : photos.length - 1)
-  }, [lightboxIndex, photos.length])
-
-  const next = useCallback(() => {
-    if (lightboxIndex === null) return
-    setLightboxIndex(lightboxIndex < photos.length - 1 ? lightboxIndex + 1 : 0)
-  }, [lightboxIndex, photos.length])
+  // Functional updates keep these stable-friendly; the React Compiler memoizes them.
+  const prev = () => setLightboxIndex(i => (i === null ? i : (i - 1 + photos.length) % photos.length))
+  const next = () => setLightboxIndex(i => (i === null ? i : (i + 1) % photos.length))
 
   useEffect(() => {
     if (lightboxIndex === null) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') prev()
-      else if (e.key === 'ArrowRight') next()
+      if (e.key === 'ArrowLeft') setLightboxIndex(i => (i === null ? i : (i - 1 + photos.length) % photos.length))
+      else if (e.key === 'ArrowRight') setLightboxIndex(i => (i === null ? i : (i + 1) % photos.length))
       else if (e.key === 'Escape') setLightboxIndex(null)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [lightboxIndex, prev, next])
+  }, [lightboxIndex, photos.length])
 
   if (!category || !categorySlug) return <Navigate to="/" replace />
 
@@ -126,18 +154,17 @@ export function EventTypeDetailPage() {
       />
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-        <Link
-          to={`/${categorySlug}`}
+        <button
+          onClick={goBack}
           className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-primary-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {t('detail.backToList')}
-        </Link>
+          {t('detail.back')}
+        </button>
 
         {et.thumbnailUrl && (
-          <div className="relative overflow-hidden rounded-xl">
-            <img src={et.thumbnailUrl} alt={et.name} decoding="async" className="w-full aspect-video object-cover" />
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-surface-950 to-transparent" />
+          <div className="aspect-square overflow-hidden rounded-xl bg-surface-800 max-w-md mx-auto">
+            <img src={et.thumbnailUrl} alt={et.name} decoding="async" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -169,7 +196,58 @@ export function EventTypeDetailPage() {
           </section>
         )}
 
-        {relatedEvents.length > 0 && (
+        {isTraining && (
+          <section>
+            <h2 className="text-xl font-semibold text-surface-100 mb-4 border-l-4 border-primary-500 pl-3">
+              {t('detail.relatedEvents')}
+            </h2>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+              {months.map(m => (
+                <button
+                  key={m}
+                  onClick={() => setSelectedMonth(m)}
+                  className={clsx(
+                    'px-4 py-2 text-sm font-medium rounded-lg capitalize transition-colors',
+                    m === selectedMonth ? 'bg-primary-600 text-white' : 'bg-surface-900 border border-surface-800 text-surface-300 hover:bg-surface-800'
+                  )}
+                >
+                  {formatMonth(m)}
+                </button>
+              ))}
+            </div>
+
+            {slotsQuery.isLoading ? (
+              <LoadingSpinner />
+            ) : relatedSlots.length ? (
+              <div className={clsx('space-y-6 transition-opacity', slotsQuery.isFetching && 'opacity-60')}>
+                {DAYS.map(day => {
+                  const daySlots = relatedSlots.filter(s => s.dayOfWeek === day)
+                  if (!daySlots.length) return null
+                  return (
+                    <div key={day} className="space-y-2">
+                      <h3 className="font-semibold text-surface-300">{t(`days.${day}`)}</h3>
+                      {daySlots.map(slot => (
+                        <TrainingSlotCard
+                          key={slot.id}
+                          slot={slot}
+                          holidayDates={holidaysForDay(holidays, slot.dayOfWeek)}
+                          isAuthenticated={isAuthenticated}
+                          alreadyEnrolled={isEnrolled(slot.id, selectedMonth)}
+                          onEnroll={() => setEnrollSlot(slot)}
+                        />
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-surface-500">{t('slots.noSlots')}</p>
+            )}
+          </section>
+        )}
+
+        {!isTraining && relatedEvents.length > 0 && (
           <section>
             <h2 className="text-xl font-semibold text-surface-100 mb-4 border-l-4 border-primary-500 pl-3">
               {t('detail.relatedEvents')}
@@ -294,6 +372,13 @@ export function EventTypeDetailPage() {
         eventId={enrollEventId}
         eventName={enrollEventName}
         onEnrolled={() => queryClient.invalidateQueries({ queryKey: ['public'] })}
+      />
+
+      <TrainingEnrollModal
+        slot={enrollSlot}
+        startMonth={selectedMonth}
+        holidays={holidays}
+        onClose={() => setEnrollSlot(null)}
       />
     </>
   )

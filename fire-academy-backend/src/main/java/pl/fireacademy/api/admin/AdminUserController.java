@@ -2,11 +2,14 @@ package pl.fireacademy.api.admin;
 
 import jakarta.validation.Valid;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
 import pl.fireacademy.config.CurrentUserId;
+import pl.fireacademy.domain.user.UserRepository;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -14,9 +17,11 @@ import java.util.UUID;
 public class AdminUserController {
 
     private final AdminUserService service;
+    private final UserRepository userRepository;
 
-    public AdminUserController(AdminUserService service) {
+    public AdminUserController(AdminUserService service, UserRepository userRepository) {
         this.service = service;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -26,6 +31,20 @@ public class AdminUserController {
                                    @RequestParam(defaultValue = "created") String sort,
                                    @RequestParam(defaultValue = "desc") String direction) {
         return service.list(search, page, size, sort, direction);
+    }
+
+    public record UserSummary(UUID id, String firstName, String lastName, String email) {}
+
+    /** Search box for registered users (for manually adding them to trainings). */
+    @GetMapping("/search")
+    public List<UserSummary> search(@RequestParam String query) {
+        var q = query.trim();
+        if (q.length() < 2) {
+            return List.of();
+        }
+        return userRepository.searchByNameOrEmail(q, PageRequest.of(0, 10)).stream()
+                .map(u -> new UserSummary(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail()))
+                .toList();
     }
 
     @GetMapping("/{id}")

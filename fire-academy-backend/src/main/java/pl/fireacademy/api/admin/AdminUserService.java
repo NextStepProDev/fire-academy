@@ -48,6 +48,7 @@ public class AdminUserService {
     private final FileStorageService fileStorageService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final MessageService msg;
+    private final pl.fireacademy.api.user.TrainingEnrollmentService trainingEnrollmentService;
 
     public AdminUserService(UserRepository userRepository,
                             AuthTokenRepository authTokenRepository,
@@ -57,7 +58,8 @@ public class AdminUserService {
                             AdminUserMailService adminUserMailService,
                             FileStorageService fileStorageService,
                             JwtAuthenticationFilter jwtAuthenticationFilter,
-                            MessageService msg) {
+                            MessageService msg,
+                            pl.fireacademy.api.user.TrainingEnrollmentService trainingEnrollmentService) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -67,6 +69,7 @@ public class AdminUserService {
         this.fileStorageService = fileStorageService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.msg = msg;
+        this.trainingEnrollmentService = trainingEnrollmentService;
     }
 
     @Transactional(readOnly = true)
@@ -188,6 +191,10 @@ public class AdminUserService {
         if (adminEmailConfig.isAdminEmail(target.getEmail())) {
             throw new IllegalStateException(msg.get("error.user.cannot.delete.superadmin"));
         }
+
+        // Training subscriptions go with the account — notify the organizer of the freed spots and remove
+        // them first, exactly like a cancellation would (no-op when the user has none).
+        trainingEnrollmentService.closeSubscriptionsBeforeAccountDeletion(targetId);
 
         // Enrollments: future ones are freed (the spot returns to the pool), past ones anonymized (archive without PII,
         // user_id → NULL). Shared logic with self-service account deletion — before deleting the user.

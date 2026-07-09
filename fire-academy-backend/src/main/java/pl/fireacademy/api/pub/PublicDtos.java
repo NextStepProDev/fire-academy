@@ -44,4 +44,25 @@ public final class PublicDtos {
             @Nullable Integer maxParticipants,
             int availableSpots
     ) {}
+
+    public record TrainingSlotCard(
+            UUID id,
+            UUID eventTypeId,
+            String eventTypeName,
+            @Nullable UUID instructorId,
+            @Nullable String instructorName,
+            int dayOfWeek,
+            LocalTime startTime,
+            @Nullable LocalTime endTime,
+            @Nullable BigDecimal price,
+            int maxParticipants,
+            int availableSpots,
+            java.util.List<java.time.LocalDate> cancelledDates
+    ) {}
+
+    /** Whole-club day off in the selected month (public schedule). */
+    public record TrainingHolidayItem(
+            java.time.LocalDate date,
+            @Nullable String label
+    ) {}
 }

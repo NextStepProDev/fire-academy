@@ -80,6 +80,8 @@ services:
       # Puste — pozwala JVM ergonomicznie wybrać SerialGC poniżej 2 GB RAM (lekszy na ciasnym boxie).
       # Po ew. upgradzie RAM można tu wstawić -XX:+UseG1GC. Memory flags (MaxRAMPercentage itd.) są w Dockerfile.
       JAVA_OPTS: ""
+      # Redundant with -Duser.timezone in the backend Dockerfile — keeps OS-level timestamps consistent too.
+      TZ: Europe/Warsaw
     depends_on:
       postgres:
         condition: service_healthy

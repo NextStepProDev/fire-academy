@@ -10,9 +10,14 @@ import pl.fireacademy.domain.enrollment.EnrollmentRepository;
 import pl.fireacademy.domain.event.*;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
+import pl.fireacademy.domain.training.TrainingCancelledSessionRepository;
+import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
+import pl.fireacademy.domain.training.TrainingHolidayRepository;
+import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,18 +30,75 @@ public class PublicService {
     private final EventTypeRepository eventTypeRepository;
     private final EventRepository eventRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final TrainingSlotRepository trainingSlotRepository;
+    private final TrainingEnrollmentRepository trainingEnrollmentRepository;
+    private final TrainingCancelledSessionRepository trainingCancelledSessionRepository;
+    private final TrainingHolidayRepository trainingHolidayRepository;
     private final MessageService msg;
 
     public PublicService(InstructorRepository instructorRepository,
                          EventTypeRepository eventTypeRepository,
                          EventRepository eventRepository,
                          EnrollmentRepository enrollmentRepository,
+                         TrainingSlotRepository trainingSlotRepository,
+                         TrainingEnrollmentRepository trainingEnrollmentRepository,
+                         TrainingCancelledSessionRepository trainingCancelledSessionRepository,
+                         TrainingHolidayRepository trainingHolidayRepository,
                          MessageService msg) {
         this.instructorRepository = instructorRepository;
         this.eventTypeRepository = eventTypeRepository;
         this.eventRepository = eventRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.trainingSlotRepository = trainingSlotRepository;
+        this.trainingEnrollmentRepository = trainingEnrollmentRepository;
+        this.trainingCancelledSessionRepository = trainingCancelledSessionRepository;
+        this.trainingHolidayRepository = trainingHolidayRepository;
         this.msg = msg;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainingHolidayItem> getTrainingHolidays(YearMonth month) {
+        return trainingHolidayRepository
+                .findByHolidayDateBetweenOrderByHolidayDateAsc(month.atDay(1), month.atEndOfMonth())
+                .stream()
+                .map(h -> new TrainingHolidayItem(h.getHolidayDate(), h.getLabel()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainingSlotCard> getTrainingSlots(YearMonth month) {
+        // Also hide slots fully stopped before the browsed month starts — nothing to attend or book there.
+        var slots = trainingSlotRepository.findPublicSlots().stream()
+                .filter(s -> s.getDeactivatedFrom() == null || s.getDeactivatedFrom().isAfter(month.atDay(1)))
+                .toList();
+        if (slots.isEmpty()) {
+            return List.of();
+        }
+        var slotIds = slots.stream().map(s -> s.getId()).toList();
+        Map<UUID, Long> countMap = trainingEnrollmentRepository
+                .countCoveringBySlotIds(slotIds, month.toString()).stream()
+                .collect(Collectors.toMap(r -> (UUID) r[0], r -> (Long) r[1]));
+
+        // Cancelled individual sessions within the month (to mark them in the schedule).
+        Map<UUID, List<LocalDate>> cancelledMap = trainingCancelledSessionRepository
+                .findForSlotsInRange(slotIds, month.atDay(1), month.atEndOfMonth()).stream()
+                .collect(Collectors.groupingBy(cs -> cs.getSlot().getId(),
+                        Collectors.mapping(cs -> cs.getSessionDate(), Collectors.toList())));
+
+        return slots.stream().map(s -> {
+            long taken = countMap.getOrDefault(s.getId(), 0L);
+            int available = Math.max(0, s.getMaxParticipants() - (int) taken);
+            var et = s.getEventType();
+            var instr = s.getInstructor();
+            return new TrainingSlotCard(
+                    s.getId(), et.getId(), et.getName(),
+                    instr != null ? instr.getId() : null,
+                    instr != null ? instr.getFirstName() + " " + instr.getLastName() : null,
+                    s.getDayOfWeek(), s.getStartTime(), s.getEndTime(), s.getPrice(),
+                    s.getMaxParticipants(), available,
+                    cancelledMap.getOrDefault(s.getId(), List.of())
+            );
+        }).toList();
     }
 
     @Cacheable(CacheConfig.INSTRUCTORS)

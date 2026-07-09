@@ -1,4 +1,4 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom'
+import { useParams, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, User } from 'lucide-react'
@@ -6,16 +6,20 @@ import { publicApi } from '../api/public'
 import { Seo } from '../components/seo/Seo'
 import { ShareButton } from '../components/ui/ShareButton'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useSmartBack } from '../hooks/useSmartBack'
 
 export function InstructorDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation('events')
-  const navigate = useNavigate()
+  const goBack = useSmartBack('/')
 
   const query = useQuery({
     queryKey: ['public', 'instructor', id],
     queryFn: () => publicApi.getInstructor(id!),
     enabled: !!id,
+    // Opt out of the global keepPreviousData: navigating to a different instructor should
+    // show a spinner, not briefly flash the previous person's photo/bio.
+    placeholderData: undefined,
   })
 
   if (query.isLoading) {
@@ -65,11 +69,11 @@ export function InstructorDetailPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
         <button
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-primary-400 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {t('detail.backToList')}
+          {t('detail.back')}
         </button>
 
         <div className="flex flex-col sm:flex-row gap-8 items-start">

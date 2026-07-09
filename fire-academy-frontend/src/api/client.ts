@@ -155,11 +155,11 @@ export async function fetchApi<T>(
     throw new Error(i18n.t('generic', { status: response.status, ns: 'errors' }))
   }
 
-  if (response.status === 204) {
-    return undefined as T
-  }
-
-  return response.json()
+  // Some endpoints ack with an empty body (204, or a 201/200 "created/updated" with no payload).
+  // Read as text first and only parse when there's something — calling .json() on an empty body
+  // throws "Unexpected end of JSON input".
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 export const authApi = {

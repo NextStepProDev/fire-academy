@@ -61,7 +61,7 @@
   },
   "sessions": {
     "title": "Aktywne sesje",
-    "description": "Wyloguj się ze wszystkich urządzeń, na których jesteś zalogowany — przydatne, gdy korzystałeś z cudzego komputera lub podejrzewasz, że ktoś ma dostęp do Twojego konta. Wylogowanie obejmie także to urządzenie, więc po jego użyciu zalogujesz się ponownie. Sesje wygasną w ciągu maksymalnie 15 minut.",
+    "description": "Wyloguj się ze wszystkich urządzeń, na których masz aktywne logowanie — przydatne, gdy korzystasz z cudzego komputera lub podejrzewasz, że ktoś ma dostęp do Twojego konta. Wylogowanie obejmie także to urządzenie, więc po jego użyciu zalogujesz się ponownie. Sesje wygasną w ciągu maksymalnie 15 minut.",
     "button": "Wyloguj ze wszystkich urządzeń",
     "confirmTitle": "Wylogować ze wszystkich urządzeń?",
     "confirmMessage": "Wszystkie urządzenia zostaną wylogowane w ciągu maksymalnie 15 minut, łącznie z tym, którego teraz używasz — zostaniesz przeniesiony do strony logowania. Aby korzystać dalej, zaloguj się ponownie."

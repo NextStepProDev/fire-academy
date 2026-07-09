@@ -108,6 +108,7 @@ class AuthMailServiceTest {
         when(msg.get("email.admin.new.user.button")).thenReturn("Zobacz w panelu");
         when(msg.getForLang(eq("email.footer.visit"), eq("pl"))).thenReturn("Odwiedź naszą stronę");
         when(msg.getForLang(eq("email.footer"), eq("pl"))).thenReturn("Fire Academy");
+        when(msg.getForLang(eq("email.regards"), eq("pl"))).thenReturn("Pozdrawiam,");
 
         service.sendNewUserAdminNotification(user);
 

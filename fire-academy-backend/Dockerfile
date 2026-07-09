@@ -29,4 +29,7 @@ EXPOSE 8081
 #   and a one-flag revert if traffic grows. (CDS evaluated and dropped: ~4% gain wasn't worth
 #   the build-time no-DB training run breaking silently on future Spring upgrades.)
 # GC left to ergonomics (SerialGC on <2GB). $JAVA_OPTS kept as passthrough.
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=55.0 -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -XX:TieredStopAtLevel=1 $JAVA_OPTS -jar app.jar"]
+# user.timezone=Europe/Warsaw: monthly billing, payment windows and session dates are driven by
+# LocalDate.now()/YearMonth.now() — on the default UTC clock the backend would disagree with Polish
+# clients (and the browser) for up to 2h around midnight and at month boundaries.
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=55.0 -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -XX:TieredStopAtLevel=1 -Duser.timezone=Europe/Warsaw $JAVA_OPTS -jar app.jar"]

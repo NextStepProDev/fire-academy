@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, TrainingSlotCard, TrainingHolidayItem } from '../types'
 
 export const publicApi = {
   getInstructors: (category: EventCategory) =>
@@ -19,4 +19,10 @@ export const publicApi = {
 
   getEvent: (id: string) =>
     fetchApi<EventInstance>(`/public/events/${id}`),
+
+  getTrainingSlots: (month: string) =>
+    fetchApi<TrainingSlotCard[]>(`/public/training-slots?month=${month}`),
+
+  getTrainingHolidays: (month: string) =>
+    fetchApi<TrainingHolidayItem[]>(`/public/training-holidays?month=${month}`),
 }

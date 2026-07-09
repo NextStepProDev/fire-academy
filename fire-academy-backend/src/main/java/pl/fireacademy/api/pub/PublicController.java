@@ -3,8 +3,12 @@ package pl.fireacademy.api.pub;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pl.fireacademy.api.RequestParams;
 import pl.fireacademy.api.pub.PublicDtos.*;
 import pl.fireacademy.domain.event.EventCategory;
+import pl.fireacademy.infrastructure.i18n.MessageService;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,11 +20,16 @@ public class PublicController {
 
     private static final CacheControl LIST_CACHE = CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic();
     private static final CacheControl DETAIL_CACHE = CacheControl.maxAge(300, TimeUnit.SECONDS).cachePublic();
+    // Real-time availability (free spots) must never be served stale from the browser cache — otherwise a
+    // fresh enrollment doesn't visibly reduce the spots until the cache expires.
+    private static final CacheControl LIVE = CacheControl.noStore();
 
     private final PublicService service;
+    private final MessageService msg;
 
-    public PublicController(PublicService service) {
+    public PublicController(PublicService service, MessageService msg) {
         this.service = service;
+        this.msg = msg;
     }
 
     @GetMapping("/instructors")
@@ -35,7 +44,21 @@ public class PublicController {
 
     @GetMapping("/events")
     public ResponseEntity<List<EventCard>> getEvents(@RequestParam EventCategory category) {
-        return ResponseEntity.ok().cacheControl(LIST_CACHE).body(service.getUpcomingEvents(category));
+        return ResponseEntity.ok().cacheControl(LIVE).body(service.getUpcomingEvents(category));
+    }
+
+    @GetMapping("/training-slots")
+    public ResponseEntity<List<TrainingSlotCard>> getTrainingSlots(
+            @RequestParam(required = false) @Nullable String month) {
+        var ym = RequestParams.parseMonth(month, msg);
+        return ResponseEntity.ok().cacheControl(LIVE).body(service.getTrainingSlots(ym));
+    }
+
+    @GetMapping("/training-holidays")
+    public ResponseEntity<List<TrainingHolidayItem>> getTrainingHolidays(
+            @RequestParam(required = false) @Nullable String month) {
+        var ym = RequestParams.parseMonth(month, msg);
+        return ResponseEntity.ok().cacheControl(LIST_CACHE).body(service.getTrainingHolidays(ym));
     }
 
     @GetMapping("/instructors/{id}")
@@ -50,6 +73,6 @@ public class PublicController {
 
     @GetMapping("/events/{eventId}")
     public ResponseEntity<EventCard> getEvent(@PathVariable UUID eventId) {
-        return ResponseEntity.ok().cacheControl(DETAIL_CACHE).body(service.getEventById(eventId));
+        return ResponseEntity.ok().cacheControl(LIVE).body(service.getEventById(eventId));
     }
 }

@@ -1,0 +1,147 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { Modal } from '../ui/Modal'
+import { Button } from '../ui/Button'
+import { userApi } from '../../api/user'
+import { useToast } from '../../context/ToastContext'
+import { remainingOccurrences, formatMonth, addMonths, holidaysForDay } from '../../utils/trainingSchedule'
+import type { TrainingSlotCard, TrainingHolidayItem } from '../../types'
+
+interface TrainingEnrollModalProps {
+  slot: TrainingSlotCard | null
+  startMonth: string
+  holidays: TrainingHolidayItem[]
+  onClose: () => void
+}
+
+export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: TrainingEnrollModalProps) {
+  const { t } = useTranslation('events')
+  const { showToast } = useToast()
+  const queryClient = useQueryClient()
+  const [mode, setMode] = useState<'indefinite' | 'fixed'>('indefinite')
+  const [months, setMonths] = useState(1)
+
+  const myEnrollments = useQuery({
+    queryKey: ['user', 'training-enrollments'],
+    queryFn: userApi.getMyTrainingEnrollments,
+    enabled: !!slot,
+  })
+
+  const enrollMut = useMutation({
+    mutationFn: () => userApi.enrollTrainingSlot(slot!.id, {
+      startMonth,
+      months: mode === 'fixed' ? months : undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['public', 'training-slots'] })
+      queryClient.invalidateQueries({ queryKey: ['user', 'training-enrollments'] })
+      showToast(t('enrollTraining.success'), 'success')
+      onClose()
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  if (!slot) return null
+
+  // Dates the slot does not take place this month: cancelled sessions + days off on its weekday.
+  const slotHolidays = holidaysForDay(holidays, slot.dayOfWeek)
+  const closedForSlot = [...slot.cancelledDates, ...slotHolidays]
+
+  // Price for the first month calculated from the REMAINING sessions (when enrolling mid-month), minus days off.
+  const sessions = remainingOccurrences(slot.dayOfWeek, startMonth, closedForSlot)
+  const amount = slot.price != null ? slot.price * sessions : null
+
+  // Total including the user's existing reservations covering the selected month. For the month the backend
+  // already priced (billingMonth) use its NET amount — an existing subscription is billed from its enrollment
+  // date, not from today, so recomputing "remaining from today" here would underestimate it.
+  const existingForMonth = (myEnrollments.data ?? [])
+    .filter(e => e.startMonth <= startMonth && (e.endMonth == null || e.endMonth >= startMonth) && e.price != null)
+    .reduce((sum, e) => {
+      if (e.billingMonth === startMonth && e.monthlyAmount != null) return sum + e.monthlyAmount
+      if (e.nextBillingMonth === startMonth && e.nextMonthAmount != null) return sum + e.nextMonthAmount
+      const closed = [...e.cancelledDates, ...e.holidayDates].filter(d => d.slice(0, 7) === startMonth)
+      return sum + (e.price! * remainingOccurrences(e.dayOfWeek, startMonth, closed))
+    }, 0)
+  const cumulative = existingForMonth + (amount ?? 0)
+
+  const holidayLabel = slotHolidays
+    .map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` })
+    .join(', ')
+
+  const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
+
+  return (
+    <Modal isOpen onClose={onClose} title={t('enrollTraining.title')}>
+      <div className="space-y-4">
+        <div className="text-surface-300 text-sm space-y-1">
+          <p className="text-surface-100 font-medium">
+            {t('enrollTraining.summary', {
+              day: t(`days.${slot.dayOfWeek}`),
+              time: `${slot.startTime.slice(0, 5)}${slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''}`,
+              name: slot.eventTypeName,
+            })}
+          </p>
+          {slot.instructorName && <p>{t('enrollTraining.instructor', { name: slot.instructorName })}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollTraining.startMonth')}</label>
+          <p className="px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 capitalize">{formatMonth(startMonth)}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollTraining.duration')}</label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-surface-200 text-sm">
+              <input type="radio" checked={mode === 'indefinite'} onChange={() => setMode('indefinite')} />
+              {t('enrollTraining.indefinite')}
+            </label>
+            <label className="flex items-center gap-2 text-surface-200 text-sm">
+              <input type="radio" checked={mode === 'fixed'} onChange={() => setMode('fixed')} />
+              {t('enrollTraining.fixed')}
+            </label>
+            {mode === 'fixed' && (
+              <input
+                type="number" min={1} max={24} value={months}
+                onChange={e => setMonths(Math.max(1, Number(e.target.value)))}
+                className={inputClass}
+                aria-label={t('enrollTraining.monthsCount')}
+              />
+            )}
+          </div>
+        </div>
+
+        {amount != null && (
+          <p className="text-sm text-primary-400 font-medium">
+            {t('enrollTraining.summaryAmount', { month: formatMonth(startMonth), amount, sessions, price: slot.price })}
+          </p>
+        )}
+        {slotHolidays.length > 0 && (
+          <p className="text-xs text-amber-400">{t('enrollTraining.holidayNote', { dates: holidayLabel })}</p>
+        )}
+        {existingForMonth > 0 && (
+          <p className="text-sm text-surface-200">
+            {t('enrollTraining.cumulative', { month: formatMonth(startMonth), amount: cumulative })}
+          </p>
+        )}
+        {mode === 'indefinite' ? (
+          <p className="text-xs text-surface-500">{t('enrollTraining.standingNote')}</p>
+        ) : (
+          <p className="text-xs text-surface-500">
+            {t('enrollTraining.fixedNote', { count: months, from: formatMonth(startMonth), to: formatMonth(addMonths(startMonth, months - 1)) })}
+          </p>
+        )}
+        <p className="text-xs text-surface-500">{t('enrollTraining.paymentNote')}</p>
+        <p className="text-xs text-surface-500">{t('enrollTraining.accountHint')}</p>
+
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onClose}>{t('enrollTraining.cancel')}</Button>
+          <Button variant="primary" size="sm" onClick={() => enrollMut.mutate()} loading={enrollMut.isPending}>
+            {t('enrollTraining.submit')}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}

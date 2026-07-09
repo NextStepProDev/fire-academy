@@ -54,6 +54,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                                              @Param("excluded") Collection<String> excluded,
                                              Pageable pageable);
 
+    // Search box for adding a user to a training slot (admin-add) — list, not paginated.
+    @Query("""
+        SELECT u FROM User u
+        WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(CONCAT(u.firstName, ' ', u.lastName)) LIKE LOWER(CONCAT('%', :q, '%'))
+        ORDER BY u.firstName ASC, u.lastName ASC
+        """)
+    List<User> searchByNameOrEmail(@Param("q") String q, Pageable pageable);
+
     // We treat emails case-insensitively (like all mail providers),
     // to avoid duplicate accounts and failed logins due to different letter casing.
     Optional<User> findByEmailIgnoreCase(String email);

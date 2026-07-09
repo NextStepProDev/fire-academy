@@ -18,7 +18,9 @@ const ResendVerificationPage = lazyWithReload(() => import('./pages/ResendVerifi
 const OAuthCallbackPage = lazyWithReload(() => import('./pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const SettingsPage = lazyWithReload(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ProfileCompletionPage = lazyWithReload(() => import('./pages/ProfileCompletionPage').then(m => ({ default: m.ProfileCompletionPage })))
-const MojeKontoPage = lazyWithReload(() => import('./pages/MojeKontoPage').then(m => ({ default: m.MojeKontoPage })))
+const MyAccountPage = lazyWithReload(() => import('./pages/MyAccountPage').then(m => ({ default: m.MyAccountPage })))
+const MyReservationsPage = lazyWithReload(() => import('./pages/MyReservationsPage').then(m => ({ default: m.MyReservationsPage })))
+const MyTrainingsPage = lazyWithReload(() => import('./pages/MyTrainingsPage').then(m => ({ default: m.MyTrainingsPage })))
 const AdminPage = lazyWithReload(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })))
 const TrainingsPage = lazyWithReload(() => import('./pages/TrainingsPage').then(m => ({ default: m.TrainingsPage })))
 const CampsPage = lazyWithReload(() => import('./pages/CampsPage').then(m => ({ default: m.CampsPage })))
@@ -60,7 +62,15 @@ export default function App() {
             <Route path="rejestracja" element={<RegisterPage />} />
             <Route
               path="moje-konto"
-              element={<ProtectedRoute><MojeKontoPage /></ProtectedRoute>}
+              element={<ProtectedRoute><MyAccountPage /></ProtectedRoute>}
+            />
+            <Route
+              path="moje-konto/rezerwacje"
+              element={<ProtectedRoute><MyReservationsPage /></ProtectedRoute>}
+            />
+            <Route
+              path="moje-konto/treningi"
+              element={<ProtectedRoute><MyTrainingsPage /></ProtectedRoute>}
             />
             <Route
               path="settings"
@@ -76,7 +86,7 @@ export default function App() {
             />
             <Route
               path="admin"
-              element={<AdminRoute><Navigate to="/admin/kadra" replace /></AdminRoute>}
+              element={<AdminRoute><Navigate to="/admin/treningi" replace /></AdminRoute>}
             />
             <Route path="login" element={<Navigate to="/logowanie" replace />} />
             <Route path="register" element={<Navigate to="/rejestracja" replace />} />

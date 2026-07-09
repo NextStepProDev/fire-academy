@@ -17,6 +17,8 @@ import pl.fireacademy.domain.event.EventType;
 import pl.fireacademy.domain.event.EventTypeRepository;
 import pl.fireacademy.domain.instructor.Instructor;
 import pl.fireacademy.domain.instructor.InstructorRepository;
+import pl.fireacademy.domain.training.TrainingSlot;
+import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.domain.user.UserRole;
@@ -36,9 +38,8 @@ import java.util.Set;
  * deletes NOTHING and creates no duplicates. You get a fresh set by resetting the database (on dev this is done
  * by FlywayConfig clean+migrate).
  * <p>
- * <b>Scope:</b> camps, courses, instructors, users, enrollments. It does <b>NOT</b> seed the content of the
- * "Trainings" tab (TRAINING events/event types) — these will eventually be replaced by the cyclical trainings feature
- * (the {@code TrainingSlot} entity from a separate branch), so its own seeder lives there.
+ * <b>Scope:</b> camps, courses, instructors (CAMP/COURSE), users, enrollments, and the cyclical trainings
+ * feature — training event types (TRAINING), TRAINING instructors and <b>27 weekly slots (Mon–Fri)</b>.
  * <p>
  * All accounts have the password <b>{@value #DEV_PASSWORD}</b>. Administrators are the e-mails from {@code ADMIN_EMAIL}.
  */
@@ -54,6 +55,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final int PAST_CAMPS = 8;
     private static final int FUTURE_COURSES = 6;
     private static final int PAST_COURSES = 8;
+    private static final int TRAINING_SLOTS = 27;
 
     // Enrollment participants' e-mails — each corresponds to an account from seedUsers() (enrollment requires an account).
     // Personal data in an enrollment is a snapshot copied from the account by Enrollment.forUser().
@@ -70,18 +72,20 @@ public class DevDataSeeder implements CommandLineRunner {
     private final EventTypeRepository eventTypeRepository;
     private final EventRepository eventRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final TrainingSlotRepository trainingSlotRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminEmailConfig adminEmailConfig;
 
     public DevDataSeeder(UserRepository userRepository, InstructorRepository instructorRepository,
                          EventTypeRepository eventTypeRepository, EventRepository eventRepository,
-                         EnrollmentRepository enrollmentRepository, PasswordEncoder passwordEncoder,
-                         AdminEmailConfig adminEmailConfig) {
+                         EnrollmentRepository enrollmentRepository, TrainingSlotRepository trainingSlotRepository,
+                         PasswordEncoder passwordEncoder, AdminEmailConfig adminEmailConfig) {
         this.userRepository = userRepository;
         this.instructorRepository = instructorRepository;
         this.eventTypeRepository = eventTypeRepository;
         this.eventRepository = eventRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.trainingSlotRepository = trainingSlotRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminEmailConfig = adminEmailConfig;
     }
@@ -93,6 +97,7 @@ public class DevDataSeeder implements CommandLineRunner {
         seedInstructors();
         seedEventTypes();
         seedEventsAndEnrollments();
+        seedTrainingSlots();
         log.info("DEV-SEEDER: done. Password for all accounts: '{}'.", DEV_PASSWORD);
     }
 
@@ -292,5 +297,74 @@ public class DevDataSeeder implements CommandLineRunner {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalStateException("DEV-SEEDER: brak konta dla zapisu " + email));
         enrollmentRepository.save(Enrollment.forUser(event, user, note, true));
+    }
+
+    // --- Cyclical trainings: event types (TRAINING), TRAINING instructors and 27 slots Mon–Fri ---
+
+    // 27 cyclical slots spread across Mon–Fri (ISO day 1..5), with rotating times/types/instructors.
+    private void seedTrainingSlots() {
+        if (trainingSlotRepository.count() > 0) return;
+
+        List<EventType> types = seedTrainingTypes();
+        List<Instructor> instructors = seedTrainingInstructors();
+
+        LocalTime[][] hours = {
+                { LocalTime.of(7, 0), LocalTime.of(8, 0) },
+                { LocalTime.of(10, 0), LocalTime.of(11, 0) },
+                { LocalTime.of(16, 0), LocalTime.of(17, 0) },
+                { LocalTime.of(17, 30), LocalTime.of(19, 0) },
+                { LocalTime.of(19, 0), LocalTime.of(20, 30) },
+                { LocalTime.of(20, 30), LocalTime.of(22, 0) },
+        };
+
+        for (int i = 0; i < TRAINING_SLOTS; i++) {
+            int dayOfWeek = (i % 5) + 1;            // 1=Mon … 5=Fri
+            LocalTime[] slot = hours[(i / 5) % hours.length];
+            boolean personal = i % 6 == 0;
+            int max = personal ? 1 : 6;
+
+            TrainingSlot ts = new TrainingSlot(types.get(i % types.size()), dayOfWeek, slot[0], max);
+            ts.setEndTime(slot[1]);
+            ts.setPrice(BigDecimal.valueOf(personal ? 120 : 60));
+            ts.setInstructor(i % 3 == 0 ? null : instructors.get(i % instructors.size()));
+            ts.setDisplayOrder(i);
+            ts.setActive(true);
+            trainingSlotRepository.save(ts);
+        }
+        log.info("DEV-SEEDER: {} training slots (Mon–Fri)", TRAINING_SLOTS);
+    }
+
+    private List<EventType> seedTrainingTypes() {
+        return List.of(
+                saveTrainingType("Trening personalny MMA", "Indywidualny trening 1:1.", 0),
+                saveTrainingType("Kickboxing — mała grupa", "Zajęcia w grupie 4–6 osób.", 1),
+                saveTrainingType("Boks — technika", "Praca nad techniką uderzeń.", 2),
+                saveTrainingType("Grappling", "Zapasy i walka w parterze.", 3)
+        );
+    }
+
+    private EventType saveTrainingType(String name, String description, int order) {
+        EventType et = new EventType(EventCategory.TRAINING, name);
+        et.setDescription(description);
+        et.setDisplayOrder(order);
+        et.setActive(true);
+        return eventTypeRepository.save(et);
+    }
+
+    private List<Instructor> seedTrainingInstructors() {
+        return List.of(
+                saveTrainingInstructor("Mateusz", "Adamczyk", "Trener MMA z wieloletnim stażem.", 4),
+                saveTrainingInstructor("Paweł", "Górski", "Bokser, instruktor kickboxingu.", 5),
+                saveTrainingInstructor("Agnieszka", "Sikora", "Przygotowanie motoryczne.", 6)
+        );
+    }
+
+    private Instructor saveTrainingInstructor(String firstName, String lastName, String bio, int order) {
+        Instructor i = new Instructor(firstName, lastName);
+        i.setBio(bio);
+        i.setDisplayOrder(order);
+        i.setCategories(Set.of(EventCategory.TRAINING));
+        i.setActive(true);
+        return instructorRepository.save(i);
     }
 }
