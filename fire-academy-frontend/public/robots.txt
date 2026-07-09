@@ -3,6 +3,9 @@ Allow: /
 
 Disallow: /admin/
 Disallow: /settings
+Disallow: /moje-konto
+Disallow: /uzupelnij-profil
+Disallow: /wypisz-sie
 Disallow: /verify-email
 Disallow: /reset-password
 Disallow: /forgot-password
