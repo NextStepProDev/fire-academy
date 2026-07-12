@@ -16,6 +16,13 @@ public interface AuthTokenRepository extends JpaRepository<AuthToken, UUID> {
            "AND t.expiresAt > :now AND t.usedAt IS NULL")
     Optional<AuthToken> findValidToken(String tokenHash, TokenType tokenType, Instant now);
 
+    // Like findValidToken, but tolerates a recently rotated token (usedAt within the grace
+    // window). Used only for refresh-token rotation: concurrent browser tabs share one refresh
+    // token and race to rotate it — without the grace window the losing tabs get logged out.
+    @Query("SELECT t FROM AuthToken t WHERE t.tokenHash = :tokenHash AND t.tokenType = :tokenType " +
+           "AND t.expiresAt > :now AND (t.usedAt IS NULL OR t.usedAt > :graceThreshold)")
+    Optional<AuthToken> findRefreshableToken(String tokenHash, TokenType tokenType, Instant now, Instant graceThreshold);
+
     @Modifying
     @Query("DELETE FROM AuthToken t WHERE t.expiresAt < :cutoff")
     int deleteExpiredTokens(Instant cutoff);

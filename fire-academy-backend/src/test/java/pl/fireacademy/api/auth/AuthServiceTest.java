@@ -449,7 +449,7 @@ class AuthServiceTest {
         when(jwtService.validateToken("old-refresh")).thenReturn(true);
         when(jwtService.isRefreshToken("old-refresh")).thenReturn(true);
         when(jwtService.hashToken("old-refresh")).thenReturn("old-hash");
-        when(authTokenRepository.findValidToken(eq("old-hash"), eq(TokenType.REFRESH_TOKEN), any())).thenReturn(Optional.of(storedToken));
+        when(authTokenRepository.findRefreshableToken(eq("old-hash"), eq(TokenType.REFRESH_TOKEN), any(), any())).thenReturn(Optional.of(storedToken));
         when(jwtService.generateAccessToken(existingUser)).thenReturn("new-access");
         when(jwtService.generateRefreshToken(existingUser)).thenReturn("new-refresh");
         when(jwtService.hashToken("new-refresh")).thenReturn("new-hash");
@@ -461,6 +461,32 @@ class AuthServiceTest {
         assertEquals("new-access", result.accessToken());
         assertEquals("new-refresh", result.refreshToken());
         assertTrue(storedToken.isUsed());
+    }
+
+    @Test
+    void shouldRefreshWithAlreadyUsedTokenWithinGraceWindowWithoutReRotating() {
+        AuthToken storedToken = new AuthToken(existingUser, "old-hash", TokenType.REFRESH_TOKEN, Instant.now().plusSeconds(3600));
+        storedToken.markAsUsed();
+        Instant firstUsedAt = storedToken.getUsedAt();
+        when(jwtService.validateToken("old-refresh")).thenReturn(true);
+        when(jwtService.isRefreshToken("old-refresh")).thenReturn(true);
+        when(jwtService.hashToken("old-refresh")).thenReturn("old-hash");
+        when(authTokenRepository.findRefreshableToken(eq("old-hash"), eq(TokenType.REFRESH_TOKEN), any(), any())).thenReturn(Optional.of(storedToken));
+        when(jwtService.generateAccessToken(existingUser)).thenReturn("new-access");
+        when(jwtService.generateRefreshToken(existingUser)).thenReturn("new-refresh");
+        when(jwtService.hashToken("new-refresh")).thenReturn("new-hash");
+        when(jwtService.getRefreshTokenExpirationMs()).thenReturn(604_800_000L);
+        when(jwtService.getAccessTokenExpirationSeconds()).thenReturn(900L);
+
+        AuthTokensResponse result = authService.refreshTokens(new RefreshTokenRequest("old-refresh"));
+
+        assertEquals("new-access", result.accessToken());
+        assertEquals("new-refresh", result.refreshToken());
+        // Grace window counts from the first rotation — usedAt must not be refreshed
+        assertEquals(firstUsedAt, storedToken.getUsedAt());
+        // Only the new token gets saved; the already-used one is not re-rotated
+        verify(authTokenRepository, never()).save(storedToken);
+        verify(authTokenRepository, times(1)).save(any(AuthToken.class));
     }
 
     @Test
@@ -487,7 +513,7 @@ class AuthServiceTest {
         when(jwtService.validateToken("revoked")).thenReturn(true);
         when(jwtService.isRefreshToken("revoked")).thenReturn(true);
         when(jwtService.hashToken("revoked")).thenReturn("revoked-hash");
-        when(authTokenRepository.findValidToken(eq("revoked-hash"), eq(TokenType.REFRESH_TOKEN), any())).thenReturn(Optional.empty());
+        when(authTokenRepository.findRefreshableToken(eq("revoked-hash"), eq(TokenType.REFRESH_TOKEN), any(), any())).thenReturn(Optional.empty());
         when(msg.get("auth.refresh.revoked")).thenReturn("Token unieważniony");
 
         assertThrows(IllegalArgumentException.class,
