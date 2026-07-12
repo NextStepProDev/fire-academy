@@ -33,6 +33,9 @@ public class AuthService {
     private static final Duration EMAIL_VERIFICATION_EXPIRATION = Duration.ofMinutes(15);
     private static final Duration PASSWORD_RESET_EXPIRATION = Duration.ofHours(1);
     private static final Duration RESEND_COOLDOWN = Duration.ofMinutes(1);
+    // Grace window after refresh-token rotation: a just-used token stays acceptable this long,
+    // so concurrent tabs racing to refresh don't get logged out (they share one refresh token).
+    private static final Duration REFRESH_ROTATION_GRACE = Duration.ofSeconds(30);
 
     private final UserRepository userRepository;
     private final AuthTokenRepository authTokenRepository;
@@ -247,16 +250,22 @@ public class AuthService {
             throw new IllegalArgumentException(msg.get("auth.refresh.invalid.type"));
         }
 
-        // Verify refresh token exists in database (not revoked)
+        // Verify refresh token exists in database (not revoked). A token rotated within the
+        // grace window is still accepted — see findRefreshableToken.
         String tokenHash = jwtService.hashToken(refreshToken);
-        AuthToken storedToken = authTokenRepository.findValidToken(tokenHash, TokenType.REFRESH_TOKEN, Instant.now())
+        Instant now = Instant.now();
+        AuthToken storedToken = authTokenRepository
+            .findRefreshableToken(tokenHash, TokenType.REFRESH_TOKEN, now, now.minus(REFRESH_ROTATION_GRACE))
             .orElseThrow(() -> new IllegalArgumentException(msg.get("auth.refresh.revoked")));
 
         User user = storedToken.getUser();
 
-        // Invalidate old refresh token (rotation)
-        storedToken.markAsUsed();
-        authTokenRepository.save(storedToken);
+        // Invalidate old refresh token (rotation). Only on first use — the grace window counts
+        // from the first rotation, so the token truly dies 30s after it, not later.
+        if (storedToken.getUsedAt() == null) {
+            storedToken.markAsUsed();
+            authTokenRepository.save(storedToken);
+        }
 
         log.debug("Tokens refreshed for: {}", user.getEmail());
         return generateTokens(user);
