@@ -1,5 +1,6 @@
 package pl.fireacademy.api.pub;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 public class SitemapController {
@@ -93,8 +95,11 @@ public class SitemapController {
 
         sb.append("</urlset>");
 
+        // Every hit scans events, event types and instructors. Crawlers re-fetch this far more often than it
+        // changes, so let Cloudflare and the crawler's own cache absorb the repeats.
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_XML)
+                .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePublic())
                 .body(sb.toString());
     }
 

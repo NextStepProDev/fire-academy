@@ -33,6 +33,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int AUTH_LIMIT = 15;
     private static final int USER_LIMIT = 20;
     private static final int ADMIN_LIMIT = 60;
+    // Anonymous read-only traffic (catalog, OG stubs, sitemap). Set well above what a person browsing the
+    // site generates, so it never bites a real visitor — it exists to cap a flood. These endpoints hit the
+    // DB on every request (availability counts are deliberately no-store, and the sitemap scans three
+    // tables), so without a ceiling an unauthenticated client can drain the small Hikari pool on its own.
+    private static final int PUBLIC_LIMIT = 120;
 
     private final Cache<String, AtomicInteger> requestCounts = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofMinutes(1))
@@ -81,6 +86,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/auth/")) return AUTH_LIMIT;
         if (path.startsWith("/api/user/")) return USER_LIMIT;
         if (path.startsWith("/api/admin/")) return ADMIN_LIMIT;
+        if (isPublicPath(path)) return PUBLIC_LIMIT;
         return 0;
     }
 
@@ -88,7 +94,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/auth/")) return "auth";
         if (path.startsWith("/api/user/")) return "user";
         if (path.startsWith("/api/admin/")) return "admin";
+        if (isPublicPath(path)) return "public";
         return "default";
+    }
+
+    /** Unauthenticated, DB-backed reads: the public catalog API, the OG crawler stubs and the sitemap. */
+    private static boolean isPublicPath(String path) {
+        return path.startsWith("/api/public/") || path.startsWith("/og/") || path.equals("/sitemap.xml");
     }
 
     private Locale resolveLocale(HttpServletRequest request) {

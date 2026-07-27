@@ -90,6 +90,10 @@ public class UserService {
         passwordPolicy.validate(request.newPassword(), user.getEmail(), user.getFirstName(), user.getLastName());
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+        // Changing the password is how a user secures a compromised account, so it must also cut the
+        // sessions the attacker holds: drop every refresh token (same as a password reset does). Without
+        // this a stolen refresh token stayed usable for its full 7-day lifetime after the "fix".
+        authTokenRepository.deleteByUserIdAndTokenType(userId, TokenType.REFRESH_TOKEN);
         jwtAuthenticationFilter.evictUser(userId);
     }
 

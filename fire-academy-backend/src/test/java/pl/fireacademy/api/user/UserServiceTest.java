@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.user.UserDtos.*;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
+import pl.fireacademy.domain.auth.TokenType;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
 import pl.fireacademy.domain.user.UserRole;
@@ -102,6 +103,20 @@ class UserServiceTest {
 
         assertEquals("new-encoded", user.getPasswordHash());
         verify(jwtAuthenticationFilter).evictUser(userId);
+    }
+
+    @Test
+    void shouldRevokeRefreshTokensWhenPasswordChanged() {
+        // Given: a user securing a compromised account by changing their password
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("OldPassword", "encoded-password")).thenReturn(true);
+        when(passwordEncoder.encode("NewPassword123")).thenReturn("new-encoded");
+
+        // When
+        service.changePassword(userId, new ChangePasswordRequest("OldPassword", "NewPassword123"));
+
+        // Then: every refresh token dies with the old password, so a stolen session cannot survive it
+        verify(authTokenRepository).deleteByUserIdAndTokenType(userId, TokenType.REFRESH_TOKEN);
     }
 
     @Test

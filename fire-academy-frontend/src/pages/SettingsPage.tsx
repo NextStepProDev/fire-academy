@@ -118,9 +118,13 @@ export function SettingsPage() {
       setNewPassword('')
       setConfirmPassword('')
       showToast(t('password.changed'))
+      // The backend revokes every refresh token on a password change (so a stolen session dies with
+      // it) — this one included. Log out locally and send the user to login, same as "log out
+      // everywhere"; staying here would just fail at the next token refresh.
+      logout()
+      navigate('/logowanie', { replace: true })
     } catch (err) {
       setPasswordError(getErrorMessage(err))
-    } finally {
       setPasswordLoading(false)
     }
   }
@@ -304,6 +308,7 @@ export function SettingsPage() {
               <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} required />
             </div>
             {passwordError && <p className="text-sm text-rose-400/80">{passwordError}</p>}
+            <p className="text-sm text-surface-400">{t('password.changeHint')}</p>
             <div className="flex gap-3">
               <Button type="submit" loading={passwordLoading} disabled={!isPasswordDirty}>{t('password.change')}</Button>
               <Button type="button" variant="secondary" onClick={resetPasswordForm} disabled={!isPasswordDirty}>{t('profile.cancel')}</Button>
