@@ -2,6 +2,7 @@ package pl.fireacademy.api.auth;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,13 +66,20 @@ public class AuthService {
         this.passwordPolicy = passwordPolicy;
     }
 
-    @Transactional
+    // Intentionally NOT @Transactional, for the same reason as login below: the password policy calls
+    // Have I Been Pwned over the network (up to a 3s timeout), and a transaction would pin a Hikari
+    // connection for that entire wait. A slow or unreachable HIBP would then drain the small pool from
+    // an endpoint anyone can hit, taking down every DB-backed request with it. The policy check runs
+    // first, before any DB work, and the remaining writes are independent enough for per-call
+    // auto-commit: a failure between saving the user and issuing the verification token leaves an
+    // unverified account, which the "resend verification" flow already recovers.
     public MessageResponse register(RegisterRequest request) {
+        // Before any DB access — this is the slow, network-bound check.
+        passwordPolicy.validate(request.password(), request.email(), request.firstName(), request.lastName());
+
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new IllegalArgumentException(msg.get("auth.email.exists"));
         }
-
-        passwordPolicy.validate(request.password(), request.email(), request.firstName(), request.lastName());
 
         User user = new User(
             request.email(),
@@ -93,7 +101,15 @@ public class AuthService {
             log.info("AUTO-ADMIN-PROMOTION: {} promoted to ADMIN during registration", user.getEmail());
         }
 
-        userRepository.save(user);
+        try {
+            userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            // Two submissions of the same address racing past the existence check above (a double click,
+            // or the client retrying a request that already landed) hit the users.email UNIQUE index.
+            // Report it as the ordinary "this e-mail is taken" 400, not a 500.
+            log.debug("Registration lost the race on a duplicate e-mail: {}", user.getEmail());
+            throw new IllegalArgumentException(msg.get("auth.email.exists"));
+        }
         log.info("User registered: {}", user.getEmail());
 
         sendVerificationEmail(user);
@@ -211,6 +227,11 @@ public class AuthService {
         return new MessageResponse(msg.get("auth.forgot.success"));
     }
 
+    // Stays @Transactional even though passwordPolicy.validate makes the same network call as in register:
+    // the personal-data check needs the account behind the token, so validation cannot run before the
+    // lookup, and splitting this into read/validate/write transactions buys little here. Unlike register,
+    // this path is not floodable — it requires a valid single-use token from an e-mail we sent, on top of
+    // the per-IP limit on /api/auth/. Revisit if password resets ever become a hot path.
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
         String tokenHash = jwtService.hashToken(request.token());

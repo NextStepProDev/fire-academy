@@ -14,6 +14,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -63,14 +64,70 @@ class RateLimitFilterTest {
     }
 
     @Test
-    void shouldPassThroughPublicEndpoints() throws ServletException, IOException {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/public/events");
-        request.setRemoteAddr("192.168.1.1");
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    void shouldAllowNormalBrowsingOfPublicEndpoints() throws ServletException, IOException {
+        // Given: a visitor browsing the catalog — well below the anonymous ceiling
+        MockHttpServletResponse response = null;
+        for (int i = 0; i < 30; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/public/events");
+            request.setRemoteAddr("192.168.1.1");
+            response = new MockHttpServletResponse();
+            filter.doFilterInternal(request, response, filterChain);
+        }
 
-        filter.doFilterInternal(request, response, filterChain);
+        // Then: never throttled
+        assertEquals(200, response.getStatus());
+    }
 
-        verify(filterChain).doFilter(request, response);
+    @Test
+    void shouldBlockPublicRequestsAfterLimit() throws ServletException, IOException {
+        // Given: an anonymous flood of the no-store catalog endpoint (every hit reaches the DB)
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        MockHttpServletResponse blockedResponse = null;
+        for (int i = 0; i <= 120; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/public/events");
+            request.setRemoteAddr("10.0.0.9");
+            blockedResponse = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blockedResponse, filterChain);
+        }
+
+        // Then: the 121st request in the window is rejected
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blockedResponse.getStatus());
+        assertTrue(blockedResponse.getContentAsString().contains("TOO_MANY_REQUESTS"));
+    }
+
+    @Test
+    void shouldRateLimitSitemapAndOgStubs() throws ServletException, IOException {
+        // Given: the sitemap (three table scans) and the OG stubs share the anonymous bucket
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        MockHttpServletResponse blockedResponse = null;
+        for (int i = 0; i <= 120; i++) {
+            // Alternating paths — one shared "public" bucket, not one per path
+            String path = i % 2 == 0 ? "/sitemap.xml" : "/og/kadra/" + UUID.randomUUID();
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+            request.setRemoteAddr("10.0.0.10");
+            blockedResponse = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blockedResponse, filterChain);
+        }
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blockedResponse.getStatus());
+    }
+
+    @Test
+    void shouldNotRateLimitUnmatchedPaths() throws ServletException, IOException {
+        // Given: paths outside the known buckets (e.g. the actuator health probe) stay unlimited
+        MockHttpServletResponse response = null;
+        for (int i = 0; i <= 200; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
+            request.setRemoteAddr("192.168.1.50");
+            response = new MockHttpServletResponse();
+            filter.doFilterInternal(request, response, filterChain);
+        }
+
+        assertEquals(200, response.getStatus());
     }
 
     @Test

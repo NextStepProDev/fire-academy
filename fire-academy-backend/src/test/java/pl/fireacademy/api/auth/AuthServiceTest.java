@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import pl.fireacademy.api.auth.AuthDtos.*;
 import pl.fireacademy.config.AdminEmailConfig;
@@ -96,6 +97,36 @@ class AuthServiceTest {
         var ex = assertThrows(IllegalArgumentException.class, () -> authService.register(registerRequest));
         assertEquals("Email zajęty", ex.getMessage());
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldValidatePasswordPolicyBeforeTouchingTheDatabase() {
+        // Given: the policy check (which calls Have I Been Pwned over the network) rejects the password
+        doThrow(new IllegalArgumentException("Hasło z wycieku"))
+            .when(passwordPolicy).validate("Password123", "new@example.com", "Jan", "Kowalski");
+
+        // When
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.register(registerRequest));
+
+        // Then: it ran before any repository call, so the slow network wait never holds a DB connection
+        assertEquals("Hasło z wycieku", ex.getMessage());
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void shouldReportDuplicateEmailWhenTwoRegistrationsRace() {
+        // Given: another request saved the same address between the existence check and this save
+        when(userRepository.existsByEmailIgnoreCase("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123")).thenReturn("encoded");
+        when(adminEmailConfig.isAdminEmail("new@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+        when(msg.get("auth.email.exists")).thenReturn("Email zajęty");
+
+        // When / Then: the UNIQUE violation surfaces as the ordinary 400, not a 500
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.register(registerRequest));
+        assertEquals("Email zajęty", ex.getMessage());
+        verify(authMailService, never()).sendVerificationEmail(any(User.class), anyString());
     }
 
     @Test

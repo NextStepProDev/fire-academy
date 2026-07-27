@@ -49,7 +49,8 @@
     "new": "Nowe hasło",
     "confirm": "Potwierdź nowe hasło",
     "change": "Zmień hasło",
-    "changed": "Hasło zostało zmienione"
+    "changed": "Hasło zostało zmienione — zaloguj się ponownie",
+    "changeHint": "Po zmianie hasła wszystkie urządzenia zostaną wylogowane, łącznie z tym."
   },
   "marketing": {
     "title": "Wiadomości marketingowe",
