@@ -18,6 +18,15 @@ COPY --from=build /app/build/libs/*.jar app.jar
 
 ENV SPRING_PROFILES_ACTIVE=docker
 
+# Uruchamiaj jako nieuprzywilejowany użytkownik (pinned uid 1001 → deterministyczny
+# chown wolumenu). /app/uploads jest pre-tworzony i nadany userowi: ŚWIEŻY named volume
+# dziedziczy tę własność, więc nowe wdrożenia działają bez ręcznego chown. ISTNIEJĄCY
+# (rootowy) wolumen wymaga jednorazowo, przed startem tego obrazu:
+#   docker run --rm -v fa_uploads_data_prod:/u alpine chown -R 1001:1001 /u
+RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app \
+    && mkdir -p /app/uploads && chown -R app:app /app
+USER app
+
 EXPOSE 8081
 # JVM tuning for a ~1GB RAM / 2 vCPU box (mem_limit 384m — see CLAUDE.md "Infrastruktura"):
 # - MaxRAMPercentage=55 / MaxMetaspaceSize=128m -> heap+non-heap stays under the limit;
