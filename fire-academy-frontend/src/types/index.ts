@@ -144,10 +144,24 @@ export interface DeletedTrainingNotice {
   deletedAt: string
 }
 
+/**
+ * One occurrence of a recurring group slot. Deliberately has no id: it is not a row anywhere, it is
+ * computed from the subscription on every request. Nothing in the UI may offer to edit it.
+ */
+export interface RecurringSession {
+  date: string
+  slotId: string
+  name: string
+  instructorName: string | null
+  startTime: string
+  endTime: string | null
+}
+
 export interface CalendarRange {
   from: string
   to: string
   trainings: PersonalTraining[]
+  recurring: RecurringSession[]
   deletions: DeletedTrainingNotice[]
 }
 

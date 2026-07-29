@@ -50,6 +50,7 @@ public class PersonalTrainingService {
     private final TrainingAccessService access;
     private final TrainingUnreadService unread;
     private final AttachmentService attachments;
+    private final RecurringSessionOverlayService recurring;
     private final UserRepository userRepository;
     private final MessageService msg;
 
@@ -59,6 +60,7 @@ public class PersonalTrainingService {
                                    TrainingAccessService access,
                                    TrainingUnreadService unread,
                                    AttachmentService attachments,
+                                   RecurringSessionOverlayService recurring,
                                    UserRepository userRepository,
                                    MessageService msg) {
         this.repository = repository;
@@ -67,6 +69,7 @@ public class PersonalTrainingService {
         this.access = access;
         this.unread = unread;
         this.attachments = attachments;
+        this.recurring = recurring;
         this.userRepository = userRepository;
         this.msg = msg;
     }
@@ -100,7 +103,8 @@ public class PersonalTrainingService {
                         d.getTitle(), d.getDeletedAt()))
                 .toList();
 
-        return new CalendarRangeResponse(from, to, items, notices);
+        return new CalendarRangeResponse(from, to, items,
+                recurring.sessionsInRange(athleteId, from, to), notices);
     }
 
     @Transactional

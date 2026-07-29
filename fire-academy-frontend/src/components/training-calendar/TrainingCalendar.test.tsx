@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TrainingCalendar } from './TrainingCalendar'
 import type { TrainingCalendarAdapter } from './adapter'
 import { todayIso, weekRange } from '../../utils/calendarRange'
-import type { CalendarRange, DeletedTrainingNotice, PersonalTraining } from '../../types'
+import type { CalendarRange, DeletedTrainingNotice, PersonalTraining, RecurringSession } from '../../types'
 
 // The calendar always opens on the current week, so fixtures have to live there rather than on a
 // fixed date — otherwise they render outside the visible range and nothing is found.
@@ -49,9 +49,10 @@ function stubAdapter(
   trainings: PersonalTraining[],
   over: Partial<TrainingCalendarAdapter> = {},
   deletions: DeletedTrainingNotice[] = [],
+  recurring: RecurringSession[] = [],
 ): TrainingCalendarAdapter {
   const week = weekRange(TODAY)
-  const range: CalendarRange = { from: week.from, to: week.to, trainings, deletions }
+  const range: CalendarRange = { from: week.from, to: week.to, trainings, recurring, deletions }
   return {
     role: 'coach',
     athleteId: 'a1',
@@ -198,7 +199,7 @@ describe('TrainingCalendar', () => {
     // While the range is still in flight nothing is marked
     expect(markSeen).not.toHaveBeenCalled()
 
-    resolveRange({ from: week.from, to: week.to, trainings: [training()], deletions: [] })
+    resolveRange({ from: week.from, to: week.to, trainings: [training()], recurring: [], deletions: [] })
 
     await screen.findByText('Siła')
     await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(1))
@@ -222,6 +223,35 @@ describe('TrainingCalendar', () => {
     renderCalendar(stubAdapter([training({ unread: true })]))
 
     expect(await screen.findByLabelText('unread.dot')).toBeInTheDocument()
+  })
+
+  it('shows group sessions with no controls on them', async () => {
+    // A recurring session is computed from a subscription — it has no row to edit, so offering any
+    // action on it would promise something the API cannot do.
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([], {}, [], [{
+      date: TODAY, slotId: 's1', name: 'Kickboxing',
+      instructorName: 'Jan Kowalski', startTime: '18:00', endTime: '19:00',
+    }]))
+
+    const tile = await screen.findByText('Kickboxing')
+    expect(tile).toBeInTheDocument()
+    expect(screen.getByText(/18:00–19:00/)).toBeInTheDocument()
+
+    // No clipboard controls, and clicking it opens nothing
+    expect(screen.queryByRole('button', { name: 'Kopiuj' })).toBeNull()
+    await user.click(tile)
+    expect(screen.queryByText('Edytuj')).toBeNull()
+  })
+
+  it('does not call the range empty when only group sessions are scheduled', async () => {
+    renderCalendar(stubAdapter([], {}, [], [{
+      date: TODAY, slotId: 's1', name: 'Kickboxing',
+      instructorName: null, startTime: '18:00', endTime: null,
+    }]))
+
+    await screen.findByText('Kickboxing')
+    expect(screen.queryByText('Brak treningów w tym okresie.')).toBeNull()
   })
 
   it('announces deleted future trainings and lets them be dismissed', async () => {

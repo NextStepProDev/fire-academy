@@ -73,6 +73,9 @@
   "unread": {
     "dot": "Nowe od ostatniej wizyty"
   },
+  "recurring": {
+    "badge": "trening grupowy"
+  },
   "comments": {
     "title": "Komentarze",
     "empty": "Brak komentarzy. Napisz pierwszy.",

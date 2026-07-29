@@ -68,13 +68,28 @@ public final class TrainingCalendarDtos {
             Instant updatedAt
     ) {}
 
-    /** One calendar page. The read-only recurring-session overlay joins this later. */
+    /** One calendar page: the 1-on-1 plan plus the group sessions it sits alongside. */
     public record CalendarRangeResponse(
             LocalDate from,
             LocalDate to,
             List<PersonalTrainingResponse> trainings,
+            /**
+             * Group sessions the client is subscribed to. Read-only and computed on every request
+             * from the same rules that produce the bill — never stored as trainings.
+             */
+            List<RecurringSession> recurring,
             /** Deleted future trainings the viewer has not dismissed yet. */
             List<DeletedTrainingNotice> deletions
+    ) {}
+
+    /** One occurrence of a recurring group slot. Has no id of its own: it is not a row anywhere. */
+    public record RecurringSession(
+            LocalDate date,
+            UUID slotId,
+            String name,
+            @Nullable String instructorName,
+            LocalTime startTime,
+            @Nullable LocalTime endTime
     ) {}
 
     public record DeletedTrainingNotice(

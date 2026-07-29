@@ -15,7 +15,7 @@ import {
   eachDay, formatRangeLabel, rangeFor, shiftAnchor, todayIso, weekdayShort,
   type CalendarView,
 } from '../../utils/calendarRange'
-import type { CreateTrainingBody, PersonalTraining } from '../../types'
+import type { CreateTrainingBody, PersonalTraining, RecurringSession } from '../../types'
 import type { TrainingCalendarAdapter } from './adapter'
 
 /**
@@ -55,6 +55,16 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
       const list = map.get(training.date)
       if (list) list.push(training)
       else map.set(training.date, [training])
+    }
+    return map
+  }, [rangeQuery.data])
+
+  const recurringByDay = useMemo(() => {
+    const map = new Map<string, RecurringSession[]>()
+    for (const session of rangeQuery.data?.recurring ?? []) {
+      const list = map.get(session.date)
+      if (list) list.push(session)
+      else map.set(session.date, [session])
     }
     return map
   }, [rangeQuery.data])
@@ -206,6 +216,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                 date={date}
                 anchor={anchor}
                 trainings={byDay.get(date) ?? []}
+                recurring={recurringByDay.get(date) ?? []}
                 compact={view === 'month'}
                 showWeekday={view === 'week'}
                 cutId={clipboard?.mode === 'MOVE' ? clipboard.trainingId : null}
@@ -222,6 +233,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                   pasteHere: t('clipboard.pasteHere'),
                   unread: t('unread.dot'),
                   comments: t('comments.title'),
+                  recurring: t('recurring.badge'),
                 }}
               />
             ))}
@@ -229,7 +241,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
         </div>
       )}
 
-      {rangeQuery.data && rangeQuery.data.trainings.length === 0 && !rangeQuery.isFetching && (
+      {rangeQuery.data && rangeQuery.data.trainings.length === 0
+        && rangeQuery.data.recurring.length === 0 && !rangeQuery.isFetching && (
         <p className="flex items-center gap-2 text-sm text-surface-500">
           <CalendarDays className="h-4 w-4" />
           {t('empty')}

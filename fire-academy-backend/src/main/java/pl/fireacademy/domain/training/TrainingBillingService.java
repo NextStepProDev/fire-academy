@@ -8,8 +8,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,18 +60,95 @@ public class TrainingBillingService {
     /** Dates in the month on which the given slot does NOT take place (days off on that weekday + cancellations). */
     @Transactional(readOnly = true)
     public Set<LocalDate> closedDates(UUID slotId, int dayOfWeek, YearMonth month) {
-        LocalDate from = month.atDay(1);
-        LocalDate to = month.atEndOfMonth();
-        Set<LocalDate> closed = new HashSet<>();
-        for (var holiday : holidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(from, to)) {
-            if (holiday.getHolidayDate().getDayOfWeek().getValue() == dayOfWeek) {
-                closed.add(holiday.getHolidayDate());
+        return closedDatesInRange(slotId, dayOfWeek, month.atDay(1), month.atEndOfMonth());
+    }
+
+    /**
+     * Same rule over an arbitrary date range rather than a calendar month.
+     * <p>
+     * The whole billing API is monthly because a bill is monthly. A calendar page is not: it spans a
+     * week or a 42-day grid that straddles two or three months. Asking the monthly methods for each
+     * month in turn would cost two queries per month per slot; this costs two for the entire span,
+     * which is what keeps the read-only overlay affordable.
+     */
+    @Transactional(readOnly = true)
+    public Set<LocalDate> closedDatesInRange(UUID slotId, int dayOfWeek, LocalDate from, LocalDate to) {
+        return closedDatesInRange(List.of(slotId), Map.of(slotId, dayOfWeek), from, to)
+                .getOrDefault(slotId, Set.of());
+    }
+
+    /**
+     * Batched: one pair of queries covers every slot and the whole range at once.
+     *
+     * @param dayOfWeekBySlot each slot's ISO weekday — a club day off only closes the slots that
+     *                        actually fall on it
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Set<LocalDate>> closedDatesInRange(Collection<UUID> slotIds,
+                                                        Map<UUID, Integer> dayOfWeekBySlot,
+                                                        LocalDate from, LocalDate to) {
+        Map<UUID, Set<LocalDate>> bySlot = new HashMap<>();
+        if (slotIds.isEmpty()) {
+            return bySlot;
+        }
+        for (UUID slotId : slotIds) {
+            bySlot.put(slotId, new HashSet<>());
+        }
+
+        var holidays = holidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(from, to);
+        for (var holiday : holidays) {
+            int holidayDow = holiday.getHolidayDate().getDayOfWeek().getValue();
+            for (UUID slotId : slotIds) {
+                if (dayOfWeekBySlot.getOrDefault(slotId, -1) == holidayDow) {
+                    bySlot.get(slotId).add(holiday.getHolidayDate());
+                }
             }
         }
-        for (var cs : cancelledSessionRepository.findForSlotsInRange(List.of(slotId), from, to)) {
-            closed.add(cs.getSessionDate());
+        for (var cs : cancelledSessionRepository.findForSlotsInRange(slotIds, from, to)) {
+            Set<LocalDate> dates = bySlot.get(cs.getSlot().getId());
+            if (dates != null) {
+                dates.add(cs.getSessionDate());
+            }
         }
-        return closed;
+        return bySlot;
+    }
+
+    /**
+     * Dates on/after a scheduled deactivation, added to {@code into}. Extracted from the monthly
+     * variant so the range API applies exactly the same rule rather than a second copy of it.
+     */
+    public static void addDeactivationDates(TrainingSlot slot, LocalDate from, LocalDate to, Set<LocalDate> into) {
+        LocalDate deactivatedFrom = slot.getDeactivatedFrom();
+        if (deactivatedFrom == null) {
+            return;
+        }
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            if (date.getDayOfWeek().getValue() == slot.getDayOfWeek() && !date.isBefore(deactivatedFrom)) {
+                into.add(date);
+            }
+        }
+    }
+
+    /**
+     * The subscription's session dates within a range — PURE, no database access.
+     * <p>
+     * The caller supplies the closed dates (fetched once for the whole range), so this can be run for
+     * every subscription on a calendar page without another query. Applies the same three filters as
+     * the bill: the month must be covered by the subscription, the date must not be closed, and it
+     * must not precede the subscription's billable-from anchor.
+     */
+    public static List<LocalDate> sessionDatesInRange(TrainingEnrollment te, LocalDate from, LocalDate to,
+                                                      Set<LocalDate> closed) {
+        var slot = te.getSlot();
+        List<LocalDate> dates = new ArrayList<>();
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            if (date.getDayOfWeek().getValue() != slot.getDayOfWeek()) continue;
+            if (closed.contains(date)) continue;
+            if (!te.covers(YearMonth.from(date))) continue;
+            if (date.getDayOfMonth() < billableFromDay(te, YearMonth.from(date))) continue;
+            dates.add(date);
+        }
+        return dates;
     }
 
     /** Preview flavor (would-be new enrollment): current month counted from today. */
@@ -186,15 +266,7 @@ public class TrainingBillingService {
         Set<LocalDate> closed = new HashSet<>(closedDates(slot.getId(), slot.getDayOfWeek(), month));
         // A scheduled deactivation stops the slot from a date on — those sessions no longer take place,
         // so they must drop out of the bill too (not just days off / single cancellations).
-        LocalDate deactivatedFrom = slot.getDeactivatedFrom();
-        if (deactivatedFrom != null) {
-            for (int day = 1; day <= month.lengthOfMonth(); day++) {
-                LocalDate date = LocalDate.of(month.getYear(), month.getMonthValue(), day);
-                if (date.getDayOfWeek().getValue() == slot.getDayOfWeek() && !date.isBefore(deactivatedFrom)) {
-                    closed.add(date);
-                }
-            }
-        }
+        addDeactivationDates(slot, month.atDay(1), month.atEndOfMonth(), closed);
         return closed;
     }
 }

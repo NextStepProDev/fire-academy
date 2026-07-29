@@ -1,13 +1,15 @@
 import clsx from 'clsx'
 import { Plus } from 'lucide-react'
 import { dayOfMonth, isOutsideMonth, isWeekend, todayIso, weekdayShort } from '../../utils/calendarRange'
-import type { PersonalTraining } from '../../types'
+import type { PersonalTraining, RecurringSession } from '../../types'
 import { TrainingTile } from './TrainingTile'
+import { RecurringTile } from './RecurringTile'
 
 interface DayColumnProps {
   date: string
   anchor: string
   trainings: PersonalTraining[]
+  recurring: RecurringSession[]
   compact?: boolean
   showWeekday?: boolean
   cutId?: string | null
@@ -17,7 +19,10 @@ interface DayColumnProps {
   onPaste?: (date: string) => void
   onCopy?: (training: PersonalTraining) => void
   onCut?: (training: PersonalTraining) => void
-  labels: { add: string; copy: string; cut: string; pasteHere: string; unread: string; comments: string }
+  labels: {
+    add: string; copy: string; cut: string; pasteHere: string
+    unread: string; comments: string; recurring: string
+  }
 }
 
 /**
@@ -29,7 +34,7 @@ interface DayColumnProps {
  * short list, and its height follows its content.
  */
 export function DayColumn({
-  date, anchor, trainings, compact = false, showWeekday = true, cutId, pasteArmed,
+  date, anchor, trainings, recurring, compact = false, showWeekday = true, cutId, pasteArmed,
   onOpen, onAdd, onPaste, onCopy, onCut, labels,
 }: DayColumnProps) {
   const isToday = date === todayIso()
@@ -70,6 +75,16 @@ export function DayColumn({
             cutLabel={labels.cut}
             unreadLabel={labels.unread}
             commentsLabel={labels.comments}
+          />
+        ))}
+        {/* Group sessions come last: the 1-on-1 plan is what this calendar is for, and these are
+            context around it. */}
+        {recurring.map(session => (
+          <RecurringTile
+            key={`${session.slotId}-${session.date}`}
+            session={session}
+            compact={compact}
+            label={labels.recurring}
           />
         ))}
       </div>
