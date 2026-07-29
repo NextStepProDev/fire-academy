@@ -54,6 +54,12 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
   const goals: AthleteGoals = goalsQuery.data ?? { active: [], achieved: [] }
   const today = todayIso()
 
+  // A client whose coach has not set any goals should see nothing here, not three empty boxes
+  // telling them so three times. The coach keeps the empty cards — for them they are the way in.
+  if (!isCoach && goals.active.length === 0 && goals.achieved.length === 0) {
+    return null
+  }
+
   /** Achieved within the celebration window still occupies its horizon's card. */
   const celebrating = goals.achieved.filter(g =>
     g.achievedAt != null && differenceInCalendarDays(parseISO(today), parseISO(g.achievedAt)) <= CELEBRATION_DAYS)

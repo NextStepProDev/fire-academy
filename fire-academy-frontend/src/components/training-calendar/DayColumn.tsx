@@ -49,6 +49,8 @@ export function DayColumn({
         outside && 'opacity-40',
         pasteArmed && 'cursor-copy hover:border-primary-600/60',
       )}
+      // While the clipboard is armed the whole day is the drop target. The cards inside go inert so
+      // one tap cannot both paste and open a card.
       onClick={pasteArmed && onPaste ? () => onPaste(date) : undefined}
     >
       <div className="flex items-baseline justify-between px-0.5">
@@ -68,6 +70,7 @@ export function DayColumn({
             training={training}
             compact={compact}
             cut={cutId === training.id}
+            inert={pasteArmed}
             onOpen={onOpen}
             onCopy={onCopy}
             onCut={onCut}

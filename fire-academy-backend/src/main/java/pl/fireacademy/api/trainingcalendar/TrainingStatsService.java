@@ -49,15 +49,20 @@ public class TrainingStatsService {
     @Transactional(readOnly = true)
     public TrainingStatsResponse stats(UUID athleteId, boolean includeOvertraining) {
         access.requireAthlete(athleteId);
-        return build(athleteId, LocalDate.now(), includeOvertraining);
+        return build(athleteId, LocalDateTime.now(), includeOvertraining);
     }
 
-    /** Package-private with an explicit "today" so the integration test is not at the mercy of the clock. */
-    TrainingStatsResponse build(UUID athleteId, LocalDate today, boolean includeOvertraining) {
+    /**
+     * Package-private with an explicit "now" so tests are not at the mercy of the clock.
+     * <p>
+     * It must be a {@code LocalDateTime}, not a date: an untimed training runs until the end of its
+     * day, so treating today as already elapsed would count a session the client still has all day
+     * to do as missed — and greet them with 0% attendance over breakfast.
+     */
+    TrainingStatsResponse build(UUID athleteId, LocalDateTime now, boolean includeOvertraining) {
+        LocalDate today = now.toLocalDate();
         LocalDate yearAgo = today.minusDays(TrainingStatsCalculator.HEATMAP_DAYS - 1L);
         List<PersonalTraining> trainings = trainingRepository.findRange(athleteId, yearAgo, today);
-
-        LocalDateTime now = today.plusDays(1).atStartOfDay();
         List<LocalDate> completedDates = new ArrayList<>();
         List<PersonalTraining> completed = new ArrayList<>();
         int missedInWindow = 0;

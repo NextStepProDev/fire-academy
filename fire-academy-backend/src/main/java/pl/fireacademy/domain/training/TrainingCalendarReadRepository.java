@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,4 +37,63 @@ public interface TrainingCalendarReadRepository
     void upsertSeen(@Param("userId") UUID userId,
                     @Param("athleteId") UUID athleteId,
                     @Param("seenAt") Instant seenAt);
+
+    /**
+     * Unread counts for a whole roster in ONE query per source.
+     * <p>
+     * The seen marker differs per athlete, which is why this cannot be a simple {@code IN} count:
+     * each row has to be compared against that viewer's own marker for that athlete. The LEFT JOIN
+     * does exactly that, and a missing marker (never opened) correctly counts everything.
+     * <p>
+     * Asking per athlete instead would cost 1 + 4N queries — 61 on a roster of fifteen.
+     */
+    @Query(value = """
+        SELECT pt.athlete_id AS athlete_id, count(*) AS total
+        FROM personal_trainings pt
+        LEFT JOIN training_calendar_reads r
+               ON r.user_id = :viewerId AND r.athlete_id = pt.athlete_id
+        WHERE pt.athlete_id IN (:athleteIds)
+          AND pt.last_modified_by_admin = :fromAdmin
+          AND (r.seen_at IS NULL OR pt.updated_at > r.seen_at)
+        GROUP BY pt.athlete_id
+        """, nativeQuery = true)
+    List<UnreadCount> countUnreadTrainings(@Param("viewerId") UUID viewerId,
+                                           @Param("athleteIds") Collection<UUID> athleteIds,
+                                           @Param("fromAdmin") boolean fromAdmin);
+
+    @Query(value = """
+        SELECT pt.athlete_id AS athlete_id, count(*) AS total
+        FROM training_comments c
+        JOIN personal_trainings pt ON pt.id = c.training_id
+        LEFT JOIN training_calendar_reads r
+               ON r.user_id = :viewerId AND r.athlete_id = pt.athlete_id
+        WHERE pt.athlete_id IN (:athleteIds)
+          AND c.author_is_admin = :fromAdmin
+          AND (r.seen_at IS NULL OR c.created_at > r.seen_at)
+        GROUP BY pt.athlete_id
+        """, nativeQuery = true)
+    List<UnreadCount> countUnreadComments(@Param("viewerId") UUID viewerId,
+                                          @Param("athleteIds") Collection<UUID> athleteIds,
+                                          @Param("fromAdmin") boolean fromAdmin);
+
+    @Query(value = """
+        SELECT d.athlete_id AS athlete_id, count(*) AS total
+        FROM training_deletions d
+        LEFT JOIN training_calendar_reads r
+               ON r.user_id = :viewerId AND r.athlete_id = d.athlete_id
+        WHERE d.athlete_id IN (:athleteIds)
+          AND d.deleted_by_admin = :fromAdmin
+          AND d.dismissed_at IS NULL
+          AND (r.seen_at IS NULL OR d.deleted_at > r.seen_at)
+        GROUP BY d.athlete_id
+        """, nativeQuery = true)
+    List<UnreadCount> countUnreadDeletions(@Param("viewerId") UUID viewerId,
+                                           @Param("athleteIds") Collection<UUID> athleteIds,
+                                           @Param("fromAdmin") boolean fromAdmin);
+
+    /** Projection for the batched counts above. */
+    interface UnreadCount {
+        UUID getAthleteId();
+        long getTotal();
+    }
 }

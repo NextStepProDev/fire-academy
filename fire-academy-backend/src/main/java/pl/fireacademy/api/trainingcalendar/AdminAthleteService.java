@@ -8,6 +8,7 @@ import pl.fireacademy.domain.user.UserRepository;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Coach-side roster of 1-on-1 clients — the entry point into a single person's calendar. */
@@ -30,8 +31,17 @@ public class AdminAthleteService {
      */
     @Transactional(readOnly = true)
     public List<AthleteSummary> list(UUID adminId) {
-        return userRepository.findByAthleteTrueOrderByFirstNameAscLastNameAsc().stream()
-                .map(user -> toSummary(user, unread.countUnread(adminId, user.getId(), true)))
+        List<User> athletes = userRepository.findByAthleteTrueOrderByFirstNameAscLastNameAsc();
+        if (athletes.isEmpty()) {
+            return List.of();
+        }
+        // Batched on purpose: counting per athlete would be 1 + 4N queries on a page the coach
+        // opens constantly, and it would get slower with every client they take on.
+        Map<UUID, Long> unreadByAthlete = unread.countUnreadForRoster(
+                adminId, athletes.stream().map(User::getId).toList(), true);
+
+        return athletes.stream()
+                .map(user -> toSummary(user, unreadByAthlete.getOrDefault(user.getId(), 0L)))
                 .sorted(Comparator.comparingLong(AthleteSummary::unreadCount).reversed())
                 .toList();
     }

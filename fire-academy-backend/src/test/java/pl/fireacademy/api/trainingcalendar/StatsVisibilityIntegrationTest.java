@@ -137,6 +137,25 @@ class StatsVisibilityIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldNotCountTodaysUntickedTrainingAsMissed() throws Exception {
+        // An untimed training runs until the end of its day. Counting it as missed at 10:00 tells the
+        // client they failed a session they still have all day to do.
+        String admin = adminToken();
+        String client = flagClient();
+        mockMvc.perform(post("/api/admin/personal-trainings?athleteId=" + clientId())
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Dzisiejszy"}""".formatted(LocalDate.now())))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/user/my-training/stats").header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                // Nothing has been completed and nothing has been missed, so there is no rate to give
+                .andExpect(jsonPath("$.attendancePercent").doesNotExist());
+    }
+
+    @Test
     void shouldKeepStatsOutOfReachForOtherPeople() throws Exception {
         String admin = adminToken();
         flagClient();

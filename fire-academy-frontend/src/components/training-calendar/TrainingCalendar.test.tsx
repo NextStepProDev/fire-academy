@@ -162,6 +162,20 @@ describe('TrainingCalendar', () => {
     await waitFor(() => expect(pasteTraining).toHaveBeenCalledWith('t1', expect.any(String), 'COPY'))
   })
 
+  it('does not open a training when the click was meant to paste', async () => {
+    // The whole day is a drop target while the clipboard is armed. Without this the click both
+    // pastes AND opens the card underneath it, which is two actions from one tap.
+    const user = userEvent.setup()
+    const pasteTraining = vi.fn().mockResolvedValue(training())
+    renderCalendar(stubAdapter([training()], { pasteTraining }))
+
+    await user.click(await screen.findByRole('button', { name: 'Kopiuj' }))
+    await user.click(screen.getByText('Siła'))
+
+    await waitFor(() => expect(pasteTraining).toHaveBeenCalled())
+    expect(screen.queryByText('Edytuj')).toBeNull()
+  })
+
   it('offers no completion action when the adapter cannot complete', async () => {
     // The coach cannot tick off someone else's session; the missing adapter method IS the permission.
     const user = userEvent.setup()

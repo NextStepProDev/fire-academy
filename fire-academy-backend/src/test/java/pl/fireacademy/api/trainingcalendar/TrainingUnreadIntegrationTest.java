@@ -297,6 +297,36 @@ class TrainingUnreadIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldNotCostMoreQueriesAsTheRosterGrows() throws Exception {
+        // The coach opens this page constantly. Counting per athlete would be 1 + 4N queries and
+        // would get slower with every client they take on.
+        String admin = adminToken();
+        flagAthlete("client@fireacademy.test");
+        // Warm up: the very first request also resolves and caches the admin account, which would
+        // otherwise be counted against whichever measurement happened to run first.
+        countRosterQueries(admin);
+        long oneAthlete = countRosterQueries(admin);
+
+        for (int i = 0; i < 5; i++) {
+            flagAthlete("client" + i + "@fireacademy.test");
+        }
+        long sixAthletes = countRosterQueries(admin);
+
+        org.junit.jupiter.api.Assertions.assertEquals(oneAthlete, sixAthletes,
+                "roster cost must be flat, not per athlete");
+    }
+
+    private long countRosterQueries(String admin) throws Exception {
+        var stats = webApplicationContext.getBean(jakarta.persistence.EntityManagerFactory.class)
+                .unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+        mockMvc.perform(get("/api/admin/athletes").header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk());
+        return stats.getPrepareStatementCount();
+    }
+
+    @Test
     void shouldFreezeCommentAuthorshipAtWritingTime() throws Exception {
         // Deriving the author's role from users.role today would relabel a client's old comments the
         // day they are promoted to admin — and flip everyone's dots with them.

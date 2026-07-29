@@ -5,7 +5,10 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.domain.training.*;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -80,6 +83,33 @@ public class TrainingUnreadService {
             count += goalRepository.countCreatedSince(athleteId, since);
         }
         return count;
+    }
+
+    /**
+     * Unread counts for a whole roster in three queries, whatever its size.
+     * <p>
+     * Calling {@link #countUnread} per athlete would cost 1 + 4N — 61 queries on a roster of
+     * fifteen. Each athlete has their own seen marker, so the batching happens through a LEFT JOIN
+     * on it rather than a plain IN-count.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> countUnreadForRoster(UUID viewerId, Collection<UUID> athleteIds,
+                                                boolean viewerIsAdmin) {
+        Map<UUID, Long> totals = new HashMap<>();
+        if (athleteIds.isEmpty()) {
+            return totals;
+        }
+        boolean fromAdmin = !viewerIsAdmin;
+        for (var row : readRepository.countUnreadTrainings(viewerId, athleteIds, fromAdmin)) {
+            totals.merge(row.getAthleteId(), row.getTotal(), Long::sum);
+        }
+        for (var row : readRepository.countUnreadComments(viewerId, athleteIds, fromAdmin)) {
+            totals.merge(row.getAthleteId(), row.getTotal(), Long::sum);
+        }
+        for (var row : readRepository.countUnreadDeletions(viewerId, athleteIds, fromAdmin)) {
+            totals.merge(row.getAthleteId(), row.getTotal(), Long::sum);
+        }
+        return totals;
     }
 
     /** Per-training dots for one calendar page, batched — one query for the whole range. */

@@ -2,6 +2,26 @@ import clsx from 'clsx'
 import { Check, Copy, MessageSquare, Scissors } from 'lucide-react'
 import type { PersonalTraining } from '../../types'
 
+/**
+ * The card body: a button normally, a plain block while the clipboard is armed. Swapping the tag
+ * rather than disabling a button is what lets the click fall through to the day behind it.
+ */
+function Content({ inert, onClick, className, children }: {
+  inert: boolean
+  onClick: () => void
+  className: string
+  children: React.ReactNode
+}) {
+  if (inert) {
+    return <div className={className}>{children}</div>
+  }
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {children}
+    </button>
+  )
+}
+
 /** Left-border colour carries the status; the card itself stays neutral so a day reads at a glance. */
 const statusBorder: Record<PersonalTraining['status'], string> = {
   PLANNED: 'border-l-surface-600',
@@ -13,6 +33,11 @@ interface TrainingTileProps {
   training: PersonalTraining
   compact?: boolean
   cut?: boolean
+  /**
+   * The clipboard is armed, so the whole day is a drop target. The card goes inert: otherwise one
+   * tap would both paste and open this card, which is two actions from one click. Escape disarms.
+   */
+  inert?: boolean
   onOpen: (training: PersonalTraining) => void
   onCopy?: (training: PersonalTraining) => void
   onCut?: (training: PersonalTraining) => void
@@ -23,10 +48,10 @@ interface TrainingTileProps {
 }
 
 export function TrainingTile({
-  training, compact = false, cut = false, onOpen, onCopy, onCut,
+  training, compact = false, cut = false, inert = false, onOpen, onCopy, onCut,
   copyLabel, cutLabel, unreadLabel, commentsLabel,
 }: TrainingTileProps) {
-  const showClipboard = (onCopy || onCut) && !compact
+  const showClipboard = (onCopy || onCut) && !compact && !inert
 
   return (
     <div
@@ -38,8 +63,13 @@ export function TrainingTile({
         compact ? 'px-1.5 py-1' : 'p-2',
       )}
     >
-      <button
-        type="button"
+      {/*
+        While the clipboard is armed this is genuinely not a control — the day underneath is the
+        drop target — so it stops being a <button> rather than being a disabled one. That keeps the
+        markup honest, keeps it off the keyboard path, and lets the click reach the day.
+      */}
+      <Content
+        inert={inert}
         onClick={() => onOpen(training)}
         className={clsx('block w-full text-left', showClipboard && 'pr-14')}
       >
@@ -80,7 +110,7 @@ export function TrainingTile({
             )}
           </span>
         )}
-      </button>
+      </Content>
 
       {showClipboard && (
         // Always in the DOM and always visible. Hover-only controls simply do not exist on a phone,
