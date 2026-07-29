@@ -110,6 +110,32 @@ export function PrivacyPolicyPage() {
             </p>
           </SubSection>
 
+          <SubSection title="Kalendarz treningów indywidualnych 1:1 (tylko dla podopiecznych)">
+            <p className="text-surface-400 text-sm mb-2 leading-relaxed">
+              Jeśli trener prowadzi Cię indywidualnie i włączy Ci kalendarz treningowy, w Twoim koncie
+              zapisywane są dodatkowo:
+            </p>
+            <DataList items={[
+              'Plan treningowy — nazwy, opisy i terminy treningów ułożonych przez trenera oraz dodanych przez Ciebie',
+              'Oznaczenia wykonania treningu wraz z datą',
+              'Ocena odczuwalnego wysiłku (skala 1–10) i Twój komentarz do wykonanego treningu',
+              'Wiadomości wymieniane z trenerem przy poszczególnych treningach',
+              'Cele treningowe ustawione przez trenera oraz data ich osiągnięcia',
+              'Masa ciała — jeśli sam ją wpisujesz (jeden pomiar dziennie, wraz z datą)',
+            ]} />
+            <p className="text-surface-500 text-sm mt-3 leading-relaxed">
+              Wszystkie te dane są widoczne dla trenera prowadzącego — to podstawowy sens tej funkcji
+              i informujemy o tym również bezpośrednio na stronie planu treningowego. Nie są widoczne
+              dla innych uczestników zajęć. Masy ciała nie może wpisać za Ciebie trener — wpisujesz
+              ją wyłącznie Ty i możesz w każdej chwili usunąć pojedynczy pomiar.
+            </p>
+            <p className="text-surface-500 text-sm mt-3 leading-relaxed">
+              Podanie tych danych jest <span className="text-surface-300 font-medium">całkowicie dobrowolne</span>.
+              Możesz korzystać z kalendarza bez wpisywania masy ciała, a odmowa nie wpływa na możliwość
+              udziału w treningach.
+            </p>
+          </SubSection>
+
           <p className="text-surface-500 text-sm mt-4">
             Nie korzystamy z plików cookies śledzących, Google Analytics, Facebook Pixel ani żadnych innych narzędzi analitycznych.
           </p>
@@ -144,6 +170,14 @@ export function PrivacyPolicyPage() {
             <LegalBasis
               purpose="Wysyłka wiadomości marketingowych (newsletter)"
               basis="Art. 6 ust. 1 lit. a RODO — Twoja dobrowolna i odrębna zgoda; dodatkowo art. 10 ustawy o świadczeniu usług drogą elektroniczną oraz art. 172 Prawa telekomunikacyjnego. Szczegóły w punkcie 4 poniżej."
+            />
+            <LegalBasis
+              purpose="Prowadzenie indywidualnego planu treningowego (kalendarz 1:1, cele, komunikacja z trenerem)"
+              basis="Art. 6 ust. 1 lit. b RODO — przetwarzanie niezbędne do wykonania umowy o świadczenie usług treningu personalnego"
+            />
+            <LegalBasis
+              purpose="Zapisywanie masy ciała, ocen odczuwalnego wysiłku i komentarzy do wykonanych treningów"
+              basis="Art. 9 ust. 2 lit. a RODO — Twoja wyraźna, dobrowolna zgoda na przetwarzanie danych dotyczących zdrowia, którą wyrażasz przez samodzielne wpisanie tych danych i możesz w każdej chwili wycofać, usuwając je. Traktujemy te dane jako dane szczególnej kategorii i chronimy je surowiej niż pozostałe: widzi je wyłącznie Twój trener prowadzący."
             />
             <LegalBasis
               purpose="Bezpieczeństwo systemu (blokada konta po nieudanych logowaniach, rate limiting)"
@@ -206,6 +240,13 @@ export function PrivacyPolicyPage() {
               prawa do bycia zapomnianym.
             </p>
             <p>
+              <span className="text-surface-200 font-medium">Dane z kalendarza treningowego 1:1</span> (plan, wykonania,
+              oceny wysiłku, komentarze, cele, masa ciała) — przechowywane tak długo, jak istnieje Twoje konto, i
+              usuwane wraz z nim. Pojedynczy pomiar masy ciała możesz usunąć samodzielnie w każdej chwili. Wyłączenie
+              Ci kalendarza przez trenera nie kasuje tych danych — ukrywa je, a po ponownym włączeniu wracają; jeśli
+              chcesz je trwale usunąć, usuń konto albo napisz do nas.
+            </p>
+            <p>
               <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 15 min,
               reset hasła: 1h, sesja: 7 dni) — usuwane automatycznie po wygaśnięciu przez wbudowany mechanizm czyszczenia.
             </p>
@@ -219,6 +260,13 @@ export function PrivacyPolicyPage() {
           <p className="text-surface-400 leading-relaxed mb-4">
             Twoje dane osobowe nie są sprzedawane, wynajmowane ani przekazywane żadnym podmiotom trzecim w celach
             marketingowych, reklamowych ani żadnych innych celach komercyjnych.
+          </p>
+          <p className="text-surface-400 leading-relaxed mb-4">
+            Wyjątkiem, o którym mówimy wprost, jest <span className="text-surface-200 font-medium">trener prowadzący
+            Cię indywidualnie</span>: jeśli masz włączony kalendarz treningów 1:1, Twój plan, oznaczenia wykonania,
+            oceny wysiłku, komentarze, cele i wpisana masa ciała są dla niego widoczne. To nie jest przekazanie danych
+            podmiotowi zewnętrznemu — trener działa w ramach naszej organizacji i tylko po to, żeby prowadzić Twój
+            trening. Inni uczestnicy zajęć nie mają do tych danych dostępu.
           </p>
           <p className="text-surface-400 leading-relaxed mb-4">
             Jedynymi podmiotami, z którymi współpracujemy w ramach technicznego przetwarzania danych, są:
