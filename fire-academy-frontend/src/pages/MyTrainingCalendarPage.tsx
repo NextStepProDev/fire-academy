@@ -5,6 +5,7 @@ import { Seo } from '../components/seo/Seo'
 import { useAuth } from '../context/AuthContext'
 import { TrainingCalendar } from '../components/training-calendar/TrainingCalendar'
 import { athleteAdapter } from '../components/training-calendar/adapter'
+import { GoalsBoard } from '../components/goals/GoalsBoard'
 
 export function MyTrainingCalendarPage() {
   const { t } = useTranslation('calendar')
@@ -30,6 +31,9 @@ export function MyTrainingCalendarPage() {
         <h1 className="text-2xl font-bold text-surface-100">{t('my.title')}</h1>
         <p className="mt-1 text-sm text-surface-400">{t('my.subtitle')}</p>
       </div>
+
+      {/* Read-only for the client: goals are the coach's call. */}
+      <GoalsBoard athleteId={null} />
 
       <TrainingCalendar adapter={athleteAdapter(user.id)} />
     </div>

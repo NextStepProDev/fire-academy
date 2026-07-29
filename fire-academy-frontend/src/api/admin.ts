@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, TrainingTemplate, TrainingTemplateInput } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, TrainingTemplate, TrainingTemplateInput, AthleteGoal, AthleteGoals, GoalInput } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -318,6 +318,24 @@ export const adminApi = {
     fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
   dismissTrainingDeletions: (athleteId: string) =>
     fetchApi<void>(`/admin/personal-trainings/deletions/dismiss?athleteId=${athleteId}`, { method: 'POST' }),
+
+  // Goals (coach sets them; the client only reads)
+  getAthleteGoals: (athleteId: string) =>
+    fetchApi<AthleteGoals>(`/admin/personal-trainings/goals?athleteId=${athleteId}`),
+  createAthleteGoal: (athleteId: string, data: GoalInput) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals?athleteId=${athleteId}`, {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  updateAthleteGoal: (goalId: string, data: GoalInput) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+  deleteAthleteGoal: (goalId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/goals/${goalId}`, { method: 'DELETE' }),
+  achieveAthleteGoal: (goalId: string, achievedDate?: string | null) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}/achieve`, {
+      method: 'POST', body: JSON.stringify({ achievedDate: achievedDate ?? null }),
+    }),
 
   // Exercise video library
   getExerciseVideos: (params: { query?: string; includeArchived?: boolean; page?: number; size?: number } = {}) => {

@@ -18,9 +18,11 @@ import java.util.UUID;
 public class AdminPersonalTrainingController {
 
     private final PersonalTrainingService service;
+    private final AthleteGoalService goalService;
 
-    public AdminPersonalTrainingController(PersonalTrainingService service) {
+    public AdminPersonalTrainingController(PersonalTrainingService service, AthleteGoalService goalService) {
         this.service = service;
+        this.goalService = goalService;
     }
 
     @GetMapping
@@ -90,5 +92,35 @@ public class AdminPersonalTrainingController {
     public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
         service.dismissDeletions(athleteId, adminId, true);
         return ResponseEntity.noContent().build();
+    }
+
+    // --- Goals. Set by the coach; the client only reads them. ---
+
+    @GetMapping("/goals")
+    public GoalsResponse goals(@RequestParam UUID athleteId) {
+        return goalService.getGoals(athleteId);
+    }
+
+    @PostMapping("/goals")
+    @ResponseStatus(HttpStatus.CREATED)
+    public GoalResponse createGoal(@RequestParam UUID athleteId, @Valid @RequestBody GoalRequest request) {
+        return goalService.create(athleteId, request);
+    }
+
+    @PutMapping("/goals/{goalId}")
+    public GoalResponse updateGoal(@PathVariable UUID goalId, @Valid @RequestBody GoalRequest request) {
+        return goalService.update(goalId, request);
+    }
+
+    @DeleteMapping("/goals/{goalId}")
+    public ResponseEntity<Void> deleteGoal(@PathVariable UUID goalId) {
+        goalService.delete(goalId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Back-datable — the coach usually notices a goal was reached some days later. */
+    @PostMapping("/goals/{goalId}/achieve")
+    public GoalResponse achieveGoal(@PathVariable UUID goalId, @RequestBody AchieveGoalRequest request) {
+        return goalService.achieve(goalId, request);
     }
 }

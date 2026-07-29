@@ -181,6 +181,27 @@ export interface UpdateTrainingBody extends CreateTrainingBody {
 
 export type PasteMode = 'COPY' | 'MOVE'
 
+export type GoalHorizon = 'SHORT' | 'MEDIUM' | 'LONG'
+
+export interface AthleteGoal {
+  id: string
+  horizon: GoalHorizon
+  content: string
+  targetDate: string | null
+  achievedAt: string | null
+}
+
+export interface AthleteGoals {
+  active: AthleteGoal[]
+  achieved: AthleteGoal[]
+}
+
+export interface GoalInput {
+  horizon: GoalHorizon
+  content: string
+  targetDate?: string | null
+}
+
 export type AttachmentKind = 'LINK' | 'VIDEO'
 
 export interface Attachment {

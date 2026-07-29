@@ -24,17 +24,15 @@ import java.util.UUID;
  * </ol>
  *
  * <p><b>News for the coach (from the client):</b>
- * <ol start="4">
+ * <ol start="5">
  *   <li>a training the client created or edited — this covers ticking off AND undoing it</li>
  *   <li>a comment written by the client</li>
  *   <li>a future training the client deleted</li>
  * </ol>
  *
- * <p>Goals become the seventh source when they land; the counter below already routes through one
- * method per side, so adding it is a single line rather than a new mechanism.
- *
- * <p>Symmetry is the point: both directions are computed by the same code with the role flag
- * flipped, so a rule cannot be enforced one way and forgotten the other.
+ * <p>Symmetry is the point for the six that pair up: both directions are computed by the same code
+ * with the role flag flipped, so a rule cannot be enforced one way and forgotten the other. Goals
+ * are the deliberate exception, and the code says so at the point where it breaks the symmetry.
  */
 @Service
 public class TrainingUnreadService {
@@ -43,15 +41,18 @@ public class TrainingUnreadService {
     private final TrainingCommentRepository commentRepository;
     private final TrainingDeletionRepository deletionRepository;
     private final TrainingCalendarReadRepository readRepository;
+    private final AthleteGoalRepository goalRepository;
 
     public TrainingUnreadService(PersonalTrainingRepository trainingRepository,
                                  TrainingCommentRepository commentRepository,
                                  TrainingDeletionRepository deletionRepository,
-                                 TrainingCalendarReadRepository readRepository) {
+                                 TrainingCalendarReadRepository readRepository,
+                                 AthleteGoalRepository goalRepository) {
         this.trainingRepository = trainingRepository;
         this.commentRepository = commentRepository;
         this.deletionRepository = deletionRepository;
         this.readRepository = readRepository;
+        this.goalRepository = goalRepository;
     }
 
     /** No marker means the calendar was never opened — everything counts as new. */
@@ -71,9 +72,14 @@ public class TrainingUnreadService {
     public long countUnread(UUID viewerId, UUID athleteId, boolean viewerIsAdmin) {
         Instant since = seenAt(viewerId, athleteId);
         boolean fromAdmin = !viewerIsAdmin;
-        return trainingRepository.countTouchedSince(athleteId, fromAdmin, since)
+        long count = trainingRepository.countTouchedSince(athleteId, fromAdmin, since)
                 + commentRepository.countSince(athleteId, fromAdmin, since)
                 + deletionRepository.countSince(athleteId, fromAdmin, since);
+        // Goals are the coach's alone, so a new one is news for the client and never the other way.
+        if (!viewerIsAdmin) {
+            count += goalRepository.countCreatedSince(athleteId, since);
+        }
+        return count;
     }
 
     /** Per-training dots for one calendar page, batched — one query for the whole range. */

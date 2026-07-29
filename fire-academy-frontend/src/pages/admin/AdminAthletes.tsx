@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { QueryError } from '../../components/ui/QueryError'
 import { TrainingCalendar } from '../../components/training-calendar/TrainingCalendar'
 import { coachAdapter } from '../../components/training-calendar/adapter'
+import { GoalsBoard } from '../../components/goals/GoalsBoard'
 import type { AthleteSummary } from '../../types'
 
 /**
@@ -52,7 +53,10 @@ export function AdminAthletes({ openAthlete, onOpen }: {
             <p className="text-sm text-surface-400">{openAthlete.email}</p>
           </div>
         </div>
-        <TrainingCalendar adapter={coachAdapter(openAthlete.id)} />
+        <div className="space-y-6">
+          <GoalsBoard athleteId={openAthlete.id} />
+          <TrainingCalendar adapter={coachAdapter(openAthlete.id)} />
+        </div>
       </div>
     )
   }

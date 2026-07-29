@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.training.AttachmentKind;
+import pl.fireacademy.domain.training.GoalHorizon;
 import pl.fireacademy.domain.training.TrainingStatus;
 
 import java.time.Instant;
@@ -184,6 +185,31 @@ public final class TrainingCalendarDtos {
             @Nullable String description,
             @Nullable Integer defaultDurationMinutes,
             List<AttachmentResponse> attachments
+    ) {}
+
+    public record GoalResponse(
+            UUID id,
+            GoalHorizon horizon,
+            String content,
+            @Nullable LocalDate targetDate,
+            @Nullable LocalDate achievedAt
+    ) {}
+
+    /** Active goals render as three cards; achieved ones pile up in the trophy case. */
+    public record GoalsResponse(
+            List<GoalResponse> active,
+            List<GoalResponse> achieved
+    ) {}
+
+    public record GoalRequest(
+            @NotNull GoalHorizon horizon,
+            @NotBlank @Size(max = 500) String content,
+            @Nullable LocalDate targetDate
+    ) {}
+
+    /** Back-datable: the coach usually notices a goal was reached some days later. */
+    public record AchieveGoalRequest(
+            @Nullable LocalDate achievedDate
     ) {}
 
     public record TrainingTemplateRequest(

@@ -137,5 +137,38 @@
     "deleteMessage": "Czy na pewno usunąć „{{title}}\"? Treningi już rozdane zostaną nietknięte.",
     "deleted": "Szablon usunięty.",
     "empty": "Brak szablonów. Dodaj pierwszy."
+  },
+  "goals": {
+    "title": "Cele",
+    "horizon": {
+      "SHORT": "Krótkoterminowy",
+      "MEDIUM": "Średnioterminowy",
+      "LONG": "Długoterminowy"
+    },
+    "add": "Ustaw cel",
+    "none": "Brak celu na tym horyzoncie.",
+    "addTitle": "Nowy cel",
+    "editTitle": "Edytuj cel",
+    "content": "Cel",
+    "targetDate": "Termin (opcjonalnie)",
+    "edit": "Edytuj cel",
+    "delete": "Usuń cel",
+    "deleteTitle": "Usunąć cel?",
+    "deleteMessage": "Czy na pewno usunąć ten cel? Osiągnięte cele zostają w skrzyni trofeów.",
+    "achieve": "Osiągnięty",
+    "achieveTitle": "Oznacz cel jako osiągnięty",
+    "achievedOn": "Data osiągnięcia",
+    "overdue": "Po terminie",
+    "dueToday": "Termin dzisiaj",
+    "daysLeft_one": "Zostaje {{count}} dzień",
+    "daysLeft_few": "Zostają {{count}} dni",
+    "daysLeft_many": "Zostaje {{count}} dni",
+    "daysLeft_other": "Zostaje {{count}} dni",
+    "trophyTitle": "Skrzynia trofeów",
+    "trophyEmpty": "Jeszcze nic tu nie ma.",
+    "trophyCase_one": "Skrzynia trofeów ({{count}})",
+    "trophyCase_few": "Skrzynia trofeów ({{count}})",
+    "trophyCase_many": "Skrzynia trofeów ({{count}})",
+    "trophyCase_other": "Skrzynia trofeów ({{count}})"
   }
 }

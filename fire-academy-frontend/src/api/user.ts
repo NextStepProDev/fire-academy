@@ -1,7 +1,7 @@
 import { fetchApi } from './client'
 import type {
   MyTrainingEnrollment, CalendarRange, PersonalTraining,
-  CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, MyTrainingSummary,
+  CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, MyTrainingSummary, AthleteGoals,
 } from '../types'
 
 interface EnrollTrainingRequest {
@@ -66,4 +66,6 @@ export const myTrainingApi = {
     fetchApi<void>('/user/my-training/deletions/dismiss', { method: 'POST' }),
   getSummary: () =>
     fetchApi<MyTrainingSummary>('/user/my-training/summary'),
+  getGoals: () =>
+    fetchApi<AthleteGoals>('/user/my-training/goals'),
 }

@@ -25,9 +25,11 @@ import java.util.UUID;
 public class MyTrainingController {
 
     private final PersonalTrainingService service;
+    private final AthleteGoalService goalService;
 
-    public MyTrainingController(PersonalTrainingService service) {
+    public MyTrainingController(PersonalTrainingService service, AthleteGoalService goalService) {
         this.service = service;
+        this.goalService = goalService;
     }
 
     @GetMapping("/calendar")
@@ -110,5 +112,11 @@ public class MyTrainingController {
     public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID userId) {
         service.dismissDeletions(userId, userId, false);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Read-only: goals are the coach's call, the trophy case is the client's to look at. */
+    @GetMapping("/goals")
+    public GoalsResponse goals(@CurrentUserId UUID userId) {
+        return goalService.getGoals(userId);
     }
 }
