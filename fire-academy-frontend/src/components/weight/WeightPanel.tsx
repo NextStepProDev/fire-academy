@@ -113,6 +113,13 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
             loading={recordMutation.isPending} disabled={!draft.trim()}>
             {t('weight.save')}
           </Button>
+          {/*
+            Stated at the point of entry, not only in a policy nobody reads. The calendar is
+            obviously shared — the coach builds it — but weight is typed in unprompted, into a field
+            that looks like a private diary. Somebody might well enter something different if they
+            did not know it is read, and that is exactly why they have to be told before they do.
+          */}
+          <p className="basis-full text-xs text-surface-500">{t('weight.coachSeesThis')}</p>
           {error && (
             <p role="alert" className="basis-full rounded bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
               {error}
