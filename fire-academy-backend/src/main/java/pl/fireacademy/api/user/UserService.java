@@ -254,6 +254,7 @@ public class UserService {
             adminEmailConfig.isAdminEmail(user.getEmail()),
             user.isEmailVerified(),
             user.hasPrivacyAccepted(), user.hasMarketingConsent(),
+            user.isAthlete(),
             user.getPreferredLanguage(), user.getPasswordHash() != null,
             user.getOauthProvider() != null, avatarUrl, user.getCreatedAt()
         );

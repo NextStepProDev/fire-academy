@@ -33,6 +33,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int AUTH_LIMIT = 15;
     private static final int USER_LIMIT = 20;
     private static final int ADMIN_LIMIT = 60;
+    // The personal training calendar needs its own budget. Browsing it generates far more requests than
+    // the rest of /api/user/** put together (range fetch per week/month navigation, unread summary on every
+    // window focus, mark-seen, comment threads), and sharing the 20/min user bucket would lock a coaching
+    // client out of their own plan after a couple of minutes of normal use.
+    private static final int MY_TRAINING_LIMIT = 120;
     // Anonymous read-only traffic (catalog, OG stubs, sitemap). Set well above what a person browsing the
     // site generates, so it never bites a real visitor — it exists to cap a flood. These endpoints hit the
     // DB on every request (availability counts are deliberately no-store, and the sitemap scans three
@@ -82,8 +87,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    // NOTE: the two methods below must test prefixes in the SAME order, most specific first. A bucket
+    // resolved from a different branch than its limit would silently pair the wrong ceiling with the
+    // wrong counter — hence MY_TRAINING_PATH before the generic /api/user/ in both.
+    private static final String MY_TRAINING_PATH = "/api/user/my-training/";
+
     private int resolveLimit(String path) {
         if (path.startsWith("/api/auth/")) return AUTH_LIMIT;
+        if (path.startsWith(MY_TRAINING_PATH)) return MY_TRAINING_LIMIT;
         if (path.startsWith("/api/user/")) return USER_LIMIT;
         if (path.startsWith("/api/admin/")) return ADMIN_LIMIT;
         if (isPublicPath(path)) return PUBLIC_LIMIT;
@@ -92,6 +103,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String resolveBucket(String path) {
         if (path.startsWith("/api/auth/")) return "auth";
+        if (path.startsWith(MY_TRAINING_PATH)) return "mytraining";
         if (path.startsWith("/api/user/")) return "user";
         if (path.startsWith("/api/admin/")) return "admin";
         if (isPublicPath(path)) return "public";

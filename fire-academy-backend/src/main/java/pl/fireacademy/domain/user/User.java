@@ -70,6 +70,11 @@ public class User {
     @Column(name = "marketing_unsubscribe_token", nullable = false, updatable = false)
     private UUID marketingUnsubscribeToken = UUID.randomUUID();
 
+    // 1-on-1 coaching client. Set manually by an admin; clearing it hides the personal training
+    // calendar but keeps every row behind it, so re-enabling restores the full history.
+    @Column(name = "is_athlete", nullable = false)
+    private boolean athlete = false;
+
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
 
@@ -265,6 +270,14 @@ public class User {
 
     public UUID getMarketingUnsubscribeToken() {
         return marketingUnsubscribeToken;
+    }
+
+    public boolean isAthlete() {
+        return athlete;
+    }
+
+    public void setAthlete(boolean athlete) {
+        this.athlete = athlete;
     }
 
     public int getFailedLoginAttempts() {

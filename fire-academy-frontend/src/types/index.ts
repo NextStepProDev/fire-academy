@@ -9,6 +9,8 @@ export interface User {
   superAdmin: boolean
   privacyAccepted: boolean
   marketingConsent: boolean
+  /** 1-on-1 coaching client — unlocks the personal training calendar. Set by an admin. */
+  isAthlete: boolean
   preferredLanguage: string
   hasPassword: boolean
   avatarUrl: string | null
@@ -26,6 +28,7 @@ export interface AdminUser {
   superAdmin: boolean
   emailVerified: boolean
   marketingConsent: boolean
+  isAthlete: boolean
   createdAt: string
 }
 
@@ -86,6 +89,7 @@ export interface AdminUserDetail {
   superAdmin: boolean
   emailVerified: boolean
   marketingConsent: boolean
+  isAthlete: boolean
   preferredLanguage: string
   hasPassword: boolean
   oauthLinked: boolean
@@ -93,6 +97,15 @@ export interface AdminUserDetail {
   createdAt: string
   currentEnrollments: UserEnrollment[]
   pastEnrollments: UserEnrollment[]
+}
+
+/** One row of the coach's 1-on-1 roster. */
+export interface AthleteSummary {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  avatarUrl: string | null
 }
 
 export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'

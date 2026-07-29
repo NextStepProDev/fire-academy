@@ -127,6 +127,7 @@ public class AdminUserService {
                 adminEmailConfig.isAdminEmail(user.getEmail()),
                 user.isEmailVerified(),
                 user.hasMarketingConsent(),
+                user.isAthlete(),
                 user.getPreferredLanguage(), user.getPasswordHash() != null,
                 user.getOauthProvider() != null, avatarUrl, user.getCreatedAt(),
                 current, past);
@@ -288,7 +289,24 @@ public class AdminUserService {
                 adminEmailConfig.isAdminEmail(user.getEmail()),
                 user.isEmailVerified(),
                 user.hasMarketingConsent(),
+                user.isAthlete(),
                 user.getCreatedAt()
         );
+    }
+
+    /**
+     * Flags (or unflags) a user as a 1-on-1 coaching client. Unlike promote/demote this is plain
+     * admin work, not a super-admin privilege — it grants no rights over anyone else's data.
+     * <p>
+     * Clearing the flag is deliberately non-destructive: the personal trainings, comments and goals
+     * stay in the database, they just stop being reachable. Re-flagging restores the full history.
+     */
+    @Transactional
+    public AdminUserResponse setAthlete(UUID targetId, boolean athlete) {
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
+        target.setAthlete(athlete);
+        userRepository.save(target);
+        return toResponse(target);
     }
 }

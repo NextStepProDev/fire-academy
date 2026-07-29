@@ -199,6 +199,54 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void shouldGiveTrainingCalendarItsOwnBudgetWhenUserBucketIsExhausted() throws ServletException, IOException {
+        // Given: the generic /api/user/ bucket (20/min) is fully spent
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+        MockHttpServletResponse userResponse = null;
+        for (int i = 0; i <= 20; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
+            request.setRemoteAddr("10.30.0.1");
+            userResponse = new MockHttpServletResponse();
+            filter.doFilterInternal(request, userResponse, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), userResponse.getStatus());
+
+        // When: the same client opens their training calendar
+        MockHttpServletRequest calendar = new MockHttpServletRequest("GET", "/api/user/my-training/calendar");
+        calendar.setRemoteAddr("10.30.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(calendar, response, filterChain);
+
+        // Then: it is unaffected — the prefix must be matched before the generic /api/user/ branch
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void shouldBlockTrainingCalendarOnlyAfterItsOwnHigherLimit() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: 120 requests fit in the window (well above the 20 of the generic user bucket)
+        for (int i = 0; i < 120; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/my-training/calendar");
+            request.setRemoteAddr("10.30.0.2");
+            MockHttpServletResponse ok = new MockHttpServletResponse();
+            filter.doFilterInternal(request, ok, filterChain);
+            assertEquals(200, ok.getStatus());
+        }
+
+        // When: one more arrives
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/my-training/summary");
+        request.setRemoteAddr("10.30.0.2");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: rejected — and note it shares one bucket with the other my-training paths
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), response.getStatus());
+    }
+
+    @Test
     void shouldReturnJsonErrorResponse() throws ServletException, IOException {
         when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
             .thenReturn("Zbyt wiele żądań");

@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -281,4 +281,10 @@ export const adminApi = {
     fetchApi<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
   demoteUser: (id: string) =>
     fetchApi<AdminUser>(`/admin/users/${id}/demote`, { method: 'POST' }),
+
+  // Personal training calendar (1-on-1)
+  setAthlete: (id: string, enabled: boolean) =>
+    fetchApi<AdminUser>(`/admin/users/${id}/athlete`, { method: enabled ? 'POST' : 'DELETE' }),
+  getAthletes: () =>
+    fetchApi<AthleteSummary[]>('/admin/athletes'),
 }

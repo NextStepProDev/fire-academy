@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, MailCheck, MailX, CalendarPlus, Trash2, CheckCircle, XCircle, Mail, Phone, KeyRound } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, MailCheck, MailX, CalendarPlus, Trash2, CheckCircle, XCircle, Mail, Phone, KeyRound, Dumbbell } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -45,6 +45,7 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const [note, setNote] = useState('')
   const [archiveExpanded, setArchiveExpanded] = useState(false)
   const [archivePage, setArchivePage] = useState(1)
+  const [confirmUnflagAthlete, setConfirmUnflagAthlete] = useState(false)
   // Events and trainings are two separate worlds the admin comes here for one at a time — a segmented switch keeps
   // each self-contained instead of stacking mixed, half-collapsible blocks.
   const [section, setSection] = useState<'events' | 'trainings'>('events')
@@ -100,6 +101,20 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
       setSelectedEventId('')
       setNote('')
       invalidate()
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  // Flagging is non-destructive both ways: clearing it only hides the calendar, the plan and its
+  // history stay in the database. The confirm below says so, so nobody hesitates over the switch.
+  const athleteMutation = useMutation({
+    mutationFn: (enabled: boolean) => adminApi.setAthlete(userId, enabled),
+    onSuccess: (_data, enabled) => {
+      showToast(t(enabled ? 'users.detail.athleteEnabled' : 'users.detail.athleteDisabled'))
+      setConfirmUnflagAthlete(false)
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: ['admin', 'athletes'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
@@ -182,6 +197,27 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
         />
         <ProfileRow icon={<KeyRound className="w-4 h-4" />} label={t('users.detail.accountType')} value={user.oauthLinked ? 'Google' : (user.hasPassword ? t('users.detail.password') : '—')} />
         <ProfileRow label={t('users.created')} value={new Date(user.createdAt).toLocaleDateString('pl-PL')} />
+      </div>
+
+      {/* 1-on-1 coaching. Separate from the admin role: it grants no rights, it unlocks a calendar. */}
+      <div className="bg-surface-900 border border-surface-800 rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Dumbbell className={clsx('w-5 h-5 mt-0.5 shrink-0', user.isAthlete ? 'text-primary-400' : 'text-surface-500')} />
+          <div>
+            <p className="font-medium text-surface-100">{t('users.detail.athleteTitle')}</p>
+            <p className="text-sm text-surface-400 mt-0.5">
+              {user.isAthlete ? t('users.detail.athleteOnDesc') : t('users.detail.athleteOffDesc')}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant={user.isAthlete ? 'ghost' : 'primary'}
+          size="sm"
+          loading={athleteMutation.isPending}
+          onClick={() => (user.isAthlete ? setConfirmUnflagAthlete(true) : athleteMutation.mutate(true))}
+        >
+          {user.isAthlete ? t('users.detail.athleteDisable') : t('users.detail.athleteEnable')}
+        </Button>
       </div>
 
       {/* Section switch: events vs trainings — the admin comes here for one or the other. */}
@@ -327,6 +363,17 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
         confirmLabel={toDelete?.past ? t('users.detail.removeArchiveConfirm') : t('users.detail.removeEnrollmentConfirm')}
         danger
         loading={deleteMutation.isPending}
+      />
+
+      {/* Not marked danger: nothing is deleted, the calendar just stops being reachable. */}
+      <ConfirmDialog
+        isOpen={confirmUnflagAthlete}
+        onClose={() => setConfirmUnflagAthlete(false)}
+        onConfirm={() => athleteMutation.mutate(false)}
+        title={t('users.detail.athleteDisableTitle')}
+        message={t('users.detail.athleteDisableMessage', { name: `${user.firstName} ${user.lastName}` })}
+        confirmLabel={t('users.detail.athleteDisable')}
+        loading={athleteMutation.isPending}
       />
     </div>
   )

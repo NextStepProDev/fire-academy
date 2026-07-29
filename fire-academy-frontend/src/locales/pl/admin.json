@@ -88,7 +88,16 @@
       "removeEnrollmentConfirm": "Usuń zapis",
       "removeArchiveTitle": "Usuń wpis z archiwum",
       "removeArchiveMessage": "Czy na pewno usunąć archiwalny wpis dla „{{event}}\"? To korekta danych — uczestnik NIE otrzyma żadnego e-maila. Tej operacji nie można cofnąć.",
-      "removeArchiveConfirm": "Usuń z archiwum"
+      "removeArchiveConfirm": "Usuń z archiwum",
+      "athleteTitle": "Treningi indywidualne 1:1",
+      "athleteOnDesc": "Ta osoba ma kalendarz treningowy prowadzony przez Ciebie. Widzi swój plan na swoim koncie.",
+      "athleteOffDesc": "Włącz, aby prowadzić tej osobie kalendarz treningów indywidualnych.",
+      "athleteEnable": "Włącz kalendarz 1:1",
+      "athleteDisable": "Wyłącz kalendarz 1:1",
+      "athleteEnabled": "Kalendarz treningów indywidualnych włączony.",
+      "athleteDisabled": "Kalendarz treningów indywidualnych wyłączony.",
+      "athleteDisableTitle": "Wyłączyć kalendarz 1:1?",
+      "athleteDisableMessage": "Kalendarz przestanie być widoczny dla osoby {{name}} i zniknie z listy podopiecznych. Nic nie zostanie usunięte — zaplanowane treningi, komentarze i cele zostaną zapisane i wrócą po ponownym włączeniu."
     }
   },
   "actions": {

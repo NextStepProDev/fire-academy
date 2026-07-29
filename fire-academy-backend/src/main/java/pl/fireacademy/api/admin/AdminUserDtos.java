@@ -26,6 +26,7 @@ public final class AdminUserDtos {
             boolean superAdmin,
             boolean emailVerified,
             boolean marketingConsent,
+            boolean isAthlete,
             Instant createdAt
     ) {}
 
@@ -77,6 +78,7 @@ public final class AdminUserDtos {
             boolean superAdmin,
             boolean emailVerified,
             boolean marketingConsent,
+            boolean isAthlete,
             String preferredLanguage,
             boolean hasPassword,
             boolean oauthLinked,

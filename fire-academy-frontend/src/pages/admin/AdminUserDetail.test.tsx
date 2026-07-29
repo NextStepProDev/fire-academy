@@ -18,6 +18,9 @@ const tMap: Record<string, string> = {
   'users.detail.noArchive': 'Brak wpisów w archiwum.',
   'users.prevPage': 'Poprzednia',
   'users.nextPage': 'Następna',
+  'users.detail.athleteEnable': 'Włącz kalendarz 1:1',
+  'users.detail.athleteDisable': 'Wyłącz kalendarz 1:1',
+  'users.detail.athleteDisableTitle': 'Wyłączyć kalendarz 1:1?',
 }
 
 vi.mock('react-i18next', () => ({
@@ -30,6 +33,7 @@ vi.mock('../../api/admin', () => ({
     getEvents: vi.fn(),
     deleteEnrollment: vi.fn(),
     adminEnroll: vi.fn(),
+    setAthlete: vi.fn(),
   },
 }))
 
@@ -51,7 +55,7 @@ const pastEnrollment: UserEnrollment = {
 const baseUser: AdminUserDetailType = {
   id: 'u1', email: 'jan@test.com', firstName: 'Jan', lastName: 'Kowalski', phone: '123456789',
   role: 'USER', isAdmin: false, superAdmin: false, emailVerified: true,
-  marketingConsent: false, preferredLanguage: 'pl', hasPassword: true, oauthLinked: false, avatarUrl: null,
+  marketingConsent: false, isAthlete: false, preferredLanguage: 'pl', hasPassword: true, oauthLinked: false, avatarUrl: null,
   createdAt: '2026-01-01T00:00:00Z', currentEnrollments: [], pastEnrollments: [],
 }
 
@@ -119,5 +123,33 @@ describe('AdminUserDetail', () => {
 
     // modal title (same label) now appears twice: trigger button + modal heading
     expect(screen.getAllByText('Dodaj do wydarzenia').length).toBeGreaterThan(1)
+  })
+
+  it('enables the 1-on-1 calendar without a confirmation step', async () => {
+    const user = userEvent.setup()
+    const adminApi = await renderDetail({ isAthlete: false })
+    vi.mocked(adminApi.setAthlete).mockResolvedValue({ ...baseUser, isAthlete: true })
+
+    await user.click(await screen.findByRole('button', { name: 'Włącz kalendarz 1:1' }))
+
+    // Turning it ON adds an option — no confirm needed, nothing can be lost.
+    await waitFor(() => expect(adminApi.setAthlete).toHaveBeenCalledWith('u1', true))
+  })
+
+  it('asks for confirmation before hiding the 1-on-1 calendar', async () => {
+    const user = userEvent.setup()
+    const adminApi = await renderDetail({ isAthlete: true })
+    vi.mocked(adminApi.setAthlete).mockResolvedValue({ ...baseUser, isAthlete: false })
+
+    await user.click(await screen.findByRole('button', { name: 'Wyłącz kalendarz 1:1' }))
+
+    // The switch looks destructive even though it is not, so it must not fire on the first click.
+    expect(adminApi.setAthlete).not.toHaveBeenCalled()
+    expect(screen.getByText('Wyłączyć kalendarz 1:1?')).toBeInTheDocument()
+
+    const confirmButtons = screen.getAllByRole('button', { name: 'Wyłącz kalendarz 1:1' })
+    await user.click(confirmButtons[confirmButtons.length - 1])
+
+    await waitFor(() => expect(adminApi.setAthlete).toHaveBeenCalledWith('u1', false))
   })
 })
