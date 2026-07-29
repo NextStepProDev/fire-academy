@@ -37,9 +37,9 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V33 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V34.**
+**Obecny stan: V34 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V35.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
-> ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V33 (kalendarz 1:1) na gałęzi `feat/personal-training-calendar`.
+> ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V34 (kalendarz 1:1 + waga) na gałęzi `feat/personal-training-calendar`.
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -73,6 +73,7 @@ VERSION
 | V31 | training_comments (czat przy treningu; **`author_is_admin` = rola ZAMROŻONA w chwili wpisu** — wyliczanie jej z `users.role` przemianowałoby stare komentarze podopiecznego w dniu, w którym zostanie adminem) + training_calendar_reads (PK `(user_id, athlete_id)`; podopieczny = wiersz `user_id = athlete_id`, każdy admin ma niezależne liczniki; brak wiersza = EPOCH = licz wszystko) + training_deletions (migawka usuniętych **przyszłych** treningów — oryginał znika, więc alert niesie własną kopię; `deleted_by_admin` bo kasować mogą obie strony; `dismissed_at` osobno od znacznika „widziane") |
 | V32 | exercise_videos (biblioteka filmów YouTube; **dedup po `video_key`, nie po URL** — `watch?v=X`, `youtu.be/X` i `youtu.be/X?t=30` to jeden film; `search_text` bez polskich znaków, świadomie `LIKE` zamiast `pg_trgm` — próg wyjścia ~5000 filmów w komentarzu migracji) + training_templates (użycie **kopiuje** treść, więc edycja szablonu nie przepisuje rozdanych treningów) + training_attachments (`kind` LINK/VIDEO; **`video_id` z `ON DELETE RESTRICT`** = zliczanie referencji po stronie bazy, film w użyciu można tylko zarchiwizować; limit 3 domknięty `UNIQUE (właściciel, position)` + `CHECK position ≤ 2`, nie tylko w serwisie) |
 | V33 | athlete_goals — cele na 3 horyzontach (SHORT/MEDIUM/LONG), ustawiane przez trenera, read-only u podopiecznego. **Partial `UNIQUE (athlete_id, horizon) WHERE achieved_at IS NULL`** — ogranicza tylko AKTYWNE cele; zwykły unikat ograniczyłby podopiecznego do trzech celów na całe życie. Osiągnięty cel jest **niezmienny** (brak edycji, usunięcia i ponownego osiągnięcia → 409) i trafia do skrzyni trofeów; `achieved_at` to DATE, bo datowanie jest wsteczne |
+| V34 | athlete_weights — poranna waga podopiecznego (unikat na parę osoba+dzień: **ponowne ważenie tego samego dnia to korekta, nie drugi pomiar**; `CHECK` 20–300 kg łapie zgubiony przecinek). **Świadomie BEZ kalorii spalonych** — tych nie da się zmierzyć (±20–30% nawet z zegarka), a bilans oparty na zgadywance daje liczbę precyzyjnie wyglądającą i nieprawdziwą. Waga jest pomiarem; przy dołożeniu spożycia realne zapotrzebowanie **wyliczy się z danych osoby**, nie ze wzoru. Trend = **średnia krocząca 7 dni**, liczona serwerowo per punkt (front nie ma własnej definicji trendu); zmiana tygodniowa porównuje **dwa trendy** tydzień od siebie, nie dwa pojedyncze ważenia. Ostrzeżenie o spadku >1%/tydz. **tylko dla trenera** (pole nieobecne w JSON podopiecznego). **Brak endpointu zapisu po stronie admina** — waga wpisana przez trenera byłaby drugim źródłem prawdy |
 
 ---
 
