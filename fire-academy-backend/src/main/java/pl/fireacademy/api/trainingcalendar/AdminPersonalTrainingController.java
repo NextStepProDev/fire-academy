@@ -20,13 +20,16 @@ public class AdminPersonalTrainingController {
     private final PersonalTrainingService service;
     private final AthleteGoalService goalService;
     private final TrainingStatsService statsService;
+    private final AthleteWeightService weightService;
 
     public AdminPersonalTrainingController(PersonalTrainingService service,
                                            AthleteGoalService goalService,
-                                           TrainingStatsService statsService) {
+                                           TrainingStatsService statsService,
+                                           AthleteWeightService weightService) {
         this.service = service;
         this.goalService = goalService;
         this.statsService = statsService;
+        this.weightService = weightService;
     }
 
     @GetMapping
@@ -102,6 +105,16 @@ public class AdminPersonalTrainingController {
     @GetMapping("/stats")
     public TrainingStatsResponse stats(@RequestParam UUID athleteId) {
         return statsService.stats(athleteId, true);
+    }
+
+    /**
+     * Read-only, and the only place the rapid-loss warning appears. Deliberately no write endpoint:
+     * the coach does not weigh anybody, and a coach-entered weight would quietly become a second
+     * source of truth next to the client's own scale.
+     */
+    @GetMapping("/weights")
+    public WeightSeriesResponse weights(@RequestParam UUID athleteId) {
+        return weightService.series(athleteId, true);
     }
 
     // --- Goals. Set by the coach; the client only reads them. ---

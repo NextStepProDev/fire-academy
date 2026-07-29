@@ -1,7 +1,7 @@
 import { fetchApi } from './client'
 import type {
   MyTrainingEnrollment, CalendarRange, PersonalTraining,
-  CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, MyTrainingSummary, AthleteGoals, TrainingStats,
+  CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, MyTrainingSummary, AthleteGoals, TrainingStats, WeightSeries, WeightPoint,
 } from '../types'
 
 interface EnrollTrainingRequest {
@@ -70,4 +70,13 @@ export const myTrainingApi = {
     fetchApi<AthleteGoals>('/user/my-training/goals'),
   getStats: () =>
     fetchApi<TrainingStats>('/user/my-training/stats'),
+  getWeights: () =>
+    fetchApi<WeightSeries>('/user/my-training/weights'),
+  /** Upsert: weighing twice in a day is a correction, not a second reading. */
+  recordWeight: (body: { weightKg: number; date?: string }) =>
+    fetchApi<WeightPoint>('/user/my-training/weights', {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  deleteWeight: (date: string) =>
+    fetchApi<void>(`/user/my-training/weights/${date}`, { method: 'DELETE' }),
 }

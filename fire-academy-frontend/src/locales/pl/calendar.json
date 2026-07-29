@@ -211,5 +211,22 @@
     "nextBadge_few": "Jeszcze {{count}} treningi do kolejnej odznaki",
     "nextBadge_many": "Jeszcze {{count}} treningów do kolejnej odznaki",
     "nextBadge_other": "Jeszcze {{count}} treningów do kolejnej odznaki"
+  },
+  "weight": {
+    "title": "Waga",
+    "todayLabel": "Waga rano (kg)",
+    "save": "Zapisz",
+    "perWeek": "/tydz.",
+    "legendTrend": "trend 7 dni",
+    "legendDaily": "pomiar dzienny",
+    "chartLabel": "Wykres wagi z trendem 7-dniowym",
+    "showTable": "Pokaż tabelę",
+    "hideTable": "Ukryj tabelę",
+    "tableDate": "Data",
+    "tableWeight": "Waga (kg)",
+    "noiseHint": "Dzień do dnia waga skacze przez wodę i sól — patrz na linię trendu, nie na pojedynczy pomiar.",
+    "emptyClient": "Brak pomiarów. Wpisz wagę rano, po przebudzeniu — zawsze o tej samej porze.",
+    "emptyCoach": "Ta osoba nie zapisała jeszcze żadnego pomiaru.",
+    "rapidLoss": "Waga spada szybciej niż 1% tygodniowo. Warto sprawdzić, czy zejście jest kontrolowane."
   }
 }

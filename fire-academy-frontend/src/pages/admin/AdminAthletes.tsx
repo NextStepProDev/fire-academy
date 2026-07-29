@@ -9,6 +9,7 @@ import { TrainingCalendar } from '../../components/training-calendar/TrainingCal
 import { coachAdapter } from '../../components/training-calendar/adapter'
 import { GoalsBoard } from '../../components/goals/GoalsBoard'
 import { TrainingStatsPanel } from '../../components/training-stats/TrainingStatsPanel'
+import { WeightPanel } from '../../components/weight/WeightPanel'
 import type { AthleteSummary } from '../../types'
 
 /**
@@ -57,6 +58,7 @@ export function AdminAthletes({ openAthlete, onOpen }: {
         <div className="space-y-6">
           <GoalsBoard athleteId={openAthlete.id} />
           <TrainingCalendar adapter={coachAdapter(openAthlete.id)} />
+          <WeightPanel athleteId={openAthlete.id} />
           <TrainingStatsPanel athleteId={openAthlete.id} />
         </div>
       </div>

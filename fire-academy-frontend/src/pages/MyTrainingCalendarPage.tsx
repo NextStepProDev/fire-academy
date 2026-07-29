@@ -7,6 +7,7 @@ import { TrainingCalendar } from '../components/training-calendar/TrainingCalend
 import { athleteAdapter } from '../components/training-calendar/adapter'
 import { GoalsBoard } from '../components/goals/GoalsBoard'
 import { TrainingStatsPanel } from '../components/training-stats/TrainingStatsPanel'
+import { WeightPanel } from '../components/weight/WeightPanel'
 
 export function MyTrainingCalendarPage() {
   const { t } = useTranslation('calendar')
@@ -37,6 +38,8 @@ export function MyTrainingCalendarPage() {
       <GoalsBoard athleteId={null} />
 
       <TrainingCalendar adapter={athleteAdapter(user.id)} />
+
+      <WeightPanel athleteId={null} />
 
       <TrainingStatsPanel athleteId={null} />
     </div>

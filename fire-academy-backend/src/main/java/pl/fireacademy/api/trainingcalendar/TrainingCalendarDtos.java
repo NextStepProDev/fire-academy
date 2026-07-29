@@ -1,6 +1,8 @@
 package pl.fireacademy.api.trainingcalendar;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -11,6 +13,7 @@ import pl.fireacademy.domain.training.AttachmentKind;
 import pl.fireacademy.domain.training.GoalHorizon;
 import pl.fireacademy.domain.training.TrainingStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -231,6 +234,35 @@ public final class TrainingCalendarDtos {
     public record TypeBreakdown(
             int personal,
             int recurring
+    ) {}
+
+    /**
+     * @param trendKg  trailing 7-day average ending on this day. Emitted per point so the frontend
+     *                 never reimplements the window — one definition of "trend", server-side.
+     */
+    public record WeightPoint(
+            LocalDate date,
+            BigDecimal weightKg,
+            @Nullable BigDecimal trendKg
+    ) {}
+
+    /**
+     * @param weeklyChangePercent negative when losing. Compares two TREND values a week apart, not
+     *                            two readings — comparing single days is comparing two pieces of noise
+     * @param rapidLoss           null for the client: coach-only, same reasoning as the overtraining
+     *                            signal, and the field is absent from their JSON rather than false
+     */
+    public record WeightSeriesResponse(
+            List<WeightPoint> points,
+            @Nullable BigDecimal currentTrendKg,
+            @Nullable BigDecimal weeklyChangePercent,
+            @Nullable Boolean rapidLoss
+    ) {}
+
+    /** {@code date} omitted means today — the normal case is weighing yourself this morning. */
+    public record RecordWeightRequest(
+            @Nullable LocalDate date,
+            @NotNull @DecimalMin("20.0") @DecimalMax("300.0") BigDecimal weightKg
     ) {}
 
     public record GoalResponse(

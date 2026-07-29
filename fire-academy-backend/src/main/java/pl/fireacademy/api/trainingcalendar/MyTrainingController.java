@@ -27,13 +27,16 @@ public class MyTrainingController {
     private final PersonalTrainingService service;
     private final AthleteGoalService goalService;
     private final TrainingStatsService statsService;
+    private final AthleteWeightService weightService;
 
     public MyTrainingController(PersonalTrainingService service,
                                 AthleteGoalService goalService,
-                                TrainingStatsService statsService) {
+                                TrainingStatsService statsService,
+                                AthleteWeightService weightService) {
         this.service = service;
         this.goalService = goalService;
         this.statsService = statsService;
+        this.weightService = weightService;
     }
 
     @GetMapping("/calendar")
@@ -122,6 +125,29 @@ public class MyTrainingController {
     @GetMapping("/stats")
     public TrainingStatsResponse stats(@CurrentUserId UUID userId) {
         return statsService.stats(userId, false);
+    }
+
+    // --- Body weight. Only the client records it; nobody else stands on the scale. ---
+
+    /** Without the rapid-loss warning: the client sees their trend and reads it themselves. */
+    @GetMapping("/weights")
+    public WeightSeriesResponse weights(@CurrentUserId UUID userId) {
+        return weightService.series(userId, false);
+    }
+
+    /** Upsert: weighing twice in a day is a correction, not a second reading. */
+    @PutMapping("/weights")
+    public WeightPoint recordWeight(@CurrentUserId UUID userId,
+                                    @Valid @RequestBody RecordWeightRequest request) {
+        return weightService.record(userId, request);
+    }
+
+    @DeleteMapping("/weights/{date}")
+    public ResponseEntity<Void> deleteWeight(
+            @CurrentUserId UUID userId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        weightService.delete(userId, date);
+        return ResponseEntity.noContent().build();
     }
 
     /** Read-only: goals are the coach's call, the trophy case is the client's to look at. */

@@ -195,6 +195,22 @@ export interface UpdateTrainingBody extends CreateTrainingBody {
 
 export type PasteMode = 'COPY' | 'MOVE'
 
+export interface WeightPoint {
+  date: string
+  weightKg: number
+  /** Trailing 7-day average ending on this day — computed server-side, one definition of "trend". */
+  trendKg: number | null
+}
+
+export interface WeightSeries {
+  points: WeightPoint[]
+  currentTrendKg: number | null
+  /** Negative when losing. Compares two trend values a week apart, not two readings. */
+  weeklyChangePercent: number | null
+  /** Absent from the client's response entirely — coach-only, like the overtraining signal. */
+  rapidLoss?: boolean
+}
+
 export interface TrainingStats {
   thisMonthCount: number
   prevMonthCount: number
