@@ -244,6 +244,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           onClose={() => { setFormDate(null); setEditing(null) }}
           onSubmit={submitForm}
           onConflictRefresh={() => { refresh(); setFormDate(null); setEditing(null) }}
+          canAttach={adapter.role === 'coach'}
         />
       )}
 

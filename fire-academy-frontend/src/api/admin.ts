@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, TrainingTemplate, TrainingTemplateInput } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -318,4 +318,34 @@ export const adminApi = {
     fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
   dismissTrainingDeletions: (athleteId: string) =>
     fetchApi<void>(`/admin/personal-trainings/deletions/dismiss?athleteId=${athleteId}`, { method: 'POST' }),
+
+  // Exercise video library
+  getExerciseVideos: (params: { query?: string; includeArchived?: boolean; page?: number; size?: number } = {}) => {
+    const q = new URLSearchParams()
+    if (params.query) q.set('query', params.query)
+    if (params.includeArchived) q.set('includeArchived', 'true')
+    q.set('page', String(params.page ?? 0))
+    q.set('size', String(params.size ?? 50))
+    return fetchApi<PagedExerciseVideos>(`/admin/exercise-videos?${q.toString()}`)
+  },
+  suggestExerciseVideos: (query: string) =>
+    fetchApi<ExerciseVideo[]>(`/admin/exercise-videos/search?query=${encodeURIComponent(query)}`),
+  createExerciseVideo: (data: ExerciseVideoInput) =>
+    fetchApi<ExerciseVideo>('/admin/exercise-videos', { method: 'POST', body: JSON.stringify(data) }),
+  updateExerciseVideo: (id: string, data: ExerciseVideoInput) =>
+    fetchApi<ExerciseVideo>(`/admin/exercise-videos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteExerciseVideo: (id: string) =>
+    fetchApi<void>(`/admin/exercise-videos/${id}`, { method: 'DELETE' }),
+  setExerciseVideoArchived: (id: string, archived: boolean) =>
+    fetchApi<ExerciseVideo>(`/admin/exercise-videos/${id}/${archived ? 'archive' : 'restore'}`, { method: 'POST' }),
+
+  // Training templates
+  getTrainingTemplates: () =>
+    fetchApi<TrainingTemplate[]>('/admin/training-templates'),
+  createTrainingTemplate: (data: TrainingTemplateInput) =>
+    fetchApi<TrainingTemplate>('/admin/training-templates', { method: 'POST', body: JSON.stringify(data) }),
+  updateTrainingTemplate: (id: string, data: TrainingTemplateInput) =>
+    fetchApi<TrainingTemplate>(`/admin/training-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTrainingTemplate: (id: string) =>
+    fetchApi<void>(`/admin/training-templates/${id}`, { method: 'DELETE' }),
 }

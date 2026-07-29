@@ -31,6 +31,7 @@ function renderForm(onSubmit: () => Promise<unknown>, onConflictRefresh = vi.fn(
       onClose={onClose}
       onSubmit={onSubmit}
       onConflictRefresh={onConflictRefresh}
+      canAttach={false}
     />
   )
   return { onClose, onConflictRefresh }

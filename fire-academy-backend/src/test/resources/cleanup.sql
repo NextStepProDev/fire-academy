@@ -1,3 +1,6 @@
+DELETE FROM training_attachments;
+DELETE FROM training_templates;
+DELETE FROM exercise_videos;
 DELETE FROM training_deletions;
 DELETE FROM training_calendar_reads;
 DELETE FROM training_comments;

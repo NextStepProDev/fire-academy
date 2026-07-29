@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ChevronRight, Dumbbell } from 'lucide-react'
@@ -10,10 +9,18 @@ import { TrainingCalendar } from '../../components/training-calendar/TrainingCal
 import { coachAdapter } from '../../components/training-calendar/adapter'
 import type { AthleteSummary } from '../../types'
 
-/** Coach's entry point: pick a client, then their calendar takes over the tab. */
-export function AdminAthletes() {
+/**
+ * Coach's entry point: pick a client, then their calendar takes over the whole tab.
+ * <p>
+ * The selection is lifted to AdminPage — the same idiom the trainings tab already uses — so the
+ * library and template sections below can disappear while one person's plan is open, instead of
+ * hanging under it and looking like they belong to that person.
+ */
+export function AdminAthletes({ openAthlete, onOpen }: {
+  openAthlete: AthleteSummary | null
+  onOpen: (athlete: AthleteSummary | null) => void
+}) {
   const { t } = useTranslation('calendar')
-  const [openAthlete, setOpenAthlete] = useState<AthleteSummary | null>(null)
 
   const athletesQuery = useQuery({
     queryKey: ['admin', 'athletes'],
@@ -29,7 +36,7 @@ export function AdminAthletes() {
       <div>
         <button
           type="button"
-          onClick={() => setOpenAthlete(null)}
+          onClick={() => onOpen(null)}
           className="mb-4 flex items-center gap-2 text-sm text-surface-400 transition-colors hover:text-primary-400"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -72,7 +79,7 @@ export function AdminAthletes() {
             <li key={athlete.id}>
               <button
                 type="button"
-                onClick={() => setOpenAthlete(athlete)}
+                onClick={() => onOpen(athlete)}
                 className="flex w-full items-center gap-3 rounded-lg border border-surface-800 bg-surface-800/50 px-4 py-3 text-left transition-colors hover:border-primary-600/50 hover:bg-surface-800/70"
               >
                 <Avatar src={athlete.avatarUrl} name={`${athlete.firstName} ${athlete.lastName}`}

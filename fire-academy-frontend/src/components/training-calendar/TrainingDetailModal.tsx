@@ -7,6 +7,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { RpeInput } from './RpeInput'
 import { CommentThread } from './CommentThread'
+import { AttachmentList } from './AttachmentList'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { PersonalTraining, TrainingStatus } from '../../types'
 import type { TrainingCalendarAdapter } from './adapter'
@@ -125,6 +126,12 @@ export function TrainingDetailModal({
               >
                 {t('detail.markDone')}
               </Button>
+            </div>
+          )}
+
+          {training.attachments.length > 0 && (
+            <div className="border-t border-surface-800 pt-3">
+              <AttachmentList attachments={training.attachments} />
             </div>
           )}
 

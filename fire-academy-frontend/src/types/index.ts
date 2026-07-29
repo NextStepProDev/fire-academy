@@ -129,6 +129,7 @@ export interface PersonalTraining {
   /** The other side changed this since we last looked — drives the dot on the card. */
   unread: boolean
   commentCount: number
+  attachments: Attachment[]
   /** Echoed back on update so a concurrent edit is caught instead of silently overwritten. */
   version: number
   createdAt: string
@@ -170,6 +171,8 @@ export interface CreateTrainingBody {
   endTime?: string | null
   title: string
   description?: string | null
+  /** undefined = leave materials alone · [] = clear · list = replace. */
+  attachments?: AttachmentInput[] | null
 }
 
 export interface UpdateTrainingBody extends CreateTrainingBody {
@@ -177,6 +180,68 @@ export interface UpdateTrainingBody extends CreateTrainingBody {
 }
 
 export type PasteMode = 'COPY' | 'MOVE'
+
+export type AttachmentKind = 'LINK' | 'VIDEO'
+
+export interface Attachment {
+  id: string
+  kind: AttachmentKind
+  label: string | null
+  url: string | null
+  videoId: string | null
+  videoName: string | null
+  /** Canonical player URL, built server-side from the video id. */
+  embedUrl: string | null
+  thumbnailUrl: string | null
+}
+
+export interface AttachmentInput {
+  kind: AttachmentKind
+  label?: string | null
+  url?: string | null
+  videoId?: string | null
+}
+
+export interface ExerciseVideo {
+  id: string
+  name: string
+  url: string
+  description: string | null
+  category: string | null
+  embedUrl: string
+  thumbnailUrl: string
+  archived: boolean
+}
+
+export interface PagedExerciseVideos {
+  content: ExerciseVideo[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface ExerciseVideoInput {
+  name: string
+  url: string
+  description?: string | null
+  category?: string | null
+}
+
+export interface TrainingTemplate {
+  id: string
+  title: string
+  description: string | null
+  defaultDurationMinutes: number | null
+  attachments: Attachment[]
+}
+
+export interface TrainingTemplateInput {
+  title: string
+  description?: string | null
+  defaultDurationMinutes?: number | null
+  attachments?: AttachmentInput[] | null
+}
 
 export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'
 

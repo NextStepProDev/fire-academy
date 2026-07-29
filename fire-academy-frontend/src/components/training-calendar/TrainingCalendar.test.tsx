@@ -39,7 +39,7 @@ function training(over: Partial<PersonalTraining> = {}): PersonalTraining {
     title: 'Siła', description: null, status: 'PLANNED',
     completedAt: null, feedback: null, rpe: null,
     createdByAdmin: true, lastModifiedByAdmin: true,
-    unread: false, commentCount: 0,
+    unread: false, commentCount: 0, attachments: [],
     version: 0, createdAt: '2027-03-01T10:00:00Z', updatedAt: '2027-03-01T10:00:00Z',
     ...over,
   }

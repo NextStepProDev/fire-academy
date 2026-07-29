@@ -1,11 +1,13 @@
 package pl.fireacademy.api.trainingcalendar;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
+import pl.fireacademy.domain.training.AttachmentKind;
 import pl.fireacademy.domain.training.TrainingStatus;
 
 import java.time.Instant;
@@ -59,6 +61,7 @@ public final class TrainingCalendarDtos {
             /** The other side touched this since the viewer last looked — drives the dot on the card. */
             boolean unread,
             int commentCount,
+            List<AttachmentResponse> attachments,
             long version,
             Instant createdAt,
             Instant updatedAt
@@ -103,13 +106,19 @@ public final class TrainingCalendarDtos {
     /**
      * Times are optional and omitting them is the normal case. Passing an end without a start is
      * rejected — without an hour grid there is nothing for a bare end time to mean.
+     *
+     * @param attachments {@code null} = leave materials alone · {@code []} = clear them ·
+     *                    a list = replace with exactly that. The three-way contract matters because
+     *                    a drag-and-drop re-date sends the whole training and must not silently drop
+     *                    the materials it never touched.
      */
     public record CreateTrainingRequest(
             @NotNull LocalDate date,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,
             @NotBlank @Size(max = 150) String title,
-            @Nullable @Size(max = 2000) String description
+            @Nullable @Size(max = 2000) String description,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
     ) {}
 
     public record UpdateTrainingRequest(
@@ -118,7 +127,70 @@ public final class TrainingCalendarDtos {
             @Nullable LocalTime endTime,
             @NotBlank @Size(max = 150) String title,
             @Nullable @Size(max = 2000) String description,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments,
             @NotNull Long version
+    ) {}
+
+    /** Exactly one of {@code url} / {@code videoId} must be set, matching {@code kind}. */
+    public record AttachmentRequest(
+            @NotNull AttachmentKind kind,
+            @Nullable @Size(max = 150) String label,
+            @Nullable @Size(max = 500) String url,
+            @Nullable UUID videoId
+    ) {}
+
+    public record AttachmentResponse(
+            UUID id,
+            AttachmentKind kind,
+            @Nullable String label,
+            /** For a LINK the address itself; for a VIDEO the library entry's own URL. */
+            @Nullable String url,
+            @Nullable UUID videoId,
+            @Nullable String videoName,
+            /** Canonical player URL, built from the id — a pasted link never reaches an iframe. */
+            @Nullable String embedUrl,
+            @Nullable String thumbnailUrl
+    ) {}
+
+    public record ExerciseVideoResponse(
+            UUID id,
+            String name,
+            String url,
+            @Nullable String description,
+            @Nullable String category,
+            String embedUrl,
+            String thumbnailUrl,
+            boolean archived
+    ) {}
+
+    public record PagedExerciseVideos(
+            List<ExerciseVideoResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    public record ExerciseVideoRequest(
+            @NotBlank @Size(max = 150) String name,
+            @NotBlank @Size(max = 500) String url,
+            @Nullable @Size(max = 1000) String description,
+            @Nullable @Size(max = 80) String category
+    ) {}
+
+    public record TrainingTemplateResponse(
+            UUID id,
+            String title,
+            @Nullable String description,
+            @Nullable Integer defaultDurationMinutes,
+            List<AttachmentResponse> attachments
+    ) {}
+
+    public record TrainingTemplateRequest(
+            @NotBlank @Size(max = 150) String title,
+            @Nullable @Size(max = 2000) String description,
+            @Nullable @Min(15) @Max(720) Integer defaultDurationMinutes,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
     ) {}
 
     /** RPE is mandatory: a ticked-off training with no perceived effort tells the coach nothing. */

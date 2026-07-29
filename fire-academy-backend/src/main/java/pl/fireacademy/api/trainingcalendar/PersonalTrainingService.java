@@ -49,6 +49,7 @@ public class PersonalTrainingService {
     private final TrainingDeletionRepository deletionRepository;
     private final TrainingAccessService access;
     private final TrainingUnreadService unread;
+    private final AttachmentService attachments;
     private final UserRepository userRepository;
     private final MessageService msg;
 
@@ -57,6 +58,7 @@ public class PersonalTrainingService {
                                    TrainingDeletionRepository deletionRepository,
                                    TrainingAccessService access,
                                    TrainingUnreadService unread,
+                                   AttachmentService attachments,
                                    UserRepository userRepository,
                                    MessageService msg) {
         this.repository = repository;
@@ -64,6 +66,7 @@ public class PersonalTrainingService {
         this.deletionRepository = deletionRepository;
         this.access = access;
         this.unread = unread;
+        this.attachments = attachments;
         this.userRepository = userRepository;
         this.msg = msg;
     }
@@ -80,12 +83,14 @@ public class PersonalTrainingService {
         Instant since = unread.seenAt(viewerId, athleteId);
         Set<UUID> withNewComments = unread.unreadTrainingIds(ids, viewerIsAdmin, since);
         Map<UUID, Integer> commentCounts = commentCounts(ids);
+        Map<UUID, List<AttachmentResponse>> materials = attachments.forTrainings(ids);
 
         LocalDateTime now = LocalDateTime.now();
         List<PersonalTrainingResponse> items = trainings.stream()
                 .map(t -> toResponse(t, now,
                         isUnread(t, viewerIsAdmin, since) || withNewComments.contains(t.getId()),
-                        commentCounts.getOrDefault(t.getId(), 0)))
+                        commentCounts.getOrDefault(t.getId(), 0),
+                        materials.getOrDefault(t.getId(), List.of())))
                 .toList();
 
         // The coach hears about the client's deletions and vice versa.
@@ -106,7 +111,9 @@ public class PersonalTrainingService {
         PersonalTraining training = new PersonalTraining(athlete, request.date(), request.title().trim(), byAdmin);
         training.edit(request.date(), request.startTime(), request.endTime(),
                 request.title().trim(), trimToNull(request.description()), byAdmin);
-        return single(repository.save(training));
+        PersonalTraining saved = repository.saveAndFlush(training);
+        attachments.applyToTraining(saved, request.attachments());
+        return single(saved);
     }
 
     @Transactional
@@ -119,7 +126,10 @@ public class PersonalTrainingService {
         training.edit(request.date(), request.startTime(), request.endTime(),
                 request.title().trim(), trimToNull(request.description()), viewerIsAdmin);
         requireCompletedStaysInPast(training);
-        return single(save(training));
+        PersonalTraining saved = save(training);
+        // null here means "leave materials alone" — see AttachmentService for why that matters.
+        attachments.applyToTraining(saved, request.attachments());
+        return single(saved);
     }
 
     @Transactional
@@ -245,7 +255,9 @@ public class PersonalTrainingService {
     private PersonalTrainingResponse single(PersonalTraining training) {
         // The viewer just performed this action, so nothing about it is news to them.
         return toResponse(training, LocalDateTime.now(), false,
-                (int) commentRepository.countByTrainingId(training.getId()));
+                (int) commentRepository.countByTrainingId(training.getId()),
+                attachments.forTrainings(List.of(training.getId()))
+                        .getOrDefault(training.getId(), List.of()));
     }
 
     private PersonalTraining copyOf(PersonalTraining source, LocalDate date, boolean byAdmin) {
@@ -319,13 +331,14 @@ public class PersonalTrainingService {
     }
 
     static PersonalTrainingResponse toResponse(PersonalTraining t, LocalDateTime now,
-                                               boolean unread, int commentCount) {
+                                               boolean unread, int commentCount,
+                                               List<AttachmentResponse> materials) {
         return new PersonalTrainingResponse(
                 t.getId(), t.getDate(), t.getStartTime(), t.getEndTime(),
                 t.getTitle(), t.getDescription(), t.status(now),
                 t.getCompletedAt(), t.getFeedback(), t.getRpe(),
                 t.isCreatedByAdmin(), t.isLastModifiedByAdmin(),
-                unread, commentCount,
+                unread, commentCount, materials,
                 t.getVersion(), t.getCreatedAt(), t.getUpdatedAt());
     }
 }

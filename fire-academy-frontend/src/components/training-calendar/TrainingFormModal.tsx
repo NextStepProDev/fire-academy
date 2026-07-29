@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Film, Link as LinkIcon, X } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { ApiError } from '../../api/client'
+import { VideoPickerModal } from '../exercise-videos/VideoPickerModal'
 import { formatLongDate } from '../../utils/calendarRange'
-import type { CreateTrainingBody, PersonalTraining } from '../../types'
+import type { AttachmentKind, CreateTrainingBody, PersonalTraining } from '../../types'
+
+/** Three materials fit on a card without turning it into a reading list. */
+const MAX_MATERIALS = 3
 
 const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
@@ -16,6 +21,8 @@ interface TrainingFormModalProps {
   /** Rejects with the server message on failure; the modal must stay open in that case. */
   onSubmit: (body: CreateTrainingBody) => Promise<unknown>
   onConflictRefresh: () => void
+  /** The library lives in the admin panel, so only the coach can attach from it. */
+  canAttach: boolean
 }
 
 /**
@@ -24,7 +31,7 @@ interface TrainingFormModalProps {
  * of the cascading render an effect would cause.
  */
 export function TrainingFormModal({
-  training, date, onClose, onSubmit, onConflictRefresh,
+  training, date, onClose, onSubmit, onConflictRefresh, canAttach,
 }: TrainingFormModalProps) {
   const { t } = useTranslation('calendar')
 
@@ -38,6 +45,19 @@ export function TrainingFormModal({
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Seeded from what the training already has, so saving without touching materials sends the same
+  // list back rather than an empty one.
+  const [materials, setMaterials] = useState<AttachmentDraft[]>(
+    () => (training?.attachments ?? []).map(a => ({
+      kind: a.kind,
+      label: a.label,
+      url: a.url,
+      videoId: a.videoId,
+      displayName: a.kind === 'VIDEO' ? (a.videoName ?? a.label ?? '') : (a.label ?? a.url ?? ''),
+      thumbnailUrl: a.thumbnailUrl,
+    })))
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -54,6 +74,10 @@ export function TrainingFormModal({
         description: description.trim() || null,
         startTime: timed ? startTime : null,
         endTime: timed && endTime ? endTime : null,
+        // Always explicit from this form: the user saw the list and either kept or changed it.
+        attachments: materials.map(m => ({
+          kind: m.kind, label: m.label, url: m.url, videoId: m.videoId,
+        })),
       })
       onClose()
     } catch (e) {
@@ -131,6 +155,59 @@ export function TrainingFormModal({
           )}
         </div>
 
+        {/* Materials. Videos come from the shared library so a correction there fixes every
+            training at once; a plain link covers the one-off case. */}
+        {canAttach && (
+          <div className="space-y-2">
+            <span className="block text-sm text-surface-300">
+              {t('materials.title')} <span className="text-surface-500">({materials.length}/{MAX_MATERIALS})</span>
+            </span>
+            {materials.length > 0 && (
+              <ul className="space-y-1">
+                {materials.map((m, index) => (
+                  <li key={`${m.kind}-${index}`}
+                    className="flex items-center gap-2 rounded-lg border border-surface-800 bg-surface-800/50 px-2 py-1.5">
+                    {m.thumbnailUrl
+                      ? <img src={m.thumbnailUrl} alt="" className="h-8 w-14 shrink-0 rounded object-cover" />
+                      : <LinkIcon className="h-4 w-4 shrink-0 text-surface-400" />}
+                    <span className="min-w-0 flex-1 truncate text-sm text-surface-200">{m.displayName}</span>
+                    <button type="button" aria-label={t('materials.remove')}
+                      onClick={() => setMaterials(list => list.filter((_, i) => i !== index))}
+                      className="flex h-6 w-6 items-center justify-center rounded text-surface-400 hover:text-rose-300">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {materials.length < MAX_MATERIALS && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setPickerOpen(true)}>
+                  <Film className="mr-1.5 h-4 w-4" />
+                  {t('materials.addVideo')}
+                </Button>
+                <input
+                  type="url"
+                  className={`${inputClass} flex-1 min-w-40`}
+                  placeholder={t('materials.linkPlaceholder')}
+                  value={linkUrl}
+                  onChange={e => setLinkUrl(e.target.value)}
+                />
+                <Button type="button" variant="ghost" size="sm" disabled={!linkUrl.trim()}
+                  onClick={() => {
+                    setMaterials(list => [...list, {
+                      kind: 'LINK', label: null, url: linkUrl.trim(), videoId: null,
+                      displayName: linkUrl.trim(), thumbnailUrl: null,
+                    }])
+                    setLinkUrl('')
+                  }}>
+                  {t('materials.addLink')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Errors belong here, next to the button that caused them — a toast at the edge of the
             screen is easy to miss, and the user is looking at Save. */}
         {error && (
@@ -154,6 +231,26 @@ export function TrainingFormModal({
           </Button>
         </div>
       </form>
+
+      {pickerOpen && (
+      <VideoPickerModal
+        onClose={() => setPickerOpen(false)}
+        onPick={video => setMaterials(list => [...list, {
+          kind: 'VIDEO', label: null, url: null, videoId: video.id,
+          displayName: video.name, thumbnailUrl: video.thumbnailUrl,
+        }])}
+      />
+      )}
     </Modal>
   )
+}
+
+/** What the form holds while editing: the request fields plus what it takes to render a row. */
+interface AttachmentDraft {
+  kind: AttachmentKind
+  label: string | null
+  url: string | null
+  videoId: string | null
+  displayName: string
+  thumbnailUrl: string | null
 }
