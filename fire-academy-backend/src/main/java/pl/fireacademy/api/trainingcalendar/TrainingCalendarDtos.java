@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -200,6 +201,36 @@ public final class TrainingCalendarDtos {
             @Nullable String description,
             @Nullable Integer defaultDurationMinutes,
             List<AttachmentResponse> attachments
+    ) {}
+
+    /**
+     * @param heatmap             non-zero days only, so a year of squares stays a small payload
+     * @param attendancePercent   null when nothing was planned in the window — 0% would claim a
+     *                            failure that never happened
+     * @param overtraining        null for the client: this signal is for the coach's eyes only, and
+     *                            the field is absent from their JSON entirely rather than false
+     */
+    public record TrainingStatsResponse(
+            int thisMonthCount,
+            int prevMonthCount,
+            int totalCount,
+            @Nullable LocalDate firstActivityDate,
+            int currentStreakWeeks,
+            int bestStreakWeeks,
+            @Nullable Double avgPerMonth,
+            Map<LocalDate, Integer> heatmap,
+            TypeBreakdown byType,
+            @Nullable Integer attendancePercent,
+            @Nullable Double avgRpeOverall,
+            @Nullable Double avgRpeRecent,
+            Map<String, Integer> rpeDistribution,
+            @Nullable Boolean overtraining
+    ) {}
+
+    /** Group sessions are counted, not ticked off — hence a separate number rather than one total. */
+    public record TypeBreakdown(
+            int personal,
+            int recurring
     ) {}
 
     public record GoalResponse(

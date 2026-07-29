@@ -19,10 +19,14 @@ public class AdminPersonalTrainingController {
 
     private final PersonalTrainingService service;
     private final AthleteGoalService goalService;
+    private final TrainingStatsService statsService;
 
-    public AdminPersonalTrainingController(PersonalTrainingService service, AthleteGoalService goalService) {
+    public AdminPersonalTrainingController(PersonalTrainingService service,
+                                           AthleteGoalService goalService,
+                                           TrainingStatsService statsService) {
         this.service = service;
         this.goalService = goalService;
+        this.statsService = statsService;
     }
 
     @GetMapping
@@ -92,6 +96,12 @@ public class AdminPersonalTrainingController {
     public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
         service.dismissDeletions(athleteId, adminId, true);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Includes the overtraining signal — it exists to start a conversation, not to be broadcast. */
+    @GetMapping("/stats")
+    public TrainingStatsResponse stats(@RequestParam UUID athleteId) {
+        return statsService.stats(athleteId, true);
     }
 
     // --- Goals. Set by the coach; the client only reads them. ---

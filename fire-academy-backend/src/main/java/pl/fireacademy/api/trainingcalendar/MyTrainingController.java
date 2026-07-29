@@ -26,10 +26,14 @@ public class MyTrainingController {
 
     private final PersonalTrainingService service;
     private final AthleteGoalService goalService;
+    private final TrainingStatsService statsService;
 
-    public MyTrainingController(PersonalTrainingService service, AthleteGoalService goalService) {
+    public MyTrainingController(PersonalTrainingService service,
+                                AthleteGoalService goalService,
+                                TrainingStatsService statsService) {
         this.service = service;
         this.goalService = goalService;
+        this.statsService = statsService;
     }
 
     @GetMapping("/calendar")
@@ -112,6 +116,12 @@ public class MyTrainingController {
     public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID userId) {
         service.dismissDeletions(userId, userId, false);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Same numbers as the coach sees, minus the overtraining signal. */
+    @GetMapping("/stats")
+    public TrainingStatsResponse stats(@CurrentUserId UUID userId) {
+        return statsService.stats(userId, false);
     }
 
     /** Read-only: goals are the coach's call, the trophy case is the client's to look at. */

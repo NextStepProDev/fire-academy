@@ -195,6 +195,26 @@ export interface UpdateTrainingBody extends CreateTrainingBody {
 
 export type PasteMode = 'COPY' | 'MOVE'
 
+export interface TrainingStats {
+  thisMonthCount: number
+  prevMonthCount: number
+  totalCount: number
+  firstActivityDate: string | null
+  currentStreakWeeks: number
+  bestStreakWeeks: number
+  avgPerMonth: number | null
+  /** Non-zero days only, keyed 'YYYY-MM-DD'. */
+  heatmap: Record<string, number>
+  byType: { personal: number; recurring: number }
+  /** Null when nothing was planned — 0% would claim a failure that never happened. */
+  attendancePercent: number | null
+  avgRpeOverall: number | null
+  avgRpeRecent: number | null
+  rpeDistribution: { light: number; medium: number; hard: number }
+  /** Absent from the client's response entirely — this signal is for the coach. */
+  overtraining?: boolean
+}
+
 export type GoalHorizon = 'SHORT' | 'MEDIUM' | 'LONG'
 
 export interface AthleteGoal {

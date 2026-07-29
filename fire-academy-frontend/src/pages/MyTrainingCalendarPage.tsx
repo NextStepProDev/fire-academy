@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { TrainingCalendar } from '../components/training-calendar/TrainingCalendar'
 import { athleteAdapter } from '../components/training-calendar/adapter'
 import { GoalsBoard } from '../components/goals/GoalsBoard'
+import { TrainingStatsPanel } from '../components/training-stats/TrainingStatsPanel'
 
 export function MyTrainingCalendarPage() {
   const { t } = useTranslation('calendar')
@@ -36,6 +37,8 @@ export function MyTrainingCalendarPage() {
       <GoalsBoard athleteId={null} />
 
       <TrainingCalendar adapter={athleteAdapter(user.id)} />
+
+      <TrainingStatsPanel athleteId={null} />
     </div>
   )
 }
