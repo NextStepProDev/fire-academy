@@ -48,8 +48,7 @@
     "edit": "Edytuj",
     "delete": "Usuń",
     "deleteTitle": "Usunąć trening?",
-    "deleteMessage": "Czy na pewno usunąć „{{title}}\"?",
-    "coachSeesThis": "Ocenę i komentarz zobaczy Twój trener."
+    "deleteMessage": "Czy na pewno usunąć „{{title}}\"?"
   },
   "athletes": {
     "title": "Podopieczni",
@@ -70,7 +69,7 @@
     "tileDescription": "Treningi indywidualne od trenera",
     "tileCta": "Otwórz kalendarz",
     "tileBadge": "nowe",
-    "sharedNotice": "Wszystko na tej stronie — plan, wykonanie, oceny wysiłku, komentarze i waga — jest widoczne dla Twojego trenera."
+    "sharedNotice": "Plan, wykonanie, oceny wysiłku, komentarze i waga są widoczne dla Twojego trenera."
   },
   "unread": {
     "dot": "Nowe od ostatniej wizyty"
@@ -229,7 +228,6 @@
     "noiseHint": "Dzień do dnia waga skacze przez wodę i sól — patrz na linię trendu, nie na pojedynczy pomiar.",
     "emptyClient": "Brak pomiarów. Wpisz wagę rano, po przebudzeniu — zawsze o tej samej porze.",
     "emptyCoach": "Ta osoba nie zapisała jeszcze żadnego pomiaru.",
-    "rapidLoss": "Waga spada szybciej niż 1% tygodniowo. Warto sprawdzić, czy zejście jest kontrolowane.",
-    "coachSeesThis": "Twój trener widzi te pomiary."
+    "rapidLoss": "Waga spada szybciej niż 1% tygodniowo. Warto sprawdzić, czy zejście jest kontrolowane."
   }
 }

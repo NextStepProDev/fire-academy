@@ -32,8 +32,6 @@ export function MyTrainingCalendarPage() {
       <div>
         <h1 className="text-2xl font-bold text-surface-100">{t('my.title')}</h1>
         <p className="mt-1 text-sm text-surface-400">{t('my.subtitle')}</p>
-        {/* Said once, plainly, at the top of the page everything on it is shared from. */}
-        <p className="mt-2 text-xs text-surface-500">{t('my.sharedNotice')}</p>
       </div>
 
       {/* Read-only for the client: goals are the coach's call. */}
@@ -44,6 +42,12 @@ export function MyTrainingCalendarPage() {
       <WeightPanel athleteId={null} />
 
       <TrainingStatsPanel athleteId={null} />
+
+      {/* Said once, quietly, at the foot of the page it covers — everything here is shared with the
+          coach, and the client should have read that at least once without being told repeatedly. */}
+      <p className="border-t border-surface-800 pt-4 text-xs text-surface-500">
+        {t('my.sharedNotice')}
+      </p>
     </div>
   )
 }

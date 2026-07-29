@@ -119,8 +119,6 @@ export function TrainingDetailModal({
                   {formError}
                 </p>
               )}
-              {/* The rating and note go to the coach — said here, where they are written. */}
-              <p className="text-xs text-surface-500">{t('detail.coachSeesThis')}</p>
               <Button
                 variant="primary" size="sm" loading={busy} disabled={rpe == null}
                 onClick={() => rpe != null && run(
