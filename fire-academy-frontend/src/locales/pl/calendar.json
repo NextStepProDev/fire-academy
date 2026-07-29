@@ -55,7 +55,11 @@
     "subtitle": "Osoby z kalendarzem treningów indywidualnych.",
     "empty": "Nikt nie ma jeszcze włączonego kalendarza 1:1. Włącz go w zakładce Użytkownicy.",
     "openCalendar": "Otwórz kalendarz",
-    "back": "Wróć do listy podopiecznych"
+    "back": "Wróć do listy podopiecznych",
+    "unread_one": "{{count}} nowa rzecz",
+    "unread_few": "{{count}} nowe rzeczy",
+    "unread_many": "{{count}} nowych rzeczy",
+    "unread_other": "{{count}} nowych rzeczy"
   },
   "my": {
     "title": "Mój plan treningowy",
@@ -63,6 +67,24 @@
     "back": "Wróć do konta",
     "tileTitle": "Mój plan treningowy",
     "tileDescription": "Treningi indywidualne od trenera",
-    "tileCta": "Otwórz kalendarz"
+    "tileCta": "Otwórz kalendarz",
+    "tileBadge": "nowe"
+  },
+  "unread": {
+    "dot": "Nowe od ostatniej wizyty"
+  },
+  "comments": {
+    "title": "Komentarze",
+    "empty": "Brak komentarzy. Napisz pierwszy.",
+    "placeholder": "Napisz wiadomość…",
+    "send": "Wyślij",
+    "deletedAuthor": "Konto usunięte"
+  },
+  "deletions": {
+    "title_one": "Usunięto zaplanowany trening",
+    "title_few": "Usunięto {{count}} zaplanowane treningi",
+    "title_many": "Usunięto {{count}} zaplanowanych treningów",
+    "title_other": "Usunięto {{count}} zaplanowanych treningów",
+    "dismiss": "Ukryj powiadomienie"
   }
 }

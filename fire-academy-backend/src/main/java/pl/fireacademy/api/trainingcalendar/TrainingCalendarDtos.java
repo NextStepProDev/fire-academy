@@ -26,13 +26,14 @@ public final class TrainingCalendarDtos {
 
     private TrainingCalendarDtos() {}
 
-    /** One row of the coach's roster. Unread counters and the overtraining flag land here later. */
+    /** One row of the coach's roster. The overtraining flag lands here later. */
     public record AthleteSummary(
             UUID id,
             String firstName,
             String lastName,
             String email,
-            @Nullable String avatarUrl
+            @Nullable String avatarUrl,
+            long unreadCount
     ) {}
 
     /**
@@ -55,6 +56,9 @@ public final class TrainingCalendarDtos {
             @Nullable Integer rpe,
             boolean createdByAdmin,
             boolean lastModifiedByAdmin,
+            /** The other side touched this since the viewer last looked — drives the dot on the card. */
+            boolean unread,
+            int commentCount,
             long version,
             Instant createdAt,
             Instant updatedAt
@@ -64,7 +68,36 @@ public final class TrainingCalendarDtos {
     public record CalendarRangeResponse(
             LocalDate from,
             LocalDate to,
-            List<PersonalTrainingResponse> trainings
+            List<PersonalTrainingResponse> trainings,
+            /** Deleted future trainings the viewer has not dismissed yet. */
+            List<DeletedTrainingNotice> deletions
+    ) {}
+
+    public record DeletedTrainingNotice(
+            UUID id,
+            LocalDate date,
+            @Nullable LocalTime startTime,
+            String title,
+            Instant deletedAt
+    ) {}
+
+    public record TrainingCommentResponse(
+            UUID id,
+            String body,
+            boolean fromCoach,
+            @Nullable String authorName,
+            Instant createdAt
+    ) {}
+
+    public record AddCommentRequest(
+            @NotBlank @Size(max = 1000) String body
+    ) {}
+
+    /** Lightweight payload behind the account tile badge — deliberately cheaper than a full page. */
+    public record MyTrainingSummary(
+            long unreadCount,
+            int deletedCount,
+            @Nullable LocalDate nextTrainingDate
     ) {}
 
     /**

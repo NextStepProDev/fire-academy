@@ -1,7 +1,9 @@
 import type { QueryKey } from '@tanstack/react-query'
 import { adminApi } from '../../api/admin'
 import { myTrainingApi } from '../../api/user'
-import type { CalendarRange, CreateTrainingBody, PasteMode, PersonalTraining, UpdateTrainingBody } from '../../types'
+import type {
+  CalendarRange, CreateTrainingBody, PasteMode, PersonalTraining, TrainingComment, UpdateTrainingBody,
+} from '../../types'
 
 /**
  * How the shared calendar reaches its data.
@@ -27,6 +29,10 @@ export interface TrainingCalendarAdapter {
   /** Ticking off is the client's act alone — absent for the coach, so no button renders. */
   completeTraining?: (id: string, body: { rpe: number; feedback?: string | null }) => Promise<PersonalTraining>
   uncompleteTraining?: (id: string) => Promise<PersonalTraining>
+  getComments: (trainingId: string) => Promise<TrainingComment[]>
+  addComment: (trainingId: string, body: string) => Promise<TrainingComment>
+  markSeen: () => Promise<void>
+  dismissDeletions: () => Promise<void>
 }
 
 export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
@@ -42,6 +48,10 @@ export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
     deleteTraining: (id) => adminApi.deletePersonalTraining(id),
     duplicateTraining: (id, offsetDays) => adminApi.duplicatePersonalTraining(id, offsetDays),
     pasteTraining: (sourceId, targetDate, mode) => adminApi.pastePersonalTraining(sourceId, targetDate, mode),
+    getComments: (id) => adminApi.getTrainingComments(id),
+    addComment: (id, body) => adminApi.addTrainingComment(id, body),
+    markSeen: () => adminApi.markTrainingCalendarSeen(athleteId),
+    dismissDeletions: () => adminApi.dismissTrainingDeletions(athleteId),
   }
 }
 
@@ -58,5 +68,9 @@ export function athleteAdapter(athleteId: string): TrainingCalendarAdapter {
     pasteTraining: (sourceId, targetDate, mode) => myTrainingApi.pasteTraining(sourceId, targetDate, mode),
     completeTraining: (id, body) => myTrainingApi.completeTraining(id, body),
     uncompleteTraining: (id) => myTrainingApi.uncompleteTraining(id),
+    getComments: (id) => myTrainingApi.getComments(id),
+    addComment: (id, body) => myTrainingApi.addComment(id, body),
+    markSeen: () => myTrainingApi.markSeen(),
+    dismissDeletions: () => myTrainingApi.dismissDeletions(),
   }
 }

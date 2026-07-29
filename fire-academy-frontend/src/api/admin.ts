@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -308,4 +308,14 @@ export const adminApi = {
     fetchApi<PersonalTraining>('/admin/personal-trainings/paste', {
       method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
     }),
+  getTrainingComments: (id: string) =>
+    fetchApi<TrainingComment[]>(`/admin/personal-trainings/${id}/comments`),
+  addTrainingComment: (id: string, body: string) =>
+    fetchApi<TrainingComment>(`/admin/personal-trainings/${id}/comments`, {
+      method: 'POST', body: JSON.stringify({ body }),
+    }),
+  markTrainingCalendarSeen: (athleteId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
+  dismissTrainingDeletions: (athleteId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/deletions/dismiss?athleteId=${athleteId}`, { method: 'POST' }),
 }

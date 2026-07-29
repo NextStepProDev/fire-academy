@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Check, Copy, Scissors } from 'lucide-react'
+import { Check, Copy, MessageSquare, Scissors } from 'lucide-react'
 import type { PersonalTraining } from '../../types'
 
 /** Left-border colour carries the status; the card itself stays neutral so a day reads at a glance. */
@@ -18,10 +18,13 @@ interface TrainingTileProps {
   onCut?: (training: PersonalTraining) => void
   copyLabel: string
   cutLabel: string
+  unreadLabel: string
+  commentsLabel: string
 }
 
 export function TrainingTile({
-  training, compact = false, cut = false, onOpen, onCopy, onCut, copyLabel, cutLabel,
+  training, compact = false, cut = false, onOpen, onCopy, onCut,
+  copyLabel, cutLabel, unreadLabel, commentsLabel,
 }: TrainingTileProps) {
   const showClipboard = (onCopy || onCut) && !compact
 
@@ -41,6 +44,13 @@ export function TrainingTile({
         className={clsx('block w-full text-left', showClipboard && 'pr-14')}
       >
         <span className="flex items-center gap-1.5">
+          {training.unread && (
+            <span
+              aria-label={unreadLabel}
+              title={unreadLabel}
+              className="h-2 w-2 shrink-0 rounded-full bg-rose-400"
+            />
+          )}
           {training.status === 'COMPLETED' && <Check className="w-3.5 h-3.5 shrink-0 text-emerald-400" />}
           <span className={clsx('font-medium text-surface-100 truncate', compact ? 'text-xs' : 'text-sm')}>
             {training.title}
@@ -54,9 +64,20 @@ export function TrainingTile({
             {training.endTime ? `–${training.endTime.slice(0, 5)}` : ''}
           </span>
         )}
-        {!compact && training.rpe != null && (
-          <span className="mt-1 inline-block rounded-full bg-surface-900 px-1.5 py-0.5 text-[11px] text-surface-300">
-            RPE {training.rpe}
+        {!compact && (training.rpe != null || training.commentCount > 0) && (
+          <span className="mt-1 flex items-center gap-1.5">
+            {training.rpe != null && (
+              <span className="inline-block rounded-full bg-surface-900 px-1.5 py-0.5 text-[11px] text-surface-300">
+                RPE {training.rpe}
+              </span>
+            )}
+            {training.commentCount > 0 && (
+              <span aria-label={commentsLabel}
+                className="inline-flex items-center gap-0.5 text-[11px] text-surface-400">
+                <MessageSquare className="h-3 w-3" />
+                {training.commentCount}
+              </span>
+            )}
           </span>
         )}
       </button>

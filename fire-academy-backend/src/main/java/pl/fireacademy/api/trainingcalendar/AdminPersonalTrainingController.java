@@ -9,6 +9,7 @@ import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.config.CurrentUserId;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /** Coach side of the 1-on-1 calendar. Role protection comes from the {@code /api/admin/**} prefix. */
@@ -24,10 +25,11 @@ public class AdminPersonalTrainingController {
 
     @GetMapping
     public CalendarRangeResponse getRange(
+            @CurrentUserId UUID adminId,
             @RequestParam UUID athleteId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.getRange(athleteId, from, to);
+        return service.getRange(athleteId, from, to, adminId, true);
     }
 
     @PostMapping
@@ -60,5 +62,33 @@ public class AdminPersonalTrainingController {
     public PersonalTrainingResponse paste(@CurrentUserId UUID adminId,
                                           @Valid @RequestBody PasteTrainingRequest request) {
         return service.paste(request, adminId, true);
+    }
+
+    @GetMapping("/{id}/comments")
+    public List<TrainingCommentResponse> comments(@CurrentUserId UUID adminId, @PathVariable UUID id) {
+        return service.getComments(id, adminId, true);
+    }
+
+    @PostMapping("/{id}/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TrainingCommentResponse addComment(@CurrentUserId UUID adminId, @PathVariable UUID id,
+                                              @Valid @RequestBody AddCommentRequest request) {
+        return service.addComment(id, request, adminId, true);
+    }
+
+    /**
+     * Clears this coach's dots for this client. The frontend calls it only once the calendar has
+     * actually rendered — clearing on mount would wipe the dots before anyone saw them.
+     */
+    @PostMapping("/mark-seen")
+    public ResponseEntity<Void> markSeen(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
+        service.markSeen(athleteId, adminId, true);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/deletions/dismiss")
+    public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
+        service.dismissDeletions(athleteId, adminId, true);
+        return ResponseEntity.noContent().build();
     }
 }

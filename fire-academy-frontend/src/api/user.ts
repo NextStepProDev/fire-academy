@@ -1,7 +1,7 @@
 import { fetchApi } from './client'
 import type {
   MyTrainingEnrollment, CalendarRange, PersonalTraining,
-  CreateTrainingBody, UpdateTrainingBody, PasteMode,
+  CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, MyTrainingSummary,
 } from '../types'
 
 interface EnrollTrainingRequest {
@@ -54,4 +54,16 @@ export const myTrainingApi = {
     }),
   uncompleteTraining: (id: string) =>
     fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}/complete`, { method: 'DELETE' }),
+  getComments: (id: string) =>
+    fetchApi<TrainingComment[]>(`/user/my-training/trainings/${id}/comments`),
+  addComment: (id: string, body: string) =>
+    fetchApi<TrainingComment>(`/user/my-training/trainings/${id}/comments`, {
+      method: 'POST', body: JSON.stringify({ body }),
+    }),
+  markSeen: () =>
+    fetchApi<void>('/user/my-training/mark-seen', { method: 'POST' }),
+  dismissDeletions: () =>
+    fetchApi<void>('/user/my-training/deletions/dismiss', { method: 'POST' }),
+  getSummary: () =>
+    fetchApi<MyTrainingSummary>('/user/my-training/summary'),
 }

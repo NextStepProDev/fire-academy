@@ -9,6 +9,7 @@ import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.config.CurrentUserId;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -34,7 +35,13 @@ public class MyTrainingController {
             @CurrentUserId UUID userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.getRange(userId, from, to);
+        return service.getRange(userId, from, to, userId, false);
+    }
+
+    /** Cheap payload behind the account tile badge — no calendar page, just the counters. */
+    @GetMapping("/summary")
+    public MyTrainingSummary summary(@CurrentUserId UUID userId) {
+        return service.summary(userId, userId, false);
     }
 
     @PostMapping("/trainings")
@@ -79,5 +86,29 @@ public class MyTrainingController {
     @DeleteMapping("/trainings/{id}/complete")
     public PersonalTrainingResponse uncomplete(@CurrentUserId UUID userId, @PathVariable UUID id) {
         return service.uncomplete(id, userId);
+    }
+
+    @GetMapping("/trainings/{id}/comments")
+    public List<TrainingCommentResponse> comments(@CurrentUserId UUID userId, @PathVariable UUID id) {
+        return service.getComments(id, userId, false);
+    }
+
+    @PostMapping("/trainings/{id}/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TrainingCommentResponse addComment(@CurrentUserId UUID userId, @PathVariable UUID id,
+                                              @Valid @RequestBody AddCommentRequest request) {
+        return service.addComment(id, request, userId, false);
+    }
+
+    @PostMapping("/mark-seen")
+    public ResponseEntity<Void> markSeen(@CurrentUserId UUID userId) {
+        service.markSeen(userId, userId, false);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/deletions/dismiss")
+    public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID userId) {
+        service.dismissDeletions(userId, userId, false);
+        return ResponseEntity.noContent().build();
     }
 }

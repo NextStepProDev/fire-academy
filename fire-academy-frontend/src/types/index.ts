@@ -106,6 +106,7 @@ export interface AthleteSummary {
   lastName: string
   email: string
   avatarUrl: string | null
+  unreadCount: number
 }
 
 /** Computed server-side, never stored — the frontend only colours it. */
@@ -125,16 +126,42 @@ export interface PersonalTraining {
   rpe: number | null
   createdByAdmin: boolean
   lastModifiedByAdmin: boolean
+  /** The other side changed this since we last looked — drives the dot on the card. */
+  unread: boolean
+  commentCount: number
   /** Echoed back on update so a concurrent edit is caught instead of silently overwritten. */
   version: number
   createdAt: string
   updatedAt: string
 }
 
+export interface DeletedTrainingNotice {
+  id: string
+  date: string
+  startTime: string | null
+  title: string
+  deletedAt: string
+}
+
 export interface CalendarRange {
   from: string
   to: string
   trainings: PersonalTraining[]
+  deletions: DeletedTrainingNotice[]
+}
+
+export interface TrainingComment {
+  id: string
+  body: string
+  fromCoach: boolean
+  authorName: string | null
+  createdAt: string
+}
+
+export interface MyTrainingSummary {
+  unreadCount: number
+  deletedCount: number
+  nextTrainingDate: string | null
 }
 
 export interface CreateTrainingBody {

@@ -4,8 +4,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.AthleteSummary;
+import pl.fireacademy.config.CurrentUserId;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Lives in the training-calendar package rather than {@code api.admin} so it can share DTO records
@@ -23,7 +25,7 @@ public class AdminAthleteController {
     }
 
     @GetMapping
-    public List<AthleteSummary> list() {
-        return service.list();
+    public List<AthleteSummary> list(@CurrentUserId UUID adminId) {
+        return service.list(adminId);
     }
 }

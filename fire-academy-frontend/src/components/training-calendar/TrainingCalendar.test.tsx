@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TrainingCalendar } from './TrainingCalendar'
 import type { TrainingCalendarAdapter } from './adapter'
 import { todayIso, weekRange } from '../../utils/calendarRange'
-import type { CalendarRange, PersonalTraining } from '../../types'
+import type { CalendarRange, DeletedTrainingNotice, PersonalTraining } from '../../types'
 
 // The calendar always opens on the current week, so fixtures have to live there rather than on a
 // fixed date — otherwise they render outside the visible range and nothing is found.
@@ -39,14 +39,19 @@ function training(over: Partial<PersonalTraining> = {}): PersonalTraining {
     title: 'Siła', description: null, status: 'PLANNED',
     completedAt: null, feedback: null, rpe: null,
     createdByAdmin: true, lastModifiedByAdmin: true,
+    unread: false, commentCount: 0,
     version: 0, createdAt: '2027-03-01T10:00:00Z', updatedAt: '2027-03-01T10:00:00Z',
     ...over,
   }
 }
 
-function stubAdapter(trainings: PersonalTraining[], over: Partial<TrainingCalendarAdapter> = {}): TrainingCalendarAdapter {
+function stubAdapter(
+  trainings: PersonalTraining[],
+  over: Partial<TrainingCalendarAdapter> = {},
+  deletions: DeletedTrainingNotice[] = [],
+): TrainingCalendarAdapter {
   const week = weekRange(TODAY)
-  const range: CalendarRange = { from: week.from, to: week.to, trainings }
+  const range: CalendarRange = { from: week.from, to: week.to, trainings, deletions }
   return {
     role: 'coach',
     athleteId: 'a1',
@@ -57,6 +62,10 @@ function stubAdapter(trainings: PersonalTraining[], over: Partial<TrainingCalend
     deleteTraining: vi.fn(),
     duplicateTraining: vi.fn(),
     pasteTraining: vi.fn(),
+    getComments: vi.fn().mockResolvedValue([]),
+    addComment: vi.fn(),
+    markSeen: vi.fn().mockResolvedValue(undefined),
+    dismissDeletions: vi.fn().mockResolvedValue(undefined),
     ...over,
   }
 }
@@ -174,5 +183,58 @@ describe('TrainingCalendar', () => {
     await user.click(await screen.findByText('Siła'))
 
     expect(await screen.findByText('Oznacz jako wykonany')).toBeInTheDocument()
+  })
+
+  it('waits for the page to actually arrive before marking it seen', async () => {
+    // On a cached revisit React Query reports isSuccess in the same tick. Marking seen then would
+    // clear the dots before the server had even counted them, so they would never be shown — the
+    // exact bug that had to be fixed twice in the reference implementation.
+    let resolveRange: (value: CalendarRange) => void = () => {}
+    const pending = new Promise<CalendarRange>(resolve => { resolveRange = resolve })
+    const markSeen = vi.fn().mockResolvedValue(undefined)
+    const week = weekRange(TODAY)
+    renderCalendar(stubAdapter([], { markSeen, fetchRange: vi.fn().mockReturnValue(pending) }))
+
+    // While the range is still in flight nothing is marked
+    expect(markSeen).not.toHaveBeenCalled()
+
+    resolveRange({ from: week.from, to: week.to, trainings: [training()], deletions: [] })
+
+    await screen.findByText('Siła')
+    await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(1))
+  })
+
+  it('marks seen exactly once per visit', async () => {
+    // Paging weeks refetches the range; re-marking on every page would be pointless write traffic.
+    const user = userEvent.setup()
+    const markSeen = vi.fn().mockResolvedValue(undefined)
+    renderCalendar(stubAdapter([training()], { markSeen }))
+    await screen.findByText('Siła')
+    await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(1))
+
+    await user.click(screen.getByRole('button', { name: 'Następny okres' }))
+    await user.click(screen.getByRole('button', { name: 'Poprzedni okres' }))
+
+    expect(markSeen).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the unread dot for a training the other side changed', async () => {
+    renderCalendar(stubAdapter([training({ unread: true })]))
+
+    expect(await screen.findByLabelText('unread.dot')).toBeInTheDocument()
+  })
+
+  it('announces deleted future trainings and lets them be dismissed', async () => {
+    // A deleted training leaves nothing on the grid to notice, so the loss needs its own banner.
+    const user = userEvent.setup()
+    const dismissDeletions = vi.fn().mockResolvedValue(undefined)
+    renderCalendar(stubAdapter([], { dismissDeletions }, [
+      { id: 'd1', date: TODAY, startTime: null, title: 'Sparing', deletedAt: '2027-03-01T10:00:00Z' },
+    ]))
+
+    expect(await screen.findByText(/Sparing/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'deletions.dismiss' }))
+
+    await waitFor(() => expect(dismissDeletions).toHaveBeenCalled())
   })
 })

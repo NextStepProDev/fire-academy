@@ -6,8 +6,10 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { RpeInput } from './RpeInput'
+import { CommentThread } from './CommentThread'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { PersonalTraining, TrainingStatus } from '../../types'
+import type { TrainingCalendarAdapter } from './adapter'
 
 const statusChip: Record<TrainingStatus, string> = {
   PLANNED: 'bg-surface-800 text-surface-300',
@@ -17,6 +19,7 @@ const statusChip: Record<TrainingStatus, string> = {
 
 interface TrainingDetailModalProps {
   training: PersonalTraining
+  adapter: TrainingCalendarAdapter
   onClose: () => void
   onEdit: (training: PersonalTraining) => void
   onDelete: (training: PersonalTraining) => Promise<unknown>
@@ -27,7 +30,7 @@ interface TrainingDetailModalProps {
 }
 
 export function TrainingDetailModal({
-  training, onClose, onEdit, onDelete, onDuplicate, onComplete, onUncomplete,
+  training, adapter, onClose, onEdit, onDelete, onDuplicate, onComplete, onUncomplete,
 }: TrainingDetailModalProps) {
   const { t } = useTranslation('calendar')
 
@@ -124,6 +127,10 @@ export function TrainingDetailModal({
               </Button>
             </div>
           )}
+
+          <div className="border-t border-surface-800 pt-3">
+            <CommentThread trainingId={training.id} adapter={adapter} />
+          </div>
 
           {footerError && (
             <p role="alert" className="rounded bg-rose-500/10 px-3 py-2 text-sm text-rose-300">

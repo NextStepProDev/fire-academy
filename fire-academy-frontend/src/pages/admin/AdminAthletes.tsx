@@ -83,6 +83,14 @@ export function AdminAthletes() {
                   </span>
                   <span className="block truncate text-sm text-surface-400">{athlete.email}</span>
                 </span>
+                {athlete.unreadCount > 0 && (
+                  <span
+                    aria-label={t('athletes.unread', { count: athlete.unreadCount })}
+                    className="inline-flex min-w-6 shrink-0 items-center justify-center rounded-full bg-rose-500/15 px-2 py-0.5 text-sm font-semibold text-rose-300"
+                  >
+                    {athlete.unreadCount}
+                  </span>
+                )}
                 <ChevronRight className="h-4 w-4 shrink-0 text-surface-500" />
               </button>
             </li>

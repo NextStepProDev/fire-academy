@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -9,6 +9,7 @@ import { QueryError } from '../ui/QueryError'
 import { DayColumn } from './DayColumn'
 import { TrainingFormModal } from './TrainingFormModal'
 import { TrainingDetailModal } from './TrainingDetailModal'
+import { DeletedTrainingsBanner } from './DeletedTrainingsBanner'
 import { useTrainingClipboard } from '../../hooks/useTrainingClipboard'
 import {
   eachDay, formatRangeLabel, rangeFor, shiftAnchor, todayIso, weekdayShort,
@@ -61,6 +62,36 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: adapter.rangeKey(range.from, range.to) })
   }
+
+  const markSeenMutation = useMutation({
+    mutationFn: () => adapter.markSeen(),
+    onSuccess: () => {
+      // refetchType 'none' on purpose: the dots the viewer is looking at RIGHT NOW must stay lit for
+      // this visit — that is the whole point of them. Marking the cache stale means the next entry
+      // fetches a clean page instead.
+      void queryClient.invalidateQueries({ queryKey: ['user', 'my-training', 'summary'], refetchType: 'none' })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'athletes'], refetchType: 'none' })
+    },
+  })
+
+  // Only once the page has genuinely arrived. On a cached revisit React Query reports isSuccess in
+  // the same tick, and marking seen before the server has counted the dots clears them before they
+  // are ever shown — the exact failure the reference implementation shipped.
+  const seenSent = useRef(false)
+  const canMarkSeen = rangeQuery.isSuccess && !rangeQuery.isFetching
+  useEffect(() => {
+    if (!canMarkSeen || seenSent.current) return
+    seenSent.current = true
+    markSeenMutation.mutate()
+    // markSeenMutation is stable for the lifetime of the component
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canMarkSeen])
+
+  const dismissMutation = useMutation({
+    mutationFn: () => adapter.dismissDeletions(),
+    onSuccess: refresh,
+    onError: (e: Error) => setActionError(e.message),
+  })
 
   const pasteMutation = useMutation({
     mutationFn: ({ date }: { date: string }) =>
@@ -146,6 +177,12 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
         <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{actionError}</p>
       )}
 
+      <DeletedTrainingsBanner
+        deletions={rangeQuery.data?.deletions ?? []}
+        onDismiss={() => dismissMutation.mutate()}
+        dismissing={dismissMutation.isPending}
+      />
+
       {rangeQuery.isLoading ? (
         <LoadingSpinner />
       ) : rangeQuery.isError ? (
@@ -183,6 +220,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                   copy: t('clipboard.copy'),
                   cut: t('clipboard.cutAction'),
                   pasteHere: t('clipboard.pasteHere'),
+                  unread: t('unread.dot'),
+                  comments: t('comments.title'),
                 }}
               />
             ))}
@@ -213,6 +252,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           key={selected.id}
           training={selected}
           onClose={() => setSelected(null)}
+          adapter={adapter}
           onEdit={tr => { setSelected(null); setEditing(tr); setFormDate(tr.date) }}
           onDelete={async tr => { await adapter.deleteTraining(tr.id); refresh() }}
           onDuplicate={async tr => { await adapter.duplicateTraining(tr.id); refresh() }}

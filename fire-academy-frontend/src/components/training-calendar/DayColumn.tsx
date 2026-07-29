@@ -17,7 +17,7 @@ interface DayColumnProps {
   onPaste?: (date: string) => void
   onCopy?: (training: PersonalTraining) => void
   onCut?: (training: PersonalTraining) => void
-  labels: { add: string; copy: string; cut: string; pasteHere: string }
+  labels: { add: string; copy: string; cut: string; pasteHere: string; unread: string; comments: string }
 }
 
 /**
@@ -68,6 +68,8 @@ export function DayColumn({
             onCut={onCut}
             copyLabel={labels.copy}
             cutLabel={labels.cut}
+            unreadLabel={labels.unread}
+            commentsLabel={labels.comments}
           />
         ))}
       </div>

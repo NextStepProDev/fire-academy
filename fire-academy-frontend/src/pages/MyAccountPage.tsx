@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowRight, CalendarCheck, ClipboardList, Dumbbell, Pencil, User as UserIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { userApi } from '../api/client'
-import { userApi as trainingApi } from '../api/user'
+import { userApi as trainingApi, myTrainingApi } from '../api/user'
 import { Seo } from '../components/seo/Seo'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
@@ -22,6 +22,18 @@ export function MyAccountPage() {
   const trainingsQuery = useQuery({
     queryKey: ['user', 'training-enrollments'],
     queryFn: trainingApi.getMyTrainingEnrollments,
+  })
+
+  // Notification counters are the one thing that must never be served stale: the read marker lives
+  // on the server per account, so clearing alerts on a phone has to be reflected on a laptop the
+  // moment its window regains focus. The global 5-minute staleTime would keep showing the old count.
+  const summaryQuery = useQuery({
+    queryKey: ['user', 'my-training', 'summary'],
+    queryFn: myTrainingApi.getSummary,
+    enabled: user?.isAthlete ?? false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   })
 
   if (!user) return null
@@ -109,6 +121,8 @@ export function MyAccountPage() {
             icon={<ClipboardList className="w-6 h-6" />}
             title={tCalendar('my.tileTitle')}
             description={tCalendar('my.tileDescription')}
+            count={summaryQuery.data?.unreadCount || undefined}
+            countLabel={summaryQuery.data?.unreadCount ? tCalendar('my.tileBadge') : undefined}
             cta={tCalendar('my.tileCta')}
           />
         )}

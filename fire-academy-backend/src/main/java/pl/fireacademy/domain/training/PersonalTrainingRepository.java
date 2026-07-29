@@ -1,9 +1,11 @@
 package pl.fireacademy.domain.training;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -24,4 +26,29 @@ public interface PersonalTrainingRepository extends JpaRepository<PersonalTraini
     List<PersonalTraining> findRange(@Param("athleteId") UUID athleteId,
                                      @Param("from") LocalDate from,
                                      @Param("to") LocalDate to);
+
+    /**
+     * Trainings the other side touched since this viewer last looked.
+     * <p>
+     * Keyed on {@code updatedAt}, never {@code completedAt}: undoing a completion clears that column,
+     * and the coach still needs to hear about it. {@code lastModifiedByAdmin} is what separates
+     * "they changed it" from "I did" — {@code @PreUpdate} bumps {@code updatedAt} either way.
+     */
+    @Query("""
+        SELECT COUNT(pt) FROM PersonalTraining pt
+        WHERE pt.athlete.id = :athleteId
+          AND pt.lastModifiedByAdmin = :byAdmin
+          AND pt.updatedAt > :since
+        """)
+    long countTouchedSince(@Param("athleteId") UUID athleteId,
+                           @Param("byAdmin") boolean byAdmin,
+                           @Param("since") Instant since);
+
+    /** Next training from today onwards — powers the "what's next" line on the account tile. */
+    @Query("""
+        SELECT MIN(pt.date) FROM PersonalTraining pt
+        WHERE pt.athlete.id = :athleteId AND pt.date >= :from AND pt.completedAt IS NULL
+        """)
+    @Nullable
+    LocalDate findNextTrainingDate(@Param("athleteId") UUID athleteId, @Param("from") LocalDate from);
 }
