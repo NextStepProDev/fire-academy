@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -287,4 +287,25 @@ export const adminApi = {
     fetchApi<AdminUser>(`/admin/users/${id}/athlete`, { method: enabled ? 'POST' : 'DELETE' }),
   getAthletes: () =>
     fetchApi<AthleteSummary[]>('/admin/athletes'),
+
+  getTrainingCalendar: (athleteId: string, from: string, to: string) =>
+    fetchApi<CalendarRange>(`/admin/personal-trainings?athleteId=${athleteId}&from=${from}&to=${to}`),
+  createPersonalTraining: (athleteId: string, body: CreateTrainingBody) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings?athleteId=${athleteId}`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  updatePersonalTraining: (id: string, body: UpdateTrainingBody) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  deletePersonalTraining: (id: string) =>
+    fetchApi<void>(`/admin/personal-trainings/${id}`, { method: 'DELETE' }),
+  duplicatePersonalTraining: (id: string, offsetDays?: number) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings/${id}/duplicate`, {
+      method: 'POST', body: JSON.stringify({ offsetDays }),
+    }),
+  pastePersonalTraining: (sourceId: string, targetDate: string, mode: PasteMode) =>
+    fetchApi<PersonalTraining>('/admin/personal-trainings/paste', {
+      method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
+    }),
 }

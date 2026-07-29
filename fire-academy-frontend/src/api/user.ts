@@ -1,5 +1,8 @@
 import { fetchApi } from './client'
-import type { MyTrainingEnrollment } from '../types'
+import type {
+  MyTrainingEnrollment, CalendarRange, PersonalTraining,
+  CreateTrainingBody, UpdateTrainingBody, PasteMode,
+} from '../types'
 
 interface EnrollTrainingRequest {
   startMonth: string
@@ -18,4 +21,37 @@ export const userApi = {
 
   cancelTrainingEnrollment: (id: string) =>
     fetchApi<void>(`/user/training-enrollments/${id}`, { method: 'DELETE' }),
+}
+
+/**
+ * The coaching client's own 1-on-1 calendar. Mirrors the admin surface one-for-one — the shared
+ * calendar component swaps between the two through an adapter and must not care which it got.
+ */
+export const myTrainingApi = {
+  getCalendar: (from: string, to: string) =>
+    fetchApi<CalendarRange>(`/user/my-training/calendar?from=${from}&to=${to}`),
+  createTraining: (body: CreateTrainingBody) =>
+    fetchApi<PersonalTraining>('/user/my-training/trainings', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  updateTraining: (id: string, body: UpdateTrainingBody) =>
+    fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  deleteTraining: (id: string) =>
+    fetchApi<void>(`/user/my-training/trainings/${id}`, { method: 'DELETE' }),
+  duplicateTraining: (id: string, offsetDays?: number) =>
+    fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}/duplicate`, {
+      method: 'POST', body: JSON.stringify({ offsetDays }),
+    }),
+  pasteTraining: (sourceId: string, targetDate: string, mode: PasteMode) =>
+    fetchApi<PersonalTraining>('/user/my-training/trainings/paste', {
+      method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
+    }),
+  completeTraining: (id: string, body: { rpe: number; feedback?: string | null }) =>
+    fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}/complete`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  uncompleteTraining: (id: string) =>
+    fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}/complete`, { method: 'DELETE' }),
 }

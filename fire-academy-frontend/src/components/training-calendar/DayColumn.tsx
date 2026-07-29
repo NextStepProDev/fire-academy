@@ -1,0 +1,95 @@
+import clsx from 'clsx'
+import { Plus } from 'lucide-react'
+import { dayOfMonth, isOutsideMonth, isWeekend, todayIso, weekdayShort } from '../../utils/calendarRange'
+import type { PersonalTraining } from '../../types'
+import { TrainingTile } from './TrainingTile'
+
+interface DayColumnProps {
+  date: string
+  anchor: string
+  trainings: PersonalTraining[]
+  compact?: boolean
+  showWeekday?: boolean
+  cutId?: string | null
+  pasteArmed?: boolean
+  onOpen: (training: PersonalTraining) => void
+  onAdd: (date: string) => void
+  onPaste?: (date: string) => void
+  onCopy?: (training: PersonalTraining) => void
+  onCut?: (training: PersonalTraining) => void
+  labels: { add: string; copy: string; cut: string; pasteHere: string }
+}
+
+/**
+ * One day, in both the week and the month grid — the two views differ only in density, so they share
+ * this component rather than diverging into two layouts that drift apart.
+ *
+ * Cards stack top-to-bottom in the order the API returns them (untimed first, then by hour). There is
+ * no absolute positioning, no pixel maths and no overlap lanes: without an hour axis a day is just a
+ * short list, and its height follows its content.
+ */
+export function DayColumn({
+  date, anchor, trainings, compact = false, showWeekday = true, cutId, pasteArmed,
+  onOpen, onAdd, onPaste, onCopy, onCut, labels,
+}: DayColumnProps) {
+  const isToday = date === todayIso()
+  const outside = compact && isOutsideMonth(date, anchor)
+
+  return (
+    <div
+      className={clsx(
+        'flex flex-col rounded-lg border border-surface-800 bg-surface-900/60 p-1.5',
+        compact ? 'min-h-24 gap-1' : 'min-h-40 gap-2',
+        isToday && 'ring-1 ring-primary-500/40',
+        outside && 'opacity-40',
+        pasteArmed && 'cursor-copy hover:border-primary-600/60',
+      )}
+      onClick={pasteArmed && onPaste ? () => onPaste(date) : undefined}
+    >
+      <div className="flex items-baseline justify-between px-0.5">
+        <span className="text-xs text-surface-400">
+          {showWeekday && <span className="mr-1">{weekdayShort(date)}</span>}
+          <span className={clsx('font-semibold', isToday ? 'text-primary-400' : 'text-surface-200')}>
+            {dayOfMonth(date)}
+          </span>
+        </span>
+        {isWeekend(date) && !compact && <span className="text-[10px] uppercase text-surface-600">wolne</span>}
+      </div>
+
+      <div className={clsx('flex flex-col', compact ? 'gap-1' : 'gap-2')}>
+        {trainings.map(training => (
+          <TrainingTile
+            key={training.id}
+            training={training}
+            compact={compact}
+            cut={cutId === training.id}
+            onOpen={onOpen}
+            onCopy={onCopy}
+            onCut={onCut}
+            copyLabel={labels.copy}
+            cutLabel={labels.cut}
+          />
+        ))}
+      </div>
+
+      {pasteArmed ? (
+        <span className="mt-auto rounded border border-dashed border-primary-600/50 px-1 py-1 text-center text-[11px] text-primary-300">
+          {labels.pasteHere}
+        </span>
+      ) : (
+        <button
+          type="button"
+          aria-label={`${labels.add} ${date}`}
+          onClick={() => onAdd(date)}
+          className={clsx(
+            'mt-auto flex items-center justify-center rounded border border-dashed border-surface-700',
+            'text-surface-500 transition-colors hover:border-primary-600/50 hover:text-primary-400',
+            compact ? 'h-6' : 'h-7',
+          )}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  )
+}

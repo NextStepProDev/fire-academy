@@ -108,6 +108,49 @@ export interface AthleteSummary {
   avatarUrl: string | null
 }
 
+/** Computed server-side, never stored — the frontend only colours it. */
+export type TrainingStatus = 'PLANNED' | 'COMPLETED' | 'MISSED'
+
+export interface PersonalTraining {
+  id: string
+  date: string
+  /** Null is the normal case — an untimed training means "do this that day". */
+  startTime: string | null
+  endTime: string | null
+  title: string
+  description: string | null
+  status: TrainingStatus
+  completedAt: string | null
+  feedback: string | null
+  rpe: number | null
+  createdByAdmin: boolean
+  lastModifiedByAdmin: boolean
+  /** Echoed back on update so a concurrent edit is caught instead of silently overwritten. */
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CalendarRange {
+  from: string
+  to: string
+  trainings: PersonalTraining[]
+}
+
+export interface CreateTrainingBody {
+  date: string
+  startTime?: string | null
+  endTime?: string | null
+  title: string
+  description?: string | null
+}
+
+export interface UpdateTrainingBody extends CreateTrainingBody {
+  version: number
+}
+
+export type PasteMode = 'COPY' | 'MOVE'
+
 export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'
 
 export interface Instructor {

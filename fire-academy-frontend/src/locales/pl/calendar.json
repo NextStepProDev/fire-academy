@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "previous": "Poprzedni okres",
+    "next": "Następny okres",
+    "today": "Dziś",
+    "week": "Tydzień",
+    "month": "Miesiąc",
+    "viewSwitch": "Zmiana widoku"
+  },
+  "day": {
+    "add": "Dodaj trening"
+  },
+  "empty": "Brak treningów w tym okresie.",
+  "status": {
+    "PLANNED": "Zaplanowany",
+    "COMPLETED": "Wykonany",
+    "MISSED": "Niewykonany"
+  },
+  "clipboard": {
+    "copy": "Kopiuj",
+    "cutAction": "Wytnij",
+    "copied": "Skopiowano „{{title}}\". Kliknij w dzień, aby wkleić.",
+    "cut": "Wycięto „{{title}}\". Kliknij w dzień, aby przenieść.",
+    "pasteHere": "Wklej tutaj",
+    "cancel": "Anuluj kopiowanie"
+  },
+  "form": {
+    "createTitle": "Nowy trening",
+    "editTitle": "Edytuj trening",
+    "title": "Nazwa",
+    "description": "Opis",
+    "setTime": "Ustaw godzinę",
+    "startTime": "Od",
+    "endTime": "Do",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "refresh": "Odśwież i spróbuj ponownie"
+  },
+  "detail": {
+    "fromCoach": "od trenera",
+    "fromAthlete": "dodane samodzielnie",
+    "rpeLabel": "Odczuwalny wysiłek",
+    "rpeQuestion": "Jak ciężki był ten trening? (1–10)",
+    "feedback": "Komentarz do wykonania",
+    "markDone": "Oznacz jako wykonany",
+    "undoDone": "Cofnij wykonanie",
+    "duplicate": "Powtórz za tydzień",
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "deleteTitle": "Usunąć trening?",
+    "deleteMessage": "Czy na pewno usunąć „{{title}}\"?"
+  },
+  "athletes": {
+    "title": "Podopieczni",
+    "subtitle": "Osoby z kalendarzem treningów indywidualnych.",
+    "empty": "Nikt nie ma jeszcze włączonego kalendarza 1:1. Włącz go w zakładce Użytkownicy.",
+    "openCalendar": "Otwórz kalendarz",
+    "back": "Wróć do listy podopiecznych"
+  },
+  "my": {
+    "title": "Mój plan treningowy",
+    "subtitle": "Twoje treningi indywidualne. Odhacz wykonane i oceń wysiłek.",
+    "back": "Wróć do konta",
+    "tileTitle": "Mój plan treningowy",
+    "tileDescription": "Treningi indywidualne od trenera",
+    "tileCta": "Otwórz kalendarz"
+  }
+}

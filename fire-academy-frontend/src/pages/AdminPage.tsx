@@ -13,6 +13,7 @@ import { AdminTrainingRefunds } from './admin/AdminTrainingRefunds'
 import { AdminTrainingUserDetail } from './admin/AdminTrainingUserDetail'
 import { AdminArchive } from './admin/AdminArchive'
 import { AdminUsers } from './admin/AdminUsers'
+import { AdminAthletes } from './admin/AdminAthletes'
 import type { EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
@@ -26,6 +27,7 @@ const tabs = [
   { key: 'treningi', ns: 'admin.tabs.trainings' },
   { key: 'obozy', ns: 'admin.tabs.camps' },
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
+  { key: 'podopieczni', ns: 'admin.tabs.athletes' },
   { key: 'uzytkownicy', ns: 'admin.tabs.users' },
   { key: 'archiwum', ns: 'admin.tabs.archive' },
 ] as const
@@ -84,6 +86,7 @@ export function AdminPage() {
             </div>
       )}
 
+      {tab === 'podopieczni' && <AdminAthletes />}
       {tab === 'uzytkownicy' && <AdminUsers />}
       {tab === 'archiwum' && <AdminArchive />}
     </div>
