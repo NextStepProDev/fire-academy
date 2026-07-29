@@ -173,7 +173,15 @@
     "trophyCase_one": "Skrzynia trofeów ({{count}})",
     "trophyCase_few": "Skrzynia trofeów ({{count}})",
     "trophyCase_many": "Skrzynia trofeów ({{count}})",
-    "trophyCase_other": "Skrzynia trofeów ({{count}})"
+    "trophyCase_other": "Skrzynia trofeów ({{count}})",
+    "generalSection": "Cele treningowe",
+    "weightSection": "Cele wagowe",
+    "targetWeight": "Cel: {{value}} kg",
+    "targetWeightLabel": "Docelowa waga (kg)",
+    "remaining": "Zostało {{value}} kg",
+    "weightAutoHint": "Aktualny trend: {{value}} kg. Cel zamknie się sam, gdy trend 7-dniowy go osiągnie.",
+    "weightNeedsStart": "Podopieczny musi najpierw wpisać wagę — bez punktu startowego nie da się ustawić celu.",
+    "reopen": "Cofnij osiągnięcie"
   },
   "stats": {
     "title": "Statystyki",

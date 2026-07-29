@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Check, Pencil, Plus, Target, Trash2, Trophy } from 'lucide-react'
+import { Check, Pencil, Plus, RotateCcw, Target, Trash2, Trophy } from 'lucide-react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { adminApi } from '../../api/admin'
 import { myTrainingApi } from '../../api/user'
@@ -10,7 +10,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { formatLongDate, todayIso } from '../../utils/calendarRange'
-import type { AthleteGoal, GoalHorizon, AthleteGoals } from '../../types'
+import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
 
@@ -30,7 +30,8 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
   const queryClient = useQueryClient()
   const isCoach = athleteId != null
 
-  const [editing, setEditing] = useState<{ goal: AthleteGoal | null; horizon: GoalHorizon } | null>(null)
+  const [editing, setEditing] =
+    useState<{ goal: AthleteGoal | null; horizon: GoalHorizon; kind: GoalKind } | null>(null)
   const [toDelete, setToDelete] = useState<AthleteGoal | null>(null)
   const [toAchieve, setToAchieve] = useState<AthleteGoal | null>(null)
   const [chestOpen, setChestOpen] = useState(false)
@@ -50,6 +51,20 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
     mutationFn: (id: string) => adminApi.deleteAthleteGoal(id),
     onSuccess: () => { setToDelete(null); invalidate() },
   })
+
+  /** Only ever offered for an automatic close — the server refuses the rest. */
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => adminApi.reopenAthleteGoal(id),
+    onSuccess: invalidate,
+  })
+
+  // The starting point for a new weight goal, and what the progress bars measure against.
+  const weightsQuery = useQuery({
+    queryKey: isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights'],
+    queryFn: () => (isCoach ? adminApi.getAthleteWeights(athleteId) : myTrainingApi.getWeights()),
+    staleTime: 0,
+  })
+  const currentTrendKg = weightsQuery.data?.currentTrendKg ?? null
 
   const goals: AthleteGoals = goalsQuery.data ?? { active: [], achieved: [] }
   const today = todayIso()
@@ -80,31 +95,54 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
         )}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-3">
-        {HORIZONS.map(horizon => {
-          const active = goals.active.find(g => g.horizon === horizon)
-          const fresh = celebrating.find(g => g.horizon === horizon)
-          return (
-            <GoalCard
-              key={horizon}
-              horizon={horizon}
-              goal={active ?? fresh ?? null}
-              achieved={active == null && fresh != null}
-              isCoach={isCoach}
-              onEdit={() => setEditing({ goal: active ?? null, horizon })}
-              onDelete={() => active && setToDelete(active)}
-              onAchieve={() => active && setToAchieve(active)}
-            />
-          )
-        })}
-      </div>
+      {/*
+        Two rows rather than one. A technique goal and a weight goal are different kinds of thing —
+        one needs a person to say it happened, the other closes itself off the scale — so they get
+        their own slots instead of competing for a single card per horizon.
+      */}
+      {(['GENERAL', 'WEIGHT'] as const).map(kind => {
+        const activeOfKind = goals.active.filter(g => g.kind === kind)
+        const freshOfKind = celebrating.filter(g => g.kind === kind)
+        // The client sees the weight row only once there is something in it.
+        if (!isCoach && activeOfKind.length === 0 && freshOfKind.length === 0) return null
+        return (
+          <div key={kind} className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wide text-surface-500">
+              {t(kind === 'WEIGHT' ? 'goals.weightSection' : 'goals.generalSection')}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {HORIZONS.map(horizon => {
+                const active = activeOfKind.find(g => g.horizon === horizon)
+                const fresh = freshOfKind.find(g => g.horizon === horizon)
+                return (
+                  <GoalCard
+                    key={horizon}
+                    horizon={horizon}
+                    kind={kind}
+                    goal={active ?? fresh ?? null}
+                    achieved={active == null && fresh != null}
+                    isCoach={isCoach}
+                    currentTrendKg={currentTrendKg}
+                    onEdit={() => setEditing({ goal: active ?? null, horizon, kind })}
+                    onDelete={() => active && setToDelete(active)}
+                    onAchieve={() => active && setToAchieve(active)}
+                    onReopen={() => fresh && reopenMutation.mutate(fresh.id)}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
 
       {editing && (
         <GoalFormModal
-          key={editing.goal?.id ?? `new-${editing.horizon}`}
+          key={editing.goal?.id ?? `new-${editing.kind}-${editing.horizon}`}
           athleteId={athleteId!}
           goal={editing.goal}
           horizon={editing.horizon}
+          kind={editing.kind}
+          currentTrendKg={currentTrendKg}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); invalidate() }}
         />
@@ -159,15 +197,18 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
 }
 
 function GoalCard({
-  horizon, goal, achieved, isCoach, onEdit, onDelete, onAchieve,
+  horizon, kind, goal, achieved, isCoach, currentTrendKg, onEdit, onDelete, onAchieve, onReopen,
 }: {
   horizon: GoalHorizon
+  kind: GoalKind
   goal: AthleteGoal | null
   achieved: boolean
   isCoach: boolean
+  currentTrendKg: number | null
   onEdit: () => void
   onDelete: () => void
   onAchieve: () => void
+  onReopen: () => void
 }) {
   const { t } = useTranslation('calendar')
   const today = todayIso()
@@ -192,6 +233,8 @@ function GoalCard({
     )
   }
 
+  const progress = weightProgress(goal, currentTrendKg)
+
   return (
     <div className={clsx(
       'rounded-lg border p-3',
@@ -206,6 +249,22 @@ function GoalCard({
         {achieved && <Trophy className="h-4 w-4 shrink-0 text-emerald-400" />}
       </div>
       <p className="mt-1 text-sm text-surface-100">{goal.content}</p>
+
+      {goal.targetWeightKg != null && (
+        <p className="mt-0.5 text-sm text-surface-300 [font-variant-numeric:tabular-nums]">
+          {t('goals.targetWeight', { value: Number(goal.targetWeightKg).toFixed(1) })}
+        </p>
+      )}
+      {progress && !achieved && (
+        <div className="mt-2">
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-800">
+            <div className="h-full rounded-full bg-primary-500" style={{ width: `${progress.percent}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-surface-400 [font-variant-numeric:tabular-nums]">
+            {t('goals.remaining', { value: progress.remaining.toFixed(1) })}
+          </p>
+        </div>
+      )}
 
       {goal.targetDate && !achieved && (
         <p className={clsx('mt-1 text-xs',
@@ -224,9 +283,12 @@ function GoalCard({
 
       {isCoach && !achieved && (
         <div className="mt-2 flex gap-1">
-          <Button variant="ghost" size="sm" aria-label={t('goals.achieve')} onClick={onAchieve}>
-            <Check className="h-4 w-4" />
-          </Button>
+          {/* A weight goal closes itself off the scale, so there is nothing to tick by hand. */}
+          {kind === 'GENERAL' && (
+            <Button variant="ghost" size="sm" aria-label={t('goals.achieve')} onClick={onAchieve}>
+              <Check className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="ghost" size="sm" aria-label={t('goals.edit')} onClick={onEdit}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -235,22 +297,54 @@ function GoalCard({
           </Button>
         </div>
       )}
+
+      {/* Offered only where the machine closed it — a mistyped weigh-in can pull the trend across
+          the target, and a coach needs a way back. A person's own decision stays final. */}
+      {isCoach && achieved && goal.achievedAutomatically && (
+        <Button variant="ghost" size="sm" className="mt-2" onClick={onReopen}>
+          <RotateCcw className="mr-1.5 h-4 w-4" />
+          {t('goals.reopen')}
+        </Button>
+      )}
     </div>
   )
 }
 
+/**
+ * How far along a weight goal is, measured from the weight when it was set. Clamped, because a
+ * client who overshoots the target is at 100%, not 140%.
+ */
+function weightProgress(goal: AthleteGoal, currentTrendKg: number | null) {
+  if (goal.targetWeightKg == null || goal.startWeightKg == null || currentTrendKg == null) {
+    return null
+  }
+  const start = Number(goal.startWeightKg)
+  const target = Number(goal.targetWeightKg)
+  const total = Math.abs(target - start)
+  if (total === 0) return null
+  const done = Math.abs(currentTrendKg - start)
+  return {
+    percent: Math.min(100, Math.max(0, Math.round((done / total) * 100))),
+    remaining: Math.max(0, Math.abs(target - currentTrendKg)),
+  }
+}
+
 function GoalFormModal({
-  athleteId, goal, horizon, onClose, onSaved,
+  athleteId, goal, horizon, kind, currentTrendKg, onClose, onSaved,
 }: {
   athleteId: string
   goal: AthleteGoal | null
   horizon: GoalHorizon
+  kind: GoalKind
+  currentTrendKg: number | null
   onClose: () => void
   onSaved: () => void
 }) {
   const { t } = useTranslation('calendar')
   const [content, setContent] = useState(goal?.content ?? '')
   const [targetDate, setTargetDate] = useState(goal?.targetDate ?? '')
+  const [targetWeight, setTargetWeight] = useState(
+    goal?.targetWeightKg == null ? '' : String(goal.targetWeightKg))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -260,7 +354,14 @@ function GoalFormModal({
     setError(null)
     setSaving(true)
     try {
-      const body = { horizon, content: content.trim(), targetDate: targetDate || null }
+      const body = {
+        horizon,
+        content: content.trim(),
+        targetDate: targetDate || null,
+        targetWeightKg: kind === 'WEIGHT'
+          ? Number.parseFloat(targetWeight.replace(',', '.'))
+          : null,
+      }
       if (goal) await adminApi.updateAthleteGoal(goal.id, body)
       else await adminApi.createAthleteGoal(athleteId, body)
       onSaved()
@@ -285,6 +386,21 @@ function GoalFormModal({
             maxLength={500} onChange={e => setContent(e.target.value)} autoFocus />
         </div>
 
+        {kind === 'WEIGHT' && (
+          <div>
+            <label htmlFor="goal-weight" className="mb-1 block text-sm text-surface-300">
+              {t('goals.targetWeightLabel')}
+            </label>
+            <input id="goal-weight" inputMode="decimal" className={inputClass} placeholder="73,0"
+              value={targetWeight} onChange={e => setTargetWeight(e.target.value)} />
+            <p className="mt-1 text-xs text-surface-500">
+              {currentTrendKg == null
+                ? t('goals.weightNeedsStart')
+                : t('goals.weightAutoHint', { value: currentTrendKg.toFixed(1) })}
+            </p>
+          </div>
+        )}
+
         <div>
           <label htmlFor="goal-target" className="mb-1 block text-sm text-surface-300">
             {t('goals.targetDate')}
@@ -299,7 +415,8 @@ function GoalFormModal({
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>{t('form.cancel')}</Button>
-          <Button type="submit" variant="primary" size="sm" loading={saving} disabled={!content.trim()}>
+          <Button type="submit" variant="primary" size="sm" loading={saving}
+            disabled={!content.trim() || (kind === 'WEIGHT' && !targetWeight.trim())}>
             {t('form.save')}
           </Button>
         </div>

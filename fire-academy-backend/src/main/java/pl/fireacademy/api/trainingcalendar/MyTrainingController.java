@@ -135,11 +135,19 @@ public class MyTrainingController {
         return weightService.series(userId, false);
     }
 
-    /** Upsert: weighing twice in a day is a correction, not a second reading. */
+    /**
+     * Upsert: weighing twice in a day is a correction, not a second reading.
+     * <p>
+     * Recording a weight is also the moment any weight goal can be reached, so the check happens
+     * here rather than on a nightly sweep — the goal closes while the client is still looking at it.
+     * The two services are wired together at this seam so neither has to depend on the other.
+     */
     @PutMapping("/weights")
     public WeightPoint recordWeight(@CurrentUserId UUID userId,
                                     @Valid @RequestBody RecordWeightRequest request) {
-        return weightService.record(userId, request);
+        WeightPoint saved = weightService.record(userId, request);
+        goalService.evaluateWeightGoals(userId, weightService.currentTrend(userId));
+        return saved;
     }
 
     @DeleteMapping("/weights/{date}")

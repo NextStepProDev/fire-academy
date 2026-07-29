@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.training.AttachmentKind;
 import pl.fireacademy.domain.training.GoalHorizon;
+import pl.fireacademy.domain.training.GoalKind;
 import pl.fireacademy.domain.training.TrainingStatus;
 
 import java.math.BigDecimal;
@@ -265,12 +266,21 @@ public final class TrainingCalendarDtos {
             @NotNull @DecimalMin("20.0") @DecimalMax("300.0") BigDecimal weightKg
     ) {}
 
+    /**
+     * @param achievedAutomatically closed by the weight log rather than by a person — the only kind
+     *                              of achievement the coach may undo
+     * @param startWeightKg         the trend when the goal was set; the progress bar measures from it
+     */
     public record GoalResponse(
             UUID id,
+            GoalKind kind,
             GoalHorizon horizon,
             String content,
             @Nullable LocalDate targetDate,
-            @Nullable LocalDate achievedAt
+            @Nullable LocalDate achievedAt,
+            boolean achievedAutomatically,
+            @Nullable BigDecimal targetWeightKg,
+            @Nullable BigDecimal startWeightKg
     ) {}
 
     /** Active goals render as three cards; achieved ones pile up in the trophy case. */
@@ -279,10 +289,12 @@ public final class TrainingCalendarDtos {
             List<GoalResponse> achieved
     ) {}
 
+    /** {@code targetWeightKg} present makes this a weight goal; absent makes it a general one. */
     public record GoalRequest(
             @NotNull GoalHorizon horizon,
             @NotBlank @Size(max = 500) String content,
-            @Nullable LocalDate targetDate
+            @Nullable LocalDate targetDate,
+            @Nullable @DecimalMin("20.0") @DecimalMax("300.0") BigDecimal targetWeightKg
     ) {}
 
     /** Back-datable: the coach usually notices a goal was reached some days later. */

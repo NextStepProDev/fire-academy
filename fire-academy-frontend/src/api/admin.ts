@@ -338,6 +338,9 @@ export const adminApi = {
     }),
   deleteAthleteGoal: (goalId: string) =>
     fetchApi<void>(`/admin/personal-trainings/goals/${goalId}`, { method: 'DELETE' }),
+  /** Reopens a goal the weight log closed by itself; refused for one a person achieved. */
+  reopenAthleteGoal: (goalId: string) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}/reopen`, { method: 'POST' }),
   achieveAthleteGoal: (goalId: string, achievedDate?: string | null) =>
     fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}/achieve`, {
       method: 'POST', body: JSON.stringify({ achievedDate: achievedDate ?? null }),

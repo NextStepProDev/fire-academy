@@ -146,4 +146,13 @@ public class AdminPersonalTrainingController {
     public GoalResponse achieveGoal(@PathVariable UUID goalId, @RequestBody AchieveGoalRequest request) {
         return goalService.achieve(goalId, request);
     }
+
+    /**
+     * Reopens a weight goal the weight log closed by itself — for the case where a mistyped weigh-in
+     * pulled the trend across the target. Refused for a goal a person achieved: that decision stands.
+     */
+    @PostMapping("/goals/{goalId}/reopen")
+    public GoalResponse reopenGoal(@PathVariable UUID goalId) {
+        return goalService.revertAutomaticAchievement(goalId);
+    }
 }

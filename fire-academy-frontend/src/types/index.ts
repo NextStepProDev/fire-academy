@@ -233,12 +233,20 @@ export interface TrainingStats {
 
 export type GoalHorizon = 'SHORT' | 'MEDIUM' | 'LONG'
 
+export type GoalKind = 'GENERAL' | 'WEIGHT'
+
 export interface AthleteGoal {
   id: string
+  kind: GoalKind
   horizon: GoalHorizon
   content: string
   targetDate: string | null
   achievedAt: string | null
+  /** Closed by the weight log rather than a person — the only kind the coach may reopen. */
+  achievedAutomatically: boolean
+  targetWeightKg: number | null
+  /** The trend when the goal was set; the progress bar measures from it. */
+  startWeightKg: number | null
 }
 
 export interface AthleteGoals {
@@ -250,6 +258,8 @@ export interface GoalInput {
   horizon: GoalHorizon
   content: string
   targetDate?: string | null
+  /** Present makes this a weight goal; absent makes it a general one. */
+  targetWeightKg?: number | null
 }
 
 export type AttachmentKind = 'LINK' | 'VIDEO'

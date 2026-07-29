@@ -1,5 +1,6 @@
 package pl.fireacademy.api.trainingcalendar;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
@@ -67,6 +68,15 @@ public class AthleteWeightService {
                 WeightTrendCalculator.trendOn(byDate, today),
                 weeklyChange,
                 includeRapidLossWarning ? WeightTrendCalculator.isRapidLoss(weeklyChange) : null);
+    }
+
+    /** Today's 7-day trend, or null when there are no readings yet. Used to anchor a weight goal. */
+    @Transactional(readOnly = true)
+    @Nullable
+    public BigDecimal currentTrend(UUID athleteId) {
+        LocalDate today = LocalDate.now();
+        var weights = repository.findRange(athleteId, today.minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS), today);
+        return WeightTrendCalculator.trendOn(WeightTrendCalculator.index(weights), today);
     }
 
     /**

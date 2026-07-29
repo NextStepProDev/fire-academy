@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.user.User;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -32,6 +33,25 @@ public class AthleteGoal {
     @Column(nullable = false, length = 10)
     private GoalHorizon horizon;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private GoalKind kind = GoalKind.GENERAL;
+
+    @Column(name = "target_weight_kg", precision = 5, scale = 2)
+    @Nullable
+    private BigDecimal targetWeightKg;
+
+    /**
+     * The trend when the goal was set. Without it the goal cannot know whether progress means going
+     * down or up, and the progress bar has nothing to measure from.
+     */
+    @Column(name = "start_weight_kg", precision = 5, scale = 2)
+    @Nullable
+    private BigDecimal startWeightKg;
+
+    @Column(name = "achieved_automatically", nullable = false)
+    private boolean achievedAutomatically = false;
+
     @Column(nullable = false, length = MAX_CONTENT_LENGTH)
     private String content;
 
@@ -55,6 +75,16 @@ public class AthleteGoal {
         this.targetDate = targetDate;
     }
 
+    public static AthleteGoal weightGoal(User athlete, GoalHorizon horizon, String content,
+                                         @Nullable LocalDate targetDate,
+                                         BigDecimal targetWeightKg, BigDecimal startWeightKg) {
+        AthleteGoal goal = new AthleteGoal(athlete, horizon, content, targetDate);
+        goal.kind = GoalKind.WEIGHT;
+        goal.targetWeightKg = targetWeightKg;
+        goal.startWeightKg = startWeightKg;
+        return goal;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
@@ -68,6 +98,39 @@ public class AthleteGoal {
     /** The horizon deliberately cannot change: a short-term goal that became long-term is a new goal. */
     public void achieve(LocalDate date) {
         this.achievedAt = date;
+        this.achievedAutomatically = false;
+    }
+
+    /** Closed by the weight log rather than by a person — and therefore reversible. */
+    public void achieveAutomatically(LocalDate date) {
+        this.achievedAt = date;
+        this.achievedAutomatically = true;
+    }
+
+    /** Undoes an automatic close. Never valid for one a person made — see the service. */
+    public void revertAutomaticAchievement() {
+        this.achievedAt = null;
+        this.achievedAutomatically = false;
+    }
+
+    /** Losing weight when the target sits below where the client started, gaining otherwise. */
+    public boolean isLossGoal() {
+        return targetWeightKg != null && startWeightKg != null
+                && targetWeightKg.compareTo(startWeightKg) < 0;
+    }
+
+    /**
+     * Whether the given trend reaches the target. Deliberately fed the 7-DAY TREND and never a
+     * single morning reading: a raw number can touch the target through dehydration and bounce back
+     * the next day, and celebrating that would contradict everything else the weight module says.
+     */
+    public boolean isMetBy(BigDecimal trendKg) {
+        if (targetWeightKg == null) {
+            return false;
+        }
+        return isLossGoal()
+                ? trendKg.compareTo(targetWeightKg) <= 0
+                : trendKg.compareTo(targetWeightKg) >= 0;
     }
 
     public boolean isAchieved() {
@@ -80,6 +143,24 @@ public class AthleteGoal {
 
     public GoalHorizon getHorizon() {
         return horizon;
+    }
+
+    public GoalKind getKind() {
+        return kind;
+    }
+
+    @Nullable
+    public BigDecimal getTargetWeightKg() {
+        return targetWeightKg;
+    }
+
+    @Nullable
+    public BigDecimal getStartWeightKg() {
+        return startWeightKg;
+    }
+
+    public boolean isAchievedAutomatically() {
+        return achievedAutomatically;
     }
 
     public String getContent() {
