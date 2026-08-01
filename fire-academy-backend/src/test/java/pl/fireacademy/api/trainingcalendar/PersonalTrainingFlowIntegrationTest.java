@@ -170,9 +170,31 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.byType.personal").value(1))
-                .andExpect(jsonPath("$.tasks.totalDone").value(0))
+                // Every task count carries the denominator it belongs to — a bare 0 cannot tell a
+                // blown ceiling from a month where none was set. (Only the 90-day window is asserted
+                // here: YESTERDAY falls in last month on the 1st, and the month counts with it.)
+                .andExpect(jsonPath("$.tasks.windowDone").value(0))
+                .andExpect(jsonPath("$.tasks.windowDue").value(1))
                 .andExpect(jsonPath("$.tasks.completionPercent").value(0))
                 .andExpect(jsonPath("$.attendancePercent").value(100));
+    }
+
+    @Test
+    void shouldNotCountATaskAsDueBeforeItsDay() throws Exception {
+        // Given: one task behind the client and one still ahead of them
+        String admin = adminToken();
+        flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        createAsCoach(admin, clientId, YESTERDAY, taskBody(YESTERDAY, "Limit kalorii", 2200));
+        createAsCoach(admin, clientId, TOMORROW, taskBody(TOMORROW, "Limit kalorii", 2200));
+
+        // Then: only the one that has come due is on the denominator. Counting tomorrow's would
+        // report a failure the client has not had the chance to make.
+        mockMvc.perform(get("/api/admin/personal-trainings/stats?athleteId=" + clientId)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks.windowDue").value(1))
+                .andExpect(jsonPath("$.tasks.windowDone").value(0));
     }
 
     @Test

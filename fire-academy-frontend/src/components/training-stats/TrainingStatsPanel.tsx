@@ -201,34 +201,46 @@ function TypeBreakdown({ stats }: { stats: TrainingStats }) {
 /**
  * Tasks, on their own. Nothing above this card counts them — a held calorie ceiling is not a
  * session, and folding it into the streak would turn "8 tygodni z rzędu" into a sentence about
- * nothing in particular. The card stays hidden entirely until the client actually has tasks, so a
+ * nothing in particular. The card stays hidden entirely until a task has actually come due, so a
  * plan of plain trainings looks exactly as it did before.
+ *
+ * Every line is a RATIO with its window named in the label. Bare counts here read as a set to be
+ * compared — "w tym miesiącu 0" next to "łącznie 37" invites exactly the arithmetic that means
+ * nothing, since the two cover different spans. "3 z 4" needs no neighbour to be understood.
  */
 function Tasks({ stats }: { stats: TrainingStats }) {
   const { t } = useTranslation('calendar')
-  const { thisMonthDone, totalDone, completionPercent } = stats.tasks
+  const { thisMonthDone, thisMonthDue, windowDone, windowDue, completionPercent } = stats.tasks
 
-  if (totalDone === 0 && completionPercent == null) return null
+  if (windowDue === 0 && thisMonthDue === 0) return null
 
   return (
     <div className="rounded-lg border border-surface-800 bg-surface-900/60 p-3">
       <p className="text-xs uppercase tracking-wide text-surface-500">{t('stats.tasks')}</p>
-      <dl className="mt-2 space-y-1 text-sm">
-        <div className="flex justify-between">
-          <dt className="text-surface-400">{t('stats.tasksThisMonth')}</dt>
-          <dd className="text-surface-100">{thisMonthDone}</dd>
+
+      <div className="mt-2 flex items-baseline justify-between text-sm">
+        <span className="text-surface-400">{t('stats.tasksKeptWindow')}</span>
+        <span className="text-surface-100">
+          {/* A dash, not 0 of 0: nothing came due, which is not a score. */}
+          {windowDue === 0 ? '—' : t('stats.tasksRatio', { done: windowDone, due: windowDue })}
+        </span>
+      </div>
+      {completionPercent != null && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="h-3 flex-1 overflow-hidden rounded-full bg-surface-800">
+            <span className="block h-full bg-emerald-600" style={{ width: `${completionPercent}%` }} />
+          </span>
+          <span className="text-xs text-surface-400">{completionPercent}%</span>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-surface-400">{t('stats.tasksTotal')}</dt>
-          <dd className="text-surface-100">{totalDone}</dd>
-        </div>
-        {completionPercent != null && (
-          <div className="flex justify-between">
-            <dt className="text-surface-400">{t('stats.tasksKept')}</dt>
-            <dd className="text-surface-100">{completionPercent}%</dd>
-          </div>
-        )}
-      </dl>
+      )}
+
+      <div className="mt-3 flex items-baseline justify-between text-sm">
+        <span className="text-surface-400">{t('stats.tasksThisMonth')}</span>
+        <span className="text-surface-100">
+          {thisMonthDue === 0 ? '—' : t('stats.tasksRatio', { done: thisMonthDone, due: thisMonthDue })}
+        </span>
+      </div>
+
       <p className="mt-2 text-xs text-surface-500">{t('stats.tasksSeparate')}</p>
     </div>
   )

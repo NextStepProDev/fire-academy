@@ -68,7 +68,7 @@ public class TrainingStatsService {
         int missedInWindow = 0;
         int completedInWindow = 0;
         int tasksThisMonthDone = 0;
-        int tasksTotalDone = 0;
+        int tasksThisMonthMissed = 0;
         int tasksDoneInWindow = 0;
         int tasksMissedInWindow = 0;
         LocalDate attendanceFrom = today.minusDays(TrainingStatsCalculator.ATTENDANCE_DAYS - 1L);
@@ -81,16 +81,21 @@ public class TrainingStatsService {
             // a session: counted as one it would inflate the streak, the heatmap and the monthly
             // total, and every one of those numbers would stop meaning what its label says.
             if (t.isTask()) {
-                if (done) {
-                    tasksTotalDone++;
-                    if (YearMonth.from(t.getDate()).equals(currentMonth)) {
+                // Only what has come due is counted, on both windows: a task still ahead of the
+                // client is not something they have failed to hold, and counting it would report a
+                // failure that has not had the chance to happen.
+                boolean missed = !done && t.status(now) == TrainingStatus.MISSED;
+                if (YearMonth.from(t.getDate()).equals(currentMonth)) {
+                    if (done) {
                         tasksThisMonthDone++;
+                    } else if (missed) {
+                        tasksThisMonthMissed++;
                     }
                 }
                 if (!t.getDate().isBefore(attendanceFrom)) {
                     if (done) {
                         tasksDoneInWindow++;
-                    } else if (t.status(now) == TrainingStatus.MISSED) {
+                    } else if (missed) {
                         tasksMissedInWindow++;
                     }
                 }
@@ -149,7 +154,9 @@ public class TrainingStatsService {
                 TrainingStatsCalculator.average(rpeNewestFirst),
                 TrainingStatsCalculator.average(rpeRecent),
                 TrainingStatsCalculator.rpeDistribution(rpeDistributionWindow),
-                new TaskBreakdown(tasksThisMonthDone, tasksTotalDone,
+                new TaskBreakdown(
+                        tasksThisMonthDone, tasksThisMonthDone + tasksThisMonthMissed,
+                        tasksDoneInWindow, tasksDoneInWindow + tasksMissedInWindow,
                         // Same rule as attendance: a percentage only exists once something came due.
                         TrainingStatsCalculator.attendancePercent(tasksDoneInWindow, tasksMissedInWindow)),
                 includeOvertraining ? OvertrainingRule.isOvertrained(rpeNewestFirst) : null);

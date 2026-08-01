@@ -270,13 +270,23 @@ public final class TrainingCalendarDtos {
      * Every training number in this response — streak, attendance, heatmap, monthly counts — ignores
      * tasks entirely. Holding a calorie ceiling is not a session, and letting it feed the streak would
      * turn "8 tygodni z rzędu" into a sentence about nothing in particular.
+     * <p>
+     * Every count ships with the denominator it belongs to. "3 done this month" is unreadable on its
+     * own: it could be three out of three or three out of twelve, and a bare 0 cannot tell a month
+     * of blown ceilings from a month where none were set. Two counts, two windows, and each pair
+     * says something without borrowing meaning from the other.
      *
-     * @param completionPercent share held, over the same 90-day window as attendance; null when no
-     *                          task has come due in it, since 0% would report a failure nobody had
+     * @param thisMonthDue      tasks in the current month that have come due — a task still ahead of
+     *                          the client is not something they have failed to hold
+     * @param windowDue         same, over the 90 days attendance uses
+     * @param completionPercent {@code windowDone / windowDue}; null when nothing came due in the
+     *                          window, since 0% would report a failure nobody had
      */
     public record TaskBreakdown(
             int thisMonthDone,
-            int totalDone,
+            int thisMonthDue,
+            int windowDone,
+            int windowDue,
             @Nullable Integer completionPercent
     ) {}
 

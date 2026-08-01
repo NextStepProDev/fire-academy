@@ -250,10 +250,18 @@ export interface TrainingStats {
   avgRpeRecent: number | null
   rpeDistribution: { light: number; medium: number; hard: number }
   /**
-   * Tasks, counted apart from every training number above. `completionPercent` is null until a task
-   * has actually come due — 0% would report a failure nobody had.
+   * Tasks, counted apart from every training number above. Every count comes with the denominator it
+   * belongs to: "3 done this month" could be three of three or three of twelve, and a bare 0 cannot
+   * tell a month of blown ceilings from a month where none were set. `completionPercent` is null
+   * until something has actually come due — 0% would report a failure nobody had.
    */
-  tasks: { thisMonthDone: number; totalDone: number; completionPercent: number | null }
+  tasks: {
+    thisMonthDone: number
+    thisMonthDue: number
+    windowDone: number
+    windowDue: number
+    completionPercent: number | null
+  }
   /** Absent from the client's response entirely — this signal is for the coach. */
   overtraining?: boolean
 }
