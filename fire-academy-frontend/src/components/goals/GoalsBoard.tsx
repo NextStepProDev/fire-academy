@@ -2,7 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Check, Pencil, Plus, RotateCcw, Target, Trash2, Trophy } from 'lucide-react'
+import {
+  Check, Flag, Mountain, Pencil, Plus, RotateCcw, Target, Trash2, Trophy, Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { adminApi } from '../../api/admin'
 import { myTrainingApi } from '../../api/user'
@@ -13,6 +16,30 @@ import { formatLongDate, todayIso } from '../../utils/calendarRange'
 import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
+
+/**
+ * Six cards in a grid all look alike, and the horizon is the one thing telling them apart. The
+ * marking is an edge stripe and an icon, never a fill: the card's surface already says whether the
+ * goal is reached, overdue or running, and two colour systems on one rectangle read as neither.
+ * The icon carries the same distinction for anyone who does not separate the hues.
+ */
+const HORIZON_STYLE: Record<GoalHorizon, { stripe: string; accent: string; Icon: LucideIcon }> = {
+  SHORT: { stripe: 'border-l-primary-500', accent: 'text-primary-400', Icon: Zap },
+  MEDIUM: { stripe: 'border-l-sky-500', accent: 'text-sky-400', Icon: Flag },
+  LONG: { stripe: 'border-l-violet-500', accent: 'text-violet-400', Icon: Mountain },
+}
+
+/** The horizon caption as it appears on every card and in the trophy case. */
+function HorizonLabel({ horizon, className }: { horizon: GoalHorizon; className?: string }) {
+  const { t } = useTranslation('calendar')
+  const { accent, Icon } = HORIZON_STYLE[horizon]
+  return (
+    <p className={clsx('flex items-center gap-1.5 text-xs uppercase tracking-wide', accent, className)}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      {t(`goals.horizon.${horizon}`)}
+    </p>
+  )
+}
 
 /** A freshly reached goal keeps its card for a week before the slot goes back to "set a new one". */
 const CELEBRATION_DAYS = 7
@@ -161,11 +188,14 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
           <div className="grid gap-4 sm:grid-cols-3">
             {HORIZONS.map(horizon => (
               <div key={horizon}>
-                <h4 className="mb-2 text-sm font-medium text-surface-300">{t(`goals.horizon.${horizon}`)}</h4>
+                <HorizonLabel horizon={horizon} className="mb-2" />
                 <ul className="space-y-2">
                   {goals.achieved.filter(g => g.horizon === horizon).map(goal => (
                     <li key={goal.id}
-                      className="rounded-lg border border-emerald-500/30 bg-emerald-900/20 px-3 py-2">
+                      className={clsx(
+                        'rounded-lg border border-l-2 border-emerald-500/30 bg-emerald-900/20 px-3 py-2',
+                        HORIZON_STYLE[horizon].stripe,
+                      )}>
                       <p className="text-sm text-surface-100">{goal.content}</p>
                       <p className="mt-1 text-xs text-emerald-400">
                         {goal.achievedAt && formatLongDate(goal.achievedAt)}
@@ -218,8 +248,11 @@ function GoalCard({
 
   if (!goal) {
     return (
-      <div className="rounded-lg border border-dashed border-surface-700 p-3">
-        <p className="text-xs uppercase tracking-wide text-surface-500">{t(`goals.horizon.${horizon}`)}</p>
+      <div className={clsx(
+        'rounded-lg border border-dashed border-surface-700 border-l-2 p-3',
+        HORIZON_STYLE[horizon].stripe,
+      )}>
+        <HorizonLabel horizon={horizon} className="opacity-70" />
         {isCoach ? (
           <button type="button" onClick={onEdit}
             className="mt-2 inline-flex items-center gap-1 text-sm text-surface-400 transition-colors hover:text-primary-400">
@@ -237,7 +270,8 @@ function GoalCard({
 
   return (
     <div className={clsx(
-      'rounded-lg border p-3',
+      'rounded-lg border border-l-2 p-3',
+      HORIZON_STYLE[horizon].stripe,
       achieved
         ? 'border-emerald-500/40 bg-emerald-900/20'
         : daysLeft != null && daysLeft < 0
@@ -245,7 +279,7 @@ function GoalCard({
           : 'border-surface-800 bg-surface-900/60',
     )}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs uppercase tracking-wide text-surface-500">{t(`goals.horizon.${horizon}`)}</p>
+        <HorizonLabel horizon={horizon} />
         {achieved && <Trophy className="h-4 w-4 shrink-0 text-emerald-400" />}
       </div>
       <p className="mt-1 text-sm text-surface-100">{goal.content}</p>
