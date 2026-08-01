@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  CalendarCheck, Check, Flag, Medal, Mountain, Pencil, Plus, RotateCcw, Scale, Target, Trash2,
-  Trophy, Zap, type LucideIcon,
+  Check, Flag, Medal, Mountain, Pencil, Plus, RotateCcw, Target, Trash2, Trophy, Zap,
+  type LucideIcon,
 } from 'lucide-react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { adminApi } from '../../api/admin'
@@ -35,25 +35,10 @@ const HORIZON_STYLE: Record<GoalHorizon, { stripe: string; accent: string; Icon:
  * horizon can mean what a medal means: gold for the long haul, bronze for the sprint. Nothing
  * outside this modal wears these tones.
  */
-const MEDAL: Record<GoalHorizon, { text: string; border: string; badge: string; glow: string }> = {
-  LONG: {
-    text: 'text-medal-gold',
-    border: 'border-medal-gold/40',
-    badge: 'bg-medal-gold/15 text-medal-gold ring-medal-gold/40',
-    glow: 'bg-medal-gold/20',
-  },
-  MEDIUM: {
-    text: 'text-medal-silver',
-    border: 'border-medal-silver/40',
-    badge: 'bg-medal-silver/15 text-medal-silver ring-medal-silver/40',
-    glow: 'bg-medal-silver/20',
-  },
-  SHORT: {
-    text: 'text-medal-bronze',
-    border: 'border-medal-bronze/40',
-    badge: 'bg-medal-bronze/15 text-medal-bronze ring-medal-bronze/40',
-    glow: 'bg-medal-bronze/20',
-  },
+const MEDAL: Record<GoalHorizon, { text: string; rule: string; stripe: string }> = {
+  LONG: { text: 'text-medal-gold', rule: 'border-medal-gold/40', stripe: 'border-l-medal-gold/70' },
+  MEDIUM: { text: 'text-medal-silver', rule: 'border-medal-silver/40', stripe: 'border-l-medal-silver/70' },
+  SHORT: { text: 'text-medal-bronze', rule: 'border-medal-bronze/40', stripe: 'border-l-medal-bronze/70' },
 }
 
 /** Gold first: the case reads as a ranking, not as a list of enum values. */
@@ -378,86 +363,64 @@ function GoalCard({
 }
 
 /**
- * Everything won so far. Ordered gold → silver → bronze and newest first inside each tier, so the
- * case opens on the heaviest thing this person has done, not on whatever the enum happened to sort
- * to. No empty slots: the chest can only be opened when something is in it.
+ * Everything won so far, one column per horizon, gold to bronze.
+ * <p>
+ * A column tells you at a glance how the person's year went at each range — which is the question
+ * the case is for. The medal lives in the column heading rather than on every row: repeating a
+ * badge down a list turns a record into wallpaper.
  */
 function TrophyCase({ goals }: { goals: AthleteGoal[] }) {
   const { t } = useTranslation('calendar')
-
-  const sorted = [...goals].sort((a, b) =>
-    MEDAL_ORDER.indexOf(a.horizon) - MEDAL_ORDER.indexOf(b.horizon)
-    || (b.achievedAt ?? '').localeCompare(a.achievedAt ?? ''))
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-surface-400">{t('goals.trophySubtitle')}</p>
 
-      {/* The tally reads as a medal table: how many of each, at a glance. */}
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-5 sm:grid-cols-3">
         {MEDAL_ORDER.map(horizon => {
-          const count = goals.filter(g => g.horizon === horizon).length
-          if (count === 0) return null
           const medal = MEDAL[horizon]
+          // Newest first: the last thing won is the thing worth reading first.
+          const won = goals
+            .filter(g => g.horizon === horizon)
+            .sort((a, b) => (b.achievedAt ?? '').localeCompare(a.achievedAt ?? ''))
+
           return (
-            <span key={horizon}
-              className={clsx('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs',
-                medal.border, medal.text)}>
-              <Medal className="h-3.5 w-3.5" aria-hidden="true" />
-              {t(`goals.horizon.${horizon}`)}
-              <span className="font-semibold [font-variant-numeric:tabular-nums]">{count}</span>
-            </span>
+            <div key={horizon}>
+              <div className={clsx('flex items-center gap-1.5 border-b pb-1.5', medal.rule, medal.text)}>
+                <Medal className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <h4 className="text-xs font-medium uppercase tracking-wide">
+                  {t(`goals.horizon.${horizon}`)}
+                </h4>
+                {won.length > 0 && (
+                  <span className="ml-auto text-xs font-semibold [font-variant-numeric:tabular-nums]">
+                    {won.length}
+                  </span>
+                )}
+              </div>
+
+              {won.length === 0 ? (
+                <p className="mt-2 text-xs text-surface-500">{t('goals.trophyEmpty')}</p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {won.map(goal => (
+                    <li key={goal.id}
+                      className={clsx('rounded-lg border border-surface-800 border-l-2 bg-surface-900/70 px-3 py-2',
+                        medal.stripe)}>
+                      <p className="text-sm text-surface-100">{goal.content}</p>
+                      <p className="mt-0.5 text-xs text-surface-500 [font-variant-numeric:tabular-nums]">
+                        {goal.achievedAt && formatLongDate(goal.achievedAt)}
+                        {goal.targetWeightKg != null
+                          && ` · ${Number(goal.targetWeightKg).toFixed(1)} kg`}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )
         })}
       </div>
-
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {sorted.map(goal => <TrophyCard key={goal.id} goal={goal} />)}
-      </ul>
     </div>
-  )
-}
-
-function TrophyCard({ goal }: { goal: AthleteGoal }) {
-  const { t } = useTranslation('calendar')
-  const medal = MEDAL[goal.horizon]
-
-  return (
-    <li className={clsx('relative overflow-hidden rounded-xl border bg-surface-900/70 p-4', medal.border)}>
-      {/* A soft bloom in the medal's colour instead of a flat tint — the card catches light like
-          the metal it stands for, and the text underneath stays on plain dark. */}
-      <div aria-hidden="true"
-        className={clsx('pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full blur-2xl',
-          medal.glow)} />
-
-      <div className="relative flex items-start gap-3">
-        <span className={clsx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1',
-          medal.badge)}>
-          <Medal className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className={clsx('text-[11px] font-medium uppercase tracking-wide', medal.text)}>
-            {t(`goals.horizon.${goal.horizon}`)}
-          </p>
-          <p className="mt-1 text-sm text-surface-100">{goal.content}</p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-400">
-            {goal.achievedAt && (
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                {formatLongDate(goal.achievedAt)}
-              </span>
-            )}
-            {goal.targetWeightKg != null && (
-              <span className="inline-flex items-center gap-1.5 [font-variant-numeric:tabular-nums]">
-                <Scale className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('goals.targetWeight', { value: Number(goal.targetWeightKg).toFixed(1) })}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </li>
   )
 }
 

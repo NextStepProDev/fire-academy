@@ -172,6 +172,7 @@
     "daysLeft_other": "Zostaje {{count}} dni",
     "trophyTitle": "Skrzynia trofeów",
     "trophySubtitle": "Zdobyte cele. Zostają tu na stałe.",
+    "trophyEmpty": "Jeszcze nic tu nie ma.",
     "trophyCase_one": "Skrzynia trofeów ({{count}})",
     "trophyCase_few": "Skrzynia trofeów ({{count}})",
     "trophyCase_many": "Skrzynia trofeów ({{count}})",
