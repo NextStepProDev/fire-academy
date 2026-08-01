@@ -8,6 +8,17 @@ import { myTrainingApi } from '../../api/user'
 import { Button } from '../ui/Button'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { WeightChart } from './WeightChart'
+import { addDaysIso, todayIso } from '../../utils/calendarRange'
+
+/**
+ * How far back a weigh-in may be dated: the server sends 120 days of history, and a reading saved
+ * outside that window would exist without ever appearing anywhere.
+ */
+const CHARTED_DAYS = 120
+
+function earliestChartedDay(): string {
+  return addDaysIso(todayIso(), -(CHARTED_DAYS - 1))
+}
 
 /**
  * Morning weigh-ins.
@@ -22,6 +33,9 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   const isCoach = athleteId != null
 
   const [draft, setDraft] = useState('')
+  // Defaults to this morning and returns there after every save. Backfilling a missed day is the
+  // exception; a date left silently pointing at last Tuesday would overwrite the wrong day.
+  const [date, setDate] = useState(todayIso())
   const [error, setError] = useState<string | null>(null)
 
   const queryKey = isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights']
@@ -34,9 +48,10 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   })
 
   const recordMutation = useMutation({
-    mutationFn: (weightKg: number) => myTrainingApi.recordWeight({ weightKg }),
+    mutationFn: (body: { weightKg: number; date: string }) => myTrainingApi.recordWeight(body),
     onSuccess: () => {
       setDraft('')
+      setDate(todayIso())
       setError(null)
       void queryClient.invalidateQueries({ queryKey })
     },
@@ -50,7 +65,7 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
     const value = Number.parseFloat(draft.replace(',', '.'))
     if (Number.isNaN(value)) return
     setError(null)
-    recordMutation.mutate(value)
+    recordMutation.mutate({ weightKg: value, date })
   }
 
   if (weightsQuery.isLoading) return <LoadingSpinner />
@@ -58,6 +73,7 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   if (!data) return null
 
   const change = data.weeklyChangePercent == null ? null : Number(data.weeklyChangePercent)
+  const existing = data.points.find(p => p.date === date)
 
   return (
     <section className="space-y-3">
@@ -114,10 +130,32 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
               onChange={e => setDraft(e.target.value)}
             />
           </div>
+          {/* Missing a day should not mean losing it. The floor is the charted window: a reading
+              older than that would save and then be invisible, which is worse than refusing it. */}
+          <div>
+            <label htmlFor="weight-date" className="mb-1 block text-xs text-surface-400">
+              {t('weight.dateLabel')}
+            </label>
+            <input
+              id="weight-date"
+              type="date"
+              max={todayIso()}
+              min={earliestChartedDay()}
+              className="rounded-lg border border-surface-700 bg-surface-800 px-3 py-2 text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+            />
+          </div>
           <Button type="submit" variant="primary" size="sm"
             loading={recordMutation.isPending} disabled={!draft.trim()}>
             {t('weight.save')}
           </Button>
+          {/* Saving over an existing day is a correction by design, but it should be a knowing one. */}
+          {existing != null && (
+            <p className="basis-full text-xs text-surface-500">
+              {t('weight.existingEntry', { value: Number(existing.weightKg).toFixed(1) })}
+            </p>
+          )}
           {error && (
             <p role="alert" className="basis-full rounded bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
               {error}

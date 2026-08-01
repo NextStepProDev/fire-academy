@@ -226,6 +226,8 @@
   "weight": {
     "title": "Waga",
     "todayLabel": "Waga rano (kg)",
+    "dateLabel": "Dzień pomiaru",
+    "existingEntry": "Ten dzień ma już wpis: {{value}} kg. Zapis go poprawi.",
     "save": "Zapisz",
     "perWeek": "/tydz.",
     "fromReadings_one": "z {{count}} ważenia",
