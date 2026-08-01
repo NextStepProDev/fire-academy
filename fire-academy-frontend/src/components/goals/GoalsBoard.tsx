@@ -354,13 +354,24 @@ function GoalCard({
         </div>
       )}
 
-      {/* Offered only where the machine closed it — a mistyped weigh-in can pull the trend across
-          the target, and a coach needs a way back. A person's own decision stays final. */}
-      {isCoach && achieved && goal.achievedAutomatically && (
-        <Button variant="ghost" size="sm" className="mt-2" onClick={onReopen}>
-          <RotateCcw className="mr-1.5 h-4 w-4" />
-          {t('goals.reopen')}
-        </Button>
+      {isCoach && achieved && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {/* The week of celebration is for the client, and it must not hold the coach up. Without
+              this, closing every goal at once leaves them with six trophies and nowhere to write
+              the next thing until the window runs out. Setting one sends the trophy to the case. */}
+          <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('goals.addNext')}
+          </Button>
+          {/* Offered only where the machine closed it — a mistyped weigh-in can pull the trend
+              across the target, and a coach needs a way back. A person's decision stays final. */}
+          {goal.achievedAutomatically && (
+            <Button variant="ghost" size="sm" onClick={onReopen}>
+              <RotateCcw className="mr-1.5 h-4 w-4" />
+              {t('goals.reopen')}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

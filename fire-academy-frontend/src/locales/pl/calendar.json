@@ -151,6 +151,7 @@
       "LONG": "Długoterminowy"
     },
     "add": "Ustaw cel",
+    "addNext": "Ustaw nowy cel",
     "none": "Brak celu na tym horyzoncie.",
     "addTitle": "Nowy cel",
     "editTitle": "Edytuj cel",
