@@ -23,6 +23,11 @@
   --color-primary-700: #c2410c;
   --color-primary-800: #9a3412;
   --color-primary-900: #7c2d12;
+  /* Medal tones, used only inside the trophy case. Lightened from the real metals so they hold up
+     on the dark surface — raw gold and bronze go muddy at this background. */
+  --color-medal-gold: #e5c76b;
+  --color-medal-silver: #c9d1d9;
+  --color-medal-bronze: #d08b56;
 }
 
 body {
