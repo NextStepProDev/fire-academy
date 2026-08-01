@@ -48,9 +48,6 @@ export function VideoPickerModal({
                     className="h-12 w-20 shrink-0 rounded object-cover" />
                   <span className="min-w-0">
                     <span className="block truncate font-medium text-surface-100">{video.name}</span>
-                    {video.category && (
-                      <span className="block truncate text-xs text-surface-400">{video.category}</span>
-                    )}
                   </span>
                 </button>
               </li>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -11,7 +11,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { VideoSearchInput } from '../../components/exercise-videos/VideoSearchInput'
 import { useToast } from '../../context/ToastContext'
 import { parseYouTubeId, youTubeEmbedUrl } from '../../utils/youtube'
-import type { ExerciseVideo } from '../../types'
+import type { ExerciseVideo, VideoMetadata } from '../../types'
 
 const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
@@ -97,7 +97,6 @@ export function AdminExerciseVideos() {
                     </span>
                   )}
                 </p>
-                {video.category && <p className="truncate text-sm text-surface-400">{video.category}</p>}
               </div>
               <Button variant="ghost" size="sm" aria-label={t('videos.edit')}
                 onClick={() => { setEditing(video); setFormOpen(true) }}>
@@ -150,8 +149,10 @@ function VideoFormModal({
   const { t } = useTranslation('calendar')
   const [name, setName] = useState(video?.name ?? '')
   const [url, setUrl] = useState(video?.url ?? '')
-  const [category, setCategory] = useState(video?.category ?? '')
   const [description, setDescription] = useState(video?.description ?? '')
+  // Keyed by the video id it describes, so a lookup for a link that has since been retyped is
+  // ignored rather than cleared — no state written while the effect body runs.
+  const [lookup, setLookup] = useState<{ videoId: string; data: VideoMetadata } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -159,6 +160,33 @@ function VideoFormModal({
   // "private" setting, which refuses to embed at all — the coach sees a blank player here rather
   // than the client discovering it a week later.
   const videoId = parseYouTubeId(url)
+
+  /*
+   * Ask YouTube what the clip is called as soon as the link resolves to an id.
+   *
+   * The title only ever fills an EMPTY name field: overwriting what somebody typed would undo their
+   * own wording, and "Przysiad — wariant dla Kuby" beats "HOW TO SQUAT PROPERLY 2024" on a plan.
+   * Editing an existing entry never triggers it either — that name was already chosen once.
+   */
+  const found = lookup?.videoId === videoId ? lookup.data : null
+
+  useEffect(() => {
+    if (!videoId) return
+    let current = true
+    adminApi.getVideoMetadata(url.trim())
+      .then(data => {
+        if (!current) return
+        setLookup({ videoId, data })
+        if (data.title && video == null) {
+          setName(previous => (previous.trim() === '' ? data.title! : previous))
+        }
+      })
+      // Silent by design: this is help, not a requirement. The form saves either way.
+      .catch(() => {})
+    return () => { current = false }
+    // Keyed on the resolved id: retyping the same link in another shape is the same video.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -169,7 +197,6 @@ function VideoFormModal({
       const body = {
         name: name.trim(),
         url: url.trim(),
-        category: category.trim() || null,
         description: description.trim() || null,
       }
       if (video) await adminApi.updateExerciseVideo(video.id, body)
@@ -189,6 +216,15 @@ function VideoFormModal({
           <label htmlFor="video-url" className="mb-1 block text-sm text-surface-300">{t('videos.url')}</label>
           <input id="video-url" className={inputClass} value={url} onChange={e => setUrl(e.target.value)} />
           <p className="mt-1 text-xs text-surface-500">{t('videos.unlistedHint')}</p>
+          {/* YouTube's own answer about the clip, not a guess from the empty player below. */}
+          {found?.status === 'UNAVAILABLE' && (
+            <p role="alert" className="mt-1 text-xs text-amber-300">{t('videos.notEmbeddable')}</p>
+          )}
+          {found?.duplicateName && (
+            <p className="mt-1 text-xs text-amber-300">
+              {t('videos.alreadyInLibrary', { name: found.duplicateName })}
+            </p>
+          )}
         </div>
 
         {videoId && (
@@ -205,12 +241,9 @@ function VideoFormModal({
           <label htmlFor="video-name" className="mb-1 block text-sm text-surface-300">{t('videos.name')}</label>
           <input id="video-name" className={inputClass} value={name} maxLength={150}
             onChange={e => setName(e.target.value)} />
-        </div>
-
-        <div>
-          <label htmlFor="video-category" className="mb-1 block text-sm text-surface-300">{t('videos.category')}</label>
-          <input id="video-category" className={inputClass} value={category} maxLength={80}
-            onChange={e => setCategory(e.target.value)} />
+          {found?.authorName && (
+            <p className="mt-1 text-xs text-surface-500">{t('videos.channel', { name: found.authorName })}</p>
+          )}
         </div>
 
         <div>

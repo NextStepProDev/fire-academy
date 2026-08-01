@@ -295,7 +295,6 @@ export interface ExerciseVideo {
   name: string
   url: string
   description: string | null
-  category: string | null
   embedUrl: string
   thumbnailUrl: string
   archived: boolean
@@ -309,11 +308,21 @@ export interface PagedExerciseVideos {
   totalPages: number
 }
 
+/** What YouTube says about a pasted link, before anything is saved. */
+export interface VideoMetadata {
+  /** OK · UNAVAILABLE (private, deleted, embedding off) · UNKNOWN (YouTube did not answer). */
+  status: 'OK' | 'UNAVAILABLE' | 'UNKNOWN'
+  title: string | null
+  authorName: string | null
+  thumbnailUrl: string
+  /** Name of the clip already holding this video id — matching is on the id, not the URL. */
+  duplicateName: string | null
+}
+
 export interface ExerciseVideoInput {
   name: string
   url: string
   description?: string | null
-  category?: string | null
 }
 
 export interface TrainingTemplate {

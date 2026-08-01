@@ -178,7 +178,6 @@ public final class TrainingCalendarDtos {
             String name,
             String url,
             @Nullable String description,
-            @Nullable String category,
             String embedUrl,
             String thumbnailUrl,
             boolean archived
@@ -192,11 +191,26 @@ public final class TrainingCalendarDtos {
             int totalPages
     ) {}
 
+    /**
+     * What a pasted link turns out to be, before anything is saved.
+     *
+     * @param status        OK · UNAVAILABLE (private, deleted, embedding off) · UNKNOWN (YouTube did
+     *                      not answer — never a reason to block the save)
+     * @param duplicateName name of the clip already holding this video id, or null. Matching is on
+     *                      the id, so youtu.be/X and watch?v=X are the same film
+     */
+    public record VideoMetadataResponse(
+            String status,
+            @Nullable String title,
+            @Nullable String authorName,
+            String thumbnailUrl,
+            @Nullable String duplicateName
+    ) {}
+
     public record ExerciseVideoRequest(
             @NotBlank @Size(max = 150) String name,
             @NotBlank @Size(max = 500) String url,
-            @Nullable @Size(max = 1000) String description,
-            @Nullable @Size(max = 80) String category
+            @Nullable @Size(max = 1000) String description
     ) {}
 
     public record TrainingTemplateResponse(

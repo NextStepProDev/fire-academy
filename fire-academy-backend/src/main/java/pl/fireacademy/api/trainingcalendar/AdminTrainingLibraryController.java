@@ -36,6 +36,15 @@ public class AdminTrainingLibraryController {
         return videos.suggest(query);
     }
 
+    /**
+     * Looks a pasted link up on YouTube before anything is saved: the title to prefill the name,
+     * and whether the clip will embed at all. Called from the form as the link is pasted.
+     */
+    @GetMapping("/exercise-videos/metadata")
+    public VideoMetadataResponse videoMetadata(@RequestParam String url) {
+        return videos.metadata(url);
+    }
+
     @PostMapping("/exercise-videos")
     @ResponseStatus(HttpStatus.CREATED)
     public ExerciseVideoResponse createVideo(@Valid @RequestBody ExerciseVideoRequest request) {

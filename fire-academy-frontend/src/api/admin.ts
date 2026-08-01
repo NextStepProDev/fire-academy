@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, TrainingTemplate, TrainingTemplateInput, AthleteGoal, AthleteGoals, GoalInput, TrainingStats, WeightSeries, WeightRange } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, VideoMetadata, TrainingTemplate, TrainingTemplateInput, AthleteGoal, AthleteGoals, GoalInput, TrainingStats, WeightSeries, WeightRange } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -357,6 +357,9 @@ export const adminApi = {
   },
   suggestExerciseVideos: (query: string) =>
     fetchApi<ExerciseVideo[]>(`/admin/exercise-videos/search?query=${encodeURIComponent(query)}`),
+  /** Title and embeddability straight from YouTube, so the form can fill in and warn early. */
+  getVideoMetadata: (url: string) =>
+    fetchApi<VideoMetadata>(`/admin/exercise-videos/metadata?url=${encodeURIComponent(url)}`),
   createExerciseVideo: (data: ExerciseVideoInput) =>
     fetchApi<ExerciseVideo>('/admin/exercise-videos', { method: 'POST', body: JSON.stringify(data) }),
   updateExerciseVideo: (id: string, data: ExerciseVideoInput) =>

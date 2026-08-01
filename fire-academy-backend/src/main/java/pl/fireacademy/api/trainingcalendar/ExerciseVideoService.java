@@ -9,8 +9,10 @@ import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.ExerciseVideo;
 import pl.fireacademy.domain.training.ExerciseVideoRepository;
 import pl.fireacademy.domain.training.TrainingAttachmentRepository;
+import pl.fireacademy.domain.training.YouTubeMetadata;
 import pl.fireacademy.domain.training.YouTubeUrl;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.youtube.YouTubeOEmbedClient;
 
 import java.text.Normalizer;
 import java.util.List;
@@ -33,14 +35,36 @@ public class ExerciseVideoService {
 
     private final ExerciseVideoRepository repository;
     private final TrainingAttachmentRepository attachmentRepository;
+    private final YouTubeOEmbedClient oEmbed;
     private final MessageService msg;
 
     public ExerciseVideoService(ExerciseVideoRepository repository,
                                 TrainingAttachmentRepository attachmentRepository,
+                                YouTubeOEmbedClient oEmbed,
                                 MessageService msg) {
         this.repository = repository;
         this.attachmentRepository = attachmentRepository;
+        this.oEmbed = oEmbed;
         this.msg = msg;
+    }
+
+    /**
+     * What YouTube knows about a pasted link, so the form can fill the name in and — more usefully —
+     * say up front that a clip will not embed. A private video looks fine at save time and turns
+     * into an empty player in front of a client days later.
+     * <p>
+     * Also answers whether the clip is already in the library: pasting a link that is a duplicate is
+     * worth knowing before typing a name for it.
+     */
+    @Transactional(readOnly = true)
+    public VideoMetadataResponse metadata(String url) {
+        YouTubeUrl parsed = parseOrThrow(url);
+        YouTubeMetadata found = oEmbed.fetch(parsed.key());
+        String duplicateName = repository.findByVideoKey(parsed.key())
+                .map(ExerciseVideo::getName)
+                .orElse(null);
+        return new VideoMetadataResponse(found.status().name(), found.title(), found.authorName(),
+                parsed.thumbnailUrl(), duplicateName);
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +93,7 @@ public class ExerciseVideoService {
             throw new IllegalStateException(msg.get("exercisevideo.duplicate", existing.getName()));
         });
         ExerciseVideo video = new ExerciseVideo(request.name().trim(), request.url().trim(), parsed.key(),
-                trimToNull(request.description()), trimToNull(request.category()));
+                trimToNull(request.description()));
         return toResponse(repository.save(video));
     }
 
@@ -83,7 +107,7 @@ public class ExerciseVideoService {
             }
         });
         video.edit(request.name().trim(), request.url().trim(), parsed.key(),
-                trimToNull(request.description()), trimToNull(request.category()));
+                trimToNull(request.description()));
         return toResponse(repository.save(video));
     }
 
@@ -139,6 +163,6 @@ public class ExerciseVideoService {
     static ExerciseVideoResponse toResponse(ExerciseVideo v) {
         YouTubeUrl parsed = new YouTubeUrl(v.getVideoKey());
         return new ExerciseVideoResponse(v.getId(), v.getName(), v.getUrl(), v.getDescription(),
-                v.getCategory(), parsed.embedUrl(), parsed.thumbnailUrl(), v.isArchived());
+                parsed.embedUrl(), parsed.thumbnailUrl(), v.isArchived());
     }
 }

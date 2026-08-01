@@ -32,10 +32,6 @@ public class ExerciseVideo {
     @Nullable
     private String description;
 
-    @Column(length = 80)
-    @Nullable
-    private String category;
-
     @Column(name = "search_text", nullable = false)
     private String searchText;
 
@@ -51,19 +47,16 @@ public class ExerciseVideo {
 
     protected ExerciseVideo() {}
 
-    public ExerciseVideo(String name, String url, String videoKey,
-                         @Nullable String description, @Nullable String category) {
-        edit(name, url, videoKey, description, category);
+    public ExerciseVideo(String name, String url, String videoKey, @Nullable String description) {
+        edit(name, url, videoKey, description);
     }
 
-    public void edit(String name, String url, String videoKey,
-                     @Nullable String description, @Nullable String category) {
+    public void edit(String name, String url, String videoKey, @Nullable String description) {
         this.name = name;
         this.url = url;
         this.videoKey = videoKey;
         this.description = description;
-        this.category = category;
-        this.searchText = buildSearchText(name, category);
+        this.searchText = buildSearchText(name);
     }
 
     @PrePersist
@@ -81,9 +74,8 @@ public class ExerciseVideo {
      * Lowercased and stripped of Polish diacritics, so "cwiczenie" finds "Ćwiczenie…".
      * Nobody types accents into a search box while planning a session.
      */
-    static String buildSearchText(String name, @Nullable String category) {
-        String combined = name + " " + (category == null ? "" : category);
-        String decomposed = Normalizer.normalize(combined, Normalizer.Form.NFD)
+    static String buildSearchText(String name) {
+        String decomposed = Normalizer.normalize(name, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "");
         // ł has no combining form, so NFD leaves it alone.
         return decomposed.replace('ł', 'l').replace('Ł', 'L').toLowerCase(Locale.ROOT).trim();
@@ -120,11 +112,6 @@ public class ExerciseVideo {
     @Nullable
     public String getDescription() {
         return description;
-    }
-
-    @Nullable
-    public String getCategory() {
-        return category;
     }
 
     @Nullable
