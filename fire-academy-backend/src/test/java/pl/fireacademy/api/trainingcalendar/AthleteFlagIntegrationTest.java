@@ -1,9 +1,13 @@
 package pl.fireacademy.api.trainingcalendar;
 
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import pl.fireacademy.BaseIntegrationTest;
 import pl.fireacademy.domain.user.UserRole;
 
+import java.time.LocalDate;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -75,6 +79,77 @@ class AthleteFlagIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/admin/users/" + userId).header("Authorization", "Bearer " + admin))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.isAthlete").value(false));
+    }
+
+    @Test
+    void shouldGiveEverythingBackWhenTheFlagIsSetAgain() throws Exception {
+        // The flag is a switch, not a delete. Clearing it hides the plan; setting it again has to
+        // return the same rows — trainings, comments, goals and weigh-ins alike. Anything that
+        // vanished here would be unrecoverable, and nothing in the UI warns about that.
+        String admin = adminToken();
+        String client = userToken();
+        var clientId = regularUserId();
+        mockMvc.perform(post("/api/admin/users/" + clientId + "/athlete")
+                .header("Authorization", "Bearer " + admin)).andExpect(status().isOk());
+
+        // Given: a client with a filled calendar
+        String training = JsonPath.read(mockMvc.perform(
+                        post("/api/admin/personal-trainings?athleteId=" + clientId)
+                                .header("Authorization", "Bearer " + admin)
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {"date":"%s","title":"Siła"}""".formatted(LocalDate.now().plusDays(1))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        mockMvc.perform(post("/api/admin/personal-trainings/" + training + "/comments")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"body":"Pamiętaj o rozgrzewce"}"""))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/admin/personal-trainings/goals?athleteId=" + clientId)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"horizon":"SHORT","content":"Podciągnięcie x10"}"""))
+                .andExpect(status().isCreated());
+        mockMvc.perform(put("/api/user/my-training/weights")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"weightKg":74.2}"""))
+                .andExpect(status().isOk());
+
+        // When: the flag goes off and back on
+        mockMvc.perform(delete("/api/admin/users/" + clientId + "/athlete")
+                .header("Authorization", "Bearer " + admin)).andExpect(status().isOk());
+        // While off, even the coach cannot reach the plan — hidden, not deleted
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + clientId
+                        + "&from=" + LocalDate.now() + "&to=" + LocalDate.now().plusDays(7))
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/admin/users/" + clientId + "/athlete")
+                .header("Authorization", "Bearer " + admin)).andExpect(status().isOk());
+
+        // Then: every piece is back, exactly as it was
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + clientId
+                        + "&from=" + LocalDate.now() + "&to=" + LocalDate.now().plusDays(7))
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trainings.length()").value(1))
+                .andExpect(jsonPath("$.trainings[0].id").value(training))
+                .andExpect(jsonPath("$.trainings[0].title").value("Siła"))
+                .andExpect(jsonPath("$.trainings[0].commentCount").value(1));
+        mockMvc.perform(get("/api/admin/personal-trainings/" + training + "/comments")
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].body").value("Pamiętaj o rozgrzewce"));
+        mockMvc.perform(get("/api/user/my-training/goals").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.active.length()").value(1))
+                .andExpect(jsonPath("$.active[0].content").value("Podciągnięcie x10"));
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.points.length()").value(1))
+                .andExpect(jsonPath("$.points[0].weightKg").value(74.2));
     }
 
     @Test
