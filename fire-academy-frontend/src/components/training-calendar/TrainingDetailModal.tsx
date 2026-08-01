@@ -25,8 +25,11 @@ interface TrainingDetailModalProps {
   onEdit: (training: PersonalTraining) => void
   onDelete: (training: PersonalTraining) => Promise<unknown>
   onDuplicate: (training: PersonalTraining) => Promise<unknown>
-  /** Absent for the coach — ticking off is the client's act alone, so no form renders. */
-  onComplete?: (training: PersonalTraining, rpe: number, feedback: string | null) => Promise<unknown>
+  /**
+   * Absent for the coach — ticking off is the client's act alone, so no form renders. `rpe` is null
+   * for a task: there is no effort to rate, and the server refuses one.
+   */
+  onComplete?: (training: PersonalTraining, rpe: number | null, feedback: string | null) => Promise<unknown>
   onUncomplete?: (training: PersonalTraining) => Promise<unknown>
 }
 
@@ -44,8 +47,11 @@ export function TrainingDetailModal({
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const isTask = training.kind === 'TASK'
   const canComplete = onComplete != null && training.status !== 'COMPLETED'
   const canUncomplete = onUncomplete != null && training.status === 'COMPLETED'
+  // A training needs its effort rating before it can be ticked off; a task has nothing to rate.
+  const readyToComplete = isTask || rpe != null
 
   /** Runs an action, keeping the surface that triggered it open when the server refuses. */
   const run = async (action: () => Promise<unknown>, target: 'form' | 'footer', close: boolean) => {
@@ -82,15 +88,25 @@ export function TrainingDetailModal({
             </span>
           </div>
 
+          {training.targetCalories != null && (
+            <p className="text-sm text-sky-300">
+              {t('detail.calorieLimit', { value: training.targetCalories })}
+            </p>
+          )}
+
           {training.description && (
             <p className="whitespace-pre-wrap text-sm text-surface-300">{training.description}</p>
           )}
 
-          {training.status === 'COMPLETED' && (
+          {training.status === 'COMPLETED' && (training.rpe != null || training.feedback) && (
             <div className="rounded-lg border border-surface-800 bg-surface-800/50 p-3 text-sm">
-              <p className="text-surface-300">
-                {t('detail.rpeLabel')}: <span className="font-semibold text-surface-100">{training.rpe}</span>
-              </p>
+              {/* A task has no rating, so the box carries only what the client wrote — printing
+                  "Odczuwalny wysiłek: —" would invite an answer to a question nobody asked. */}
+              {training.rpe != null && (
+                <p className="text-surface-300">
+                  {t('detail.rpeLabel')}: <span className="font-semibold text-surface-100">{training.rpe}</span>
+                </p>
+              )}
               {training.feedback && (
                 <p className="mt-1 whitespace-pre-wrap text-surface-400">{training.feedback}</p>
               )}
@@ -99,7 +115,7 @@ export function TrainingDetailModal({
 
           {canComplete && (
             <div className="space-y-3 rounded-lg border border-surface-800 p-3">
-              <RpeInput value={rpe} onChange={setRpe} label={t('detail.rpeQuestion')} />
+              {!isTask && <RpeInput value={rpe} onChange={setRpe} label={t('detail.rpeQuestion')} />}
               <div>
                 <label htmlFor="training-feedback" className="mb-1 block text-sm text-surface-300">
                   {t('detail.feedback')}
@@ -120,11 +136,11 @@ export function TrainingDetailModal({
                 </p>
               )}
               <Button
-                variant="primary" size="sm" loading={busy} disabled={rpe == null}
-                onClick={() => rpe != null && run(
-                  () => onComplete!(training, rpe, feedback.trim() || null), 'form', false)}
+                variant="primary" size="sm" loading={busy} disabled={!readyToComplete}
+                onClick={() => readyToComplete && run(
+                  () => onComplete!(training, isTask ? null : rpe, feedback.trim() || null), 'form', false)}
               >
-                {t('detail.markDone')}
+                {t(isTask ? 'detail.markTaskDone' : 'detail.markDone')}
               </Button>
             </div>
           )}
@@ -173,7 +189,7 @@ export function TrainingDetailModal({
         isOpen={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         onConfirm={() => run(() => onDelete(training), 'footer', true)}
-        title={t('detail.deleteTitle')}
+        title={t(isTask ? 'detail.deleteTaskTitle' : 'detail.deleteTitle')}
         message={t('detail.deleteMessage', { title: training.title })}
         confirmLabel={t('detail.delete')}
         danger

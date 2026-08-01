@@ -48,7 +48,8 @@ export const myTrainingApi = {
     fetchApi<PersonalTraining>('/user/my-training/trainings/paste', {
       method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
     }),
-  completeTraining: (id: string, body: { rpe: number; feedback?: string | null }) =>
+  /** `rpe` on a training, omitted on a task — the server refuses the wrong one for the entry. */
+  completeTraining: (id: string, body: { rpe?: number | null; feedback?: string | null }) =>
     fetchApi<PersonalTraining>(`/user/my-training/trainings/${id}/complete`, {
       method: 'POST', body: JSON.stringify(body),
     }),

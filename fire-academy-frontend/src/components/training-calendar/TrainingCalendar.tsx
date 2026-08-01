@@ -259,6 +259,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                   unread: t('unread.dot'),
                   comments: t('comments.title'),
                   recurring: t('recurring.badge'),
+                  task: t('form.kind.TASK'),
+                  calories: t('form.calories'),
                 }}
               />
             ))}
@@ -296,6 +298,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
             unread: t('unread.dot'),
             comments: t('comments.title'),
             recurring: t('recurring.badge'),
+            task: t('form.kind.TASK'),
+            calories: t('form.calories'),
             empty: t('day.empty'),
           }}
         />

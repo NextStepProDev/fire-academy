@@ -44,10 +44,14 @@ public interface PersonalTrainingRepository extends JpaRepository<PersonalTraini
                            @Param("byAdmin") boolean byAdmin,
                            @Param("since") Instant since);
 
-    /** Next training from today onwards — powers the "what's next" line on the account tile. */
+    /**
+     * Next training from today onwards — powers the "what's next" line on the account tile. Tasks are
+     * excluded on purpose: a calorie ceiling is not what "next training" means.
+     */
     @Query("""
         SELECT MIN(pt.date) FROM PersonalTraining pt
         WHERE pt.athlete.id = :athleteId AND pt.date >= :from AND pt.completedAt IS NULL
+          AND pt.kind = pl.fireacademy.domain.training.TrainingKind.TRAINING
         """)
     @Nullable
     LocalDate findNextTrainingDate(@Param("athleteId") UUID athleteId, @Param("from") LocalDate from);

@@ -62,15 +62,41 @@ public class TrainingStatsService {
     TrainingStatsResponse build(UUID athleteId, LocalDateTime now, boolean includeOvertraining) {
         LocalDate today = now.toLocalDate();
         LocalDate yearAgo = today.minusDays(TrainingStatsCalculator.HEATMAP_DAYS - 1L);
-        List<PersonalTraining> trainings = trainingRepository.findRange(athleteId, yearAgo, today);
+        List<PersonalTraining> entries = trainingRepository.findRange(athleteId, yearAgo, today);
         List<LocalDate> completedDates = new ArrayList<>();
         List<PersonalTraining> completed = new ArrayList<>();
         int missedInWindow = 0;
         int completedInWindow = 0;
+        int tasksThisMonthDone = 0;
+        int tasksTotalDone = 0;
+        int tasksDoneInWindow = 0;
+        int tasksMissedInWindow = 0;
         LocalDate attendanceFrom = today.minusDays(TrainingStatsCalculator.ATTENDANCE_DAYS - 1L);
+        YearMonth currentMonth = YearMonth.from(today);
 
-        for (PersonalTraining t : trainings) {
+        for (PersonalTraining t : entries) {
             boolean done = t.isCompleted();
+
+            // Tasks run on their own counters and touch nothing below. A held calorie ceiling is not
+            // a session: counted as one it would inflate the streak, the heatmap and the monthly
+            // total, and every one of those numbers would stop meaning what its label says.
+            if (t.isTask()) {
+                if (done) {
+                    tasksTotalDone++;
+                    if (YearMonth.from(t.getDate()).equals(currentMonth)) {
+                        tasksThisMonthDone++;
+                    }
+                }
+                if (!t.getDate().isBefore(attendanceFrom)) {
+                    if (done) {
+                        tasksDoneInWindow++;
+                    } else if (t.status(now) == TrainingStatus.MISSED) {
+                        tasksMissedInWindow++;
+                    }
+                }
+                continue;
+            }
+
             if (done) {
                 completedDates.add(t.getDate());
                 completed.add(t);
@@ -96,7 +122,7 @@ public class TrainingStatsService {
         List<Integer> rpeDistributionWindow =
                 rpeInWindow(completed, today, TrainingStatsCalculator.RPE_DISTRIBUTION_DAYS);
 
-        YearMonth thisMonth = YearMonth.from(today);
+        YearMonth thisMonth = currentMonth;
         YearMonth prevMonth = thisMonth.minusMonths(1);
         int thisMonthCount = (int) completedDates.stream().filter(d -> YearMonth.from(d).equals(thisMonth)).count();
         int prevMonthCount = (int) completedDates.stream().filter(d -> YearMonth.from(d).equals(prevMonth)).count();
@@ -123,6 +149,9 @@ public class TrainingStatsService {
                 TrainingStatsCalculator.average(rpeNewestFirst),
                 TrainingStatsCalculator.average(rpeRecent),
                 TrainingStatsCalculator.rpeDistribution(rpeDistributionWindow),
+                new TaskBreakdown(tasksThisMonthDone, tasksTotalDone,
+                        // Same rule as attendance: a percentage only exists once something came due.
+                        TrainingStatsCalculator.attendancePercent(tasksDoneInWindow, tasksMissedInWindow)),
                 includeOvertraining ? OvertrainingRule.isOvertrained(rpeNewestFirst) : null);
     }
 

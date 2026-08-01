@@ -18,12 +18,12 @@ class PersonalTrainingTest {
     private static final LocalDate DAY = LocalDate.of(2027, 3, 10);
 
     private static PersonalTraining untimed() {
-        return new PersonalTraining(mock(User.class), DAY, "Siła", true);
+        return new PersonalTraining(mock(User.class), TrainingKind.TRAINING, DAY, "Siła", true);
     }
 
     private static PersonalTraining timed(LocalTime start, LocalTime end) {
-        PersonalTraining t = new PersonalTraining(mock(User.class), DAY, "Siła", true);
-        t.edit(DAY, start, end, "Siła", null, true);
+        PersonalTraining t = new PersonalTraining(mock(User.class), TrainingKind.TRAINING, DAY, "Siła", true);
+        t.edit(DAY, start, end, "Siła", null, null, true);
         return t;
     }
 
@@ -101,7 +101,7 @@ class PersonalTrainingTest {
     void shouldClearCoachAuthorshipWhenUncompleting() {
         PersonalTraining training = untimed();
         training.complete(6, "dobrze");
-        training.edit(DAY, null, null, "Siła", null, true);
+        training.edit(DAY, null, null, "Siła", null, null, true);
         assertTrue(training.isLastModifiedByAdmin());
 
         training.uncomplete();
@@ -124,12 +124,58 @@ class PersonalTrainingTest {
     }
 
     @Test
+    void shouldTickOffATaskWithoutAnEffortRating() {
+        // Given: a task — "stay under 2200 kcal today"
+        PersonalTraining task = new PersonalTraining(
+                mock(User.class), TrainingKind.TASK, DAY, "Max 2200 kcal", true);
+
+        task.complete(null, "wyszło");
+
+        assertTrue(task.isCompleted());
+        assertNull(task.getRpe());
+        // Same as a training: the client's act, so authorship flips and their own dot stays dark
+        assertFalse(task.isLastModifiedByAdmin());
+    }
+
+    @Test
+    void shouldRefuseAnEffortRatingOnATask() {
+        // Given: "how hard was staying under 2200 kcal, 1-10" is a question about nothing, and an
+        // answer would land in the same averages the coach reads training load from
+        PersonalTraining task = new PersonalTraining(
+                mock(User.class), TrainingKind.TASK, DAY, "Max 2200 kcal", true);
+
+        assertThrows(IllegalArgumentException.class, () -> task.complete(5, null));
+        assertFalse(task.isCompleted());
+    }
+
+    @Test
+    void shouldRefuseToTickOffATrainingWithoutAnEffortRating() {
+        PersonalTraining training = untimed();
+
+        assertThrows(IllegalArgumentException.class, () -> training.complete(null, "zrobione"));
+        assertFalse(training.isCompleted());
+    }
+
+    @Test
+    void shouldKeepCaloriesOnATaskAndDropThemOnATraining() {
+        PersonalTraining task = new PersonalTraining(
+                mock(User.class), TrainingKind.TASK, DAY, "Max 2200 kcal", true);
+        task.edit(DAY, null, null, "Max 2200 kcal", null, 2200, true);
+        assertEquals(2200, task.getTargetCalories());
+
+        // A training has no such field in the form, so a value arriving with one is noise
+        PersonalTraining training = untimed();
+        training.edit(DAY, null, null, "Siła", null, 2200, true);
+        assertNull(training.getTargetCalories());
+    }
+
+    @Test
     void shouldDropEndTimeWhenTrainingBecomesUntimed() {
         // Given: a timed training
         PersonalTraining training = timed(LocalTime.of(17, 0), LocalTime.of(18, 30));
 
         // When: the hour is removed
-        training.edit(DAY, null, LocalTime.of(18, 30), "Siła", null, true);
+        training.edit(DAY, null, LocalTime.of(18, 30), "Siła", null, null, true);
 
         // Then: the end goes with it — an end without a start has no meaning without an hour grid,
         // and the DB CHECK would reject the row anyway

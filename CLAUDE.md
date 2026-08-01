@@ -37,9 +37,9 @@ VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V35 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V36.**
+**Obecny stan: V37 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V38.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
-> ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V35 (kalendarz 1:1 + waga + cele wagowe) na gałęzi `feat/personal-training-calendar`.
+> ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V37 (kalendarz 1:1 + waga + cele wagowe + zadania) na gałęzi `feat/personal-training-calendar`.
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -75,6 +75,8 @@ VERSION
 | V33 | athlete_goals — cele na 3 horyzontach (SHORT/MEDIUM/LONG), ustawiane przez trenera, read-only u podopiecznego. **Partial `UNIQUE (athlete_id, horizon) WHERE achieved_at IS NULL`** — ogranicza tylko AKTYWNE cele; zwykły unikat ograniczyłby podopiecznego do trzech celów na całe życie. Osiągnięty cel jest **niezmienny** (brak edycji, usunięcia i ponownego osiągnięcia → 409) i trafia do skrzyni trofeów; `achieved_at` to DATE, bo datowanie jest wsteczne |
 | V34 | athlete_weights — poranna waga podopiecznego (unikat na parę osoba+dzień: **ponowne ważenie tego samego dnia to korekta, nie drugi pomiar**; `CHECK` 20–300 kg łapie zgubiony przecinek). **Świadomie BEZ kalorii spalonych** — tych nie da się zmierzyć (±20–30% nawet z zegarka), a bilans oparty na zgadywance daje liczbę precyzyjnie wyglądającą i nieprawdziwą. Waga jest pomiarem; przy dołożeniu spożycia realne zapotrzebowanie **wyliczy się z danych osoby**, nie ze wzoru. Trend = **średnia krocząca 7 dni**, liczona serwerowo per punkt (front nie ma własnej definicji trendu); zmiana tygodniowa porównuje **dwa trendy** tydzień od siebie, nie dwa pojedyncze ważenia. Ostrzeżenie o spadku >1%/tydz. **tylko dla trenera** (pole nieobecne w JSON podopiecznego). **Brak endpointu zapisu po stronie admina** — waga wpisana przez trenera byłaby drugim źródłem prawdy |
 | V35 | athlete_goals + `kind` GENERAL/WEIGHT, `target_weight_kg`, `start_weight_kg`, `achieved_automatically`. **Cel wagowy zamyka się SAM** — ale wyłącznie na **trendzie 7-dniowym**, nigdy na pojedynczym pomiarze: surowa liczba potrafi dotknąć celu przez odwodnienie i odbić nazajutrz, a świętowanie tego przeczyłoby całemu modułowi wagi. `start_weight_kg` to zdjęcie trendu przy zakładaniu — daje **kierunek** (w dół czy w górę; cel inaczej nie ma jak wiedzieć) i punkt odniesienia dla paska postępu; bez żadnego pomiaru nie da się założyć celu (409). **Cofnąć można TYLKO osiągnięcie automatyczne** (`POST /goals/{id}/reopen`) — literówka w granicach zakresu ciągnie trend przez cel; decyzja człowieka pozostaje ostateczna. Partial unique rozszerzony na `(athlete, kind, horizon)`, więc cel techniczny i wagowy nie konkurują o ten sam horyzont. Ocena odpala się przy zapisie wagi (`MyTrainingController`), nie schedulerem |
+| V36 | DROP exercise_videos.category — pole tekstowe bez podpowiedzi rozjeżdżało bibliotekę na „nogi"/„Nogi"/„nogi/pośladki"; treść wtopiona w `name` (i przeliczony `search_text`), nazwa niesie całe znaczenie. Do tego nazwa filmu **uzupełnia się sama z tytułu YouTube** (publiczny oEmbed, bez klucza; request budowany z **sparsowanego `video_key`**, nigdy z wklejonego stringa — inaczej to SSRF z uprzejmą twarzą) i tylko do pustego pola |
+| V37 | personal_trainings + `kind` TRAINING/TASK, `target_calories`. **Zadanie to OSOBNY WIERSZ, nie pole przy treningu** — podopieczny może dowieźć trening i przewalić kalorie tego samego dnia, a jeden checkbox nie umie tego powiedzieć; dwa wpisy = dwa odhaczenia = dwie prawdy. `kind` **ustawiany przy tworzeniu i niezmienny** (`UpdateTrainingRequest` w ogóle nie ma tego pola): przerobienie odhaczonego treningu na zadanie musiałoby skasować jego RPE, żeby przejść CHECK-i. Zadanie odhacza się **bez RPE** (`CHECK rpe IS NULL OR kind='TRAINING'`) — „jak ciężko było zmieścić się w 2200 kcal, 1–10" to pytanie o nic, a odpowiedź trafiłaby do tych samych średnich, z których trener czyta obciążenie. Limit kalorii jest **liczbą, nie tekstem w tytule** (CHECK 500–10000, jak przy wadze łapie zgubione zero) — inaczej nie da się tego policzyć ani zestawić z wagą. Statystyki treningowe (seria, frekwencja, mapa, miesiące, `byType.personal`, „najbliższy trening") **nie widzą zadań**; zadania mają własny blok `tasks` (zrobione w miesiącu / łącznie / % utrzymanych w 90 dniach) |
 
 ---
 
@@ -122,7 +124,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 
 **Podopieczny** `/api/user/my-training` (auth + flaga `is_athlete`; **brak flagi → 404, nie 403**):
 `GET /calendar?from=&to=` (te same DTO co u trenera) · `GET /summary` (badge) · `POST|PUT|DELETE /trainings[/{id}]` · `POST /trainings/{id}/duplicate` · `POST /trainings/paste`
-`POST|DELETE /trainings/{id}/complete` (**odhaczanie to akt podopiecznego — nie ma odpowiednika u trenera**) · `GET|POST /trainings/{id}/comments`
+`POST|DELETE /trainings/{id}/complete` (**odhaczanie to akt podopiecznego — nie ma odpowiednika u trenera**; `rpe` wymagane przy treningu, zabronione przy zadaniu → 400) · `GET|POST /trainings/{id}/comments`
 `POST /mark-seen` · `POST /deletions/dismiss` · `GET /goals` (read-only) · `GET /stats` (**bez** sygnału przetrenowania — pole nie istnieje w JSON, nie jest `false`)
 
 ### Dev `/api/dev` (profil `dev` only)
@@ -234,6 +236,8 @@ Zasady, które łatwo po cichu złamać przy kolejnej zmianie. Każda ma test, k
 **Nakładka cykliczna NIGDY nie jest materializowana.** Sesje grupowe na kalendarzu 1:1 liczy `RecurringSessionOverlayService` przy każdym żądaniu, z tego samego kodu co rachunek (`TrainingBillingService`). Zapisanie ich jako wierszy w `personal_trainings` wygląda prościej przez jedno popołudnie i kosztuje na zawsze: dzień wolny, odwołane zajęcia, rezygnacja w połowie miesiąca, dezaktywacja slotu od 15. — każde z nich musiałoby polować na wygenerowane wiersze, a każde pudło to kalendarz niezgodny z rachunkiem. `RecurringOverlayIntegrationTest` sprawdza, że po pobraniu strony `SELECT count(*) FROM personal_trainings` = 0.
 
 **Koszt nakładki to 3 zapytania niezależnie od zakresu.** API zakresowe w `TrainingBillingService` (`closedDatesInRange` wsadowe, czyste `sessionDatesInRange`, `addDeactivationDates`) istnieje właśnie po to. Test porównuje liczbę zapytań dla tygodnia i dla 6-tygodniowej siatki — regresja do pobierania per miesiąc wywala build.
+
+**Zadanie i trening to dwa wiersze, nigdy jeden.** Kuszące jest dopięcie „limitu kcal" jako pola do treningu — jedno okno, jedno odhaczenie. Wtedy dzień, w którym trening wyszedł, a dieta nie, nie ma jak się zapisać: cokolwiek pokaże checkbox, będzie kłamstwem o połowie dnia. Stąd `kind` na wierszu, dwa kafelki w dniu i dwa niezależne odhaczenia. `kind` jest ustawiany przy tworzeniu i nie ma go w `UpdateTrainingRequest` — przełączenie odhaczonego treningu na zadanie musiałoby po cichu skasować RPE, żeby wiersz przeszedł CHECK-i. Zadanie odhacza się bez RPE (walidacja zależy od wiersza, więc siedzi w serwisie, nie w adnotacji), a statystyki treningowe zadań nie widzą — mają własny blok `tasks`.
 
 **Kontrakt `attachments`: `null` = nie ruszaj · `[]` = wyczyść · lista = zamień.** Przesunięcie treningu wysyła cały obiekt; potraktowanie braku listy jako „wyczyść" po cichu gubi materiały, których edycja nie dotykała.
 

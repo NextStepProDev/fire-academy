@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import pl.fireacademy.domain.training.AttachmentKind;
 import pl.fireacademy.domain.training.GoalHorizon;
 import pl.fireacademy.domain.training.GoalKind;
+import pl.fireacademy.domain.training.TrainingKind;
 import pl.fireacademy.domain.training.TrainingStatus;
 
 import java.math.BigDecimal;
@@ -45,19 +46,24 @@ public final class TrainingCalendarDtos {
     ) {}
 
     /**
-     * A single training.
+     * A single entry on the plan — a training or a task.
      *
-     * @param status  computed server-side and never stored; the frontend only colours it, so the
-     *                two can never disagree about what "missed" means at a day boundary
-     * @param version echoed back on update — the client holds it to detect a concurrent edit
+     * @param kind           TRAINING or TASK. Fixed at creation; the same shape serves both so the
+     *                       calendar renders one list, not two merged ones
+     * @param targetCalories tasks only, and optional there too
+     * @param status         computed server-side and never stored; the frontend only colours it, so
+     *                       the two can never disagree about what "missed" means at a day boundary
+     * @param version        echoed back on update — the client holds it to detect a concurrent edit
      */
     public record PersonalTrainingResponse(
             UUID id,
+            TrainingKind kind,
             LocalDate date,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,
             String title,
             @Nullable String description,
+            @Nullable Integer targetCalories,
             TrainingStatus status,
             @Nullable Instant completedAt,
             @Nullable String feedback,
@@ -134,20 +140,26 @@ public final class TrainingCalendarDtos {
      *                    the materials it never touched.
      */
     public record CreateTrainingRequest(
+            /** Omitted means TRAINING — the overwhelmingly common entry, and what older clients send. */
+            @Nullable TrainingKind kind,
             @NotNull LocalDate date,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,
             @NotBlank @Size(max = 150) String title,
             @Nullable @Size(max = 2000) String description,
+            /** Ignored on a training: only a task has a calorie ceiling. */
+            @Nullable @Min(500) @Max(10000) Integer targetCalories,
             @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
     ) {}
 
+    /** No {@code kind}: an entry is a training or a task from birth, and stays what it was. */
     public record UpdateTrainingRequest(
             @NotNull LocalDate date,
             @Nullable LocalTime startTime,
             @Nullable LocalTime endTime,
             @NotBlank @Size(max = 150) String title,
             @Nullable @Size(max = 2000) String description,
+            @Nullable @Min(500) @Max(10000) Integer targetCalories,
             @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments,
             @NotNull Long version
     ) {}
@@ -242,6 +254,7 @@ public final class TrainingCalendarDtos {
             @Nullable Double avgRpeOverall,
             @Nullable Double avgRpeRecent,
             Map<String, Integer> rpeDistribution,
+            TaskBreakdown tasks,
             @Nullable Boolean overtraining
     ) {}
 
@@ -249,6 +262,22 @@ public final class TrainingCalendarDtos {
     public record TypeBreakdown(
             int personal,
             int recurring
+    ) {}
+
+    /**
+     * Tasks, counted apart from everything above.
+     * <p>
+     * Every training number in this response — streak, attendance, heatmap, monthly counts — ignores
+     * tasks entirely. Holding a calorie ceiling is not a session, and letting it feed the streak would
+     * turn "8 tygodni z rzędu" into a sentence about nothing in particular.
+     *
+     * @param completionPercent share held, over the same 90-day window as attendance; null when no
+     *                          task has come due in it, since 0% would report a failure nobody had
+     */
+    public record TaskBreakdown(
+            int thisMonthDone,
+            int totalDone,
+            @Nullable Integer completionPercent
     ) {}
 
     /**
@@ -330,9 +359,13 @@ public final class TrainingCalendarDtos {
             @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
     ) {}
 
-    /** RPE is mandatory: a ticked-off training with no perceived effort tells the coach nothing. */
+    /**
+     * @param rpe mandatory on a training — a ticked-off session with no perceived effort tells the
+     *            coach nothing — and rejected on a task, where the question means nothing. Which of
+     *            the two applies is decided by the entry, so the check cannot live in an annotation.
+     */
     public record CompleteTrainingRequest(
-            @NotNull @Min(1) @Max(10) Integer rpe,
+            @Nullable @Min(1) @Max(10) Integer rpe,
             @Nullable @Size(max = 2000) String feedback
     ) {}
 

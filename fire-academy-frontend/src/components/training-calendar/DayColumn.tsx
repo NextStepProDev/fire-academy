@@ -21,7 +21,7 @@ interface DayColumnProps {
   onCut?: (training: PersonalTraining) => void
   labels: {
     add: string; copy: string; cut: string; pasteHere: string
-    unread: string; comments: string; recurring: string
+    unread: string; comments: string; recurring: string; task: string; calories: string
   }
 }
 
@@ -78,6 +78,8 @@ export function DayColumn({
             cutLabel={labels.cut}
             unreadLabel={labels.unread}
             commentsLabel={labels.comments}
+            taskLabel={labels.task}
+            caloriesLabel={labels.calories}
           />
         ))}
         {/* Group sessions come last: the 1-on-1 plan is what this calendar is for, and these are

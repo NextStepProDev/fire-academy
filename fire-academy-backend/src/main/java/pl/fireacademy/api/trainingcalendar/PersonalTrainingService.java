@@ -112,9 +112,12 @@ public class PersonalTrainingService {
         User athlete = access.requireAthlete(athleteId);
         validateTimes(request.startTime(), request.endTime());
 
-        PersonalTraining training = new PersonalTraining(athlete, request.date(), request.title().trim(), byAdmin);
+        // Absent kind means TRAINING: it is what almost every entry is, and what older clients send.
+        TrainingKind kind = request.kind() == null ? TrainingKind.TRAINING : request.kind();
+        PersonalTraining training =
+                new PersonalTraining(athlete, kind, request.date(), request.title().trim(), byAdmin);
         training.edit(request.date(), request.startTime(), request.endTime(),
-                request.title().trim(), trimToNull(request.description()), byAdmin);
+                request.title().trim(), trimToNull(request.description()), request.targetCalories(), byAdmin);
         PersonalTraining saved = repository.saveAndFlush(training);
         attachments.applyToTraining(saved, request.attachments());
         return single(saved);
@@ -128,7 +131,8 @@ public class PersonalTrainingService {
         validateTimes(request.startTime(), request.endTime());
 
         training.edit(request.date(), request.startTime(), request.endTime(),
-                request.title().trim(), trimToNull(request.description()), viewerIsAdmin);
+                request.title().trim(), trimToNull(request.description()),
+                request.targetCalories(), viewerIsAdmin);
         requireCompletedStaysInPast(training);
         PersonalTraining saved = save(training);
         // null here means "leave materials alone" — see AttachmentService for why that matters.
@@ -169,7 +173,7 @@ public class PersonalTrainingService {
         }
 
         source.edit(request.targetDate(), source.getStartTime(), source.getEndTime(),
-                source.getTitle(), source.getDescription(), viewerIsAdmin);
+                source.getTitle(), source.getDescription(), source.getTargetCalories(), viewerIsAdmin);
         requireCompletedStaysInPast(source);
         return single(save(source));
     }
@@ -177,6 +181,10 @@ public class PersonalTrainingService {
     /**
      * Ticking off is the client's act alone — the coach cannot mark someone else's session done, so
      * this has no counterpart on the admin controller.
+     * <p>
+     * A task is ticked off exactly like a training, minus the effort rating: "how hard was staying
+     * under 2200 kcal, 1–10" is a question about nothing, and an answer would land in the same RPE
+     * averages the coach reads training load from.
      */
     @Transactional
     public PersonalTrainingResponse complete(UUID trainingId, CompleteTrainingRequest request, UUID viewerId) {
@@ -184,6 +192,14 @@ public class PersonalTrainingService {
         LocalDateTime now = LocalDateTime.now();
         if (!training.hasStarted(now)) {
             throw new IllegalStateException(msg.get("personaltraining.not.started"));
+        }
+        // Which of the two rules applies depends on the row, so it cannot be a bean-validation
+        // annotation on the request.
+        if (training.isTask() && request.rpe() != null) {
+            throw new IllegalArgumentException(msg.get("personaltraining.rpe.not.for.task"));
+        }
+        if (!training.isTask() && request.rpe() == null) {
+            throw new IllegalArgumentException(msg.get("personaltraining.rpe.required"));
         }
         training.complete(request.rpe(), trimToNull(request.feedback()));
         return single(save(training));
@@ -265,10 +281,11 @@ public class PersonalTrainingService {
     }
 
     private PersonalTraining copyOf(PersonalTraining source, LocalDate date, boolean byAdmin) {
-        PersonalTraining copy = new PersonalTraining(source.getAthlete(), date, source.getTitle(), byAdmin);
+        PersonalTraining copy = new PersonalTraining(
+                source.getAthlete(), source.getKind(), date, source.getTitle(), byAdmin);
         // A copy is a fresh plan, never a fresh achievement: completion, RPE and feedback stay behind.
         copy.edit(date, source.getStartTime(), source.getEndTime(),
-                source.getTitle(), source.getDescription(), byAdmin);
+                source.getTitle(), source.getDescription(), source.getTargetCalories(), byAdmin);
         return copy;
     }
 
@@ -338,8 +355,8 @@ public class PersonalTrainingService {
                                                boolean unread, int commentCount,
                                                List<AttachmentResponse> materials) {
         return new PersonalTrainingResponse(
-                t.getId(), t.getDate(), t.getStartTime(), t.getEndTime(),
-                t.getTitle(), t.getDescription(), t.status(now),
+                t.getId(), t.getKind(), t.getDate(), t.getStartTime(), t.getEndTime(),
+                t.getTitle(), t.getDescription(), t.getTargetCalories(), t.status(now),
                 t.getCompletedAt(), t.getFeedback(), t.getRpe(),
                 t.isCreatedByAdmin(), t.isLastModifiedByAdmin(),
                 unread, commentCount, materials,

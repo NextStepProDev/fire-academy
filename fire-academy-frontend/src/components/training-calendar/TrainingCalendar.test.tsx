@@ -26,6 +26,7 @@ const tMap: Record<string, string> = {
   'detail.delete': 'Usuń',
   'detail.duplicate': 'Powtórz za tydzień',
   'detail.markDone': 'Oznacz jako wykonany',
+  'detail.markTaskDone': 'Oznacz jako zrobione',
   'empty': 'Brak treningów w tym okresie.',
 }
 
@@ -37,8 +38,8 @@ vi.mock('react-i18next', () => ({
 
 function training(over: Partial<PersonalTraining> = {}): PersonalTraining {
   return {
-    id: 't1', date: TODAY, startTime: null, endTime: null,
-    title: 'Siła', description: null, status: 'PLANNED',
+    id: 't1', kind: 'TRAINING', date: TODAY, startTime: null, endTime: null,
+    title: 'Siła', description: null, targetCalories: null, status: 'PLANNED',
     completedAt: null, feedback: null, rpe: null,
     createdByAdmin: true, lastModifiedByAdmin: true,
     unread: false, commentCount: 0, attachments: [],
@@ -243,6 +244,45 @@ describe('TrainingCalendar', () => {
     await user.click(await screen.findByText('Siła'))
 
     expect(await screen.findByText('Oznacz jako wykonany')).toBeInTheDocument()
+  })
+
+  it('ticks off a task without asking how hard it was', async () => {
+    // "How hard was staying under 2200 kcal, 1-10" is a question about nothing, and an answer would
+    // land in the same RPE averages the coach reads training load from.
+    const user = userEvent.setup()
+    const completeTraining = vi.fn().mockResolvedValue(training())
+    renderCalendar(stubAdapter([
+      training({ kind: 'TASK', title: 'Limit kalorii', targetCalories: 2200 }),
+    ], { role: 'athlete', completeTraining, uncompleteTraining: vi.fn() }))
+
+    await user.click(await screen.findByText('Limit kalorii'))
+
+    expect(await screen.findByText('Oznacz jako zrobione')).toBeInTheDocument()
+    expect(screen.queryByText('detail.rpeQuestion')).toBeNull()
+
+    await user.click(screen.getByText('Oznacz jako zrobione'))
+    await waitFor(() => expect(completeTraining).toHaveBeenCalledWith('t1', { rpe: null, feedback: null }))
+  })
+
+  it('keeps a training and a task on the same day as two separate cards', async () => {
+    // The whole point of a task being its own entry: the session can be nailed and the diet blown
+    // on the same day, and one tick box could not report that.
+    const user = userEvent.setup()
+    const completeTraining = vi.fn().mockResolvedValue(training())
+    renderCalendar(stubAdapter([
+      training({ id: 'tr', title: 'Siła' }),
+      training({ id: 'ts', kind: 'TASK', title: 'Limit kalorii', targetCalories: 2200 }),
+    ], { role: 'athlete', completeTraining, uncompleteTraining: vi.fn() }))
+
+    await screen.findByText('Siła')
+    expect(screen.getByText(/2200 kcal/)).toBeInTheDocument()
+
+    // Ticking off the task says nothing about the training standing next to it
+    await user.click(screen.getByText('Limit kalorii'))
+    await user.click(await screen.findByText('Oznacz jako zrobione'))
+
+    await waitFor(() => expect(completeTraining).toHaveBeenCalledWith('ts', { rpe: null, feedback: null }))
+    expect(completeTraining).toHaveBeenCalledTimes(1)
   })
 
   it('waits for the page to actually arrive before marking it seen', async () => {

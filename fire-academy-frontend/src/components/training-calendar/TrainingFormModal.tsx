@@ -1,15 +1,20 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import clsx from 'clsx'
 import { Film, Link as LinkIcon, X } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { ApiError } from '../../api/client'
 import { VideoPickerModal } from '../exercise-videos/VideoPickerModal'
 import { formatLongDate } from '../../utils/calendarRange'
-import type { AttachmentKind, CreateTrainingBody, PersonalTraining } from '../../types'
+import type { AttachmentKind, CreateTrainingBody, PersonalTraining, TrainingKind } from '../../types'
 
 /** Three materials fit on a card without turning it into a reading list. */
 const MAX_MATERIALS = 3
+
+/** Mirrors the DB CHECK: below the first is nobody's day, above the second is a slipped digit. */
+const MIN_CALORIES = 500
+const MAX_CALORIES = 10000
 
 const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
@@ -35,8 +40,16 @@ export function TrainingFormModal({
 }: TrainingFormModalProps) {
   const { t } = useTranslation('calendar')
 
+  // Chosen once, at creation. Editing shows what the entry is but does not offer to change it:
+  // turning a ticked-off training into a task would have to throw its effort rating away to satisfy
+  // the database, and losing data as a side effect of a dropdown is not a trade worth making.
+  const [kind, setKind] = useState<TrainingKind>(training?.kind ?? 'TRAINING')
+  const isTask = kind === 'TASK'
+
   const [title, setTitle] = useState(training?.title ?? '')
   const [description, setDescription] = useState(training?.description ?? '')
+  const [calories, setCalories] = useState(
+    training?.targetCalories != null ? String(training.targetCalories) : '')
   // A new training defaults to no hour: that is the normal case, and forcing a time on every entry
   // would make the coach invent one.
   const [timed, setTimed] = useState(training?.startTime != null)
@@ -62,6 +75,15 @@ export function TrainingFormModal({
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim() || saving) return
+
+    const trimmedCalories = calories.trim()
+    const parsedCalories = trimmedCalories === '' ? null : Number(trimmedCalories)
+    if (parsedCalories != null
+      && (!Number.isInteger(parsedCalories) || parsedCalories < MIN_CALORIES || parsedCalories > MAX_CALORIES)) {
+      setError(t('form.caloriesRange', { min: MIN_CALORIES, max: MAX_CALORIES }))
+      return
+    }
+
     setError(null)
     setConflict(false)
     setSaving(true)
@@ -69,9 +91,13 @@ export function TrainingFormModal({
       // Awaited on purpose: collapsing the form before the server confirms would tell the user their
       // training was saved when it may not have been.
       await onSubmit({
+        // Only when creating: the server has no field for it on an update, and sending one would
+        // suggest it could be changed.
+        ...(training ? {} : { kind }),
         date,
         title: title.trim(),
         description: description.trim() || null,
+        targetCalories: isTask ? parsedCalories : null,
         startTime: timed ? startTime : null,
         endTime: timed && endTime ? endTime : null,
         // Always explicit from this form: the user saw the list and either kept or changed it.
@@ -93,10 +119,42 @@ export function TrainingFormModal({
     <Modal
       isOpen
       onClose={onClose}
-      title={training ? t('form.editTitle') : t('form.createTitle')}
+      title={t(training
+        ? (isTask ? 'form.editTaskTitle' : 'form.editTitle')
+        : (isTask ? 'form.createTaskTitle' : 'form.createTitle'))}
     >
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-surface-400">{formatLongDate(date)}</p>
+
+        {/* A training and a task are two entries, never one wearing both hats: the session and the
+            diet succeed and fail separately, and a single tick box could not report that. The switch
+            therefore picks one, and only while creating — see the state above for why. */}
+        {!training && (
+          <div>
+            <span className="mb-1 block text-sm text-surface-300">{t('form.kindLabel')}</span>
+            <div className="flex gap-1" role="group" aria-label={t('form.kindLabel')}>
+              {(['TRAINING', 'TASK'] as const).map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={kind === option}
+                  onClick={() => setKind(option)}
+                  className={clsx(
+                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                    kind === option
+                      ? 'border border-primary-500/40 bg-surface-800 text-primary-400'
+                      : 'text-surface-400 hover:bg-surface-800/50 hover:text-surface-200',
+                  )}
+                >
+                  {t(`form.kind.${option}`)}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-surface-500">
+              {t(isTask ? 'form.kindTaskHint' : 'form.kindTrainingHint')}
+            </p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="training-title" className="block text-sm text-surface-300 mb-1">
@@ -108,9 +166,33 @@ export function TrainingFormModal({
             value={title}
             maxLength={150}
             onChange={e => setTitle(e.target.value)}
+            placeholder={isTask ? t('form.taskTitlePlaceholder') : undefined}
             autoFocus
           />
         </div>
+
+        {/* Tasks only. A number rather than "max 2200 kcal" typed into the heading, so a month of
+            them can be counted — and, later, read next to the weight trend. */}
+        {isTask && (
+          <div>
+            <label htmlFor="training-calories" className="block text-sm text-surface-300 mb-1">
+              {t('form.calories')}
+            </label>
+            <input
+              id="training-calories"
+              type="number"
+              inputMode="numeric"
+              // No min/max attributes on purpose: the browser would answer an out-of-range value
+              // with its own native bubble and swallow the submit, so the form's own message — the
+              // one that appears next to Save like every other error here — would never be seen.
+              step={50}
+              className={inputClass}
+              value={calories}
+              onChange={e => setCalories(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-surface-500">{t('form.caloriesHint')}</p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="training-description" className="block text-sm text-surface-300 mb-1">

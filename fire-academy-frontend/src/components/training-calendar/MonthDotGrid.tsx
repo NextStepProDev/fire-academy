@@ -78,8 +78,11 @@ export function MonthDotGrid({
                   calendar is for and the sessions are context around it. */}
               <span className="flex flex-wrap items-center justify-center gap-0.5">
                 {trainings.slice(0, MAX_DOTS).map(training => (
+                  // A task is a square, a training a circle. At six pixels the shape is the only
+                  // thing that still reads — the colour is already spent on the status.
                   <span key={training.id}
-                    className={clsx('h-1.5 w-1.5 rounded-full', statusDot[training.status])} />
+                    className={clsx('h-1.5 w-1.5', statusDot[training.status],
+                      training.kind === 'TASK' ? 'rounded-[1px]' : 'rounded-full')} />
                 ))}
                 {recurring.slice(0, Math.max(0, MAX_DOTS - trainings.length)).map(session => (
                   // Hollow: a group session is on the calendar but is not part of the plan.

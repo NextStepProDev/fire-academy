@@ -8,11 +8,11 @@
     "viewSwitch": "Zmiana widoku"
   },
   "day": {
-    "add": "Dodaj trening",
+    "add": "Dodaj wpis",
     "open": "Pokaż dzień",
     "empty": "Nic tego dnia."
   },
-  "empty": "Brak treningów w tym okresie.",
+  "empty": "Nic zaplanowanego w tym okresie.",
   "status": {
     "PLANNED": "Zaplanowany",
     "COMPLETED": "Wykonany",
@@ -29,6 +29,19 @@
   "form": {
     "createTitle": "Nowy trening",
     "editTitle": "Edytuj trening",
+    "createTaskTitle": "Nowe zadanie",
+    "editTaskTitle": "Edytuj zadanie",
+    "kindLabel": "Rodzaj wpisu",
+    "kind": {
+      "TRAINING": "Trening",
+      "TASK": "Zadanie"
+    },
+    "kindTrainingHint": "Odhaczany z oceną wysiłku. Wlicza się do statystyk treningowych.",
+    "kindTaskHint": "Osobny wpis, odhaczany bez oceny wysiłku — np. limit kalorii na ten dzień. Trening i zadanie odhacza się niezależnie.",
+    "taskTitlePlaceholder": "np. Limit kalorii",
+    "calories": "Limit kalorii (kcal)",
+    "caloriesHint": "Opcjonalnie. Zostaw puste, jeśli zadanie nie dotyczy kalorii.",
+    "caloriesRange": "Limit kalorii musi mieścić się w zakresie {{min}}–{{max}} kcal.",
     "title": "Nazwa",
     "description": "Opis",
     "setTime": "Ustaw godzinę",
@@ -44,12 +57,15 @@
     "rpeLabel": "Odczuwalny wysiłek",
     "rpeQuestion": "Jak ciężki był ten trening? (1–10)",
     "feedback": "Komentarz do wykonania",
+    "calorieLimit": "Limit: do {{value}} kcal",
     "markDone": "Oznacz jako wykonany",
+    "markTaskDone": "Oznacz jako zrobione",
     "undoDone": "Cofnij wykonanie",
     "duplicate": "Powtórz za tydzień",
     "edit": "Edytuj",
     "delete": "Usuń",
     "deleteTitle": "Usunąć trening?",
+    "deleteTaskTitle": "Usunąć zadanie?",
     "deleteMessage": "Czy na pewno usunąć „{{title}}\"?"
   },
   "athletes": {
@@ -65,7 +81,7 @@
   },
   "my": {
     "title": "Mój plan treningowy",
-    "subtitle": "Twoje treningi indywidualne. Odhacz wykonane i oceń wysiłek.",
+    "subtitle": "Twoje treningi indywidualne i zadania. Odhacz zrobione — przy treningu oceń też wysiłek.",
     "back": "Wróć do konta",
     "tileTitle": "Mój plan treningowy",
     "tileDescription": "Treningi indywidualne od trenera",
@@ -215,6 +231,11 @@
     "medium": "Średnie",
     "hard": "Ciężkie",
     "avgRpeRecent": "Średni wysiłek z 30 dni: {{value}}",
+    "tasks": "Zadania",
+    "tasksThisMonth": "W tym miesiącu",
+    "tasksTotal": "Łącznie zrobione",
+    "tasksKept": "Utrzymane (90 dni)",
+    "tasksSeparate": "Zadania liczą się osobno — nie wchodzą do statystyk treningowych.",
     "byType": "Podział treningów",
     "typePersonal": "Indywidualne 1:1",
     "typeRecurring": "Grupowe",

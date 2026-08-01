@@ -79,6 +79,7 @@ export function TrainingStatsPanel({ athleteId }: { athleteId: string | null }) 
       <div className="grid gap-3 sm:grid-cols-2">
         <RpeDistribution stats={stats} />
         <TypeBreakdown stats={stats} />
+        <Tasks stats={stats} />
       </div>
 
       <Badges stats={stats} />
@@ -193,6 +194,42 @@ function TypeBreakdown({ stats }: { stats: TrainingStats }) {
       {stats.avgPerMonth != null && (
         <p className="mt-2 text-xs text-surface-400">{t('stats.avgPerMonth', { value: stats.avgPerMonth })}</p>
       )}
+    </div>
+  )
+}
+
+/**
+ * Tasks, on their own. Nothing above this card counts them — a held calorie ceiling is not a
+ * session, and folding it into the streak would turn "8 tygodni z rzędu" into a sentence about
+ * nothing in particular. The card stays hidden entirely until the client actually has tasks, so a
+ * plan of plain trainings looks exactly as it did before.
+ */
+function Tasks({ stats }: { stats: TrainingStats }) {
+  const { t } = useTranslation('calendar')
+  const { thisMonthDone, totalDone, completionPercent } = stats.tasks
+
+  if (totalDone === 0 && completionPercent == null) return null
+
+  return (
+    <div className="rounded-lg border border-surface-800 bg-surface-900/60 p-3">
+      <p className="text-xs uppercase tracking-wide text-surface-500">{t('stats.tasks')}</p>
+      <dl className="mt-2 space-y-1 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-surface-400">{t('stats.tasksThisMonth')}</dt>
+          <dd className="text-surface-100">{thisMonthDone}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-surface-400">{t('stats.tasksTotal')}</dt>
+          <dd className="text-surface-100">{totalDone}</dd>
+        </div>
+        {completionPercent != null && (
+          <div className="flex justify-between">
+            <dt className="text-surface-400">{t('stats.tasksKept')}</dt>
+            <dd className="text-surface-100">{completionPercent}%</dd>
+          </div>
+        )}
+      </dl>
+      <p className="mt-2 text-xs text-surface-500">{t('stats.tasksSeparate')}</p>
     </div>
   )
 }

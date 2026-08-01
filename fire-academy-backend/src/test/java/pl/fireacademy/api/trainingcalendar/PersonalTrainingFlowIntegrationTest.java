@@ -46,6 +46,12 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
             {"date":"%s","title":"%s"}""".formatted(date, title);
     }
 
+    private static String taskBody(LocalDate date, String title, Integer calories) {
+        return """
+            {"kind":"TASK","date":"%s","title":"%s","targetCalories":%d}"""
+                .formatted(date, title, calories);
+    }
+
     @Test
     void shouldLetCoachPlanAnUntimedTrainingAndClientSeeIt() throws Exception {
         // Given: a flagged client
@@ -84,6 +90,110 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.rpe").value(7))
                 // Authorship flips to the client, otherwise they would light their own unread dot
                 .andExpect(jsonPath("$.lastModifiedByAdmin").value(false));
+    }
+
+    @Test
+    void shouldLetClientTickOffATaskWithoutAnEffortRating() throws Exception {
+        // Given: a task the coach set for yesterday — "stay under 2200 kcal"
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String id = createAsCoach(admin, clientId, YESTERDAY, taskBody(YESTERDAY, "Limit kalorii", 2200));
+
+        // When: the client ticks it off, saying nothing about effort
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/complete")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"feedback":"zmieściłam się"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("TASK"))
+                .andExpect(jsonPath("$.targetCalories").value(2200))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.rpe").doesNotExist())
+                // Same as a training: authorship flips, so the client does not light their own dot
+                .andExpect(jsonPath("$.lastModifiedByAdmin").value(false));
+    }
+
+    @Test
+    void shouldRefuseAnEffortRatingOnATaskAndDemandOneOnATraining() throws Exception {
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String task = createAsCoach(admin, clientId, YESTERDAY, taskBody(YESTERDAY, "Limit kalorii", 2200));
+        String training = createAsCoach(admin, clientId, YESTERDAY, trainingBody(YESTERDAY, "Bieg"));
+
+        // Rating a task would poison the RPE averages the coach reads training load from
+        mockMvc.perform(post("/api/user/my-training/trainings/" + task + "/complete")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"rpe":5}"""))
+                .andExpect(status().isBadRequest());
+
+        // And a session ticked off with no effort rating tells the coach nothing
+        mockMvc.perform(post("/api/user/my-training/trainings/" + training + "/complete")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldTickOffATaskAndTheDaysTrainingIndependently() throws Exception {
+        // Given: a session and a calorie ceiling on the same day — the client can nail one and blow
+        // the other, which is the entire reason they are two entries
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String training = createAsCoach(admin, clientId, YESTERDAY, trainingBody(YESTERDAY, "Bieg"));
+        createAsCoach(admin, clientId, YESTERDAY, taskBody(YESTERDAY, "Limit kalorii", 2200));
+
+        // When: only the training is ticked off
+        mockMvc.perform(post("/api/user/my-training/trainings/" + training + "/complete")
+                .header("Authorization", "Bearer " + client)
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {"rpe":7}"""));
+
+        // Then: the day reports both truths
+        mockMvc.perform(get("/api/user/my-training/calendar?from=" + YESTERDAY + "&to=" + YESTERDAY)
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.trainings.length()").value(2))
+                .andExpect(jsonPath("$.trainings[?(@.kind=='TRAINING')].status").value("COMPLETED"))
+                .andExpect(jsonPath("$.trainings[?(@.kind=='TASK')].status").value("MISSED"));
+
+        // And the training statistics stay about training: the task is counted on its own, or a held
+        // diet would quietly inflate the streak, the attendance and the monthly total
+        mockMvc.perform(get("/api/admin/personal-trainings/stats?athleteId=" + clientId)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.byType.personal").value(1))
+                .andExpect(jsonPath("$.tasks.totalDone").value(0))
+                .andExpect(jsonPath("$.tasks.completionPercent").value(0))
+                .andExpect(jsonPath("$.attendancePercent").value(100));
+    }
+
+    @Test
+    void shouldNotLetAnEntryChangeWhatItIs() throws Exception {
+        // Given: a task
+        String admin = adminToken();
+        flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String id = createAsCoach(admin, clientId, TOMORROW, taskBody(TOMORROW, "Limit kalorii", 2200));
+
+        // When: an update tries to smuggle a different kind in
+        // Then: it is ignored — a completed training turning into a task would have to lose its RPE
+        mockMvc.perform(put("/api/admin/personal-trainings/" + id)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"kind":"TRAINING","date":"%s","title":"Limit kalorii","targetCalories":1800,"version":0}"""
+                                .formatted(TOMORROW)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("TASK"))
+                .andExpect(jsonPath("$.targetCalories").value(1800));
     }
 
     @Test

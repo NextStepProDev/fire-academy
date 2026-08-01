@@ -26,8 +26,11 @@ export interface TrainingCalendarAdapter {
   deleteTraining: (id: string) => Promise<void>
   duplicateTraining: (id: string, offsetDays?: number) => Promise<PersonalTraining>
   pasteTraining: (sourceId: string, targetDate: string, mode: PasteMode) => Promise<PersonalTraining>
-  /** Ticking off is the client's act alone — absent for the coach, so no button renders. */
-  completeTraining?: (id: string, body: { rpe: number; feedback?: string | null }) => Promise<PersonalTraining>
+  /**
+   * Ticking off is the client's act alone — absent for the coach, so no button renders. `rpe` goes
+   * with a training and is left out for a task, which has nothing to rate.
+   */
+  completeTraining?: (id: string, body: { rpe?: number | null; feedback?: string | null }) => Promise<PersonalTraining>
   uncompleteTraining?: (id: string) => Promise<PersonalTraining>
   getComments: (trainingId: string) => Promise<TrainingComment[]>
   addComment: (trainingId: string, body: string) => Promise<TrainingComment>

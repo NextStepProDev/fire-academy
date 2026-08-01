@@ -25,6 +25,8 @@ interface DaySheetProps {
     unread: string
     comments: string
     recurring: string
+    task: string
+    calories: string
     empty: string
   }
 }
@@ -57,6 +59,8 @@ export function DaySheet({
             cutLabel={labels.cut}
             unreadLabel={labels.unread}
             commentsLabel={labels.comments}
+            taskLabel={labels.task}
+            caloriesLabel={labels.calories}
           />
         ))}
 

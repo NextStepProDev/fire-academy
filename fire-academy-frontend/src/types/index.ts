@@ -112,14 +112,24 @@ export interface AthleteSummary {
 /** Computed server-side, never stored — the frontend only colours it. */
 export type TrainingStatus = 'PLANNED' | 'COMPLETED' | 'MISSED'
 
+/**
+ * What an entry on the plan is. A TASK ("max 2200 kcal today") is a separate entry from the training
+ * it shares a day with, so the session and the diet are ticked off — and fail — independently.
+ * Fixed when the entry is created; there is no endpoint that changes it.
+ */
+export type TrainingKind = 'TRAINING' | 'TASK'
+
 export interface PersonalTraining {
   id: string
+  kind: TrainingKind
   date: string
   /** Null is the normal case — an untimed training means "do this that day". */
   startTime: string | null
   endTime: string | null
   title: string
   description: string | null
+  /** Tasks only, and optional there too — a task can be "wypij 3 l wody" with no number. */
+  targetCalories: number | null
   status: TrainingStatus
   completedAt: string | null
   feedback: string | null
@@ -180,15 +190,20 @@ export interface MyTrainingSummary {
 }
 
 export interface CreateTrainingBody {
+  /** Omitted means TRAINING. */
+  kind?: TrainingKind
   date: string
   startTime?: string | null
   endTime?: string | null
   title: string
   description?: string | null
+  /** Ignored by the server on a training. */
+  targetCalories?: number | null
   /** undefined = leave materials alone · [] = clear · list = replace. */
   attachments?: AttachmentInput[] | null
 }
 
+/** No kind: an entry is a training or a task from birth, and the server will not change it. */
 export interface UpdateTrainingBody extends CreateTrainingBody {
   version: number
 }
@@ -234,6 +249,11 @@ export interface TrainingStats {
   avgRpeOverall: number | null
   avgRpeRecent: number | null
   rpeDistribution: { light: number; medium: number; hard: number }
+  /**
+   * Tasks, counted apart from every training number above. `completionPercent` is null until a task
+   * has actually come due — 0% would report a failure nobody had.
+   */
+  tasks: { thisMonthDone: number; totalDone: number; completionPercent: number | null }
   /** Absent from the client's response entirely — this signal is for the coach. */
   overtraining?: boolean
 }
