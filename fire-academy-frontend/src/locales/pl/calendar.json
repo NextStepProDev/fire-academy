@@ -8,7 +8,9 @@
     "viewSwitch": "Zmiana widoku"
   },
   "day": {
-    "add": "Dodaj trening"
+    "add": "Dodaj trening",
+    "open": "Pokaż dzień",
+    "empty": "Nic tego dnia."
   },
   "empty": "Brak treningów w tym okresie.",
   "status": {

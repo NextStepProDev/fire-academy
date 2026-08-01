@@ -7,10 +7,13 @@ import { Button } from '../ui/Button'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { QueryError } from '../ui/QueryError'
 import { DayColumn } from './DayColumn'
+import { MonthDotGrid } from './MonthDotGrid'
+import { DaySheet } from './DaySheet'
 import { TrainingFormModal } from './TrainingFormModal'
 import { TrainingDetailModal } from './TrainingDetailModal'
 import { DeletedTrainingsBanner } from './DeletedTrainingsBanner'
 import { useTrainingClipboard } from '../../hooks/useTrainingClipboard'
+import { useCompactViewport } from '../../hooks/useCompactViewport'
 import {
   eachDay, formatRangeLabel, rangeFor, shiftAnchor, todayIso, weekdayShort,
   type CalendarView,
@@ -32,7 +35,13 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const [formDate, setFormDate] = useState<string | null>(null)
   const [editing, setEditing] = useState<PersonalTraining | null>(null)
   const [selected, setSelected] = useState<PersonalTraining | null>(null)
+  const [openDay, setOpenDay] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // The month view swaps component below the sm breakpoint rather than restyling: at phone width a
+  // day cell can hold a dot, not a card, so the content moves into a sheet behind a tap.
+  const compactViewport = useCompactViewport()
+  const dotGrid = view === 'month' && compactViewport
 
   const range = useMemo(() => rangeFor(view, anchor), [view, anchor])
   const days = useMemo(() => eachDay(range), [range])
@@ -199,6 +208,22 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
         <QueryError error={rangeQuery.error as Error} onRetry={refresh} />
       ) : (
         <div className={clsx('transition-opacity', rangeQuery.isFetching && 'opacity-60')}>
+          {dotGrid ? (
+            <MonthDotGrid
+              days={days}
+              anchor={anchor}
+              byDay={byDay}
+              recurringByDay={recurringByDay}
+              pasteArmed={clipboard != null}
+              onSelectDay={setOpenDay}
+              labels={{
+                openDay: t('day.open'),
+                unread: t('unread.dot'),
+                pasteHere: t('clipboard.pasteHere'),
+              }}
+            />
+          ) : (
+        <>
           {view === 'month' && (
             // Weekday names once above the grid; repeating them in 42 cells would be noise.
             <div className={clsx(gridCols, 'mb-1 hidden sm:grid')}>
@@ -238,6 +263,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
               />
             ))}
           </div>
+        </>
+          )}
         </div>
       )}
 
@@ -247,6 +274,31 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           <CalendarDays className="h-4 w-4" />
           {t('empty')}
         </p>
+      )}
+
+      {openDay != null && (
+        <DaySheet
+          date={openDay}
+          trainings={byDay.get(openDay) ?? []}
+          recurring={recurringByDay.get(openDay) ?? []}
+          pasteArmed={clipboard != null}
+          onClose={() => setOpenDay(null)}
+          onOpen={setSelected}
+          onAdd={d => { setEditing(null); setFormDate(d) }}
+          onPaste={d => pasteMutation.mutate({ date: d })}
+          onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY' })}
+          onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE' })}
+          labels={{
+            add: t('day.add'),
+            copy: t('clipboard.copy'),
+            cut: t('clipboard.cutAction'),
+            pasteHere: t('clipboard.pasteHere'),
+            unread: t('unread.dot'),
+            comments: t('comments.title'),
+            recurring: t('recurring.badge'),
+            empty: t('day.empty'),
+          }}
+        />
       )}
 
       {formDate != null && (

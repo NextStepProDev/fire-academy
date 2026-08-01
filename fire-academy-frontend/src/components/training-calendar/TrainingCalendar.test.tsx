@@ -18,6 +18,8 @@ const tMap: Record<string, string> = {
   'nav.previous': 'Poprzedni okres',
   'nav.next': 'Następny okres',
   'day.add': 'Dodaj trening',
+  'day.open': 'Pokaż dzień',
+  'day.empty': 'Nic tego dnia.',
   'clipboard.copy': 'Kopiuj',
   'clipboard.cutAction': 'Wytnij',
   'detail.edit': 'Edytuj',
@@ -80,9 +82,23 @@ function renderCalendar(adapter: TrainingCalendarAdapter) {
   )
 }
 
+/**
+ * jsdom ships no matchMedia at all, so the calendar sees a desktop by default. Phone-sized tests
+ * install one that answers true for the compact query and false for everything else.
+ */
+function mockCompactViewport() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('max-width'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
 describe('TrainingCalendar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
     sessionStorage.clear()
   })
 
@@ -100,6 +116,35 @@ describe('TrainingCalendar', () => {
     await user.click(screen.getByRole('button', { name: 'Miesiąc' }))
 
     await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(42))
+  })
+
+  it('swaps the month view for a dot grid on a phone', async () => {
+    // One column of 42 stacked cells is around 4400px of scrolling, most of it empty days. At phone
+    // width the month becomes dots — the day's contents move behind a tap.
+    mockCompactViewport()
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training()]))
+    await screen.findByRole('button', { name: 'Miesiąc' })
+
+    await user.click(screen.getByRole('button', { name: 'Miesiąc' }))
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Pokaż dzień/ })).toHaveLength(42))
+    // No per-cell add button: at 45px a day cell holds a dot, not a control
+    expect(screen.queryByRole('button', { name: /^Dodaj trening/ })).toBeNull()
+  })
+
+  it('opens a day sheet with the full card behind a tap on the dot grid', async () => {
+    mockCompactViewport()
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training({ startTime: '17:00', endTime: '18:30' })]))
+    await user.click(await screen.findByRole('button', { name: 'Miesiąc' }))
+
+    await user.click(await screen.findByRole('button', { name: `Pokaż dzień ${TODAY}` }))
+
+    const sheet = await screen.findByRole('dialog')
+    expect(within(sheet).getByText('Siła')).toBeInTheDocument()
+    expect(within(sheet).getByText('17:00–18:30')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /Dodaj trening/ })).toBeInTheDocument()
   })
 
   it('has no hour axis anywhere', async () => {
