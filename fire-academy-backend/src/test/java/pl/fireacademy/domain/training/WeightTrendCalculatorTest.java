@@ -62,6 +62,20 @@ class WeightTrendCalculatorTest {
     }
 
     @Test
+    void shouldCountOnlyTheReadingsInsideTheWindow() {
+        // What the goal check leans on: the average alone cannot say whether it rests on one
+        // morning or on seven.
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        byDate.put(TODAY, new BigDecimal("74.0"));
+        byDate.put(TODAY.minusDays(3), new BigDecimal("74.0"));
+        byDate.put(TODAY.minusDays(6), new BigDecimal("74.0"));
+        byDate.put(TODAY.minusDays(7), new BigDecimal("74.0"));
+
+        assertEquals(3, WeightTrendCalculator.readingsInWindow(byDate, TODAY));
+        assertEquals(0, WeightTrendCalculator.readingsInWindow(Map.of(), TODAY));
+    }
+
+    @Test
     void shouldCompareTrendsAWeekApartRatherThanSingleDays() {
         // Two weeks at a steady 80 then a steady 78: −2.5%
         var byDate = series(

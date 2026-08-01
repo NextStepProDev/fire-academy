@@ -91,6 +91,31 @@ class WeightGoalIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldWaitForThreeReadingsBeforeClosingAGoal() throws Exception {
+        // Somebody weighing in twice a week has a "trend" that is one morning wearing a trend's
+        // name. The target is reached on paper; the goal waits for the week to say so.
+        String admin = adminToken();
+        String client = flagClient();
+        weighIn(client, LocalDate.now().minusDays(1), "80.0");
+        weighIn(client, LocalDate.now(), "80.0");
+        createWeightGoal(admin, "78.0");
+
+        weighIn(client, LocalDate.now().minusDays(1), "77.0");
+        weighIn(client, LocalDate.now(), "77.0");
+
+        mockMvc.perform(get("/api/user/my-training/goals").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.active.length()").value(1))
+                .andExpect(jsonPath("$.achieved.length()").value(0));
+
+        // The third morning gives the window enough to stand on, and it closes on that weigh-in
+        weighIn(client, LocalDate.now().minusDays(2), "77.0");
+
+        mockMvc.perform(get("/api/user/my-training/goals").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.achieved.length()").value(1))
+                .andExpect(jsonPath("$.achieved[0].achievedAutomatically").value(true));
+    }
+
+    @Test
     void shouldCloseAGainGoalWhenTheTrendRisesToIt() throws Exception {
         // Direction comes from the starting weight — the goal cannot know it any other way.
         String admin = adminToken();

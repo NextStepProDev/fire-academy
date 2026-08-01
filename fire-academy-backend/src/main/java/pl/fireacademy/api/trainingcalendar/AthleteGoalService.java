@@ -9,6 +9,7 @@ import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.AthleteGoal;
 import pl.fireacademy.domain.training.AthleteGoalRepository;
 import pl.fireacademy.domain.training.GoalKind;
+import pl.fireacademy.domain.training.WeightTrendCalculator;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
@@ -103,10 +104,17 @@ public class AthleteGoalService {
      * <p>
      * A goal past its target date still closes: hitting 73 kg a week late is still hitting 73 kg,
      * and refusing to record it would be petty.
+     * <p>
+     * A thin week does not close anything. Below {@link WeightTrendCalculator#MIN_READINGS_TO_CLOSE_GOAL}
+     * readings the average is arithmetically fine and evidentially weak — someone weighing in once a
+     * fortnight has a "trend" that is one morning wearing a trend's name, and a target touched
+     * through a dry mouth would be celebrated as a result. The goal stays open and closes on the
+     * weigh-in that finally gives the window enough to stand on.
      */
     @Transactional
-    public void evaluateWeightGoals(UUID athleteId, @Nullable BigDecimal currentTrendKg) {
-        if (currentTrendKg == null) {
+    public void evaluateWeightGoals(UUID athleteId, AthleteWeightService.TrendSnapshot trend) {
+        BigDecimal currentTrendKg = trend.trendKg();
+        if (currentTrendKg == null || trend.readings() < WeightTrendCalculator.MIN_READINGS_TO_CLOSE_GOAL) {
             return;
         }
         List<AthleteGoal> reached = repository.findActive(athleteId).stream()

@@ -70,13 +70,30 @@ public class AthleteWeightService {
                 includeRapidLossWarning ? WeightTrendCalculator.isRapidLoss(weeklyChange) : null);
     }
 
+    /**
+     * Today's trend together with the number of mornings behind it.
+     *
+     * @param trendKg  null when the window holds no readings at all
+     * @param readings how many days of the window were actually weighed — a trend off one reading and
+     *                 a trend off seven are the same type and very different things
+     */
+    public record TrendSnapshot(@Nullable BigDecimal trendKg, int readings) {}
+
+    @Transactional(readOnly = true)
+    public TrendSnapshot currentTrendSnapshot(UUID athleteId) {
+        LocalDate today = LocalDate.now();
+        var weights = repository.findRange(athleteId, today.minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS), today);
+        Map<LocalDate, BigDecimal> byDate = WeightTrendCalculator.index(weights);
+        return new TrendSnapshot(
+                WeightTrendCalculator.trendOn(byDate, today),
+                WeightTrendCalculator.readingsInWindow(byDate, today));
+    }
+
     /** Today's 7-day trend, or null when there are no readings yet. Used to anchor a weight goal. */
     @Transactional(readOnly = true)
     @Nullable
     public BigDecimal currentTrend(UUID athleteId) {
-        LocalDate today = LocalDate.now();
-        var weights = repository.findRange(athleteId, today.minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS), today);
-        return WeightTrendCalculator.trendOn(WeightTrendCalculator.index(weights), today);
+        return currentTrendSnapshot(athleteId).trendKg();
     }
 
     /**

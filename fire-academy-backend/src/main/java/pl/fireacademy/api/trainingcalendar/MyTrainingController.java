@@ -146,7 +146,7 @@ public class MyTrainingController {
     public WeightPoint recordWeight(@CurrentUserId UUID userId,
                                     @Valid @RequestBody RecordWeightRequest request) {
         WeightPoint saved = weightService.record(userId, request);
-        goalService.evaluateWeightGoals(userId, weightService.currentTrend(userId));
+        goalService.evaluateWeightGoals(userId, weightService.currentTrendSnapshot(userId));
         return saved;
     }
 

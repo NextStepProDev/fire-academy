@@ -24,6 +24,17 @@ public final class WeightTrendCalculator {
     public static final int TREND_WINDOW_DAYS = 7;
 
     /**
+     * How many readings the window needs before the trend may close a weight goal.
+     * <p>
+     * The average is happy to run on one reading, and for showing a number that is fine — it is the
+     * best guess available and it is labelled as a trend, not as a measurement. Closing a goal is a
+     * different act: a single morning after a hard session or a sauna can sit two kilos below the
+     * week's truth, and a goal shut on that reads as an achievement nobody earned. Three mornings is
+     * the smallest number that cannot be one bad one.
+     */
+    public static final int MIN_READINGS_TO_CLOSE_GOAL = 3;
+
+    /**
      * Weekly loss beyond this is worth a word from the coach. Around 0.5–1% of body weight per week
      * is the usual guidance for athletes; past 1% the loss increasingly comes from somewhere other
      * than fat, and in a club with weight classes that is exactly the failure mode to catch early.
@@ -51,6 +62,21 @@ public final class WeightTrendCalculator {
             }
         }
         return count == 0 ? null : sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * How many readings the trailing window ending on {@code day} actually holds — the trend's own
+     * measure of how much it is worth. One reading and seven produce a number the same way; only
+     * this tells them apart.
+     */
+    public static int readingsInWindow(Map<LocalDate, BigDecimal> byDate, LocalDate day) {
+        int count = 0;
+        for (int i = 0; i < TREND_WINDOW_DAYS; i++) {
+            if (byDate.get(day.minusDays(i)) != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
