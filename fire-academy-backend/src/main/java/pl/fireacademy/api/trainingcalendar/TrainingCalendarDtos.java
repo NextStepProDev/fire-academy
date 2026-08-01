@@ -248,16 +248,23 @@ public final class TrainingCalendarDtos {
     ) {}
 
     /**
-     * @param weeklyChangePercent negative when losing. Compares two TREND values a week apart, not
-     *                            two readings — comparing single days is comparing two pieces of noise
-     * @param rapidLoss           null for the client: coach-only, same reasoning as the overtraining
-     *                            signal, and the field is absent from their JSON rather than false
+     * @param weeklyChangePercent    negative when losing. Compares two TREND values a week apart, not
+     *                               two readings — comparing single days is comparing two pieces of noise
+     * @param rapidLoss              null for the client: coach-only, same reasoning as the overtraining
+     *                               signal, and the field is absent from their JSON rather than false
+     * @param trendReadings          how many mornings of the window the trend rests on, so the page can
+     *                               say what the number is worth instead of implying seven every time
+     * @param minReadingsToCloseGoal sent rather than hardcoded in the frontend: the rule for closing a
+     *                               weight goal lives in one place, and the copy explaining it stays
+     *                               true if that number ever moves
      */
     public record WeightSeriesResponse(
             List<WeightPoint> points,
             @Nullable BigDecimal currentTrendKg,
             @Nullable BigDecimal weeklyChangePercent,
-            @Nullable Boolean rapidLoss
+            @Nullable Boolean rapidLoss,
+            int trendReadings,
+            int minReadingsToCloseGoal
     ) {}
 
     /** {@code date} omitted means today — the normal case is weighing yourself this morning. */

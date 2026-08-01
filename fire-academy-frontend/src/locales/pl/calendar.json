@@ -182,6 +182,7 @@
     "remaining": "Zostało {{value}} kg",
     "weightAutoHint": "Aktualny trend: {{value}} kg. Cel zamknie się sam, gdy trend 7-dniowy go osiągnie — przy minimum 3 ważeniach w ostatnim tygodniu.",
     "weightNeedsStart": "Podopieczny musi najpierw wpisać wagę — bez punktu startowego nie da się ustawić celu.",
+    "weightThinWeek": "Za mało ważeń, by zamknąć cel — potrzeba {{min}} w ostatnich 7 dniach.",
     "reopen": "Cofnij osiągnięcie"
   },
   "stats": {
@@ -227,6 +228,10 @@
     "todayLabel": "Waga rano (kg)",
     "save": "Zapisz",
     "perWeek": "/tydz.",
+    "fromReadings_one": "z {{count}} ważenia",
+    "fromReadings_few": "z {{count}} ważeń",
+    "fromReadings_many": "z {{count}} ważeń",
+    "fromReadings_other": "z {{count}} ważeń",
     "legendTrend": "trend 7 dni",
     "legendDaily": "pomiar dzienny",
     "chartLabel": "Wykres wagi z trendem 7-dniowym",

@@ -122,6 +122,12 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
     staleTime: 0,
   })
   const currentTrendKg = weightsQuery.data?.currentTrendKg ?? null
+  // A weight goal that has quietly stopped being closeable should say so on the goal, not leave
+  // both sides wondering why the target was hit and nothing happened. The threshold comes from the
+  // server so the sentence cannot drift away from the rule it describes.
+  const thinWeek = weightsQuery.data != null
+    && weightsQuery.data.trendReadings < weightsQuery.data.minReadingsToCloseGoal
+  const minReadings = weightsQuery.data?.minReadingsToCloseGoal ?? 0
 
   const goals: AthleteGoals = goalsQuery.data ?? { active: [], achieved: [] }
   const today = todayIso()
@@ -180,6 +186,8 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
                     achieved={active == null && fresh != null}
                     isCoach={isCoach}
                     currentTrendKg={currentTrendKg}
+                    thinWeek={thinWeek}
+                    minReadings={minReadings}
                     onEdit={() => setEditing({ goal: active ?? null, horizon, kind })}
                     onDelete={() => active && setToDelete(active)}
                     onAchieve={() => active && setToAchieve(active)}
@@ -234,7 +242,8 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
 }
 
 function GoalCard({
-  horizon, kind, goal, achieved, isCoach, currentTrendKg, onEdit, onDelete, onAchieve, onReopen,
+  horizon, kind, goal, achieved, isCoach, currentTrendKg, thinWeek, minReadings,
+  onEdit, onDelete, onAchieve, onReopen,
 }: {
   horizon: GoalHorizon
   kind: GoalKind
@@ -242,6 +251,8 @@ function GoalCard({
   achieved: boolean
   isCoach: boolean
   currentTrendKg: number | null
+  thinWeek: boolean
+  minReadings: number
   onEdit: () => void
   onDelete: () => void
   onAchieve: () => void
@@ -305,6 +316,10 @@ function GoalCard({
             {t('goals.remaining', { value: progress.remaining.toFixed(1) })}
           </p>
         </div>
+      )}
+
+      {kind === 'WEIGHT' && !achieved && thinWeek && (
+        <p className="mt-1.5 text-xs text-surface-500">{t('goals.weightThinWeek', { min: minReadings })}</p>
       )}
 
       {goal.targetDate && !achieved && (

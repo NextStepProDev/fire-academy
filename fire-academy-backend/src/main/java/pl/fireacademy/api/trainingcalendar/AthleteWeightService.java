@@ -67,7 +67,9 @@ public class AthleteWeightService {
                 points,
                 WeightTrendCalculator.trendOn(byDate, today),
                 weeklyChange,
-                includeRapidLossWarning ? WeightTrendCalculator.isRapidLoss(weeklyChange) : null);
+                includeRapidLossWarning ? WeightTrendCalculator.isRapidLoss(weeklyChange) : null,
+                WeightTrendCalculator.readingsInWindow(byDate, today),
+                WeightTrendCalculator.MIN_READINGS_TO_CLOSE_GOAL);
     }
 
     /**

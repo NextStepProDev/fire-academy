@@ -118,6 +118,23 @@ class AthleteWeightIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldSayHowManyMorningsTheTrendRestsOn() throws Exception {
+        // Otherwise a trend off two readings and a trend off seven look identical on the page.
+        // The goal threshold ships with it so the copy explaining the rule cannot drift from it.
+        String client = flagClient();
+        weighIn(client, LocalDate.now().minusDays(10), "80.0");
+        weighIn(client, LocalDate.now().minusDays(2), "80.0");
+        weighIn(client, LocalDate.now(), "80.0");
+
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.points.length()").value(3))
+                // The reading from ten days ago is outside the window and does not count
+                .andExpect(jsonPath("$.trendReadings").value(2))
+                .andExpect(jsonPath("$.minReadingsToCloseGoal").value(3));
+    }
+
+    @Test
     void shouldKeepTheRapidLossWarningOutOfTheClientsResponse() throws Exception {
         // Coach-only, and absent rather than false — the same reasoning as the overtraining signal.
         String admin = adminToken();

@@ -209,6 +209,10 @@ export interface WeightSeries {
   weeklyChangePercent: number | null
   /** Absent from the client's response entirely — coach-only, like the overtraining signal. */
   rapidLoss?: boolean
+  /** How many mornings of the 7-day window the trend rests on. */
+  trendReadings: number
+  /** Below this many readings a weight goal will not close itself. Sent, never assumed here. */
+  minReadingsToCloseGoal: number
 }
 
 export interface TrainingStats {

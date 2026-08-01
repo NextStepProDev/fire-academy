@@ -81,6 +81,11 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
                 <span className="text-surface-500">{t('weight.perWeek')}</span>
               </span>
             )}
+            {/* What the number stands on. A trend off two mornings is still the best guess
+                available, but saying so beats letting it pass for a week's worth of data. */}
+            <span className="text-xs text-surface-500">
+              {t('weight.fromReadings', { count: data.trendReadings })}
+            </span>
           </span>
         )}
       </div>
