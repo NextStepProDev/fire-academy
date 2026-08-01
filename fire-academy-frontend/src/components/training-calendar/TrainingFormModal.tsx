@@ -180,29 +180,34 @@ export function TrainingFormModal({
                 ))}
               </ul>
             )}
+            {/* The URL field belongs to "add link" alone. Sitting it between the two buttons read
+                as a third option — or worse, as an input for the library picker, which takes none. */}
             {materials.length < MAX_MATERIALS && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="space-y-2">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setPickerOpen(true)}>
                   <Film className="mr-1.5 h-4 w-4" />
                   {t('materials.addVideo')}
                 </Button>
-                <input
-                  type="url"
-                  className={`${inputClass} flex-1 min-w-40`}
-                  placeholder={t('materials.linkPlaceholder')}
-                  value={linkUrl}
-                  onChange={e => setLinkUrl(e.target.value)}
-                />
-                <Button type="button" variant="ghost" size="sm" disabled={!linkUrl.trim()}
-                  onClick={() => {
-                    setMaterials(list => [...list, {
-                      kind: 'LINK', label: null, url: linkUrl.trim(), videoId: null,
-                      displayName: linkUrl.trim(), thumbnailUrl: null,
-                    }])
-                    setLinkUrl('')
-                  }}>
-                  {t('materials.addLink')}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="url"
+                    aria-label={t('materials.linkLabel')}
+                    className={`${inputClass} flex-1 min-w-40`}
+                    placeholder={t('materials.linkPlaceholder')}
+                    value={linkUrl}
+                    onChange={e => setLinkUrl(e.target.value)}
+                  />
+                  <Button type="button" variant="ghost" size="sm" disabled={!linkUrl.trim()}
+                    onClick={() => {
+                      setMaterials(list => [...list, {
+                        kind: 'LINK', label: null, url: linkUrl.trim(), videoId: null,
+                        displayName: linkUrl.trim(), thumbnailUrl: null,
+                      }])
+                      setLinkUrl('')
+                    }}>
+                    {t('materials.addLink')}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

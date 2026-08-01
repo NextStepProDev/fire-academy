@@ -95,6 +95,7 @@
     "title": "Materiały",
     "addVideo": "Dodaj film z biblioteki",
     "addLink": "Dodaj link",
+    "linkLabel": "Adres linku do dodania",
     "linkPlaceholder": "https://…",
     "remove": "Usuń materiał",
     "play": "Odtwórz film"
