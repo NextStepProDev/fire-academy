@@ -202,6 +202,9 @@ export interface WeightPoint {
   trendKg: number | null
 }
 
+/** How far back a weight series reaches. Bounded server-side; the page only names the window. */
+export type WeightRange = 'QUARTER' | 'YEAR' | 'ALL'
+
 export interface WeightSeries {
   points: WeightPoint[]
   currentTrendKg: number | null

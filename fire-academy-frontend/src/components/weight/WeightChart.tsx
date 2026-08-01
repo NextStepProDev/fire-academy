@@ -23,6 +23,9 @@ const W = 640
 const H = 190
 const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
 const PLOT_W = W - PAD.left - PAD.right
+
+/** One raw dot per two pixels of plot is the point past which dots become a band, not marks. */
+const DOT_LIMIT = Math.round(PLOT_W / 2)
 const PLOT_H = H - PAD.top - PAD.bottom
 
 /**
@@ -53,10 +56,13 @@ export function WeightChart({ points, isStale, onDelete }: {
             <span className="inline-block h-0.5 w-4 rounded" style={{ background: SERIES }} />
             {t('weight.legendTrend')}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-surface-500" />
-            {t('weight.legendDaily')}
-          </span>
+          {/* The legend follows the plot: no dots drawn, no dot in the key. */}
+          {scaled.length <= DOT_LIMIT && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-surface-500" />
+              {t('weight.legendDaily')}
+            </span>
+          )}
         </span>
         <button
           type="button"
@@ -90,8 +96,10 @@ export function WeightChart({ points, isStale, onDelete }: {
             </text>
           ))}
 
-          {/* Raw readings: deliberately faint and small — they are the noise, not the signal. */}
-          {scaled.map(p => (
+          {/* Raw readings: deliberately faint and small — they are the noise, not the signal. Past
+              roughly one dot per two pixels they stop being separate marks and become a grey band
+              across the plot, so a long range drops them and keeps the trend line alone. */}
+          {scaled.length <= DOT_LIMIT && scaled.map(p => (
             <circle key={p.date} cx={p.x} cy={p.yWeight} r="2"
               className="fill-surface-500" opacity="0.65" />
           ))}

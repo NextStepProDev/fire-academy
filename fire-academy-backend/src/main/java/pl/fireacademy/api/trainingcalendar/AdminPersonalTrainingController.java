@@ -113,8 +113,9 @@ public class AdminPersonalTrainingController {
      * source of truth next to the client's own scale.
      */
     @GetMapping("/weights")
-    public WeightSeriesResponse weights(@RequestParam UUID athleteId) {
-        return weightService.series(athleteId, true);
+    public WeightSeriesResponse weights(@RequestParam UUID athleteId,
+                                        @RequestParam(defaultValue = "QUARTER") AthleteWeightService.Range range) {
+        return weightService.series(athleteId, true, range);
     }
 
     // --- Goals. Set by the coach; the client only reads them. ---

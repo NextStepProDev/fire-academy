@@ -26,8 +26,30 @@ import java.util.UUID;
 @Service
 public class AthleteWeightService {
 
-    /** Enough history for the chart to show a real trend without turning into a wall of dots. */
-    private static final int DEFAULT_HISTORY_DAYS = 120;
+    /**
+     * How far back a series may go.
+     * <p>
+     * The window is capped server-side rather than left to the caller: whatever the page asks for,
+     * the response stays one row per day of a bounded range. QUARTER is the default and the shape
+     * everything else was built around; the longer ranges exist because a year-on-year comparison is
+     * half the reason anyone logs their weight at all, and the readings were unreachable without it.
+     */
+    public enum Range {
+        QUARTER(120),
+        YEAR(365),
+        /** Everything ever recorded. Bounded in practice by one row per day since the account began. */
+        ALL(0);
+
+        private final int days;
+
+        Range(int days) {
+            this.days = days;
+        }
+
+        LocalDate from(LocalDate today) {
+            return this == ALL ? LocalDate.of(1900, 1, 1) : today.minusDays(days - 1L);
+        }
+    }
 
     private final AthleteWeightRepository repository;
     private final TrainingAccessService access;
@@ -47,17 +69,24 @@ public class AthleteWeightService {
      *                                while a coach noticing it is a conversation.
      */
     @Transactional(readOnly = true)
-    public WeightSeriesResponse series(UUID athleteId, boolean includeRapidLossWarning) {
+    public WeightSeriesResponse series(UUID athleteId, boolean includeRapidLossWarning, Range range) {
         access.requireAthlete(athleteId);
         LocalDate today = LocalDate.now();
-        LocalDate from = today.minusDays(DEFAULT_HISTORY_DAYS - 1L);
+        LocalDate from = range.from(today);
 
-        List<AthleteWeight> weights = repository.findRange(athleteId, from, today);
+        // Reads reach back one trend window BEFORE the range so the first points on the chart carry
+        // a full seven days behind them. Without it the left edge of every series would dip or jump
+        // purely because the earlier readings were not fetched.
+        List<AthleteWeight> weights = repository.findRange(
+                athleteId, from.minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS - 1L), today);
         Map<LocalDate, BigDecimal> byDate = WeightTrendCalculator.index(weights);
 
         // The trend is emitted per reading, so the frontend never has to reimplement the window.
         List<WeightPoint> points = new ArrayList<>();
         for (AthleteWeight weight : weights) {
+            if (weight.getMeasuredOn().isBefore(from)) {
+                continue;
+            }
             points.add(new WeightPoint(weight.getMeasuredOn(), weight.getWeightKg(),
                     WeightTrendCalculator.trendOn(byDate, weight.getMeasuredOn())));
         }

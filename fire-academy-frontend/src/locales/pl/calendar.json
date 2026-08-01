@@ -238,6 +238,12 @@
     "fromReadings_few": "z {{count}} ważeń",
     "fromReadings_many": "z {{count}} ważeń",
     "fromReadings_other": "z {{count}} ważeń",
+    "rangeGroup": "Zakres wykresu",
+    "range": {
+      "QUARTER": "3 miesiące",
+      "YEAR": "Rok",
+      "ALL": "Wszystko"
+    },
     "legendTrend": "trend 7 dni",
     "legendDaily": "pomiar dzienny",
     "chartLabel": "Wykres wagi z trendem 7-dniowym",

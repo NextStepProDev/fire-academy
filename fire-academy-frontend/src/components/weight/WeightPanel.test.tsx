@@ -138,6 +138,18 @@ describe('WeightPanel', () => {
     expect(screen.queryByRole('button', { name: /Usuń pomiar/ })).not.toBeInTheDocument()
   })
 
+  it('shouldAskTheServerForTheChosenRange', async () => {
+    // Readings older than a quarter existed with nothing able to reach them. The window is a
+    // server-side cap, so the page has to ask for the longer one rather than filter locally.
+    renderPanel()
+    await screen.findByRole('button', { name: 'weight.range.ALL' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'weight.range.ALL' }))
+
+    await waitFor(() => expect(myTrainingApi.getWeights).toHaveBeenCalledWith('ALL'))
+    expect(myTrainingApi.getWeights).toHaveBeenCalledWith('QUARTER')
+  })
+
   it('shouldDefaultToTodayAndRefuseTheFuture', async () => {
     renderPanel()
 

@@ -31,6 +31,25 @@ describe('WeightChart', () => {
     expect(container.querySelectorAll('circle').length).toBe(series().length + 1)
   })
 
+  it('drops the raw dots once they would stop being separate marks', () => {
+    // Five years of daily weigh-ins is more readings than the plot has pixels. Drawing them all
+    // paints a grey band and calls it data; past the density limit only the trend line remains.
+    const dense: WeightPoint[] = Array.from({ length: 1000 }, (_, i) => {
+      const date = new Date(Date.UTC(2027, 0, 1))
+      date.setUTCDate(date.getUTCDate() + i)
+      return { date: date.toISOString().slice(0, 10), weightKg: 80, trendKg: 80 }
+    })
+
+    const { container } = render(<WeightChart points={dense} />)
+
+    // Only the end marker on the trend survives
+    expect(container.querySelectorAll('circle').length).toBe(1)
+    expect(container.querySelector('path')).toBeInTheDocument()
+    // And the legend stops naming a mark that is not drawn
+    expect(screen.queryByText('weight.legendDaily')).toBeNull()
+    expect(screen.getByText('weight.legendTrend')).toBeInTheDocument()
+  })
+
   it('skips readings that have no trend yet', () => {
     // The first week cannot have a 7-day average, and inventing one would draw a line through
     // data that does not exist.

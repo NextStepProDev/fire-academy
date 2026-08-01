@@ -131,8 +131,9 @@ public class MyTrainingController {
 
     /** Without the rapid-loss warning: the client sees their trend and reads it themselves. */
     @GetMapping("/weights")
-    public WeightSeriesResponse weights(@CurrentUserId UUID userId) {
-        return weightService.series(userId, false);
+    public WeightSeriesResponse weights(@CurrentUserId UUID userId,
+                                        @RequestParam(defaultValue = "QUARTER") AthleteWeightService.Range range) {
+        return weightService.series(userId, false, range);
     }
 
     /**

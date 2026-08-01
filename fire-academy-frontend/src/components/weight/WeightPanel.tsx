@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { WeightChart } from './WeightChart'
 import { addDaysIso, formatLongDate, todayIso } from '../../utils/calendarRange'
-import type { WeightPoint } from '../../types'
+import type { WeightPoint, WeightRange } from '../../types'
 
 /**
  * How far back a weigh-in may be dated: the server sends 120 days of history, and a reading saved
@@ -41,11 +41,18 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   const [toDelete, setToDelete] = useState<WeightPoint | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const queryKey = isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights']
+  // The window is part of what is being fetched, so it belongs in the key — switching range must
+  // not read the previous range's rows out of cache.
+  const [range, setRange] = useState<WeightRange>('QUARTER')
+  const queryKey = isCoach
+    ? ['admin', 'weights', athleteId, range]
+    : ['user', 'my-training', 'weights', range]
 
   const weightsQuery = useQuery({
     queryKey,
-    queryFn: () => (isCoach ? adminApi.getAthleteWeights(athleteId) : myTrainingApi.getWeights()),
+    queryFn: () => (isCoach
+      ? adminApi.getAthleteWeights(athleteId, range)
+      : myTrainingApi.getWeights(range)),
     staleTime: 0,
     refetchOnMount: 'always',
   })
@@ -180,6 +187,27 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
           )}
         </form>
       )}
+
+      {/* Kept out of the header row: the range belongs to the chart below it, not to the current
+          trend above it, which always means "this week" whatever window is on screen. */}
+      <div className="flex gap-1" role="group" aria-label={t('weight.rangeGroup')}>
+        {(['QUARTER', 'YEAR', 'ALL'] as const).map(option => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={range === option}
+            onClick={() => setRange(option)}
+            className={clsx(
+              'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
+              range === option
+                ? 'border border-primary-500/40 bg-surface-800 text-primary-400'
+                : 'text-surface-400 hover:bg-surface-800/50 hover:text-surface-200',
+            )}
+          >
+            {t(`weight.range.${option}`)}
+          </button>
+        ))}
+      </div>
 
       {data.points.length === 0 ? (
         <p className="text-sm text-surface-500">

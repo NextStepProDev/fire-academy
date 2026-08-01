@@ -118,6 +118,43 @@ class AthleteWeightIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldReachOlderReadingsOnlyWhenTheRangeAsksForThem() throws Exception {
+        // The default window is a quarter, so a year-old reading is invisible until asked for. It
+        // was unreachable at any range before — the data was in the table with no way to it.
+        String client = flagClient();
+        weighIn(client, LocalDate.now().minusDays(400), "82.0");
+        weighIn(client, LocalDate.now().minusDays(150), "80.0");
+        weighIn(client, LocalDate.now(), "78.0");
+
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.points.length()").value(1));
+        mockMvc.perform(get("/api/user/my-training/weights?range=YEAR")
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.points.length()").value(2));
+        mockMvc.perform(get("/api/user/my-training/weights?range=ALL")
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.points.length()").value(3))
+                .andExpect(jsonPath("$.points[0].weightKg").value(82.0));
+    }
+
+    @Test
+    void shouldCarryAFullTrendOnTheFirstPointOfARange() throws Exception {
+        // The reads reach one window behind the range. Without that the left edge of every chart
+        // would bend purely because the earlier readings were not fetched.
+        String client = flagClient();
+        for (int i = 125; i >= 118; i--) {
+            weighIn(client, LocalDate.now().minusDays(i), "80.0");
+        }
+        weighIn(client, LocalDate.now().minusDays(119), "70.0");
+
+        // The oldest point inside the quarter is day 119, whose window holds the 80s before it
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.points[0].date").value(LocalDate.now().minusDays(119).toString()))
+                .andExpect(jsonPath("$.points[0].weightKg").value(70.0))
+                .andExpect(jsonPath("$.points[0].trendKg").value(78.57));
+    }
+
+    @Test
     void shouldSayHowManyMorningsTheTrendRestsOn() throws Exception {
         // Otherwise a trend off two readings and a trend off seven look identical on the page.
         // The goal threshold ships with it so the copy explaining the rule cannot drift from it.
