@@ -6,9 +6,11 @@ import { Scale, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { myTrainingApi } from '../../api/user'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { WeightChart } from './WeightChart'
-import { addDaysIso, todayIso } from '../../utils/calendarRange'
+import { addDaysIso, formatLongDate, todayIso } from '../../utils/calendarRange'
+import type { WeightPoint } from '../../types'
 
 /**
  * How far back a weigh-in may be dated: the server sends 120 days of history, and a reading saved
@@ -36,6 +38,7 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   // Defaults to this morning and returns there after every save. Backfilling a missed day is the
   // exception; a date left silently pointing at last Tuesday would overwrite the wrong day.
   const [date, setDate] = useState(todayIso())
+  const [toDelete, setToDelete] = useState<WeightPoint | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const queryKey = isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights']
@@ -56,6 +59,20 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
       void queryClient.invalidateQueries({ queryKey })
     },
     onError: (e: Error) => setError(e.message),
+  })
+
+  // A wrong number can be corrected by saving over the day, but a reading for a day that never
+  // happened has no correction — it has to be removable.
+  const deleteMutation = useMutation({
+    mutationFn: (day: string) => myTrainingApi.deleteWeight(day),
+    onSuccess: () => {
+      setToDelete(null)
+      void queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (e: Error) => {
+      setToDelete(null)
+      setError(e.message)
+    },
   })
 
   const submit = (e: FormEvent) => {
@@ -170,10 +187,25 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
         </p>
       ) : (
         <>
-          <WeightChart points={data.points} isStale={weightsQuery.isFetching} />
+          <WeightChart points={data.points} isStale={weightsQuery.isFetching}
+            onDelete={isCoach ? undefined : setToDelete} />
           <p className="text-xs text-surface-500">{t('weight.noiseHint')}</p>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && deleteMutation.mutate(toDelete.date)}
+        title={t('weight.deleteTitle')}
+        message={toDelete == null ? '' : t('weight.deleteMessage', {
+          date: formatLongDate(toDelete.date),
+          value: Number(toDelete.weightKg).toFixed(1),
+        })}
+        confirmLabel={t('weight.delete')}
+        danger
+        loading={deleteMutation.isPending}
+      />
     </section>
   )
 }

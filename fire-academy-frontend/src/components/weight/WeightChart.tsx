@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { Trash2 } from 'lucide-react'
 import type { WeightPoint } from '../../types'
 
 /**
@@ -24,7 +25,15 @@ const PAD = { top: 10, right: 12, bottom: 22, left: 38 }
 const PLOT_W = W - PAD.left - PAD.right
 const PLOT_H = H - PAD.top - PAD.bottom
 
-export function WeightChart({ points, isStale }: { points: WeightPoint[]; isStale?: boolean }) {
+/**
+ * @param onDelete passed only for the person whose weight this is. A reading is theirs to remove;
+ *                 the coach reads the scale and does not edit it.
+ */
+export function WeightChart({ points, isStale, onDelete }: {
+  points: WeightPoint[]
+  isStale?: boolean
+  onDelete?: (point: WeightPoint) => void
+}) {
   const { t } = useTranslation('calendar')
   const [hover, setHover] = useState<number | null>(null)
   const [showTable, setShowTable] = useState(false)
@@ -144,6 +153,7 @@ export function WeightChart({ points, isStale }: { points: WeightPoint[]; isStal
                 <th scope="col" className="px-3 py-1.5 font-medium">{t('weight.tableDate')}</th>
                 <th scope="col" className="px-3 py-1.5 font-medium">{t('weight.tableWeight')}</th>
                 <th scope="col" className="px-3 py-1.5 font-medium">{t('weight.legendTrend')}</th>
+                {onDelete && <th scope="col" className="w-10 px-3 py-1.5"><span className="sr-only">{t('weight.delete')}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -158,6 +168,15 @@ export function WeightChart({ points, isStale }: { points: WeightPoint[]; isStal
                   <td className="px-3 py-1 text-surface-400 [font-variant-numeric:tabular-nums]">
                     {p.trendKg == null ? '—' : Number(p.trendKg).toFixed(1)}
                   </td>
+                  {onDelete && (
+                    <td className="px-3 py-1">
+                      <button type="button" onClick={() => onDelete(p)}
+                        aria-label={`${t('weight.delete')}: ${format(parseISO(p.date), 'd MMM yyyy', { locale: pl })}`}
+                        className="flex h-6 w-6 items-center justify-center rounded text-surface-500 transition-colors hover:text-rose-300">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
