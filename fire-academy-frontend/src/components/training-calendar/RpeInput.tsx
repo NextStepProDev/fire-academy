@@ -10,7 +10,7 @@ function bandClass(value: number, selected: boolean): string {
 
 interface RpeInputProps {
   value: number | null
-  onChange: (value: number) => void
+  onChange: (value: number | null) => void
   label: string
 }
 
@@ -18,6 +18,8 @@ export function RpeInput({ value, onChange, label }: RpeInputProps) {
   return (
     <fieldset>
       <legend className="mb-1 block text-sm text-surface-300">{label}</legend>
+      {/* Clicking the picked number clears it. Nothing else here deselects, and a rating you
+          cannot take back is worse than no rating. */}
       <div className="flex flex-wrap gap-1">
         {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
           <button
@@ -25,7 +27,7 @@ export function RpeInput({ value, onChange, label }: RpeInputProps) {
             type="button"
             aria-pressed={value === n}
             aria-label={`RPE ${n}`}
-            onClick={() => onChange(n)}
+            onClick={() => onChange(value === n ? null : n)}
             className={clsx(
               'h-9 w-9 rounded-lg text-sm font-medium transition-colors',
               bandClass(n, value === n),
