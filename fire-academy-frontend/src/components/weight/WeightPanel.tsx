@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { WeightChart } from './WeightChart'
 import { addDaysIso, formatLongDate, todayIso } from '../../utils/calendarRange'
+import { keepWithinEntity } from '../../utils/queryEntity'
 import type { WeightPoint, WeightRange } from '../../types'
 
 /**
@@ -55,6 +56,11 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
       : myTrainingApi.getWeights(range)),
     staleTime: 0,
     refetchOnMount: 'always',
+    // Widening the window keeps the chart on screen — it is the same person, seen further back. The
+    // person is not negotiable: one client's readings must never stand under another client's name,
+    // so the placeholder stops at the trailing range parameter.
+    placeholderData: (previous, previousQuery) =>
+      keepWithinEntity(previous, previousQuery, queryKey, 1),
   })
 
   const recordMutation = useMutation({

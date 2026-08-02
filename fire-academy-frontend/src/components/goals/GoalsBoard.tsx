@@ -83,6 +83,10 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
     queryFn: () => (isCoach ? adminApi.getAthleteGoals(athleteId) : myTrainingApi.getGoals()),
     staleTime: 0,
     refetchOnMount: 'always',
+    // The key holds nothing but the person, so there is no page to smooth over and the global
+    // keepPreviousData has nothing to offer here except the chance to show one client's goals under
+    // another client's name for a frame.
+    placeholderData: undefined,
   })
 
   const invalidate = () => queryClient.invalidateQueries({
@@ -105,6 +109,7 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
     queryKey: isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights'],
     queryFn: () => (isCoach ? adminApi.getAthleteWeights(athleteId) : myTrainingApi.getWeights()),
     staleTime: 0,
+    placeholderData: undefined,
   })
   const currentTrendKg = weightsQuery.data?.currentTrendKg ?? null
   // A weight goal that has quietly stopped being closeable should say so on the goal, not leave

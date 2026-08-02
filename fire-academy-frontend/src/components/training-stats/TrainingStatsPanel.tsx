@@ -33,6 +33,9 @@ export function TrainingStatsPanel({ athleteId }: { athleteId: string | null }) 
     // Unticking a session has to move these numbers at once, or nobody trusts them.
     staleTime: 0,
     refetchOnMount: 'always',
+    // Nothing but the person in the key, so keeping the previous result could only ever mean showing
+    // one client's streak and attendance under another client's name.
+    placeholderData: undefined,
   })
 
   if (statsQuery.isLoading) return <LoadingSpinner />

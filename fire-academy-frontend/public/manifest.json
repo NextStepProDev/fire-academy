@@ -4,7 +4,7 @@
   "description": "Treningi indywidualne i małe grupy. Obozy, szkolenia i kursy dla ambitnych sportowców.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#141414",
+  "background_color": "#0a0a0a",
   "theme_color": "#f97316",
   "lang": "pl",
   "icons": [

@@ -42,10 +42,6 @@ body {
   }
 }
 
-.dark body {
-  @apply bg-surface-950 text-surface-100;
-}
-
 html, body, #root {
   min-height: 100dvh;
   min-height: -webkit-fill-available;

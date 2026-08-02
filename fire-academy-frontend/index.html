@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <meta name="theme-color" content="#141414" />
+    <meta name="theme-color" content="#0a0a0a" />
     <meta name="robots" content="index, follow" />
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <title>Szkoła sztuk walki Katowice — MMA, kickboxing, boks | Fire Academy</title>
@@ -21,14 +21,10 @@
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="pl_PL" />
     <meta property="og:site_name" content="Fire Academy" />
-    <script>
-      (function() {
-        const theme = localStorage.getItem('p1-theme') || 'dark';
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-      })();
-    </script>
   </head>
-  <body style="background-color:#141414;margin:0">
+  <!-- Painted before the stylesheet arrives, so it has to be surface-950 itself: any other value is
+       a background that changes colour once on every cold load. -->
+  <body style="background-color:#0a0a0a;margin:0">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

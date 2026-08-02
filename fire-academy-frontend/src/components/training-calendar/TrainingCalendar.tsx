@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -18,16 +18,9 @@ import {
   eachDay, formatRangeLabel, rangeFor, shiftAnchor, todayIso, weekdayShort,
   type CalendarView,
 } from '../../utils/calendarRange'
+import { keepWithinEntity } from '../../utils/queryEntity'
 import type { CreateTrainingBody, PersonalTraining, RecurringSession } from '../../types'
 import type { TrainingCalendarAdapter } from './adapter'
-
-/**
- * Two range keys address the same calendar when everything before the trailing `from`/`to` pair
- * matches — that prefix is the entity (role + athlete), the dates are only which page of it.
- */
-function sameCalendar(a: QueryKey, b: QueryKey): boolean {
-  return a.length === b.length && a.slice(0, -2).every((part, i) => part === b[i])
-}
 
 /**
  * The shared 1-on-1 calendar: one component for the coach and the client, told apart only by the
@@ -63,13 +56,13 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
     // plan the other side just changed must not be served from cache.
     staleTime: 0,
     refetchOnMount: 'always',
-    // Previous data is kept ONLY inside one person's calendar. Paging to an uncached month otherwise
-    // tears the grid down to a spinner for a frame — the page collapses from six rows to nothing and
-    // snaps back, which reads as a glitch rather than as loading. Across the entity boundary the old
-    // behaviour stands: switching athlete or role is a different entity, not fresher data for the
-    // same one, and showing the previous person's trainings under a new name is worse than a spinner.
+    // Previous data is kept ONLY inside one person's calendar (the trailing `from`/`to` pair is the
+    // page, everything before it is whose calendar). Paging to an uncached month otherwise tears the
+    // grid down to a spinner for a frame — the page collapses from six rows to nothing and snaps
+    // back, which reads as a glitch rather than as loading. Across the boundary the spinner is right:
+    // showing the previous person's trainings under a new name is the worse failure.
     placeholderData: (previous, previousQuery) =>
-      previousQuery && sameCalendar(previousQuery.queryKey, rangeKey) ? previous : undefined,
+      keepWithinEntity(previous, previousQuery, rangeKey, 2),
   })
 
   const byDay = useMemo(() => {
