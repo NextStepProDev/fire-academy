@@ -38,9 +38,9 @@ CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V38 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V39.**
+**Obecny stan: V38 (wszystko na `main`). Kolejna migracja: V39.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
-> ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V37 (kalendarz 1:1 + waga + cele wagowe + zadania) na gałęzi `feat/personal-training-calendar`.
+> ℹ️ V29–V38 (kalendarz 1:1 + waga + cele wagowe + zadania + zgoda RODO) zostały scalone do `main` 2026-08-02 wraz z resztą gałęzi treningowej.
 
 | Wersja | Co dodaje |
 |--------|-----------|
