@@ -139,7 +139,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 `GET /calendar?from=&to=` (te same DTO co u trenera) · `GET /summary` (badge) · `POST|PUT|DELETE /trainings[/{id}]` · `POST /trainings/{id}/duplicate` · `POST /trainings/paste`
 `POST|DELETE /trainings/{id}/complete` (**odhaczanie to akt podopiecznego — nie ma odpowiednika u trenera**; `rpe` wymagane przy treningu, zabronione przy zadaniu → 400) · `GET|POST /trainings/{id}/comments`
 `POST /mark-seen` · `POST /deletions/dismiss` · `GET /goals` (read-only) · `GET /stats` (**bez** sygnału przetrenowania — pole nie istnieje w JSON, nie jest `false`)
-`GET /weights?range=` (`MONTH|QUARTER|…`, domyślnie QUARTER; bez ostrzeżenia o szybkim spadku) · `PUT /weights` (upsert per dzień; **ten sam request domyka cele wagowe** — ocena odpala się tu, nie schedulerem) · `DELETE /weights/{date}`
+`GET /weights?range=` (`QUARTER|YEAR|ALL`, domyślnie QUARTER; bez ostrzeżenia o szybkim spadku) · `PUT /weights` (upsert per dzień; **ten sam request domyka cele wagowe** — ocena odpala się tu, nie schedulerem) · `DELETE /weights/{date}`
 
 ### Dev `/api/dev` (profil `dev` only)
 `POST /login` · `GET /users`
