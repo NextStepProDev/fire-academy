@@ -318,6 +318,57 @@ describe('TrainingCalendar', () => {
     expect(markSeen).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the grid standing while paging to a page that is not cached yet', async () => {
+    // Tearing the grid down to a spinner collapses the page from six rows to nothing and snaps it
+    // back one fetch later. It reads as a glitch, not as loading — and only on the first visit to a
+    // month, which is exactly the kind of bug that gets dismissed as "it looked fine the second time".
+    const user = userEvent.setup()
+    const week = weekRange(TODAY)
+    const first: CalendarRange = {
+      from: week.from, to: week.to, trainings: [training()], recurring: [], deletions: [],
+    }
+    let resolveNext: (value: CalendarRange) => void = () => {}
+    const fetchRange = vi.fn()
+      .mockResolvedValueOnce(first)
+      .mockReturnValueOnce(new Promise<CalendarRange>(resolve => { resolveNext = resolve }))
+    renderCalendar(stubAdapter([], { fetchRange }))
+    await screen.findByText('Siła')
+
+    await user.click(screen.getByRole('button', { name: 'Następny okres' }))
+
+    // Seven columns, still there, while the next week is in flight
+    expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7)
+    // The frame is kept, the contents are not: last week's session is not on next week's dates
+    expect(screen.queryByText('Siła')).toBeNull()
+
+    resolveNext({ ...first, trainings: [] })
+  })
+
+  it('does not keep one athlete\'s plan on screen under another name', async () => {
+    // The other half of the same rule: paging is a different page of one entity, switching athlete is
+    // a different entity. A spinner is the right answer there.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const first = stubAdapter([training()])
+    const second = stubAdapter([], {
+      rangeKey: (from, to) => ['test', 'other-athlete', from, to],
+      fetchRange: vi.fn().mockReturnValue(new Promise(() => {})),
+    })
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TrainingCalendar adapter={first} />
+      </QueryClientProvider>
+    )
+    await screen.findByText('Siła')
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TrainingCalendar adapter={second} />
+      </QueryClientProvider>
+    )
+
+    expect(screen.queryByText('Siła')).toBeNull()
+  })
+
   it('shows the unread dot for a training the other side changed', async () => {
     renderCalendar(stubAdapter([training({ unread: true })]))
 
