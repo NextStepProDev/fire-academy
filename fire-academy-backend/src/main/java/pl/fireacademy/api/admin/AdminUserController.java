@@ -78,4 +78,16 @@ public class AdminUserController {
     public AdminUserResponse demote(@CurrentUserId UUID adminId, @PathVariable UUID id) {
         return service.demote(adminId, id);
     }
+
+    /** Marks the user as a 1-on-1 coaching client — unlocks the personal training calendar. */
+    @PostMapping("/{id}/athlete")
+    public AdminUserResponse enableAthlete(@PathVariable UUID id) {
+        return service.setAthlete(id, true);
+    }
+
+    /** Hides the personal training calendar. Non-destructive — the plan and its history survive. */
+    @DeleteMapping("/{id}/athlete")
+    public AdminUserResponse disableAthlete(@PathVariable UUID id) {
+        return service.setAthlete(id, false);
+    }
 }

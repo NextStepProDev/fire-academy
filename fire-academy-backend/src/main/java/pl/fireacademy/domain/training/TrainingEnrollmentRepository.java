@@ -138,4 +138,27 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
           AND EXISTS (SELECT 1 FROM TrainingRefund r WHERE r.enrollment = te AND r.settlementType = 'CREDITED')
         """)
     List<TrainingEnrollment> findEndedWithCreditedRefund(@Param("month") String month);
+
+    /**
+     * Subscriptions of one user overlapping any month in a date range, with the whole slot graph
+     * fetched. Powers the read-only recurring overlay on the personal calendar, whose page can
+     * straddle two or three months — the month-at-a-time queries would need one call each, and
+     * without the JOIN FETCH every slot would be a second round trip.
+     * <p>
+     * Months are VARCHAR(7) "YYYY-MM", so lexicographic comparison is chronological — the same trick
+     * the rest of this repository uses.
+     */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.slot s
+        JOIN FETCH s.eventType
+        LEFT JOIN FETCH s.instructor
+        WHERE te.user.id = :userId
+          AND s.deletedAt IS NULL
+          AND te.startMonth <= :toMonth
+          AND (te.endMonth IS NULL OR te.endMonth >= :fromMonth)
+        """)
+    List<TrainingEnrollment> findByUserCoveringMonthRange(@Param("userId") UUID userId,
+                                                          @Param("fromMonth") String fromMonth,
+                                                          @Param("toMonth") String toMonth);
 }

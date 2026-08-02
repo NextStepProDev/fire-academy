@@ -1,0 +1,399 @@
+package pl.fireacademy.api.trainingcalendar;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import org.jspecify.annotations.Nullable;
+import pl.fireacademy.domain.training.AttachmentKind;
+import pl.fireacademy.domain.training.GoalHorizon;
+import pl.fireacademy.domain.training.GoalKind;
+import pl.fireacademy.domain.training.TrainingKind;
+import pl.fireacademy.domain.training.TrainingStatus;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Shared response shapes for the 1-on-1 training calendar.
+ * <p>
+ * Both the coach view ({@code /api/admin/...}) and the client view ({@code /api/user/my-training/...})
+ * return the SAME records — that is the whole point of keeping the two controllers in one package.
+ * The frontend renders one component for both roles, so any divergence here would immediately show up
+ * as a second code path on the client.
+ */
+public final class TrainingCalendarDtos {
+
+    private TrainingCalendarDtos() {}
+
+    /** One row of the coach's roster. The overtraining flag lands here later. */
+    public record AthleteSummary(
+            UUID id,
+            String firstName,
+            String lastName,
+            String email,
+            @Nullable String avatarUrl,
+            long unreadCount
+    ) {}
+
+    /**
+     * A single entry on the plan — a training or a task.
+     *
+     * @param kind           TRAINING or TASK. Fixed at creation; the same shape serves both so the
+     *                       calendar renders one list, not two merged ones
+     * @param targetCalories tasks only, and optional there too
+     * @param status         computed server-side and never stored; the frontend only colours it, so
+     *                       the two can never disagree about what "missed" means at a day boundary
+     * @param version        echoed back on update — the client holds it to detect a concurrent edit
+     */
+    public record PersonalTrainingResponse(
+            UUID id,
+            TrainingKind kind,
+            LocalDate date,
+            @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
+            String title,
+            @Nullable String description,
+            @Nullable Integer targetCalories,
+            TrainingStatus status,
+            @Nullable Instant completedAt,
+            @Nullable String feedback,
+            @Nullable Integer rpe,
+            boolean createdByAdmin,
+            boolean lastModifiedByAdmin,
+            /** The other side touched this since the viewer last looked — drives the dot on the card. */
+            boolean unread,
+            int commentCount,
+            List<AttachmentResponse> attachments,
+            long version,
+            Instant createdAt,
+            Instant updatedAt
+    ) {}
+
+    /** One calendar page: the 1-on-1 plan plus the group sessions it sits alongside. */
+    public record CalendarRangeResponse(
+            LocalDate from,
+            LocalDate to,
+            List<PersonalTrainingResponse> trainings,
+            /**
+             * Group sessions the client is subscribed to. Read-only and computed on every request
+             * from the same rules that produce the bill — never stored as trainings.
+             */
+            List<RecurringSession> recurring,
+            /** Deleted future trainings the viewer has not dismissed yet. */
+            List<DeletedTrainingNotice> deletions
+    ) {}
+
+    /** One occurrence of a recurring group slot. Has no id of its own: it is not a row anywhere. */
+    public record RecurringSession(
+            LocalDate date,
+            UUID slotId,
+            String name,
+            @Nullable String instructorName,
+            LocalTime startTime,
+            @Nullable LocalTime endTime
+    ) {}
+
+    public record DeletedTrainingNotice(
+            UUID id,
+            LocalDate date,
+            @Nullable LocalTime startTime,
+            String title,
+            Instant deletedAt
+    ) {}
+
+    public record TrainingCommentResponse(
+            UUID id,
+            String body,
+            boolean fromCoach,
+            @Nullable String authorName,
+            Instant createdAt
+    ) {}
+
+    public record AddCommentRequest(
+            @NotBlank @Size(max = 1000) String body
+    ) {}
+
+    /** Lightweight payload behind the account tile badge — deliberately cheaper than a full page. */
+    public record MyTrainingSummary(
+            long unreadCount,
+            int deletedCount,
+            @Nullable LocalDate nextTrainingDate
+    ) {}
+
+    /**
+     * Times are optional and omitting them is the normal case. Passing an end without a start is
+     * rejected — without an hour grid there is nothing for a bare end time to mean.
+     *
+     * @param attachments {@code null} = leave materials alone · {@code []} = clear them ·
+     *                    a list = replace with exactly that. The three-way contract matters because
+     *                    a drag-and-drop re-date sends the whole training and must not silently drop
+     *                    the materials it never touched.
+     */
+    public record CreateTrainingRequest(
+            /** Omitted means TRAINING — the overwhelmingly common entry, and what older clients send. */
+            @Nullable TrainingKind kind,
+            @NotNull LocalDate date,
+            @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
+            @NotBlank @Size(max = 150) String title,
+            @Nullable @Size(max = 2000) String description,
+            /** Ignored on a training: only a task has a calorie ceiling. */
+            @Nullable @Min(500) @Max(10000) Integer targetCalories,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
+    ) {}
+
+    /** No {@code kind}: an entry is a training or a task from birth, and stays what it was. */
+    public record UpdateTrainingRequest(
+            @NotNull LocalDate date,
+            @Nullable LocalTime startTime,
+            @Nullable LocalTime endTime,
+            @NotBlank @Size(max = 150) String title,
+            @Nullable @Size(max = 2000) String description,
+            @Nullable @Min(500) @Max(10000) Integer targetCalories,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments,
+            @NotNull Long version
+    ) {}
+
+    /** Exactly one of {@code url} / {@code videoId} must be set, matching {@code kind}. */
+    public record AttachmentRequest(
+            @NotNull AttachmentKind kind,
+            @Nullable @Size(max = 150) String label,
+            @Nullable @Size(max = 500) String url,
+            @Nullable UUID videoId
+    ) {}
+
+    public record AttachmentResponse(
+            UUID id,
+            AttachmentKind kind,
+            @Nullable String label,
+            /** For a LINK the address itself; for a VIDEO the library entry's own URL. */
+            @Nullable String url,
+            @Nullable UUID videoId,
+            @Nullable String videoName,
+            /** Canonical player URL, built from the id — a pasted link never reaches an iframe. */
+            @Nullable String embedUrl,
+            @Nullable String thumbnailUrl
+    ) {}
+
+    public record ExerciseVideoResponse(
+            UUID id,
+            String name,
+            String url,
+            @Nullable String description,
+            String embedUrl,
+            String thumbnailUrl,
+            boolean archived
+    ) {}
+
+    public record PagedExerciseVideos(
+            List<ExerciseVideoResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    /**
+     * What a pasted link turns out to be, before anything is saved.
+     *
+     * @param status        OK · UNAVAILABLE (private, deleted, embedding off) · UNKNOWN (YouTube did
+     *                      not answer — never a reason to block the save)
+     * @param duplicateName name of the clip already holding this video id, or null. Matching is on
+     *                      the id, so youtu.be/X and watch?v=X are the same film
+     */
+    public record VideoMetadataResponse(
+            String status,
+            @Nullable String title,
+            @Nullable String authorName,
+            String thumbnailUrl,
+            @Nullable String duplicateName
+    ) {}
+
+    public record ExerciseVideoRequest(
+            @NotBlank @Size(max = 150) String name,
+            @NotBlank @Size(max = 500) String url,
+            @Nullable @Size(max = 1000) String description
+    ) {}
+
+    public record TrainingTemplateResponse(
+            UUID id,
+            String title,
+            @Nullable String description,
+            @Nullable Integer defaultDurationMinutes,
+            List<AttachmentResponse> attachments
+    ) {}
+
+    /**
+     * @param heatmap             non-zero days only, so a year of squares stays a small payload
+     * @param attendancePercent   null when nothing was planned in the window — 0% would claim a
+     *                            failure that never happened
+     * @param overtraining        null for the client: this signal is for the coach's eyes only, and
+     *                            the field is absent from their JSON entirely rather than false
+     */
+    public record TrainingStatsResponse(
+            int thisMonthCount,
+            int prevMonthCount,
+            int totalCount,
+            @Nullable LocalDate firstActivityDate,
+            int currentStreakWeeks,
+            int bestStreakWeeks,
+            @Nullable Double avgPerMonth,
+            Map<LocalDate, Integer> heatmap,
+            TypeBreakdown byType,
+            @Nullable Integer attendancePercent,
+            @Nullable Double avgRpeOverall,
+            @Nullable Double avgRpeRecent,
+            Map<String, Integer> rpeDistribution,
+            TaskBreakdown tasks,
+            @Nullable Boolean overtraining
+    ) {}
+
+    /** Group sessions are counted, not ticked off — hence a separate number rather than one total. */
+    public record TypeBreakdown(
+            int personal,
+            int recurring
+    ) {}
+
+    /**
+     * Tasks, counted apart from everything above.
+     * <p>
+     * Every training number in this response — streak, attendance, heatmap, monthly counts — ignores
+     * tasks entirely. Holding a calorie ceiling is not a session, and letting it feed the streak would
+     * turn "8 tygodni z rzędu" into a sentence about nothing in particular.
+     * <p>
+     * Every count ships with the denominator it belongs to. "3 done this month" is unreadable on its
+     * own: it could be three out of three or three out of twelve, and a bare 0 cannot tell a month
+     * of blown ceilings from a month where none were set. Two counts, two windows, and each pair
+     * says something without borrowing meaning from the other.
+     *
+     * @param thisMonthDue      tasks in the current month that have come due — a task still ahead of
+     *                          the client is not something they have failed to hold
+     * @param windowDue         same, over the 90 days attendance uses
+     * @param completionPercent {@code windowDone / windowDue}; null when nothing came due in the
+     *                          window, since 0% would report a failure nobody had
+     */
+    public record TaskBreakdown(
+            int thisMonthDone,
+            int thisMonthDue,
+            int windowDone,
+            int windowDue,
+            @Nullable Integer completionPercent
+    ) {}
+
+    /**
+     * @param trendKg  trailing 7-day average ending on this day. Emitted per point so the frontend
+     *                 never reimplements the window — one definition of "trend", server-side.
+     */
+    public record WeightPoint(
+            LocalDate date,
+            BigDecimal weightKg,
+            @Nullable BigDecimal trendKg
+    ) {}
+
+    /**
+     * @param weeklyChangePercent    negative when losing. Compares two TREND values a week apart, not
+     *                               two readings — comparing single days is comparing two pieces of noise
+     * @param rapidLoss              null for the client: coach-only, same reasoning as the overtraining
+     *                               signal, and the field is absent from their JSON rather than false
+     * @param trendReadings          how many mornings of the window the trend rests on, so the page can
+     *                               say what the number is worth instead of implying seven every time
+     * @param minReadingsToCloseGoal sent rather than hardcoded in the frontend: the rule for closing a
+     *                               weight goal lives in one place, and the copy explaining it stays
+     *                               true if that number ever moves
+     */
+    public record WeightSeriesResponse(
+            List<WeightPoint> points,
+            @Nullable BigDecimal currentTrendKg,
+            @Nullable BigDecimal weeklyChangePercent,
+            @Nullable Boolean rapidLoss,
+            int trendReadings,
+            int minReadingsToCloseGoal
+    ) {}
+
+    /** {@code date} omitted means today — the normal case is weighing yourself this morning. */
+    public record RecordWeightRequest(
+            @Nullable LocalDate date,
+            @NotNull @DecimalMin("20.0") @DecimalMax("300.0") BigDecimal weightKg
+    ) {}
+
+    /**
+     * @param achievedAutomatically closed by the weight log rather than by a person — the only kind
+     *                              of achievement the coach may undo
+     * @param startWeightKg         the trend when the goal was set; the progress bar measures from it
+     */
+    public record GoalResponse(
+            UUID id,
+            GoalKind kind,
+            GoalHorizon horizon,
+            String content,
+            @Nullable LocalDate targetDate,
+            @Nullable LocalDate achievedAt,
+            boolean achievedAutomatically,
+            @Nullable BigDecimal targetWeightKg,
+            @Nullable BigDecimal startWeightKg
+    ) {}
+
+    /** Active goals render as three cards; achieved ones pile up in the trophy case. */
+    public record GoalsResponse(
+            List<GoalResponse> active,
+            List<GoalResponse> achieved
+    ) {}
+
+    /** {@code targetWeightKg} present makes this a weight goal; absent makes it a general one. */
+    public record GoalRequest(
+            @NotNull GoalHorizon horizon,
+            @NotBlank @Size(max = 500) String content,
+            @Nullable LocalDate targetDate,
+            @Nullable @DecimalMin("20.0") @DecimalMax("300.0") BigDecimal targetWeightKg
+    ) {}
+
+    /** Back-datable: the coach usually notices a goal was reached some days later. */
+    public record AchieveGoalRequest(
+            @Nullable LocalDate achievedDate
+    ) {}
+
+    public record TrainingTemplateRequest(
+            @NotBlank @Size(max = 150) String title,
+            @Nullable @Size(max = 2000) String description,
+            @Nullable @Min(15) @Max(720) Integer defaultDurationMinutes,
+            @Nullable @Size(max = 3) List<@Valid AttachmentRequest> attachments
+    ) {}
+
+    /**
+     * @param rpe mandatory on a training — a ticked-off session with no perceived effort tells the
+     *            coach nothing — and rejected on a task, where the question means nothing. Which of
+     *            the two applies is decided by the entry, so the check cannot live in an annotation.
+     */
+    public record CompleteTrainingRequest(
+            @Nullable @Min(1) @Max(10) Integer rpe,
+            @Nullable @Size(max = 2000) String feedback
+    ) {}
+
+    /** Shifts a copy forward; the default lands it on the same weekday next week. */
+    public record DuplicateTrainingRequest(
+            @Nullable Integer offsetDays
+    ) {}
+
+    public enum PasteMode {
+        /** Leaves the source alone. */
+        COPY,
+        /** Moves the original, so its id, completion and (later) comments survive the move. */
+        MOVE
+    }
+
+    public record PasteTrainingRequest(
+            @NotNull UUID sourceId,
+            @NotNull LocalDate targetDate,
+            @NotNull PasteMode mode
+    ) {}
+}

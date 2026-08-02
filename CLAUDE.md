@@ -20,25 +20,27 @@ Wizytówka klubu treningowego — treningi indywidualne i małe grupy (4–6 os�
 
 ### Frontend
 - **React 19.2** + **TypeScript 6.0**, **Vite 8.0**
-- **Tailwind CSS 4.1**, **TanStack React Query 5.90**, **React Router 7.13**
-- **date-fns 4.1**, **lucide-react 1.17**, **clsx 2.1**, ESLint 10
+- **Tailwind CSS 4.1**, **TanStack React Query 5.101**, **React Router 7.13**
+- **date-fns 4.1**, **lucide-react 1.27**, **clsx 2.1**, ESLint 10
 - **i18next 26** + **react-i18next 17**, Vitest 4 + Playwright (E2E)
 
 ### Struktura repozytorium
 ```
 fire-academy-backend/
-fire-academy-frontend/
-fire-academy-hub/          # Docker Compose (dev/prod), .env
-.github/workflows/      # CI/CD
-VERSION
+fire-academy-frontend/     # nginx.conf (bot-list dla /og) + scripts/prerender.mjs
+fire-academy-hub/          # Docker Compose (dev/prod), .env, setup-swap.sh, seo-smoke.sh
+docs/                      # ⚠️ w .gitignore — lokalne: manual.md, workflow gita
+.github/workflows/         # CI/CD
+CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 ```
 
 ---
 
 ## Baza Danych — Flyway
 
-**Obecny stan (gałąź `feat/trainings-types-scheduling`): V28. Kolejna migracja: V29.**
-> ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana — kolejne migracje numerujemy od V24 w górę.
+**Obecny stan: V38 (wszystko na `main`). Kolejna migracja: V39.**
+> ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
+> ℹ️ V29–V38 (kalendarz 1:1 + waga + cele wagowe + zadania + zgoda RODO) zostały scalone do `main` 2026-08-02 wraz z resztą gałęzi treningowej.
 
 | Wersja | Co dodaje |
 |--------|-----------|
@@ -62,11 +64,23 @@ VERSION
 | V21 | training_payment — rejestr płatności miesięcznych per subskrypcja (oznaczanie opłacone/nieopłacone w rosterze) |
 | V22 | training_cancelled_session — odwołania pojedynczych zajęć (soft-delete) + archiwum |
 | V23 | dezaktywacja slotu od konkretnej daty + wygaśnięcie subskrypcji terminowej (scheduler) |
-| V24 | training_holidays (globalne dni wolne klubu — obniżają liczbę zajęć/cenę wszystkich slotów tego dnia tygodnia) + training_refunds (rejestr zwrotów: opłacone zajęcia, które się nie odbyły = należność; typ HOLIDAY/SESSION; rozliczenie `settled_at` + `settlement_type` REFUNDED (zwrot gotówki) / CREDITED (zaliczone na poczet miesiąca)). Billing scentralizowany w `TrainingBillingService` (odejmuje dni wolne + odwołane zajęcia); zwroty w `TrainingRefundService` (rejestracja przy odwołaniu opłaconego miesiąca, cofnięcie przy przywróceniu/odznaczeniu płatności). Odwołania zajęć: pojedyncze (per slot+data), **odwołanie wszystkich zajęć trenera w danym dniu** (`POST /admin/training-slots/cancel-instructor-day`), oraz dzień wolny = cały klub. Zakładki admina „Dni wolne" i „Zwroty" w sekcji Treningi |
-| V25 | training_payments.credit_applied — nadwyżka ze zwrotu rozliczonego jako CREDITED realnie obniża rachunek. `TrainingCreditService`: saldo nadwyżki = suma zwrotów CREDITED − nadwyżka skonsumowana (zamrożona na opłaconych miesiącach w `credit_applied`); obniża najbliższy nieopłacony miesiąc **nie wcześniejszy niż miesiąc źródłowy nadwyżki** (nadpłata za sierpień idzie na wrzesień, nie na lipiec), overflow roluje na kolejne; docinana do żywego rachunku (`cena × zajęcia`). Konsumpcja przy oznaczeniu „opłacone", zwrot przy odznaczeniu. Bezpiecznik: nie można cofnąć rozliczenia CREDITED, którego nadwyżka już skonsumowana (`trainingrefund.credit.consumed`). User widzi NET + „uwzględniono nadwyżkę −X zł"; roster pokazuje saldo nadwyżki. **Płatności: okno + chronologia** (`setPayment`): miesiąc otwiera się do płatności dopiero na 7 dni przed startem (`too.early`, to samo okno co estymata) — nie da się opłacić sierpnia w środku lipca; dodatkowo chronologia (nie opłacisz miesiąca, gdy wcześniejszy nieopłacony; nie cofniesz, gdy późniejszy opłacony) → opłacone miesiące = ciągły prefiks, stan „sierpień opłacony, lipiec nie" nie powstaje. Testy: `TrainingCreditServiceTest`/`AdminTrainingRefundServiceTest`/`AdminTrainingEnrollmentServiceTest` (jednostkowe, niezależne od zegara) |
-| V26 | training_payments.amount — **snapshot kwoty NET zamrożony przy oznaczeniu „opłacone"** (NULL = stare wpisy → fallback na przeliczenie na żywo). Razem z nim pakiet poprawek audytu przedprodukcyjnego (2026-07-03): **(1) Proracja od daty zapisu, nie „od dziś"** — `TrainingBillingService.sessions(te, month)`: stały bywalec płaci pełny miesiąc niezależnie od dnia zapłaty, proracja tylko w miesiącu, w którym powstał zapis (od dnia zapisu); wariant `sessions(slot, month)` „od dziś" zostaje wyłącznie do podglądu nowego zapisu (katalog/modal). **(2) Blokada cofnięcia płatności z rozliczonym zwrotem** (`trainingpayment.unpay.settled.refund`) — najpierw cofnij rozliczenie zwrotu. **(3) Zwroty świadome przyczyny zamknięcia daty** (`ClosureCause` SINGLE_SESSION/HOLIDAY/DEACTIVATION): rejestracja pomija datę już zamkniętą innym mechanizmem (bez zwrotu za zajęcia, których nie było w opłaconym rachunku), revoke/bezpieczniki dotykają tylko zwrotów, które realnie ożywają (usunięcie dnia wolnego nie kasuje zwrotu z osobnego odwołania itd.); odwołanie sesji/dnia trenera na dacie dnia wolnego → 409. **(4) Blokada rezygnacji usera i usunięcia przez admina przy opłaconym bieżącym/przyszłym miesiącu** (`trainingenrollment.cancel.paid.future`/`remove.paid`) — hard delete nie zje wpłat. **(5) Usunięcie konta z aktywną subskrypcją**: mail do organizatora + jawne skasowanie subskrypcji (`closeSubscriptionsBeforeAccountDeletion`). **(6) Strefa czasowa** `-Duser.timezone=Europe/Warsaw` w Dockerfile + `TZ` w compose (JVM w UTC psuła okno płatności i granice miesiąca o północy). **(7) Drobne**: zapis/katalog ukrywa miesiące po pełnej dezaktywacji slotu, admin-add na usunięty slot → 404, scheduler wygaśnięć pomija usunięte sloty, kontrola duplikatu = prawdziwe nakładanie przedziałów (`existsOverlapping`). Testy: rozszerzone `TrainingFlowIntegrationTest` (krzyżówki zamknięć, blokady), `TrainingBillingServiceTest` (proracja), frontend `trainingSchedule.test.ts` |
-| V27 | training_payments.pinned — płatność oznaczona pojedynczo na rosterze (per slot) jest „przypięta": zbiorcze cofnięcie całego miesiąca jej nie rusza, kasuje ją tylko ten sam przełącznik per slot |
-| V28 | training_enrollments.billable_from — opcjonalna korekta „licz od dnia X" pierwszego miesiąca (NULL = fallback na `created_at` = dzień zapisu). Organizator ustawia realną datę startu przy pierwszej płatności, rachunek przelicza się sam (`TrainingBillingService.billableFromDay` bierze `billableFrom` gdy ustawione). Endpoint `PUT /admin/training-enrollments/{id}/start` (`SetStartRequest`): data musi być w miesiącu startu (400) i miesiąc nie może być opłacony (`trainingenrollment.start.paid`, 409). Do tego **sygnał „zaległość po terminie"** (bez automatu kasującego): roster + Płatności pokazują `overdue` = nieopłacone i po dacie pierwszych zajęć miesiąca + 1 dzień grace (`TrainingBillingService.isPaymentOverdue`); usunięcie nieopłaconego zapisu zostaje ręczne. Testy: `TrainingBillingServiceTest` (override + overdue), `TrainingFlowIntegrationTest.shouldSetBillingStartDateAndBlockChangeOncePaid` |
+| V24 | training_holidays (dni wolne klubu) + training_refunds (zwroty za opłacone zajęcia, które się nie odbyły; REFUNDED / CREDITED). Billing w `TrainingBillingService`, zwroty w `TrainingRefundService` |
+| V25 | training_payments.credit_applied — nadwyżka CREDITED obniża najbliższy nieopłacony miesiąc (`TrainingCreditService`). Płatności: okno 7 dni przed startem + chronologia (opłacone = ciągły prefiks) |
+| V26 | training_payments.amount — snapshot kwoty NET przy „opłacone" + pakiet audytu przedprodukcyjnego (proracja od daty zapisu, `ClosureCause`, blokady cofnięcia/rezygnacji, strefa czasowa) |
+| V27 | training_payments.pinned — płatność oznaczona per slot jest „przypięta"; zbiorcze cofnięcie miesiąca jej nie rusza |
+| V28 | training_enrollments.billable_from — korekta „licz od dnia X" pierwszego miesiąca (`PUT /admin/training-enrollments/{id}/start`) + sygnał `overdue` |
+| V29 | users.is_athlete — flaga podopiecznego 1:1 (indeks częściowy). **Zdjęcie flagi niczego nie kasuje**; nie wyprowadzana z subskrypcji grupowych |
+| V30 | personal_trainings — wspólny plan trener↔podopieczny. Godziny nullable (brak = przypadek domyślny), `@Version`, RPE 1–10 związane CHECK-iem z ukończeniem, `MISSED` liczony a nie zapisywany |
+| V31 | training_comments (`author_is_admin` = rola zamrożona w chwili wpisu) + training_calendar_reads (liczniki per para) + training_deletions (migawka usuniętych przyszłych treningów) |
+| V32 | exercise_videos (dedup po `video_key`) + training_templates (użycie **kopiuje** treść) + training_attachments (`video_id` ON DELETE RESTRICT, limit 3 domknięty w bazie) |
+| V33 | athlete_goals — cele na 3 horyzontach (SHORT/MEDIUM/LONG), partial UNIQUE tylko na aktywnych; osiągnięty cel niezmienny |
+| V34 | athlete_weights — poranna waga (unikat osoba+dzień = korekta, nie drugi pomiar). Trend = średnia krocząca 7 dni liczona serwerowo. Ostrzeżenie o szybkim spadku **tylko dla trenera**; brak zapisu po stronie admina |
+| V35 | athlete_goals + `kind` GENERAL/WEIGHT, `target_weight_kg`, `start_weight_kg`. **Cel wagowy zamyka się sam, ale wyłącznie na trendzie 7-dniowym**; cofnąć można tylko osiągnięcie automatyczne |
+| V36 | DROP exercise_videos.category — treść wtopiona w `name`; nazwa filmu uzupełnia się z tytułu YouTube (oEmbed, request z **sparsowanego** `video_key`) |
+| V37 | personal_trainings + `kind` TRAINING/TASK, `target_calories`. **Zadanie to osobny wiersz**, odhaczane bez RPE; statystyki treningowe zadań nie widzą — mają własny blok `tasks` |
+| V38 | users.training_consent_at — wyraźna zgoda RODO art. 9 na dane zdrowotne planu 1:1 (waga, trend, cele wagowe, limity kalorii, RPE, komentarze). NULL = brak; **celowo bez backfillu**, więc każdy obecny podopieczny raz przechodzi ekran zgody. Zdjęcie `is_athlete` **kasuje zgodę** (`User.setAthlete`) — dane wracają po ponownym włączeniu, zgoda nie |
+
+> 📖 **Pełne uzasadnienia V24–V37 → [`DECISIONS-TRAINING.md`](DECISIONS-TRAINING.md).** Tam leży „dlaczego" (bezpieczniki rozliczeń, kolejność płatności, kontrakty pól, testy pilnujące każdej reguły). Czytaj przed zmianą w danym obszarze.
 
 ---
 
@@ -78,12 +92,13 @@ VERSION
 ### User `/api/user` (auth required)
 `GET /me` (zwraca m.in. `privacyAccepted`, `marketingConsent`) · `PUT /me` · `PUT /me/password` · `DELETE /me` (RODO: anonimizuje całą historię — przyszłe zapisy kasuje (zwalnia miejsce), przeszłe anonimizuje + zeruje `user_id`; ta sama logika co admin → `EnrollmentErasureService.eraseForUser`, wołana PRZED usunięciem konta) · `PUT /me/marketing` (toggle zgody marketingowej `{enabled}`) · `POST /me/consents` (domknięcie zgód po Google: `{acceptedPrivacy, acceptedMarketing}` — polityka obowiązkowa gdy jeszcze nieudzielona) · `PUT /me/language` · `POST /me/avatar` (multipart, kadrowanie po stronie frontu) · `DELETE /me/avatar`
 `POST /enrollments` (zapis na wydarzenie z konta — body `{eventId, note}`, dane z profilu; brak telefonu w profilu → `enrollment.phone.required`, front kieruje do `/settings`) · `GET /enrollments` (moje rezerwacje: `{current, past}`, każdy z `canCancel`) · `DELETE /enrollments/{id}` (anulowanie własnego zapisu; blokada <24h; powiadamiany tylko organizator)
+`POST /training-slots/{slotId}/enroll` (subskrypcja miesięczna slotu grupowego) · `GET /training-enrollments` (moje treningi cykliczne + rachunek) · `DELETE /training-enrollments/{id}` (rezygnacja; blokada przy opłaconym bieżącym/przyszłym miesiącu → `trainingenrollment.cancel.paid.future`)
 
 ### Files `/api/files` (public, cached 7 dni)
 `GET /files/{folder}/{filename}` — streaming
 
 ### Public `/api/public` (brak auth)
-`GET /instructors?category=` · `GET /instructors/{id}` · `GET /event-types?category=` · `GET /event-types/{id}` · `GET /events?category=` · `GET /events/{id}`
+`GET /instructors?category=` · `GET /instructors/{id}` · `GET /event-types?category=` · `GET /event-types/{id}` · `GET /events?category=` · `GET /events/{id}` · `GET /training-slots` (katalog slotów cyklicznych z estymatą ceny) · `GET /training-holidays`
 `POST /marketing/unsubscribe` (`{token}` — rezygnacja z marketingu z linku w mailu, bez logowania; idempotentne, zawsze 204 — anti-enumeracja; front: strona `/wypisz-sie?token=`, świadomie POST nie GET, by skanery maili nie wypisywały userów prefetchem)
 > ⚠️ Zapis gościa (`POST /events/{id}/enroll`) **USUNIĘTY** (V17). Zapis tylko przez konto → `POST /api/user/enrollments`. Niezalogowany klik „Zapisz się" w SPA → redirect na `/logowanie` (returnTo).
 
@@ -91,16 +106,40 @@ VERSION
 `GET /` · `GET /{categorySlug}/rodzaj/{id}` · `GET /{categorySlug}/termin/{id}` · `GET /kadra/{id}`
 Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages do tych endpointów. Zwraca HTML z `og:title`, `og:description`, `og:image` + meta refresh redirect do SPA.
 
-> ⚠️ **GOTCHA — bot-list w `nginx.conf` NIGDY nie zawiera wyszukiwarek.** Reguły `if ($http_user_agent ~* ...)` na `/kadra/{id}` i `/(treningi|obozy|szkolenia)/(rodzaj|termin)/{id}` przepisują bota na `/og/*`, a `OgController` zwraca stub z `<meta http-equiv="refresh">` na ten sam URL. Crawler renderujący JS (Googlebot/bingbot/Baidu/Yandex) podąża za refreshem → znowu reguła bota → **pętla = GSC „Redirect error"** + pusta strona (zła dla SEO). Trzymaj tam wyłącznie scrapery social (FB/WhatsApp/Twitter/LinkedIn/Slack/Telegram/Discord); wyszukiwarki muszą trafiać do SPA. (Naprawione 2026-06; ten sam błąd był w climbing.)
+### SEO (brak auth)
+`GET /sitemap.xml` (`SitemapController` — generowana z aktywnych terminów/rodzajów/kadry). Build frontu odpala `scripts/prerender.mjs` (`npm run build` = `tsc -b && vite build && prerender`) — dosypuje statyczne `<head>` dla tras listingowych; przy błędzie loguje `[prerender] skipped` i zostawia zwykły SPA fallback, więc build się nie wywala.
+
+> ⚠️ **GOTCHA — bot-list w `fire-academy-frontend/nginx.conf` NIGDY nie zawiera wyszukiwarek.** Reguły `if ($http_user_agent ~* ...)` na `/kadra/{id}` i `/(treningi|obozy|szkolenia)/(rodzaj|termin)/{id}` przepisują bota na `/og/*`, a `OgController` zwraca stub z `<meta http-equiv="refresh">` na ten sam URL. Crawler renderujący JS (Googlebot/bingbot/Baidu/Yandex) podąża za refreshem → znowu reguła bota → **pętla = GSC „Redirect error"** + pusta strona (zła dla SEO). Trzymaj tam wyłącznie scrapery social (FB/WhatsApp/Twitter/LinkedIn/Slack/Telegram/Discord); wyszukiwarki muszą trafiać do SPA. (Naprawione 2026-06; ten sam błąd był w climbing.)
 
 ### Admin `/api/admin` (ROLE_ADMIN)
 `/instructors` — CRUD + categories (CAMP/COURSE/TRAINING) + photo upload + reorder + toggle active
 `/event-types` — CRUD + `?category=` + thumbnail + gallery photos + reorder
 `/events` — CRUD + `?category=` + toggle active + customName (bez auto-create EventType)
 `/enrollments` — lista + admin-add + delete (`DELETE /{id}?notify=` — `notify=false` = ciche usunięcie z archiwum, bez maila o odwołaniu; admin-add ma guard duplikatu `enrollment.already.exists`. **Admin-add tylko dla istniejącego konta** — `AdminEnrollRequest{eventId, userId, note}`, dane uczestnika z konta (front: wyszukiwarka usera przez `GET /users?search=`); duplikat per `user_id+event`)
+`/training-slots` — CRUD + `/batch` + `/{id}/deactivate|reactivate` + `/deleted` (archiwum) + `/{id}/cancel-session` (POST/DELETE) + `/cancel-instructor-day` + `/{id}/cancelled-sessions` + `/cancelled-sessions/overview` + `/{slotId}/enrollments` (roster, admin-add)
+`/training-enrollments` — `DELETE /{id}` · `DELETE /user/{userId}` · `GET /user/{userId}/history` · `PUT /{id}/payment` (opłacone per slot) · `PUT /{id}/start` (billable_from)
+`/training-payments` — `GET` (przegląd miesiąca) · `POST /pay-user/{userId}` (zbiorczo) · `/training-refunds` — `GET` · `GET /unconsumed-credit` · `POST /{id}/settle|unsettle` · `POST /settle-user/{userId}` · `/training-holidays` — `GET|POST|DELETE /{id}`
 `/users` — `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 50/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `marketing`, `created`} (whitelist, telefon niesortowalny; `marketing` = po `marketing_consent_at`), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`. Lista zwraca też `marketingConsent` per user (ikona zgody w UI). **Konta z `ADMIN_HIDDEN_EMAILS` ukryte** — filtr w SQL, by liczniki/paginacja były spójne; te same konta pominięte w wyszukiwarce admin-add i jako adresaci maila zbiorczego) · `POST /email` (`{subject, message, audience, userIds}` — `audience` ∈ {`MARKETING` (tylko zgody marketingowe + auto link rezygnacji w stopce), `ALL` (komunikat serwisowy do wszystkich, bez linku), `SELECTED` (wybrane `userIds`)}; branding+podpis auto, ukryte konta pomijane) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/promote` (**tylko super-admin z `ADMIN_EMAIL`**) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
 
 > **Super-admin** = e-mail z `ADMIN_EMAIL` (`AdminEmailConfig.isAdminEmail`). `GET /api/user/me` zwraca flagę `superAdmin` (front pokazuje przyciski nadania i odebrania uprawnień admina tylko jemu). Maile admin→user: `AdminUserMailService` (logo Fire Academy, podpis „Pozdrawiam, Fire Academy", temat bez HTML-escape).
+
+### Kalendarz treningów 1:1 — `pl.fireacademy.api.trainingcalendar`
+> Kontrolery trenera i podopiecznego siedzą w **jednym pakiecie** (nie w `api/admin`), żeby dzielić rekordy DTO — obie role dostają identyczny kształt odpowiedzi, bo front renderuje jeden komponent dla obu. Ochrona ról bierze się ze **ścieżki**, nie z pakietu.
+
+**Trener** `/api/admin` (ROLE_ADMIN):
+`GET /athletes` (roster; nieprzeczytane najpierw) · `POST|DELETE /users/{id}/athlete` (flaga)
+`GET|POST /personal-trainings` (`?athleteId=&from=&to=`) · `PUT|DELETE /personal-trainings/{id}` · `POST /{id}/duplicate` · `POST /paste` (`{sourceId, targetDate, mode: COPY|MOVE}`)
+`GET|POST /personal-trainings/{id}/comments` · `POST /personal-trainings/mark-seen?athleteId=` · `POST /personal-trainings/deletions/dismiss?athleteId=`
+`GET /personal-trainings/stats?athleteId=` (**z sygnałem przetrenowania**) · `GET /personal-trainings/weights?athleteId=&range=` (read-only, **jedyne miejsce z ostrzeżeniem o szybkim spadku**; brak zapisu — patrz V34)
+`GET|POST /personal-trainings/goals` · `PUT|DELETE /personal-trainings/goals/{id}` · `POST /personal-trainings/goals/{id}/achieve` · `POST /personal-trainings/goals/{id}/reopen` (**tylko osiągnięcie automatyczne**)
+`GET|POST|PUT|DELETE /exercise-videos[/{id}]` · `GET /exercise-videos/search?query=` · `POST /exercise-videos/{id}/archive|/restore` · `GET|POST|PUT|DELETE /training-templates[/{id}]`
+
+**Podopieczny** `/api/user/my-training` (auth + flaga `is_athlete`; **brak flagi → 404, nie 403**):
+> 🔒 **Zgoda RODO art. 9 bramkuje całą tę ścieżkę.** `TrainingConsentInterceptor` (rejestrowany w `WebConfig` na `/api/user/my-training/**`) zwraca **409**, dopóki podopieczny nie zaznaczy zgody — dzięki temu każdy nowy endpoint klienta jest chroniony domyślnie. Kolejność w interceptorze jest istotna: **brak flagi przepuszcza dalej** (żeby `TrainingAccessService` dał swoje 404 — 409 zdradziłoby istnienie funkcji), 409 leci wyłącznie flagowanemu bez zgody. Wyjątek: `/summary` (sam licznik do badge'a, odpytywany zanim zgoda w ogóle padnie). Zgodę zapisuje `POST /api/user/me/training-consent` — leży przy pozostałych zgodach, bo endpoint zdejmujący blokadę nie może za nią stać. Sekcja 5 polityki prywatności (`id="plan-treningowy"`) to cel linku z ekranu zgody — nie zmieniać id ani numeracji bez poprawienia linku.
+`GET /calendar?from=&to=` (te same DTO co u trenera) · `GET /summary` (badge) · `POST|PUT|DELETE /trainings[/{id}]` · `POST /trainings/{id}/duplicate` · `POST /trainings/paste`
+`POST|DELETE /trainings/{id}/complete` (**odhaczanie to akt podopiecznego — nie ma odpowiednika u trenera**; `rpe` wymagane przy treningu, zabronione przy zadaniu → 400) · `GET|POST /trainings/{id}/comments`
+`POST /mark-seen` · `POST /deletions/dismiss` · `GET /goals` (read-only) · `GET /stats` (**bez** sygnału przetrenowania — pole nie istnieje w JSON, nie jest `false`)
+`GET /weights?range=` (`MONTH|QUARTER|…`, domyślnie QUARTER; bez ostrzeżenia o szybkim spadku) · `PUT /weights` (upsert per dzień; **ten sam request domyka cele wagowe** — ocena odpala się tu, nie schedulerem) · `DELETE /weights/{date}`
 
 ### Dev `/api/dev` (profil `dev` only)
 `POST /login` · `GET /users`
@@ -113,8 +152,8 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 |---------|-----------|------|
 | `/` | HomePage | Hero z 3 sekcjami (diagonal clip-path): Treningi / Obozy / Szkolenia |
 | `/treningi` | TrainingsPage | Terminy + Rodzaje (popup modal) + Kadra |
-| `/obozy` | EventsPage(CAMP) | Terminy + Rodzaje (popup modal) + Kadra |
-| `/szkolenia` | EventsPage(COURSE) | Terminy + Rodzaje (popup modal) + Kadra |
+| `/obozy` | CampsPage | Terminy + Rodzaje (popup modal) + Kadra |
+| `/szkolenia` | CoursesPage | Terminy + Rodzaje (popup modal) + Kadra |
 | `/:category/rodzaj/:id` | EventTypeDetailPage | Strona szczegółów rodzaju (galeria, opis, powiązane terminy, share) |
 | `/:category/termin/:id` | EventDetailPage | Strona szczegółów terminu (data, lokalizacja, cena, zapis, share) |
 | `/kadra/:id` | InstructorDetailPage | Strona szczegółów instruktora (zdjęcie, bio, share) |
@@ -122,16 +161,22 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 | `/rejestracja` | RegisterPage | Rejestracja konta (telefon + wymagana akceptacja polityki prywatności → `acceptedPrivacy` + opcjonalna zgoda marketingowa → `acceptedMarketing`; `/admin/register`, `/register` → redirect tutaj) |
 | `/uzupelnij-profil` | ProfileCompletionPage | Domknięcie konta po Google (ProtectedRoute): brakujące pola profilu + (gdy `privacyAccepted=false`) obowiązkowa polityka prywatności i opcjonalny marketing → `POST /api/user/me/consents`. Pokazywana gdy `needsProfileCompletion(user)` |
 | `/wypisz-sie` | MarketingUnsubscribePage | Rezygnacja z marketingu z linku w mailu (public, `?token=`, przycisk → `POST /api/public/marketing/unsubscribe`) |
-| `/moje-konto` | MojeKontoPage | Konto usera (ProtectedRoute): profil + „Moje rezerwacje" (bieżące/archiwum z `GET /api/user/enrollments`, anulowanie własnego zapisu) |
+| `/moje-konto` | MyAccountPage | Konto usera (ProtectedRoute): profil + kafelki do sekcji poniżej |
+| `/moje-konto/rezerwacje` | MyReservationsPage | Moje rezerwacje na wydarzenia (bieżące/archiwum z `GET /api/user/enrollments`, anulowanie własnego zapisu) |
+| `/moje-konto/treningi` | MyTrainingsPage | Moje treningi cykliczne (subskrypcje slotów, rachunek, rezygnacja — `GET /api/user/training-enrollments`) |
+| `/moje-konto/plan-treningowy` | MyTrainingCalendarPage | Kalendarz treningów 1:1 podopiecznego (ProtectedRoute + `isAthlete`): cele (read-only), kalendarz, waga, statystyki. Kafelek na `/moje-konto` widoczny tylko przy `isAthlete` |
 | `/settings` | SettingsPage | Ustawienia konta (ProtectedRoute): avatar, dane (w tym telefon), hasło, zgoda marketingowa (toggle), usunięcie konta |
-| `/admin/*` | AdminPage | Panel admina (zakładki: kadra, treningi, obozy, szkolenia, użytkownicy, archiwum). Zakładka „Użytkownicy": lista (paginacja+sort+wyszukiwanie) → klik w osobę = profil (`AdminUserDetail`: dane podgląd, zapisy bieżące/archiwum, dopisanie do wydarzenia, usuwanie zapisu/wpisu z archiwum). **Zakładka RODO usunięta** — prawo do bycia zapomnianym = usunięcie konta (anonimizuje całą historię, patrz niżej) |
+| `/polityka-prywatnosci` | PrivacyPolicyPage | Polityka prywatności (link ze stopki i z formularzy zgód) |
+| `/admin/*` | AdminPage | Panel admina (zakładki: kadra, treningi, obozy, szkolenia, **podopieczni**, użytkownicy, archiwum). Zakładka „Podopieczni": lista → klik = kalendarz 1:1 tej osoby (przejmuje całą zakładkę) + cele + statystyki; pod listą biblioteka filmów i szablony. Zakładka „Użytkownicy": lista (paginacja+sort+wyszukiwanie) → klik w osobę = profil (`AdminUserDetail`: dane podgląd, zapisy bieżące/archiwum, dopisanie do wydarzenia, usuwanie zapisu/wpisu z archiwum). **Zakładka RODO usunięta** — prawo do bycia zapomnianym = usunięcie konta (anonimizuje całą historię, patrz niżej) |
 | `/verify-email` | VerifyEmailPage | Weryfikacja email (link z maila) |
 | `/reset-password` | ResetPasswordPage | Reset hasła (link z maila) |
 | `/forgot-password` | ForgotPasswordPage | Formularz zapomniałem hasła |
+| `/resend-verification` | ResendVerificationPage | Ponowne wysłanie linku weryfikacyjnego |
+| `/oauth-callback` | OAuthCallbackPage | Powrót z Google (odbiera tokeny, kieruje dalej — m.in. na `/uzupelnij-profil`) |
 
 Nawigacja (Navbar): Strona główna · Treningi · Obozy · Szkolenia · (Moje konto — zalogowany user) · (Panel admina — zalogowany admin) · (Zaloguj się — gość, na każdej zakładce). Zapis na wydarzenie wymaga konta: hook `useEnrollGuard` przekierowuje gościa na `/logowanie` z returnTo.
 
-Stopka (Footer): Opis Fire Academy · Quick links · Dane kontaktowe · Polityka prywatności · Regulamin · ShareButton
+Stopka (Footer): Opis Fire Academy · Quick links · Dane kontaktowe · Polityka prywatności · ShareButton. **Regulaminu nie ma** — klucz `footer.terms` siedzi w `locales/pl/common.json`, ale nic go nie renderuje i nie ma trasy; przy dodawaniu linku trzeba najpierw dopisać stronę
 
 ### Udostępnianie (ShareButton)
 Rozwijany przycisk (Facebook / WhatsApp / Kopiuj link) na: kartach rodzajów, wierszach terminów, kartach kadry, stronach szczegółów, stopce (strona główna). Slug kategorii: `treningi`↔TRAINING, `obozy`↔CAMP, `szkolenia`↔COURSE (`src/utils/categorySlug.ts`). OG meta tagi w `index.html` (statyczny fallback) + `react-helmet-async` (dynamiczny `<title>`) + backend `OgController` (dla crawlerów). Placeholder `public/og-default.png` — wymaga zastąpienia właściwym obrazem 1200×630px.
@@ -156,7 +201,7 @@ Rozwijany przycisk (Facebook / WhatsApp / Kopiuj link) na: kartach rodzajów, wi
 - OAuth2 Google (opcjonalny): aktywacja przez profil `oauth2` (`SPRING_PROFILES_ACTIVE=dev,oauth2`), wymaga `OAUTH2_GOOGLE_CLIENT_ID` + `OAUTH2_GOOGLE_CLIENT_SECRET` w `.env`
 - **Auto-admin:** email z `ADMIN_EMAIL` (env var) automatycznie dostaje ADMIN przy rejestracji
 - Account lockout: 5 failed attempts → 15 min lockout
-- Rate limiting: per-IP per-endpoint
+- Rate limiting: **per-IP per-kubełek**, nie per-endpoint. `RateLimitFilter` ma 5 kubełków rozstrzyganych prefiksem ścieżki: `auth` 15/min · `user` 20/min · **`mytraining` 120/min** · `admin` 60/min · `public` 120/min. Kalendarz 1:1 ma własny kubełek, bo samo przeglądanie generuje więcej żądań niż cała reszta `/api/user/**` razem wzięta. ⚠️ Prefiksy w `resolveLimit` i `resolveBucket` muszą być sprawdzane w **tej samej kolejności, od najbardziej szczegółowego** — inaczej limit jednego kubełka trafi na licznik drugiego
 - **Konta publiczne** — logowanie/rejestracja dostępne dla każdego (`/logowanie`, `/rejestracja`); Navbar pokazuje „Zaloguj się" gościowi na wszystkich zakładkach. Zapis na wydarzenia wymaga konta. Admin trafia do panelu przez `/admin` (gdy zalogowany jako ADMIN). Rejestracja zapisuje zgodę RODO (`users.privacy_accepted_at`) + opcjonalną zgodę marketingową (`users.marketing_consent_at`). **Google OAuth**: zgody domykane na `/uzupelnij-profil` (polityka obowiązkowa, marketing opcjonalny) — `OAuth2UserService.createNewUser` celowo nie ustawia zgód
 - Strony utility (verify-email, reset-password, forgot-password, resend-verification) pozostają na root level (linki z maili)
 
@@ -172,7 +217,7 @@ Rozwijany przycisk (Facebook / WhatsApp / Kopiuj link) na: kartach rodzajów, wi
 
 ### Serwer produkcyjny
 - **Swap 2 GB — krytyczny przy ograniczonej pamięci (bez tego OOM).** Przy pierwszym deploy uruchomić raz: `sudo bash setup-swap.sh` (skrypt w `fire-academy-hub/`, idempotentny: 2 GB `/swapfile`, swappiness 10, utrwalone w fstab + sysctl)
-- **JVM tuning backendu (mem_limit 384m).** ENTRYPOINT w `fire-academy-backend/Dockerfile`: `-XX:MaxRAMPercentage=55.0` (~211 MB heap; + non-heap ~120 MB mieści się w 384 MB z zapasem — przy 75% było ~288 MB heap → ~408 MB > limit = ryzyko OOM-kill i wypychania bezczynnego heapu do swapu), `-XX:MaxMetaspaceSize=128m`, `-XX:+ExitOnOutOfMemoryError`. **Bez wymuszonego `-XX:+UseG1GC`** — poniżej 2 GB RAM JVM ergonomicznie wybiera lekszy SerialGC (mniej pamięci natywnej niż G1 na ciasnym boxie). `$JAVA_OPTS` zachowany jako passthrough; w `docker-compose.prod.yml` `JAVA_OPTS=""` (po upgradzie RAM można tam wstawić `-XX:+UseG1GC`).
+- **JVM tuning backendu (mem_limit 384m).** ENTRYPOINT w `fire-academy-backend/Dockerfile`: `-XX:MaxRAMPercentage=55.0` (~211 MB heap; + non-heap ~120 MB mieści się w 384 MB z zapasem — przy 75% było ~288 MB heap → ~408 MB > limit = ryzyko OOM-kill i wypychania bezczynnego heapu do swapu), `-XX:MaxMetaspaceSize=128m`, `-XX:+ExitOnOutOfMemoryError`, `-XX:TieredStopAtLevel=1` (C1-only JIT — skraca start na 2 vCPU; wdrożone 2026-06-20, start 103→64 s). Kontener chodzi jako **non-root** (`USER app`). **Bez wymuszonego `-XX:+UseG1GC`** — poniżej 2 GB RAM JVM ergonomicznie wybiera lekszy SerialGC (mniej pamięci natywnej niż G1 na ciasnym boxie). `$JAVA_OPTS` zachowany jako passthrough; w `docker-compose.prod.yml` `JAVA_OPTS=""` (po upgradzie RAM można tam wstawić `-XX:+UseG1GC`).
 - **Mail health poza liveness probe.** `management.health.mail.enabled=false` w `application.yml` (domyślnie, niezależnie od env). Wolny SMTP (~10 s) przekraczał 5 s timeout docker healthchecka `/actuator/health` → fałszywe „unhealthy" → zbędny restart. Maile nie są liveness-critical. (W compose env `MANAGEMENT_HEALTH_MAIL_ENABLED=false` zostaje jako redundantny, jawny override.)
 
 ### CI/CD (GitHub Actions)
@@ -200,6 +245,38 @@ cd fire-academy-frontend && npm run dev
 ```
 
 Backend wymaga działającego PostgreSQL (port 5433). MailHog (web UI: localhost:8026) przechwytuje emaile wysyłane przez auth flow (weryfikacja konta, reset hasła).
+
+---
+
+## Kalendarz treningów 1:1 — pułapki
+
+Zasady, które łatwo po cichu złamać przy kolejnej zmianie. Każda ma test, który to wyłapie.
+
+**Nakładka cykliczna NIGDY nie jest materializowana.** Sesje grupowe na kalendarzu 1:1 liczy `RecurringSessionOverlayService` przy każdym żądaniu, z tego samego kodu co rachunek (`TrainingBillingService`). Zapisanie ich jako wierszy w `personal_trainings` wygląda prościej przez jedno popołudnie i kosztuje na zawsze: dzień wolny, odwołane zajęcia, rezygnacja w połowie miesiąca, dezaktywacja slotu od 15. — każde z nich musiałoby polować na wygenerowane wiersze, a każde pudło to kalendarz niezgodny z rachunkiem. `RecurringOverlayIntegrationTest` sprawdza, że po pobraniu strony `SELECT count(*) FROM personal_trainings` = 0.
+
+**Koszt nakładki to 3 zapytania niezależnie od zakresu.** API zakresowe w `TrainingBillingService` (`closedDatesInRange` wsadowe, czyste `sessionDatesInRange`, `addDeactivationDates`) istnieje właśnie po to. Test porównuje liczbę zapytań dla tygodnia i dla 6-tygodniowej siatki — regresja do pobierania per miesiąc wywala build.
+
+**Zadanie i trening to dwa wiersze, nigdy jeden.** Kuszące jest dopięcie „limitu kcal" jako pola do treningu — jedno okno, jedno odhaczenie. Wtedy dzień, w którym trening wyszedł, a dieta nie, nie ma jak się zapisać: cokolwiek pokaże checkbox, będzie kłamstwem o połowie dnia. Stąd `kind` na wierszu, dwa kafelki w dniu i dwa niezależne odhaczenia. `kind` jest ustawiany przy tworzeniu i nie ma go w `UpdateTrainingRequest` — przełączenie odhaczonego treningu na zadanie musiałoby po cichu skasować RPE, żeby wiersz przeszedł CHECK-i. Zadanie odhacza się bez RPE (walidacja zależy od wiersza, więc siedzi w serwisie, nie w adnotacji), a statystyki treningowe zadań nie widzą — mają własny blok `tasks`.
+
+**Kontrakt `attachments`: `null` = nie ruszaj · `[]` = wyczyść · lista = zamień.** Przesunięcie treningu wysyła cały obiekt; potraktowanie braku listy jako „wyczyść" po cichu gubi materiały, których edycja nie dotykała.
+
+**Liczniki nieprzeczytanych: 7 źródeł, spisane z góry** (`TrainingUnreadService`). Tryb awarii jest cichy — zapomniane źródło po prostu nikogo nie powiadamia. Klucz to `updated_at` + flaga autorstwa, **nigdy `completed_at`**: cofnięcie wykonania zeruje tę kolumnę, a trener i tak musi się o tym dowiedzieć. `complete()`/`uncomplete()` **muszą** zerować `lastModifiedByAdmin`, inaczej podopieczny zapala sobie własną kropkę.
+
+**Mark-seen dopiero gdy strona naprawdę dotarła** (`isSuccess && !isFetching`). Przy powrocie z cache React Query zgłasza sukces w tym samym ticku, a oznaczenie „widziane" przed policzeniem kropek przez serwer gasi je, zanim ktokolwiek je zobaczy. Po oznaczeniu invalidacja z `refetchType: 'none'` — kropki zostają na tę wizytę.
+
+**Zapytania o liczniki nadpisują globalny cache.** Domyślny `staleTime` to 5 minut; badge musi mieć `staleTime: 0` + `refetchOnWindowFocus: true`, a treść kalendarza `refetchOnMount: 'always'` + `placeholderData: undefined` (zmiana podopiecznego to inna encja, nie świeższe dane tej samej).
+
+**Formularze czekają na potwierdzenie zapisu** (`await`, nie fire-and-forget) i pokazują błąd **inline przy przycisku**. Zwinięcie formularza przed odpowiedzią serwera mówi użytkownikowi, że zapisał coś, co się nie zapisało.
+
+**Brak siatki godzinowej — świadomie.** Kalendarz to kolumny dni z kafelkami; godzina jest opcjonalna i jej brak to przypadek domyślny, więc trening bez godziny **nie renderuje żadnej etykiety czasu** (ani myślnika, ani „cały dzień"). Test asercjuje, że w drzewie nie ma osi godzinowej.
+
+**Enum zapisany jako tekst nie sortuje się po kolejności deklaracji.** `ORDER BY horizon` w SQL dało LONG, MEDIUM, SHORT zamiast SHORT, MEDIUM, LONG — sortowanie celów siedzi w serwisie, po `Comparator.comparing(AthleteGoal::getHorizon)`.
+
+**Sygnał przetrenowania widzi tylko trener.** Pole `overtraining` **nie istnieje** w JSON podopiecznego (nie jest `false`). Strona mówiąca komuś „przetrenowujesz się" zamienia zaczątek rozmowy w wyrok.
+
+**Filmy „prywatne" na YouTube się nie osadzają** — osadzają się tylko „niepubliczne" (unlisted). Formularz dodawania pokazuje podgląd od razu po wklejeniu linku właśnie po to, żeby Kapitan zobaczył pusty odtwarzacz od razu, a nie przez podopiecznego tydzień później.
+
+**Testy nakładki używają NASTĘPNEGO miesiąca.** Subskrypcja utworzona dziś jest prorowana od dzisiejszego dnia miesiąca, więc sesje wcześniejsze w bieżącym miesiącu poprawnie wypadają — pierwsze podejście wyglądało jak „nakładka nie działa", a była to działająca proracja.
 
 ---
 

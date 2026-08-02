@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowRight, CalendarCheck, Dumbbell, Pencil, User as UserIcon } from 'lucide-react'
+import { ArrowRight, CalendarCheck, ClipboardList, Dumbbell, Pencil, User as UserIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { userApi } from '../api/client'
-import { userApi as trainingApi } from '../api/user'
+import { userApi as trainingApi, myTrainingApi } from '../api/user'
 import { Seo } from '../components/seo/Seo'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 
 export function MyAccountPage() {
   const { t } = useTranslation('account')
+  const { t: tCalendar } = useTranslation('calendar')
   const { user } = useAuth()
 
   const enrollmentsQuery = useQuery({
@@ -21,6 +22,18 @@ export function MyAccountPage() {
   const trainingsQuery = useQuery({
     queryKey: ['user', 'training-enrollments'],
     queryFn: trainingApi.getMyTrainingEnrollments,
+  })
+
+  // Notification counters are the one thing that must never be served stale: the read marker lives
+  // on the server per account, so clearing alerts on a phone has to be reflected on a laptop the
+  // moment its window regains focus. The global 5-minute staleTime would keep showing the old count.
+  const summaryQuery = useQuery({
+    queryKey: ['user', 'my-training', 'summary'],
+    queryFn: myTrainingApi.getSummary,
+    enabled: user?.isAthlete ?? false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   })
 
   if (!user) return null
@@ -80,8 +93,8 @@ export function MyAccountPage() {
         </dl>
       </section>
 
-      {/* Two tiles: event reservations vs cyclical trainings */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {/* Event reservations, cyclical trainings, and — for coaching clients — the 1-on-1 plan */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <AccountTile
           to="/moje-konto/rezerwacje"
           icon={<CalendarCheck className="w-6 h-6" />}
@@ -100,6 +113,19 @@ export function MyAccountPage() {
           countLabel={t('tiles.trainings.count', { count: trainingsCount })}
           cta={t('tiles.open')}
         />
+        {/* Only for 1-on-1 clients. The flag rides along on /me, so showing the tile costs no
+            extra request — and people without a coach never see a door they cannot open. */}
+        {user.isAthlete && (
+          <AccountTile
+            to="/moje-konto/plan-treningowy"
+            icon={<ClipboardList className="w-6 h-6" />}
+            title={tCalendar('my.tileTitle')}
+            description={tCalendar('my.tileDescription')}
+            count={summaryQuery.data?.unreadCount || undefined}
+            countLabel={summaryQuery.data?.unreadCount ? tCalendar('my.tileBadge') : undefined}
+            cta={tCalendar('my.tileCta')}
+          />
+        )}
       </div>
     </div>
   )
@@ -111,7 +137,8 @@ interface AccountTileProps {
   title: string
   description: string
   count?: number
-  countLabel: string
+  /** Optional: a tile without a counted collection behind it has nothing to caption. */
+  countLabel?: string
   cta: string
 }
 
@@ -134,7 +161,7 @@ function AccountTile({ to, icon, title, description, count, countLabel, cta }: A
       <h3 className="mt-4 text-lg font-bold text-surface-100">{title}</h3>
       <p className="mt-1 text-sm text-surface-400">{description}</p>
       <div className="mt-4 flex items-center justify-between">
-        <span className="text-xs text-surface-500">{countLabel}</span>
+        <span className="text-xs text-surface-500">{countLabel ?? ''}</span>
         <span className="inline-flex items-center gap-1 text-sm font-medium text-primary-400 transition-transform group-hover:translate-x-0.5">
           {cta}
           <ArrowRight className="w-4 h-4" />

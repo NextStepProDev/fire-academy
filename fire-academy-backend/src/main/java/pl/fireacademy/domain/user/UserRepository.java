@@ -65,6 +65,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         """)
     List<User> searchByNameOrEmail(@Param("q") String q, Pageable pageable);
 
+    // Roster of 1-on-1 coaching clients. Backed by the partial index from V29.
+    List<User> findByAthleteTrueOrderByFirstNameAscLastNameAsc();
+
     // We treat emails case-insensitively (like all mail providers),
     // to avoid duplicate accounts and failed logins due to different letter casing.
     Optional<User> findByEmailIgnoreCase(String email);

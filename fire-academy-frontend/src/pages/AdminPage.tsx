@@ -13,7 +13,10 @@ import { AdminTrainingRefunds } from './admin/AdminTrainingRefunds'
 import { AdminTrainingUserDetail } from './admin/AdminTrainingUserDetail'
 import { AdminArchive } from './admin/AdminArchive'
 import { AdminUsers } from './admin/AdminUsers'
-import type { EventCategory } from '../types'
+import { AdminAthletes } from './admin/AdminAthletes'
+import { AdminExerciseVideos } from './admin/AdminExerciseVideos'
+import { AdminTrainingTemplates } from './admin/AdminTrainingTemplates'
+import type { AthleteSummary, EventCategory } from '../types'
 
 const categoryTabs: Record<string, EventCategory> = {
   treningi: 'TRAINING',
@@ -26,6 +29,7 @@ const tabs = [
   { key: 'treningi', ns: 'admin.tabs.trainings' },
   { key: 'obozy', ns: 'admin.tabs.camps' },
   { key: 'szkolenia', ns: 'admin.tabs.courses' },
+  { key: 'podopieczni', ns: 'admin.tabs.athletes' },
   { key: 'uzytkownicy', ns: 'admin.tabs.users' },
   { key: 'archiwum', ns: 'admin.tabs.archive' },
 ] as const
@@ -39,6 +43,9 @@ export function AdminPage() {
   // When a person's profile is opened from the "Uczestnicy" section, it takes over the whole Treningi tab
   // (the global training sections below it are hidden) so it never looks like they belong to that one person.
   const [trainingUserId, setTrainingUserId] = useState<string | null>(null)
+  // Same idiom for the 1-on-1 tab: an open client's calendar replaces the tab, so the library and
+  // template sections do not hang underneath looking like they belong to that one person.
+  const [openAthlete, setOpenAthlete] = useState<AthleteSummary | null>(null)
 
   if (!tab || !validTabs.has(tab)) {
     return <Navigate to="/admin/treningi" replace />
@@ -52,7 +59,7 @@ export function AdminPage() {
         {tabs.map(item => (
           <button
             key={item.key}
-            onClick={() => { setTrainingUserId(null); navigate(`/admin/${item.key}`) }}
+            onClick={() => { setTrainingUserId(null); setOpenAthlete(null); navigate(`/admin/${item.key}`) }}
             className={clsx(
               'px-4 py-2 text-sm font-medium rounded-t-lg transition-colors',
               tab === item.key
@@ -84,6 +91,15 @@ export function AdminPage() {
             </div>
       )}
 
+      {tab === 'podopieczni' && (
+        openAthlete
+          ? <AdminAthletes openAthlete={openAthlete} onOpen={setOpenAthlete} />
+          : <div className="space-y-12">
+              <AdminAthletes openAthlete={null} onOpen={setOpenAthlete} />
+              <AdminExerciseVideos />
+              <AdminTrainingTemplates />
+            </div>
+      )}
       {tab === 'uzytkownicy' && <AdminUsers />}
       {tab === 'archiwum' && <AdminArchive />}
     </div>

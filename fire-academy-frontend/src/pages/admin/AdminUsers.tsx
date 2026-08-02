@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, Search, Mail, MailCheck, MailX, Trash2, LogOut, ShieldCheck, ShieldMinus, BadgeCheck, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
 import { adminApi, type EmailAudience } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../context/ToastContext'
@@ -204,7 +205,12 @@ export function AdminUsers() {
       </div>
 
       <div className="bg-surface-900 border border-surface-800 rounded-xl overflow-hidden">
-        {usersQuery.isError ? (
+        {usersQuery.isLoading ? (
+          // "No users found" is a verdict, and it must not be delivered before the first page has
+          // even arrived. Paging and searching keep the previous table on screen (keepPreviousData),
+          // so this only stands in for the very first load.
+          <LoadingSpinner className="p-6" />
+        ) : usersQuery.isError ? (
           <p className="text-red-400 text-sm p-6">{t('users.loadError')}</p>
         ) : users.length === 0 ? (
           <p className="text-surface-500 text-sm p-6">{t('users.noResults')}</p>

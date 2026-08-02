@@ -54,6 +54,16 @@ public class UserController {
         return ResponseEntity.ok(userService.submitConsents(userId, request));
     }
 
+    /**
+     * Explicit consent to the 1-on-1 calendar's health data (GDPR art. 9(2)(a)). Lives here, next to
+     * the other consents, rather than under /my-training — everything there is blocked until this is
+     * given (TrainingConsentInterceptor), so the endpoint that lifts the block cannot sit behind it.
+     */
+    @PostMapping("/me/training-consent")
+    public ResponseEntity<UserDtos.UserResponse> grantTrainingConsent(@CurrentUserId UUID userId) {
+        return ResponseEntity.ok(userService.grantTrainingConsent(userId));
+    }
+
     @PostMapping("/me/logout-all")
     public ResponseEntity<Void> logoutAllDevices(@CurrentUserId UUID userId) {
         userService.logoutAllDevices(userId);

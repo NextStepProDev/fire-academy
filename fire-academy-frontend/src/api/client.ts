@@ -11,6 +11,29 @@ import { refreshTokens } from './auth'
 
 const API_BASE = '/api'
 
+/**
+ * An error the backend described itself. Carries the HTTP status and the `code` field from the
+ * standard error body, so callers can react to a specific failure (a 409 version conflict needs a
+ * "refresh" affordance, a 404 does not) instead of pattern-matching the human-readable message.
+ *
+ * Extends Error, so every existing `e instanceof Error` / `e.message` path keeps working.
+ */
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string | null
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+
+  get isConflict(): boolean {
+    return this.status === 409
+  }
+}
+
 let refreshPromise: Promise<string | null> | null = null
 
 async function ensureValidToken(): Promise<string | null> {
@@ -137,7 +160,7 @@ export async function fetchApi<T>(
     const body = await response.json().catch(() => null)
     const serverMessage = body?.message
     if (serverMessage) {
-      throw new Error(serverMessage)
+      throw new ApiError(serverMessage, response.status, body?.code ?? null)
     }
     if (response.status === 500) {
       throw new Error(i18n.t('server', { ns: 'errors' }))
@@ -195,6 +218,9 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ acceptedPrivacy, acceptedMarketing }),
     }),
+  /** One-time explicit consent to training-data processing; /my-training 409s without it. */
+  grantTrainingConsent: () =>
+    fetchApi<User>('/user/me/training-consent', { method: 'POST' }),
   updateLanguage: (language: string) =>
     fetchApi<void>('/user/me/language', {
       method: 'PUT',

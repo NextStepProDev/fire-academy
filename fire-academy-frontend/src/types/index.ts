@@ -9,6 +9,14 @@ export interface User {
   superAdmin: boolean
   privacyAccepted: boolean
   marketingConsent: boolean
+  /** 1-on-1 coaching client — unlocks the personal training calendar. Set by an admin. */
+  isAthlete: boolean
+  /**
+   * Explicit consent (GDPR art. 9) to the calendar's health data — weigh-ins, weight goals,
+   * calorie targets, effort ratings. False for every client until they pass the consent screen;
+   * /api/user/my-training answers 409 without it.
+   */
+  trainingConsent: boolean
   preferredLanguage: string
   hasPassword: boolean
   avatarUrl: string | null
@@ -26,6 +34,7 @@ export interface AdminUser {
   superAdmin: boolean
   emailVerified: boolean
   marketingConsent: boolean
+  isAthlete: boolean
   createdAt: string
 }
 
@@ -86,6 +95,7 @@ export interface AdminUserDetail {
   superAdmin: boolean
   emailVerified: boolean
   marketingConsent: boolean
+  isAthlete: boolean
   preferredLanguage: string
   hasPassword: boolean
   oauthLinked: boolean
@@ -93,6 +103,275 @@ export interface AdminUserDetail {
   createdAt: string
   currentEnrollments: UserEnrollment[]
   pastEnrollments: UserEnrollment[]
+}
+
+/** One row of the coach's 1-on-1 roster. */
+export interface AthleteSummary {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  avatarUrl: string | null
+  unreadCount: number
+}
+
+/** Computed server-side, never stored — the frontend only colours it. */
+export type TrainingStatus = 'PLANNED' | 'COMPLETED' | 'MISSED'
+
+/**
+ * What an entry on the plan is. A TASK ("max 2200 kcal today") is a separate entry from the training
+ * it shares a day with, so the session and the diet are ticked off — and fail — independently.
+ * Fixed when the entry is created; there is no endpoint that changes it.
+ */
+export type TrainingKind = 'TRAINING' | 'TASK'
+
+export interface PersonalTraining {
+  id: string
+  kind: TrainingKind
+  date: string
+  /** Null is the normal case — an untimed training means "do this that day". */
+  startTime: string | null
+  endTime: string | null
+  title: string
+  description: string | null
+  /** Tasks only, and optional there too — a task can be "wypij 3 l wody" with no number. */
+  targetCalories: number | null
+  status: TrainingStatus
+  completedAt: string | null
+  feedback: string | null
+  rpe: number | null
+  createdByAdmin: boolean
+  lastModifiedByAdmin: boolean
+  /** The other side changed this since we last looked — drives the dot on the card. */
+  unread: boolean
+  commentCount: number
+  attachments: Attachment[]
+  /** Echoed back on update so a concurrent edit is caught instead of silently overwritten. */
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DeletedTrainingNotice {
+  id: string
+  date: string
+  startTime: string | null
+  title: string
+  deletedAt: string
+}
+
+/**
+ * One occurrence of a recurring group slot. Deliberately has no id: it is not a row anywhere, it is
+ * computed from the subscription on every request. Nothing in the UI may offer to edit it.
+ */
+export interface RecurringSession {
+  date: string
+  slotId: string
+  name: string
+  instructorName: string | null
+  startTime: string
+  endTime: string | null
+}
+
+export interface CalendarRange {
+  from: string
+  to: string
+  trainings: PersonalTraining[]
+  recurring: RecurringSession[]
+  deletions: DeletedTrainingNotice[]
+}
+
+export interface TrainingComment {
+  id: string
+  body: string
+  fromCoach: boolean
+  authorName: string | null
+  createdAt: string
+}
+
+export interface MyTrainingSummary {
+  unreadCount: number
+  deletedCount: number
+  nextTrainingDate: string | null
+}
+
+export interface CreateTrainingBody {
+  /** Omitted means TRAINING. */
+  kind?: TrainingKind
+  date: string
+  startTime?: string | null
+  endTime?: string | null
+  title: string
+  description?: string | null
+  /** Ignored by the server on a training. */
+  targetCalories?: number | null
+  /** undefined = leave materials alone · [] = clear · list = replace. */
+  attachments?: AttachmentInput[] | null
+}
+
+/** No kind: an entry is a training or a task from birth, and the server will not change it. */
+export interface UpdateTrainingBody extends CreateTrainingBody {
+  version: number
+}
+
+export type PasteMode = 'COPY' | 'MOVE'
+
+export interface WeightPoint {
+  date: string
+  weightKg: number
+  /** Trailing 7-day average ending on this day — computed server-side, one definition of "trend". */
+  trendKg: number | null
+}
+
+/** How far back a weight series reaches. Bounded server-side; the page only names the window. */
+export type WeightRange = 'QUARTER' | 'YEAR' | 'ALL'
+
+export interface WeightSeries {
+  points: WeightPoint[]
+  currentTrendKg: number | null
+  /** Negative when losing. Compares two trend values a week apart, not two readings. */
+  weeklyChangePercent: number | null
+  /** Absent from the client's response entirely — coach-only, like the overtraining signal. */
+  rapidLoss?: boolean
+  /** How many mornings of the 7-day window the trend rests on. */
+  trendReadings: number
+  /** Below this many readings a weight goal will not close itself. Sent, never assumed here. */
+  minReadingsToCloseGoal: number
+}
+
+export interface TrainingStats {
+  thisMonthCount: number
+  prevMonthCount: number
+  totalCount: number
+  firstActivityDate: string | null
+  currentStreakWeeks: number
+  bestStreakWeeks: number
+  avgPerMonth: number | null
+  /** Non-zero days only, keyed 'YYYY-MM-DD'. */
+  heatmap: Record<string, number>
+  byType: { personal: number; recurring: number }
+  /** Null when nothing was planned — 0% would claim a failure that never happened. */
+  attendancePercent: number | null
+  avgRpeOverall: number | null
+  avgRpeRecent: number | null
+  rpeDistribution: { light: number; medium: number; hard: number }
+  /**
+   * Tasks, counted apart from every training number above. Every count comes with the denominator it
+   * belongs to: "3 done this month" could be three of three or three of twelve, and a bare 0 cannot
+   * tell a month of blown ceilings from a month where none were set. `completionPercent` is null
+   * until something has actually come due — 0% would report a failure nobody had.
+   */
+  tasks: {
+    thisMonthDone: number
+    thisMonthDue: number
+    windowDone: number
+    windowDue: number
+    completionPercent: number | null
+  }
+  /** Absent from the client's response entirely — this signal is for the coach. */
+  overtraining?: boolean
+}
+
+export type GoalHorizon = 'SHORT' | 'MEDIUM' | 'LONG'
+
+export type GoalKind = 'GENERAL' | 'WEIGHT'
+
+export interface AthleteGoal {
+  id: string
+  kind: GoalKind
+  horizon: GoalHorizon
+  content: string
+  targetDate: string | null
+  achievedAt: string | null
+  /** Closed by the weight log rather than a person — the only kind the coach may reopen. */
+  achievedAutomatically: boolean
+  targetWeightKg: number | null
+  /** The trend when the goal was set; the progress bar measures from it. */
+  startWeightKg: number | null
+}
+
+export interface AthleteGoals {
+  active: AthleteGoal[]
+  achieved: AthleteGoal[]
+}
+
+export interface GoalInput {
+  horizon: GoalHorizon
+  content: string
+  targetDate?: string | null
+  /** Present makes this a weight goal; absent makes it a general one. */
+  targetWeightKg?: number | null
+}
+
+export type AttachmentKind = 'LINK' | 'VIDEO'
+
+export interface Attachment {
+  id: string
+  kind: AttachmentKind
+  label: string | null
+  url: string | null
+  videoId: string | null
+  videoName: string | null
+  /** Canonical player URL, built server-side from the video id. */
+  embedUrl: string | null
+  thumbnailUrl: string | null
+}
+
+export interface AttachmentInput {
+  kind: AttachmentKind
+  label?: string | null
+  url?: string | null
+  videoId?: string | null
+}
+
+export interface ExerciseVideo {
+  id: string
+  name: string
+  url: string
+  description: string | null
+  embedUrl: string
+  thumbnailUrl: string
+  archived: boolean
+}
+
+export interface PagedExerciseVideos {
+  content: ExerciseVideo[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+/** What YouTube says about a pasted link, before anything is saved. */
+export interface VideoMetadata {
+  /** OK · UNAVAILABLE (private, deleted, embedding off) · UNKNOWN (YouTube did not answer). */
+  status: 'OK' | 'UNAVAILABLE' | 'UNKNOWN'
+  title: string | null
+  authorName: string | null
+  thumbnailUrl: string
+  /** Name of the clip already holding this video id — matching is on the id, not the URL. */
+  duplicateName: string | null
+}
+
+export interface ExerciseVideoInput {
+  name: string
+  url: string
+  description?: string | null
+}
+
+export interface TrainingTemplate {
+  id: string
+  title: string
+  description: string | null
+  defaultDurationMinutes: number | null
+  attachments: Attachment[]
+}
+
+export interface TrainingTemplateInput {
+  title: string
+  description?: string | null
+  defaultDurationMinutes?: number | null
+  attachments?: AttachmentInput[] | null
 }
 
 export type EventCategory = 'CAMP' | 'COURSE' | 'TRAINING'

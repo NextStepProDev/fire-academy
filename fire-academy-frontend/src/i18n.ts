@@ -9,17 +9,18 @@ import eventsPl from './locales/pl/events.json'
 import adminPl from './locales/pl/admin.json'
 import accountPl from './locales/pl/account.json'
 import marketingPl from './locales/pl/marketing.json'
+import calendarPl from './locales/pl/calendar.json'
 
 i18n
   .use(initReactI18next)
   .init({
     resources: {
-      pl: { common: commonPl, auth: authPl, settings: settingsPl, errors: errorsPl, events: eventsPl, admin: adminPl, account: accountPl, marketing: marketingPl },
+      pl: { common: commonPl, auth: authPl, settings: settingsPl, errors: errorsPl, events: eventsPl, admin: adminPl, account: accountPl, marketing: marketingPl, calendar: calendarPl },
     },
     lng: 'pl',
     fallbackLng: 'pl',
     defaultNS: 'common',
-    ns: ['common', 'auth', 'settings', 'errors', 'events', 'admin', 'account', 'marketing'],
+    ns: ['common', 'auth', 'settings', 'errors', 'events', 'admin', 'account', 'marketing', 'calendar'],
     interpolation: { escapeValue: false },
   })
 

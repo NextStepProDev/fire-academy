@@ -70,6 +70,18 @@ public class User {
     @Column(name = "marketing_unsubscribe_token", nullable = false, updatable = false)
     private UUID marketingUnsubscribeToken = UUID.randomUUID();
 
+    // 1-on-1 coaching client. Set manually by an admin; clearing it hides the personal training
+    // calendar but keeps every row behind it, so re-enabling restores the full history.
+    @Column(name = "is_athlete", nullable = false)
+    private boolean athlete = false;
+
+    // Explicit consent (GDPR art. 9(2)(a)) to processing the calendar's health data: weigh-ins and
+    // the trend, weight goals, calorie targets, effort ratings and post-session notes. NULL = not
+    // given; the timestamp is the proof of consent. Cleared together with the athlete flag.
+    @Column(name = "training_consent_at")
+    @Nullable
+    private Instant trainingConsentAt;
+
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
 
@@ -265,6 +277,35 @@ public class User {
 
     public UUID getMarketingUnsubscribeToken() {
         return marketingUnsubscribeToken;
+    }
+
+    public boolean isAthlete() {
+        return athlete;
+    }
+
+    public void setAthlete(boolean athlete) {
+        this.athlete = athlete;
+        // Losing the flag drops the consent with it: returning to the calendar months later has to
+        // be a fresh decision, not one carried over from an arrangement that already ended.
+        if (!athlete) {
+            this.trainingConsentAt = null;
+        }
+    }
+
+    @Nullable
+    public Instant getTrainingConsentAt() {
+        return trainingConsentAt;
+    }
+
+    public boolean hasTrainingConsent() {
+        return trainingConsentAt != null;
+    }
+
+    /** Idempotent: re-confirming keeps the original proof-of-consent timestamp. */
+    public void grantTrainingConsent() {
+        if (trainingConsentAt == null) {
+            trainingConsentAt = Instant.now();
+        }
     }
 
     public int getFailedLoginAttempts() {

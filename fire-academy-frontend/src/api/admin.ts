@@ -1,5 +1,5 @@
 import { fetchApi } from './client'
-import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory } from '../types'
+import type { EventCategory, Instructor, EventType, EventInstance, Enrollment, AdminUser, PagedUsers, AdminUserDetail, TrainingSlot, TrainingRosterEntry, AdminUserSummary, CancelledSession, CancelledSessionOverview, DeletedTrainingSlot, TrainingHoliday, RefundEntry, UnconsumedCreditEntry, UserMonthlyPayment, SettlementType, TrainingUserHistory, AthleteSummary, CalendarRange, PersonalTraining, CreateTrainingBody, UpdateTrainingBody, PasteMode, TrainingComment, ExerciseVideo, PagedExerciseVideos, ExerciseVideoInput, VideoMetadata, TrainingTemplate, TrainingTemplateInput, AthleteGoal, AthleteGoals, GoalInput, TrainingStats, WeightSeries, WeightRange } from '../types'
 import { validateImageFile, compressImage } from '../utils/imageUtils'
 
 export type EmailAudience = 'MARKETING' | 'ALL' | 'SELECTED'
@@ -281,4 +281,101 @@ export const adminApi = {
     fetchApi<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
   demoteUser: (id: string) =>
     fetchApi<AdminUser>(`/admin/users/${id}/demote`, { method: 'POST' }),
+
+  // Personal training calendar (1-on-1)
+  setAthlete: (id: string, enabled: boolean) =>
+    fetchApi<AdminUser>(`/admin/users/${id}/athlete`, { method: enabled ? 'POST' : 'DELETE' }),
+  getAthletes: () =>
+    fetchApi<AthleteSummary[]>('/admin/athletes'),
+
+  getTrainingCalendar: (athleteId: string, from: string, to: string) =>
+    fetchApi<CalendarRange>(`/admin/personal-trainings?athleteId=${athleteId}&from=${from}&to=${to}`),
+  createPersonalTraining: (athleteId: string, body: CreateTrainingBody) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings?athleteId=${athleteId}`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  updatePersonalTraining: (id: string, body: UpdateTrainingBody) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  deletePersonalTraining: (id: string) =>
+    fetchApi<void>(`/admin/personal-trainings/${id}`, { method: 'DELETE' }),
+  duplicatePersonalTraining: (id: string, offsetDays?: number) =>
+    fetchApi<PersonalTraining>(`/admin/personal-trainings/${id}/duplicate`, {
+      method: 'POST', body: JSON.stringify({ offsetDays }),
+    }),
+  pastePersonalTraining: (sourceId: string, targetDate: string, mode: PasteMode) =>
+    fetchApi<PersonalTraining>('/admin/personal-trainings/paste', {
+      method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
+    }),
+  getTrainingComments: (id: string) =>
+    fetchApi<TrainingComment[]>(`/admin/personal-trainings/${id}/comments`),
+  addTrainingComment: (id: string, body: string) =>
+    fetchApi<TrainingComment>(`/admin/personal-trainings/${id}/comments`, {
+      method: 'POST', body: JSON.stringify({ body }),
+    }),
+  markTrainingCalendarSeen: (athleteId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
+  dismissTrainingDeletions: (athleteId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/deletions/dismiss?athleteId=${athleteId}`, { method: 'POST' }),
+
+  /** Read-only: the coach does not weigh anybody, so there is deliberately no write counterpart. */
+  getAthleteWeights: (athleteId: string, range: WeightRange = 'QUARTER') =>
+    fetchApi<WeightSeries>(`/admin/personal-trainings/weights?athleteId=${athleteId}&range=${range}`),
+  getAthleteStats: (athleteId: string) =>
+    fetchApi<TrainingStats>(`/admin/personal-trainings/stats?athleteId=${athleteId}`),
+
+  // Goals (coach sets them; the client only reads)
+  getAthleteGoals: (athleteId: string) =>
+    fetchApi<AthleteGoals>(`/admin/personal-trainings/goals?athleteId=${athleteId}`),
+  createAthleteGoal: (athleteId: string, data: GoalInput) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals?athleteId=${athleteId}`, {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+  updateAthleteGoal: (goalId: string, data: GoalInput) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}`, {
+      method: 'PUT', body: JSON.stringify(data),
+    }),
+  deleteAthleteGoal: (goalId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/goals/${goalId}`, { method: 'DELETE' }),
+  /** Reopens a goal the weight log closed by itself; refused for one a person achieved. */
+  reopenAthleteGoal: (goalId: string) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}/reopen`, { method: 'POST' }),
+  achieveAthleteGoal: (goalId: string, achievedDate?: string | null) =>
+    fetchApi<AthleteGoal>(`/admin/personal-trainings/goals/${goalId}/achieve`, {
+      method: 'POST', body: JSON.stringify({ achievedDate: achievedDate ?? null }),
+    }),
+
+  // Exercise video library
+  getExerciseVideos: (params: { query?: string; includeArchived?: boolean; page?: number; size?: number } = {}) => {
+    const q = new URLSearchParams()
+    if (params.query) q.set('query', params.query)
+    if (params.includeArchived) q.set('includeArchived', 'true')
+    q.set('page', String(params.page ?? 0))
+    q.set('size', String(params.size ?? 50))
+    return fetchApi<PagedExerciseVideos>(`/admin/exercise-videos?${q.toString()}`)
+  },
+  suggestExerciseVideos: (query: string) =>
+    fetchApi<ExerciseVideo[]>(`/admin/exercise-videos/search?query=${encodeURIComponent(query)}`),
+  /** Title and embeddability straight from YouTube, so the form can fill in and warn early. */
+  getVideoMetadata: (url: string) =>
+    fetchApi<VideoMetadata>(`/admin/exercise-videos/metadata?url=${encodeURIComponent(url)}`),
+  createExerciseVideo: (data: ExerciseVideoInput) =>
+    fetchApi<ExerciseVideo>('/admin/exercise-videos', { method: 'POST', body: JSON.stringify(data) }),
+  updateExerciseVideo: (id: string, data: ExerciseVideoInput) =>
+    fetchApi<ExerciseVideo>(`/admin/exercise-videos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteExerciseVideo: (id: string) =>
+    fetchApi<void>(`/admin/exercise-videos/${id}`, { method: 'DELETE' }),
+  setExerciseVideoArchived: (id: string, archived: boolean) =>
+    fetchApi<ExerciseVideo>(`/admin/exercise-videos/${id}/${archived ? 'archive' : 'restore'}`, { method: 'POST' }),
+
+  // Training templates
+  getTrainingTemplates: () =>
+    fetchApi<TrainingTemplate[]>('/admin/training-templates'),
+  createTrainingTemplate: (data: TrainingTemplateInput) =>
+    fetchApi<TrainingTemplate>('/admin/training-templates', { method: 'POST', body: JSON.stringify(data) }),
+  updateTrainingTemplate: (id: string, data: TrainingTemplateInput) =>
+    fetchApi<TrainingTemplate>(`/admin/training-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTrainingTemplate: (id: string) =>
+    fetchApi<void>(`/admin/training-templates/${id}`, { method: 'DELETE' }),
 }
