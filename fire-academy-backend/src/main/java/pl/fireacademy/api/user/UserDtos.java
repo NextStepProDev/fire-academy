@@ -13,7 +13,7 @@ public final class UserDtos {
                                 boolean superAdmin,
                                 boolean emailVerified,
                                 boolean privacyAccepted, boolean marketingConsent,
-                                boolean isAthlete,
+                                boolean isAthlete, boolean trainingConsent,
                                 String preferredLanguage, boolean hasPassword,
                                 boolean oauthLinked, @Nullable String avatarUrl, Instant createdAt) {}
 

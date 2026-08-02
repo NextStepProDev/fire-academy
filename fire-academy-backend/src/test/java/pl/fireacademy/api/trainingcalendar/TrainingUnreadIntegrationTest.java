@@ -30,6 +30,8 @@ class TrainingUnreadIntegrationTest extends BaseIntegrationTest {
         String token = createUserAndGetToken(email, "Ala", "Testowa", UserRole.USER);
         User user = userRepository.findByEmail(email).orElseThrow();
         user.setAthlete(true);
+        // The client side of the calendar sits behind the GDPR art. 9 consent gate (V38)
+        user.grantTrainingConsent();
         userRepository.save(user);
         return token;
     }

@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Seo } from '../components/seo/Seo'
 import { useAuth } from '../context/AuthContext'
 import { TrainingCalendar } from '../components/training-calendar/TrainingCalendar'
+import { TrainingConsentGate } from '../components/training-calendar/TrainingConsentGate'
 import { athleteAdapter } from '../components/training-calendar/adapter'
 import { GoalsBoard } from '../components/goals/GoalsBoard'
 import { TrainingStatsPanel } from '../components/training-stats/TrainingStatsPanel'
@@ -11,7 +12,7 @@ import { WeightPanel } from '../components/weight/WeightPanel'
 
 export function MyTrainingCalendarPage() {
   const { t } = useTranslation('calendar')
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
   // The API answers 404 for a non-client anyway; bouncing here avoids showing an error page to
   // someone who simply followed a stale link.
@@ -34,20 +35,29 @@ export function MyTrainingCalendarPage() {
         <p className="mt-1 text-sm text-surface-400">{t('my.subtitle')}</p>
       </div>
 
-      {/* Read-only for the client: goals are the coach's call. */}
-      <GoalsBoard athleteId={null} />
+      {/* Consent first: nothing below may fetch before it (the API 409s), and clients who predate
+          the consent screen pass through it once, here. */}
+      {!user.trainingConsent ? (
+        <TrainingConsentGate onAccepted={refreshUser} />
+      ) : (
+        <>
+          {/* Read-only for the client: goals are the coach's call. */}
+          <GoalsBoard athleteId={null} />
 
-      <TrainingCalendar adapter={athleteAdapter(user.id)} />
+          <TrainingCalendar adapter={athleteAdapter(user.id)} />
 
-      <WeightPanel athleteId={null} />
+          <WeightPanel athleteId={null} />
 
-      <TrainingStatsPanel athleteId={null} />
+          <TrainingStatsPanel athleteId={null} />
 
-      {/* Said once, quietly, at the foot of the page it covers — everything here is shared with the
-          coach, and the client should have read that at least once without being told repeatedly. */}
-      <p className="border-t border-surface-800 pt-4 text-xs text-surface-500">
-        {t('my.sharedNotice')}
-      </p>
+          {/* Said once, quietly, at the foot of the page it covers — everything here is shared with
+              the coach, and the client should have read that at least once without being told
+              repeatedly. */}
+          <p className="border-t border-surface-800 pt-4 text-xs text-surface-500">
+            {t('my.sharedNotice')}
+          </p>
+        </>
+      )}
     </div>
   )
 }

@@ -38,7 +38,7 @@ CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V37 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V38.**
+**Obecny stan: V38 (gałąź `feat/personal-training-calendar`). Kolejna migracja: V39.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
 > ℹ️ V20–V28 (treningi cykliczne) są na `main`. V29–V37 (kalendarz 1:1 + waga + cele wagowe + zadania) na gałęzi `feat/personal-training-calendar`.
 
@@ -78,6 +78,7 @@ CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 | V35 | athlete_goals + `kind` GENERAL/WEIGHT, `target_weight_kg`, `start_weight_kg`. **Cel wagowy zamyka się sam, ale wyłącznie na trendzie 7-dniowym**; cofnąć można tylko osiągnięcie automatyczne |
 | V36 | DROP exercise_videos.category — treść wtopiona w `name`; nazwa filmu uzupełnia się z tytułu YouTube (oEmbed, request z **sparsowanego** `video_key`) |
 | V37 | personal_trainings + `kind` TRAINING/TASK, `target_calories`. **Zadanie to osobny wiersz**, odhaczane bez RPE; statystyki treningowe zadań nie widzą — mają własny blok `tasks` |
+| V38 | users.training_consent_at — wyraźna zgoda RODO art. 9 na dane zdrowotne planu 1:1 (waga, trend, cele wagowe, limity kalorii, RPE, komentarze). NULL = brak; **celowo bez backfillu**, więc każdy obecny podopieczny raz przechodzi ekran zgody. Zdjęcie `is_athlete` **kasuje zgodę** (`User.setAthlete`) — dane wracają po ponownym włączeniu, zgoda nie |
 
 > 📖 **Pełne uzasadnienia V24–V37 → [`DECISIONS-TRAINING.md`](DECISIONS-TRAINING.md).** Tam leży „dlaczego" (bezpieczniki rozliczeń, kolejność płatności, kontrakty pól, testy pilnujące każdej reguły). Czytaj przed zmianą w danym obszarze.
 
@@ -134,6 +135,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 `GET|POST|PUT|DELETE /exercise-videos[/{id}]` · `GET /exercise-videos/search?query=` · `POST /exercise-videos/{id}/archive|/restore` · `GET|POST|PUT|DELETE /training-templates[/{id}]`
 
 **Podopieczny** `/api/user/my-training` (auth + flaga `is_athlete`; **brak flagi → 404, nie 403**):
+> 🔒 **Zgoda RODO art. 9 bramkuje całą tę ścieżkę.** `TrainingConsentInterceptor` (rejestrowany w `WebConfig` na `/api/user/my-training/**`) zwraca **409**, dopóki podopieczny nie zaznaczy zgody — dzięki temu każdy nowy endpoint klienta jest chroniony domyślnie. Kolejność w interceptorze jest istotna: **brak flagi przepuszcza dalej** (żeby `TrainingAccessService` dał swoje 404 — 409 zdradziłoby istnienie funkcji), 409 leci wyłącznie flagowanemu bez zgody. Wyjątek: `/summary` (sam licznik do badge'a, odpytywany zanim zgoda w ogóle padnie). Zgodę zapisuje `POST /api/user/me/training-consent` — leży przy pozostałych zgodach, bo endpoint zdejmujący blokadę nie może za nią stać. Sekcja 5 polityki prywatności (`id="plan-treningowy"`) to cel linku z ekranu zgody — nie zmieniać id ani numeracji bez poprawienia linku.
 `GET /calendar?from=&to=` (te same DTO co u trenera) · `GET /summary` (badge) · `POST|PUT|DELETE /trainings[/{id}]` · `POST /trainings/{id}/duplicate` · `POST /trainings/paste`
 `POST|DELETE /trainings/{id}/complete` (**odhaczanie to akt podopiecznego — nie ma odpowiednika u trenera**; `rpe` wymagane przy treningu, zabronione przy zadaniu → 400) · `GET|POST /trainings/{id}/comments`
 `POST /mark-seen` · `POST /deletions/dismiss` · `GET /goals` (read-only) · `GET /stats` (**bez** sygnału przetrenowania — pole nie istnieje w JSON, nie jest `false`)

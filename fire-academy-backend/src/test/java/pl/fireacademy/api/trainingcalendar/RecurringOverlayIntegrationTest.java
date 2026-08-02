@@ -40,6 +40,8 @@ class RecurringOverlayIntegrationTest extends BaseIntegrationTest {
         String token = createUserAndGetToken("client@fireacademy.test", "Ala", "Testowa", UserRole.USER);
         User user = userRepository.findByEmail("client@fireacademy.test").orElseThrow();
         user.setAthlete(true);
+        // The client side of the calendar sits behind the GDPR art. 9 consent gate (V38)
+        user.grantTrainingConsent();
         userRepository.save(user);
         return token;
     }

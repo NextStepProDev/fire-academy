@@ -243,6 +243,24 @@ public class UserService {
         return toResponse(user);
     }
 
+    /**
+     * Records explicit consent to processing the 1-on-1 calendar's health data (GDPR art. 9(2)(a)).
+     * Idempotent — re-accepting keeps the first timestamp, which is the proof of consent.
+     * <p>
+     * Only a coaching client can grant it: without the flag there is no calendar to consent to, and
+     * storing a consent for one would leave a health-data declaration on an account that has none.
+     */
+    public UserDtos.UserResponse grantTrainingConsent(UUID userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
+        if (!user.isAthlete()) {
+            throw new NotFoundException(msg.get("athlete.not.found"));
+        }
+        user.grantTrainingConsent();
+        userRepository.save(user);
+        return toResponse(user);
+    }
+
     private UserDtos.UserResponse toResponse(User user) {
         String avatarUrl = user.getAvatarFilename() != null
             ? "/api/files/" + AVATAR_FOLDER + "/" + user.getAvatarFilename()
@@ -254,7 +272,7 @@ public class UserService {
             adminEmailConfig.isAdminEmail(user.getEmail()),
             user.isEmailVerified(),
             user.hasPrivacyAccepted(), user.hasMarketingConsent(),
-            user.isAthlete(),
+            user.isAthlete(), user.hasTrainingConsent(),
             user.getPreferredLanguage(), user.getPasswordHash() != null,
             user.getOauthProvider() != null, avatarUrl, user.getCreatedAt()
         );

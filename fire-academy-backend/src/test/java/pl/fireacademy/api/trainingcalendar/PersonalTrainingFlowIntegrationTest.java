@@ -23,6 +23,8 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
         String token = createUserAndGetToken(email, firstName, "Testowy", UserRole.USER);
         User user = userRepository.findByEmail(email).orElseThrow();
         user.setAthlete(true);
+        // The client side of the calendar sits behind the GDPR art. 9 consent gate (V38)
+        user.grantTrainingConsent();
         userRepository.save(user);
         return token;
     }
@@ -499,6 +501,10 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(post("/api/admin/users/" + clientId + "/athlete")
                 .header("Authorization", "Bearer " + admin));
+        // Re-flagging restores the rows but not the consent — clearing the flag ended the
+        // arrangement the client agreed to, so the calendar asks again before opening (V38).
+        mockMvc.perform(post("/api/user/me/training-consent")
+                .header("Authorization", "Bearer " + client)).andExpect(status().isOk());
         mockMvc.perform(get("/api/user/my-training/calendar?from=" + YESTERDAY + "&to=" + TOMORROW)
                         .header("Authorization", "Bearer " + client))
                 .andExpect(status().isOk())

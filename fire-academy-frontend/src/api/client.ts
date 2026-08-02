@@ -218,6 +218,9 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ acceptedPrivacy, acceptedMarketing }),
     }),
+  /** One-time explicit consent to training-data processing; /my-training 409s without it. */
+  grantTrainingConsent: () =>
+    fetchApi<User>('/user/me/training-consent', { method: 'POST' }),
   updateLanguage: (language: string) =>
     fetchApi<void>('/user/me/language', {
       method: 'PUT',

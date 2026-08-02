@@ -91,6 +91,8 @@ class AthleteFlagIntegrationTest extends BaseIntegrationTest {
         var clientId = regularUserId();
         mockMvc.perform(post("/api/admin/users/" + clientId + "/athlete")
                 .header("Authorization", "Bearer " + admin)).andExpect(status().isOk());
+        mockMvc.perform(post("/api/user/me/training-consent")
+                .header("Authorization", "Bearer " + client)).andExpect(status().isOk());
 
         // Given: a client with a filled calendar
         String training = JsonPath.read(mockMvc.perform(
@@ -130,6 +132,13 @@ class AthleteFlagIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/admin/users/" + clientId + "/athlete")
                 .header("Authorization", "Bearer " + admin)).andExpect(status().isOk());
+
+        // The rows come back, but the consent does not: clearing the flag ended the arrangement the
+        // client agreed to, so the health data behind it waits for a fresh decision (V38).
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/user/me/training-consent")
+                .header("Authorization", "Bearer " + client)).andExpect(status().isOk());
 
         // Then: every piece is back, exactly as it was
         mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + clientId

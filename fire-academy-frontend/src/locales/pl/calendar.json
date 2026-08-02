@@ -281,5 +281,23 @@
     "emptyClient": "Brak pomiarów. Wpisz wagę rano, po przebudzeniu — zawsze o tej samej porze.",
     "emptyCoach": "Ta osoba nie zapisała jeszcze żadnego pomiaru.",
     "rapidLoss": "Waga spada szybciej niż 1% tygodniowo. Warto sprawdzić, czy zejście jest kontrolowane."
+  },
+  "consent": {
+    "title": "Zanim otworzysz plan treningowy",
+    "intro": "Plan treningowy zbiera więcej niż reszta serwisu — także dane o Twoim ciele. Zanim zaczniemy, potrzebujemy Twojej wyraźnej zgody.",
+    "itemsTitle": "Co jest zapisywane",
+    "items": [
+      "Plan treningów i zadań: nazwy, opisy, terminy oraz odhaczenie wykonania",
+      "Ocena odczuwalnego wysiłku (1–10) i Twój komentarz po treningu",
+      "Zadania z dziennym limitem kalorii wraz z ich odhaczeniem",
+      "Pomiary porannej wagi wraz z datami oraz wyliczany z nich trend",
+      "Cele wagowe: waga startowa i docelowa, ustawiane przez trenera",
+      "Wiadomości wymieniane z trenerem przy poszczególnych treningach"
+    ],
+    "coachAccess": "Wszystko powyżej widzi Twój trener prowadzący — to jest sens wspólnego planu. Trenerowi pokazywany jest też sygnał, gdy waga spada szybciej niż zakładany próg tygodniowy. Nikt poza Tobą i trenerem nie ma do tych danych dostępu.",
+    "readPolicy": "Przeczytaj politykę prywatności (sekcja o planie treningowym)",
+    "checkbox": "Zapoznałem/-am się z <1>polityką prywatności</1> i wyrażam zgodę na przetwarzanie moich danych treningowych, w tym pomiarów wagi, celów wagowych, limitów kalorii i ocen wysiłku, w celu prowadzenia mojego planu treningowego.",
+    "accept": "Akceptuję i przechodzę do planu",
+    "withdrawNote": "Zgodę możesz wycofać w każdej chwili, pisząc na fireacademy.biz@gmail.com — usuniemy wtedy dane wagowe, kaloryczne i oceny wysiłku. Bez zgody plan treningowy pozostaje zamknięty, reszta konta i zapisy na zajęcia działają normalnie."
   }
 }

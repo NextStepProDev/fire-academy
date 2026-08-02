@@ -1,9 +1,30 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 
-const LAST_UPDATED = '19 czerwca 2026'
+const LAST_UPDATED = '2 sierpnia 2026'
 
 export function PrivacyPolicyPage() {
+  const { hash } = useLocation()
+
+  // The consent screen links at #plan-treningowy: someone about to tick a consent box has to land
+  // on the paragraph describing what they are consenting to, not at the top of a long page.
+  // Deferred two frames because ScrollToTop resets the window on every navigation.
+  useEffect(() => {
+    if (!hash) return
+    const id = hash.slice(1)
+    let inner = 0
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    })
+    return () => {
+      cancelAnimationFrame(outer)
+      cancelAnimationFrame(inner)
+    }
+  }, [hash])
+
   return (
     <div className="min-h-screen bg-surface-950">
       <Seo
@@ -119,9 +140,12 @@ export function PrivacyPolicyPage() {
               'Plan treningowy — nazwy, opisy i terminy treningów ułożonych przez trenera oraz dodanych przez Ciebie',
               'Oznaczenia wykonania treningu wraz z datą',
               'Ocena odczuwalnego wysiłku (skala 1–10) i Twój komentarz do wykonanego treningu',
+              'Zadania z dziennym limitem kalorii (np. „utrzymaj się poniżej 2200 kcal") wraz z oznaczeniem ich wykonania',
               'Wiadomości wymieniane z trenerem przy poszczególnych treningach',
               'Cele treningowe ustawione przez trenera oraz data ich osiągnięcia',
-              'Masa ciała — jeśli sam ją wpisujesz (jeden pomiar dziennie, wraz z datą)',
+              'Cele wagowe — masa startowa i docelowa ustawione przez trenera',
+              'Masa ciała — jeśli sam ją wpisujesz (jeden pomiar dziennie, wraz z datą) oraz wyliczany z niej trend',
+              'Materiały treningowe przypisane do treningu (filmy z ćwiczeniami)',
             ]} />
             <p className="text-surface-500 text-sm mt-3 leading-relaxed">
               Wszystkie te dane są widoczne dla trenera prowadzącego — to podstawowy sens tej funkcji
@@ -130,9 +154,10 @@ export function PrivacyPolicyPage() {
               ją wyłącznie Ty i możesz w każdej chwili usunąć pojedynczy pomiar.
             </p>
             <p className="text-surface-500 text-sm mt-3 leading-relaxed">
-              Podanie tych danych jest <span className="text-surface-300 font-medium">całkowicie dobrowolne</span>.
-              Możesz korzystać z kalendarza bez wpisywania masy ciała, a odmowa nie wpływa na możliwość
-              udziału w treningach.
+              Podanie tych danych jest <span className="text-surface-300 font-medium">całkowicie dobrowolne</span>,
+              a odmowa nie wpływa na możliwość udziału w treningach. Zanim po raz pierwszy otworzysz plan
+              treningowy, prosimy o osobną, wyraźną zgodę na przetwarzanie danych dotyczących zdrowia —
+              szczegóły w punkcie 5.
             </p>
           </SubSection>
 
@@ -176,8 +201,8 @@ export function PrivacyPolicyPage() {
               basis="Art. 6 ust. 1 lit. b RODO — przetwarzanie niezbędne do wykonania umowy o świadczenie usług treningu personalnego"
             />
             <LegalBasis
-              purpose="Zapisywanie masy ciała, ocen odczuwalnego wysiłku i komentarzy do wykonanych treningów"
-              basis="Art. 9 ust. 2 lit. a RODO — Twoja wyraźna, dobrowolna zgoda na przetwarzanie danych dotyczących zdrowia, którą wyrażasz przez samodzielne wpisanie tych danych i możesz w każdej chwili wycofać, usuwając je. Traktujemy te dane jako dane szczególnej kategorii i chronimy je surowiej niż pozostałe: widzi je wyłącznie Twój trener prowadzący."
+              purpose="Masa ciała i trend, cele wagowe, dzienne limity kalorii, oceny odczuwalnego wysiłku i komentarze po treningu"
+              basis="Art. 9 ust. 2 lit. a RODO — Twoja wyraźna, dobrowolna zgoda na przetwarzanie danych dotyczących zdrowia. Wyrażasz ją jednorazowo, zaznaczając osobne oświadczenie przed pierwszym otwarciem planu treningowego, i możesz ją w każdej chwili wycofać (patrz punkt 5). Traktujemy te dane jako dane szczególnej kategorii i chronimy je surowiej niż pozostałe: widzi je wyłącznie Twój trener prowadzący."
             />
             <LegalBasis
               purpose="Bezpieczeństwo systemu (blokada konta po nieudanych logowaniach, rate limiting)"
@@ -221,7 +246,56 @@ export function PrivacyPolicyPage() {
           </p>
         </Section>
 
-        <Section title="5. Jak długo przechowujemy dane">
+        <Section id="plan-treningowy" title="5. Plan treningowy 1:1 — dane o zdrowiu">
+          <p className="text-surface-300 leading-relaxed mb-4">
+            Plan treningowy 1:1 to jedyna część serwisu, w której zbieramy dane o Twoim ciele: masę ciała
+            i jej trend, cele wagowe, dzienne limity kalorii, ocenę wysiłku i Twój opis samopoczucia po
+            treningu. W tym kontekście traktujemy je jako <span className="text-surface-200 font-medium">dane
+            dotyczące zdrowia</span> — kategorię, którą RODO chroni najmocniej. Dlatego nie wystarcza tu sama
+            umowa: prosimy o odrębną, wyraźną zgodę, zanim po raz pierwszy otworzysz plan.
+          </p>
+
+          <SubSection title="Kto ma dostęp">
+            <p className="text-surface-400 text-sm leading-relaxed">
+              Do danych Twojego planu mają dostęp wyłącznie Ty i Twój trener prowadzący. Plan jest wspólny —
+              trener widzi Twoje wykonania, oceny wysiłku, komentarze, odhaczone zadania kaloryczne, pomiary
+              masy ciała i wykres trendu, bo bez tego nie da się prowadzić treningu. Dodatkowo trenerowi
+              (i tylko jemu) wyświetlany jest sygnał, gdy masa ciała spada szybciej niż zakładany próg
+              tygodniowy. Inni uczestnicy zajęć nie widzą tych danych w żadnym zakresie.
+            </p>
+          </SubSection>
+
+          <SubSection title="Zgoda i jej wycofanie">
+            <p className="text-surface-400 text-sm leading-relaxed">
+              Zgodę wyrażasz świadomym zaznaczeniem oświadczenia przed pierwszym wejściem do planu — nie
+              wynika ona z samego korzystania z serwisu ani z wpisania pomiaru. Zapisujemy datę i godzinę jej
+              udzielenia jako wymagany przez RODO dowód. Zgodę możesz wycofać w każdej chwili, pisząc na adres
+              podany w punkcie 1 — wtedy usuwamy dane wagowe, kaloryczne oraz oceny wysiłku, a plan przestaje
+              być dostępny. Wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania i nie ma
+              wpływu na Twoje konto ani zapisy na zajęcia. Jeśli trener odbierze Ci status podopiecznego,
+              zgoda wygasa automatycznie, a ponowne otwarcie planu wymaga jej udzielenia od nowa.
+            </p>
+          </SubSection>
+
+          <SubSection title="Masę ciała wpisujesz tylko Ty">
+            <p className="text-surface-400 text-sm leading-relaxed">
+              Trener nie ma technicznej możliwości wpisania ani zmiany Twojej masy ciała — to świadoma decyzja,
+              nie przeoczenie. Ma wyłącznie podgląd. Każdy pomiar możesz poprawić lub usunąć samodzielnie,
+              w dowolnym momencie, a usunięcie pomiaru nigdy nie odbiera już osiągniętego celu.
+            </p>
+          </SubSection>
+
+          <SubSection title="Podopieczni niepełnoletni">
+            <p className="text-surface-400 text-sm leading-relaxed">
+              Dane dotyczące zdrowia osoby, która nie ukończyła 16 lat, przetwarzamy wyłącznie za zgodą rodzica
+              lub opiekuna prawnego. Jeśli podopieczny jest niepełnoletni, zgodę odbieramy od opiekuna przed
+              włączeniem planu treningowego — kontaktowo, poza serwisem. Opiekun może ją wycofać na tych samych
+              zasadach, pisząc na adres kontaktowy.
+            </p>
+          </SubSection>
+        </Section>
+
+        <Section title="6. Jak długo przechowujemy dane">
           <div className="space-y-3 text-surface-300 leading-relaxed">
             <p>
               <span className="text-surface-200 font-medium">Dane konta i historia zapisów</span> — przechowywane przez
@@ -240,11 +314,13 @@ export function PrivacyPolicyPage() {
               prawa do bycia zapomnianym.
             </p>
             <p>
-              <span className="text-surface-200 font-medium">Dane z kalendarza treningowego 1:1</span> (plan, wykonania,
-              oceny wysiłku, komentarze, cele, masa ciała) — przechowywane tak długo, jak istnieje Twoje konto, i
-              usuwane wraz z nim. Pojedynczy pomiar masy ciała możesz usunąć samodzielnie w każdej chwili. Wyłączenie
-              Ci kalendarza przez trenera nie kasuje tych danych — ukrywa je, a po ponownym włączeniu wracają; jeśli
-              chcesz je trwale usunąć, usuń konto albo napisz do nas.
+              <span className="text-surface-200 font-medium">Dane z planu treningowego 1:1</span> (plan, wykonania,
+              oceny wysiłku, komentarze, cele, zadania kaloryczne, masa ciała) — przechowywane przez czas trwania
+              współpracy trenerskiej i usuwane wraz z kontem. Po zakończeniu współpracy lub po wycofaniu zgody dane
+              dotyczące zdrowia — masę ciała i trend, cele wagowe, limity kaloryczne oraz oceny wysiłku wraz
+              z komentarzami — usuwamy najpóźniej w ciągu 30 dni. Pojedynczy pomiar masy ciała możesz usunąć
+              samodzielnie w każdej chwili. Samo wyłączenie planu przez trenera nie kasuje pozostałych danych —
+              ukrywa je, a po ponownym włączeniu wracają.
             </p>
             <p>
               <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 15 min,
@@ -253,7 +329,7 @@ export function PrivacyPolicyPage() {
           </div>
         </Section>
 
-        <Section title="6. Komu udostępniamy dane">
+        <Section title="7. Komu udostępniamy dane">
           <p className="text-surface-300 leading-relaxed font-medium text-lg mb-4">
             Nikomu. I nigdy tego nie zrobimy.
           </p>
@@ -283,7 +359,7 @@ export function PrivacyPolicyPage() {
           </div>
         </Section>
 
-        <Section title="7. Twoje prawa">
+        <Section title="8. Twoje prawa">
           <p className="text-surface-400 leading-relaxed mb-4">
             Na podstawie RODO przysługują Ci następujące prawa:
           </p>
@@ -295,6 +371,7 @@ export function PrivacyPolicyPage() {
             <Right title="Prawo do przenoszalności" description="Możesz zażądać przekazania Twoich danych w ustrukturyzowanym, powszechnie używanym formacie." />
             <Right title="Prawo sprzeciwu" description="Możesz wnieść sprzeciw wobec przetwarzania danych opartego na uzasadnionym interesie." />
             <Right title="Prawo do wycofania zgody" description="Jeśli przetwarzanie odbywa się na podstawie zgody (np. zgoda marketingowa, avatar), możesz ją w każdej chwili wycofać. Wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania." />
+            <Right title="Wycofanie zgody na dane planu treningowego" description="Zgodę na przetwarzanie masy ciała, celów wagowych, limitów kalorii i ocen wysiłku możesz wycofać w każdej chwili, pisząc na adres kontaktowy — usuwamy wtedy te dane, a plan treningowy przestaje być dostępny. Twoje konto i zapisy na zajęcia pozostają nienaruszone." />
           </div>
           <p className="text-surface-400 text-sm mt-6 leading-relaxed">
             Aby skorzystać z któregokolwiek z powyższych praw, napisz do nas na adres{' '}
@@ -306,7 +383,7 @@ export function PrivacyPolicyPage() {
           </p>
         </Section>
 
-        <Section title="8. Bezpieczeństwo danych">
+        <Section title="9. Bezpieczeństwo danych">
           <p className="text-surface-400 leading-relaxed mb-4">
             Stosujemy wielowarstwowe zabezpieczenia techniczne, aby chronić Twoje dane:
           </p>
@@ -320,7 +397,7 @@ export function PrivacyPolicyPage() {
           ]} />
         </Section>
 
-        <Section title="9. Zmiany polityki prywatności">
+        <Section title="10. Zmiany polityki prywatności">
           <p className="text-surface-400 leading-relaxed">
             W przypadku istotnych zmian w polityce prywatności poinformujemy Cię o tym z wyprzedzeniem —
             przez e-mail lub komunikat na stronie. Data ostatniej aktualizacji jest zawsze widoczna na górze tej strony.
@@ -328,7 +405,7 @@ export function PrivacyPolicyPage() {
           </p>
         </Section>
 
-        <Section title="10. Kontakt w sprawach danych osobowych">
+        <Section title="11. Kontakt w sprawach danych osobowych">
           <p className="text-surface-400 leading-relaxed">
             Jeśli masz pytania dotyczące przetwarzania Twoich danych osobowych, chcesz skorzystać z przysługujących
             Ci praw lub masz jakiekolwiek wątpliwości — napisz do nas. Potraktujemy każde zgłoszenie poważnie
@@ -364,9 +441,10 @@ export function PrivacyPolicyPage() {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6 sm:p-8">
+    // scroll-mt keeps the heading clear of the fixed navbar when reached through a #hash link
+    <div id={id} className="scroll-mt-24 bg-surface-900 border border-surface-800 rounded-2xl p-6 sm:p-8">
       <h2 className="text-xl font-semibold text-surface-100 mb-5">{title}</h2>
       {children}
     </div>
