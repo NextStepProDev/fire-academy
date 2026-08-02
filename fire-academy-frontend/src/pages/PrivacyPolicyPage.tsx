@@ -323,6 +323,11 @@ export function PrivacyPolicyPage() {
               ukrywa je, a po ponownym włączeniu wracają.
             </p>
             <p>
+              <span className="text-surface-200 font-medium">Kopie zapasowe</span> — przechowywane w cyklu 7-dniowym
+              i nadpisywane, więc dane usunięte z bazy znikają z kopii najpóźniej po 7 dniach. Kopie służą wyłącznie
+              odtworzeniu serwisu po awarii i nie są przeszukiwane w żadnym innym celu.
+            </p>
+            <p>
               <span className="text-surface-200 font-medium">Tokeny bezpieczeństwa</span> (weryfikacja e-mail: 15 min,
               reset hasła: 1h, sesja: 7 dni) — usuwane automatycznie po wygaśnięciu przez wbudowany mechanizm czyszczenia.
             </p>
@@ -350,12 +355,26 @@ export function PrivacyPolicyPage() {
           <div className="space-y-3">
             <InfoItem
               title="Dostawca usług hostingowych (serwer w UE)"
-              description="Serwer aplikacji i baza danych zlokalizowane w Europejskim Obszarze Gospodarczym. Dane nie opuszczają EOG."
+              description="Serwer aplikacji i baza danych zlokalizowane w Europejskim Obszarze Gospodarczym."
             />
             <InfoItem
               title="Zewnętrzny serwer poczty e-mail (SMTP)"
               description="Wykorzystywany do dostarczenia wszystkich wiadomości e-mail wysyłanych z systemu — zarówno serwisowych (potwierdzenie zapisu, weryfikacja konta, reset hasła, zmiany w terminach), jak i marketingowych (po udzieleniu zgody). Dostawca nie przetwarza Twoich danych w żadnym innym celu."
             />
+            <InfoItem
+              title="Google LLC (kopie zapasowe)"
+              description="Zaszyfrowane kopie zapasowe bazy danych i przesłanych plików przechowywane są na prywatnym, niepublicznym dysku Google Drive. Kopia obejmuje całą bazę, a więc również dane planu treningowego 1:1. Google nie ma dostępu do treści kopii — są zaszyfrowane przed wysłaniem."
+            />
+          </div>
+          <div className="mt-4 bg-surface-800/50 rounded-xl p-4">
+            <p className="text-surface-200 font-medium text-sm mb-1">Przekazywanie danych poza EOG</p>
+            <p className="text-surface-500 text-sm leading-relaxed">
+              Serwer i baza danych pozostają w EOG. Wyjątkiem są kopie zapasowe na Google Drive — Google LLC
+              ma siedzibę w USA, więc w tym zakresie dane mogą być przetwarzane poza EOG. Transfer odbywa się
+              na podstawie programu EU‑US Data Privacy Framework (Google jest certyfikowany) oraz standardowych
+              klauzul umownych zatwierdzonych przez Komisję Europejską (SCC), a same kopie są zaszyfrowane przed
+              wysłaniem. Kopię stosowanych zabezpieczeń możesz uzyskać, kontaktując się z nami.
+            </p>
           </div>
         </Section>
 
