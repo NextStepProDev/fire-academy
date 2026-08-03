@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
@@ -14,9 +15,15 @@ export function MyTrainingCalendarPage() {
   const { t } = useTranslation('calendar')
   const { user, refreshUser } = useAuth()
 
+  // Before the guard below, because hooks cannot sit behind an early return. Memoised because
+  // <TrainingCalendar/> keys its own memos off the adapter's identity — built inline it would be a
+  // new object on every render, and each of those memos would recompute for nothing.
+  const userId = user?.id
+  const adapter = useMemo(() => (userId ? athleteAdapter(userId) : null), [userId])
+
   // The API answers 404 for a non-client anyway; bouncing here avoids showing an error page to
   // someone who simply followed a stale link.
-  if (!user?.isAthlete) {
+  if (!user?.isAthlete || !adapter) {
     return <Navigate to="/moje-konto" replace />
   }
 
@@ -44,7 +51,7 @@ export function MyTrainingCalendarPage() {
           {/* Read-only for the client: goals are the coach's call. */}
           <GoalsBoard athleteId={null} />
 
-          <TrainingCalendar adapter={athleteAdapter(user.id)} />
+          <TrainingCalendar adapter={adapter} />
 
           <WeightPanel athleteId={null} />
 

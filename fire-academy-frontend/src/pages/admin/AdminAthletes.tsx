@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ChevronRight, Dumbbell } from 'lucide-react'
@@ -25,6 +26,13 @@ export function AdminAthletes({ openAthlete, onOpen }: {
 }) {
   const { t } = useTranslation('calendar')
 
+  // Memoised because <TrainingCalendar/> keys its own memos off the adapter's identity: built inline
+  // it would be a new object every render, and every one of those memos would recompute for nothing.
+  const adapter = useMemo(
+    () => (openAthlete ? coachAdapter(openAthlete.id) : null),
+    [openAthlete],
+  )
+
   const athletesQuery = useQuery({
     queryKey: ['admin', 'athletes'],
     queryFn: () => adminApi.getAthletes(),
@@ -34,7 +42,7 @@ export function AdminAthletes({ openAthlete, onOpen }: {
     refetchOnMount: 'always',
   })
 
-  if (openAthlete) {
+  if (openAthlete && adapter) {
     return (
       <div>
         <button
@@ -57,7 +65,7 @@ export function AdminAthletes({ openAthlete, onOpen }: {
         </div>
         <div className="space-y-6">
           <GoalsBoard athleteId={openAthlete.id} />
-          <TrainingCalendar adapter={coachAdapter(openAthlete.id)} />
+          <TrainingCalendar adapter={adapter} />
           <WeightPanel athleteId={openAthlete.id} />
           <TrainingStatsPanel athleteId={openAthlete.id} />
         </div>

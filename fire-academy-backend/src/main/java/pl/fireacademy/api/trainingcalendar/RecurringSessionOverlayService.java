@@ -37,7 +37,13 @@ import java.util.UUID;
  * <h2>Cost</h2>
  * Exactly three queries, whatever the range and however many subscriptions: the subscriptions with
  * their slot graph, the club days off, and the cancelled sessions. Everything after that is
- * in-memory arithmetic over at most {@code MAX_RANGE_DAYS} days.
+ * in-memory arithmetic, one pass per day of the range.
+ * <p>
+ * The range is NOT bounded by {@code PersonalTrainingService.MAX_RANGE_DAYS}. That cap belongs to
+ * the calendar page; {@link TrainingStatsService} legitimately asks for a full year here, to count
+ * the group sessions that already happened. The query count does not move — only the day loop does,
+ * and 365 passes of date arithmetic is not worth a second code path. Anything materially wider than
+ * a year would be, so keep new callers within one.
  */
 @Service
 public class RecurringSessionOverlayService {

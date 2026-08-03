@@ -117,7 +117,7 @@ public class MyTrainingController {
 
     @PostMapping("/deletions/dismiss")
     public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID userId) {
-        service.dismissDeletions(userId, userId, false);
+        service.dismissDeletions(userId, false);
         return ResponseEntity.noContent().build();
     }
 

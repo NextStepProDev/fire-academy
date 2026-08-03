@@ -137,6 +137,11 @@ public class AthleteGoal {
         return achievedAt != null;
     }
 
+    /** Whose goal this is — the access check needs it, the same way a training exposes its athlete. */
+    public User getAthlete() {
+        return athlete;
+    }
+
     public UUID getId() {
         return id;
     }

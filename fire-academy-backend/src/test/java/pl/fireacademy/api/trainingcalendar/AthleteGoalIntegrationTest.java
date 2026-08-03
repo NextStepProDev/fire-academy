@@ -166,4 +166,35 @@ class AthleteGoalIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.active[1].horizon").value("MEDIUM"))
                 .andExpect(jsonPath("$.active[2].horizon").value("LONG"));
     }
+
+    @Test
+    void shouldPutGoalsBeyondReachWhenTheClientFlagIsCleared() throws Exception {
+        // Dropping the flag is what puts a person's plan away — the calendar already refuses, and a
+        // goal left editable behind it would be the one piece of their record that stayed open.
+        String admin = adminToken();
+        flagClient();
+        UUID id = clientId();
+        String goal = addGoal(admin, id, "SHORT", "Podciągnięcie x10");
+
+        mockMvc.perform(delete("/api/admin/users/" + id + "/athlete")
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/admin/personal-trainings/goals/" + goal)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"horizon":"SHORT","content":"Zmienione"}"""))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/admin/personal-trainings/goals/" + goal + "/achieve")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/admin/personal-trainings/goals/" + goal)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNotFound());
+    }
 }

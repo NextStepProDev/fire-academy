@@ -96,8 +96,8 @@ public class AdminPersonalTrainingController {
     }
 
     @PostMapping("/deletions/dismiss")
-    public ResponseEntity<Void> dismissDeletions(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
-        service.dismissDeletions(athleteId, adminId, true);
+    public ResponseEntity<Void> dismissDeletions(@RequestParam UUID athleteId) {
+        service.dismissDeletions(athleteId, true);
         return ResponseEntity.noContent().build();
     }
 
@@ -144,7 +144,7 @@ public class AdminPersonalTrainingController {
 
     /** Back-datable — the coach usually notices a goal was reached some days later. */
     @PostMapping("/goals/{goalId}/achieve")
-    public GoalResponse achieveGoal(@PathVariable UUID goalId, @RequestBody AchieveGoalRequest request) {
+    public GoalResponse achieveGoal(@PathVariable UUID goalId, @Valid @RequestBody AchieveGoalRequest request) {
         return goalService.achieve(goalId, request);
     }
 

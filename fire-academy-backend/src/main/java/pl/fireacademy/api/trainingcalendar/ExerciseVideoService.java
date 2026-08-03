@@ -56,7 +56,11 @@ public class ExerciseVideoService {
      * Also answers whether the clip is already in the library: pasting a link that is a duplicate is
      * worth knowing before typing a name for it.
      */
-    @Transactional(readOnly = true)
+    /**
+     * Deliberately NOT {@code @Transactional}: YouTube is allowed four seconds to answer, and a
+     * connection from the pool held open across a network round trip is a connection nobody else
+     * can have. The single lookup below manages its own, for the microseconds it needs.
+     */
     public VideoMetadataResponse metadata(String url) {
         YouTubeUrl parsed = parseOrThrow(url);
         YouTubeMetadata found = oEmbed.fetch(parsed.key());

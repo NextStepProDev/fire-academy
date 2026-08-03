@@ -379,9 +379,16 @@ public final class TrainingCalendarDtos {
             @Nullable @Size(max = 2000) String feedback
     ) {}
 
-    /** Shifts a copy forward; the default lands it on the same weekday next week. */
+    /**
+     * Shifts a copy forward; the default lands it on the same weekday next week.
+     *
+     * @param offsetDays bounded to a year either way. Not a policy — arithmetic: the offset is fed
+     *                   to {@code LocalDate.plusDays}, which throws on a value that runs off the
+     *                   end of the calendar, and an unbounded field turns a typed digit into a 500.
+     *                   A year is far past anything anyone would plan by duplicating one session.
+     */
     public record DuplicateTrainingRequest(
-            @Nullable Integer offsetDays
+            @Nullable @Min(-365) @Max(365) Integer offsetDays
     ) {}
 
     public enum PasteMode {

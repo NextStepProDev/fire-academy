@@ -11,6 +11,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { WeightChart } from './WeightChart'
 import { addDaysIso, formatLongDate, todayIso } from '../../utils/calendarRange'
 import { keepWithinEntity } from '../../utils/queryEntity'
+import { DEFAULT_WEIGHT_RANGE, weightsKey, weightsKeyPrefix } from '../../utils/weightQueryKeys'
 import type { WeightPoint, WeightRange } from '../../types'
 
 /**
@@ -43,11 +44,11 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
   const [error, setError] = useState<string | null>(null)
 
   // The window is part of what is being fetched, so it belongs in the key — switching range must
-  // not read the previous range's rows out of cache.
-  const [range, setRange] = useState<WeightRange>('QUARTER')
-  const queryKey = isCoach
-    ? ['admin', 'weights', athleteId, range]
-    : ['user', 'my-training', 'weights', range]
+  // not read the previous range's rows out of cache. Built by the shared factory because GoalsBoard
+  // reads the same series for its progress bars, and a key that differs by a single element is two
+  // caches of one thing.
+  const [range, setRange] = useState<WeightRange>(DEFAULT_WEIGHT_RANGE)
+  const queryKey = weightsKey(athleteId, range)
 
   const weightsQuery = useQuery({
     queryKey,
@@ -63,13 +64,22 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
       keepWithinEntity(previous, previousQuery, queryKey, 1),
   })
 
+  // A new reading moves every window that contains today — which is all of them — and it moves the
+  // goal progress bars GoalsBoard draws from the same series. Hence the prefix: invalidating this
+  // range's key alone would leave the other windows, and the board, showing the weight from before.
+  const invalidateWeights = () =>
+    queryClient.invalidateQueries({ queryKey: weightsKeyPrefix(athleteId) })
+
   const recordMutation = useMutation({
     mutationFn: (body: { weightKg: number; date: string }) => myTrainingApi.recordWeight(body),
     onSuccess: () => {
       setDraft('')
       setDate(todayIso())
       setError(null)
-      void queryClient.invalidateQueries({ queryKey })
+      void invalidateWeights()
+      // Recording a weight is also when a weight goal can close — see the PUT handler. The board
+      // has to hear about that, not just about the new number.
+      void queryClient.invalidateQueries({ queryKey: ['user', 'my-training', 'goals'] })
     },
     onError: (e: Error) => setError(e.message),
   })
@@ -80,7 +90,7 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
     mutationFn: (day: string) => myTrainingApi.deleteWeight(day),
     onSuccess: () => {
       setToDelete(null)
-      void queryClient.invalidateQueries({ queryKey })
+      void invalidateWeights()
     },
     onError: (e: Error) => {
       setToDelete(null)
