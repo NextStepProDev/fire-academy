@@ -135,8 +135,7 @@ public class AthleteGoalService {
      */
     @Transactional
     public GoalResponse revertAutomaticAchievement(UUID goalId) {
-        AthleteGoal goal = repository.findById(goalId)
-                .orElseThrow(() -> new NotFoundException(msg.get("athletegoal.not.found")));
+        AthleteGoal goal = requireGoal(goalId);
         if (!goal.isAchieved()) {
             throw new IllegalStateException(msg.get("athletegoal.not.achieved"));
         }
@@ -175,9 +174,27 @@ public class AthleteGoalService {
         return toResponse(repository.save(goal));
     }
 
-    private AthleteGoal requireEditable(UUID goalId) {
+    /**
+     * Resolves a goal that may be reached at all — the counterpart of
+     * {@link TrainingAccessService#requireTraining}, and here for the same two reasons.
+     * <p>
+     * A goal belonging to someone whose client flag has been cleared is out of reach: dropping the
+     * flag is what puts a person's plan away, and a goal left editable behind it would be the one
+     * piece of their record that never got put away with it. A goal that is not theirs answers the
+     * same 404 as one that does not exist, so a mistyped id cannot confirm that some other client's
+     * goal is real.
+     */
+    private AthleteGoal requireGoal(UUID goalId) {
         AthleteGoal goal = repository.findById(goalId)
                 .orElseThrow(() -> new NotFoundException(msg.get("athletegoal.not.found")));
+        if (!goal.getAthlete().isAthlete()) {
+            throw new NotFoundException(msg.get("athletegoal.not.found"));
+        }
+        return goal;
+    }
+
+    private AthleteGoal requireEditable(UUID goalId) {
+        AthleteGoal goal = requireGoal(goalId);
         if (goal.isAchieved()) {
             throw new IllegalStateException(msg.get("athletegoal.achieved.immutable"));
         }

@@ -7,7 +7,6 @@ import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.AthleteWeight;
 import pl.fireacademy.domain.training.AthleteWeightRepository;
 import pl.fireacademy.domain.training.WeightTrendCalculator;
-import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.math.BigDecimal;
@@ -134,7 +133,7 @@ public class AthleteWeightService {
      */
     @Transactional
     public WeightPoint record(UUID athleteId, RecordWeightRequest request) {
-        User athlete = access.requireAthlete(athleteId);
+        access.requireAthlete(athleteId);
         LocalDate date = request.date() == null ? LocalDate.now() : request.date();
         if (date.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException(msg.get("athleteweight.future"));
@@ -146,15 +145,11 @@ public class AthleteWeightService {
             throw new IllegalArgumentException(msg.get("athleteweight.out.of.range"));
         }
 
-        AthleteWeight weight = repository.findByAthleteIdAndMeasuredOn(athleteId, date)
-                .map(existing -> {
-                    existing.correctTo(request.weightKg());
-                    return existing;
-                })
-                .orElseGet(() -> new AthleteWeight(athlete, date, request.weightKg()));
-
-        AthleteWeight saved = repository.save(weight);
-        return new WeightPoint(saved.getMeasuredOn(), saved.getWeightKg(), null);
+        // Left to the database rather than read-then-written here: a double-tapped save sends two
+        // identical requests, both find no row for today, both insert, and the unique index rejects
+        // the second — a server error for someone who pressed the button twice. See the repository.
+        repository.upsertReading(athleteId, date, request.weightKg());
+        return new WeightPoint(date, request.weightKg(), null);
     }
 
     @Transactional

@@ -236,9 +236,15 @@ public class PersonalTrainingService {
         unread.markSeen(viewerId, athleteId);
     }
 
-    /** Hides the deletion banner. Separate from "seen" — acknowledging a loss is its own act. */
+    /**
+     * Hides the deletion banner. Separate from "seen" — acknowledging a loss is its own act.
+     * <p>
+     * Unlike {@link #markSeen} this has no viewer id: the banner is dismissed for a whole side of
+     * the conversation, not per person, because the notice is about the client's plan rather than
+     * about who happened to open it.
+     */
     @Transactional
-    public void dismissDeletions(UUID athleteId, UUID viewerId, boolean viewerIsAdmin) {
+    public void dismissDeletions(UUID athleteId, boolean viewerIsAdmin) {
         access.requireAthlete(athleteId);
         deletionRepository.dismissAll(athleteId, !viewerIsAdmin, Instant.now());
     }

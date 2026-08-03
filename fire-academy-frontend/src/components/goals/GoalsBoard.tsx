@@ -13,6 +13,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { formatLongDate, todayIso } from '../../utils/calendarRange'
+import { DEFAULT_WEIGHT_RANGE, weightsKey } from '../../utils/weightQueryKeys'
 import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
@@ -105,9 +106,15 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
   })
 
   // The starting point for a new weight goal, and what the progress bars measure against.
+  //
+  // Same key as WeightPanel's default window, on purpose — it is the same request. Built separately
+  // they drifted apart by one element, which cost a duplicate fetch on every visit and left this
+  // board showing the weight from before the client's morning weigh-in.
   const weightsQuery = useQuery({
-    queryKey: isCoach ? ['admin', 'weights', athleteId] : ['user', 'my-training', 'weights'],
-    queryFn: () => (isCoach ? adminApi.getAthleteWeights(athleteId) : myTrainingApi.getWeights()),
+    queryKey: weightsKey(athleteId, DEFAULT_WEIGHT_RANGE),
+    queryFn: () => (isCoach
+      ? adminApi.getAthleteWeights(athleteId, DEFAULT_WEIGHT_RANGE)
+      : myTrainingApi.getWeights(DEFAULT_WEIGHT_RANGE)),
     staleTime: 0,
     placeholderData: undefined,
   })

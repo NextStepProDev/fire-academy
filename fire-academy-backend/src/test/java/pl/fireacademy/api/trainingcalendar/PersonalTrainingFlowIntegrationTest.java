@@ -427,6 +427,23 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRefuseAnOffsetThatRunsOffTheCalendar() throws Exception {
+        // The offset is handed to LocalDate.plusDays, which throws once the result leaves the
+        // supported range — unbounded, a typed digit turns into a 500 rather than a rejected form.
+        String admin = adminToken();
+        flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String id = createAsCoach(admin, clientId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+
+        mockMvc.perform(post("/api/admin/personal-trainings/" + id + "/duplicate")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"offsetDays":2000000000}"""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void shouldKeepTheOriginalOnCopyAndReuseItOnMove() throws Exception {
         String admin = adminToken();
         flagAthlete("client@fireacademy.test", "Ala");
