@@ -43,7 +43,7 @@ export function DayColumn({
   return (
     <div
       className={clsx(
-        'flex flex-col rounded-lg border border-surface-800 bg-surface-900/60 p-1.5',
+        'group flex flex-col rounded-lg border border-surface-800 bg-surface-900/60 p-1.5',
         compact ? 'min-h-24 gap-1' : 'min-h-40 gap-2',
         isToday && 'ring-1 ring-primary-500/40',
         outside && 'opacity-40',
@@ -105,7 +105,18 @@ export function DayColumn({
           onClick={() => onAdd(date)}
           className={clsx(
             'mt-auto flex items-center justify-center rounded border border-dashed border-surface-700',
-            'text-surface-500 transition-colors hover:border-primary-600/50 hover:text-primary-400',
+            // One `transition` for colour and opacity alike: two transition-* utilities would fight
+            // over the same property and the winner would depend on stylesheet order, not on the
+            // order written here.
+            'text-surface-500 transition hover:border-primary-600/50 hover:text-primary-400',
+            // Faded out only where a pointer can bring it back. The base state has to be gated on the
+            // input device, not on hover: `hover:` alone leaves the hidden base state standing on a
+            // phone, and the week view stacks these same columns at phone width, where this button is
+            // the only way to add anything. Opacity rather than display so the slot keeps its height —
+            // the grid must not twitch as the cursor crosses it — and so the button stays tabbable,
+            // which `group-focus-within` then reveals.
+            'pointer-fine:opacity-0',
+            'pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100',
             compact ? 'h-6' : 'h-7',
           )}
         >
