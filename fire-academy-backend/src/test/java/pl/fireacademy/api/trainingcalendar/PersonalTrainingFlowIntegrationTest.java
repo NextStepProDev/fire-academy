@@ -474,6 +474,112 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldCopyIntoTheNamedClientsCalendarRatherThanTheSourcesOwn() throws Exception {
+        // Given: two clients, a session planned for the first
+        String admin = adminToken();
+        flagAthlete("ala@fireacademy.test", "Ala");
+        flagAthlete("basia@fireacademy.test", "Basia");
+        UUID alaId = idOf("ala@fireacademy.test");
+        UUID basiaId = idOf("basia@fireacademy.test");
+        String id = createAsCoach(admin, alaId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+        LocalDate target = LocalDate.now().plusDays(3);
+
+        // When: the coach copies it while looking at the second client's calendar
+        mockMvc.perform(post("/api/admin/personal-trainings/paste")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"COPY","targetAthleteId":"%s"}"""
+                                .formatted(id, target, basiaId)))
+                .andExpect(status().isOk());
+
+        // Then: it lands there — and NOT back in the source's plan, which is what the missing target
+        // id used to cause: every paste after switching client went to the previous one, unseen
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + basiaId
+                        + "&from=" + target + "&to=" + target)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings.length()").value(1))
+                .andExpect(jsonPath("$.trainings[0].title").value("Siła"));
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + alaId
+                        + "&from=" + target + "&to=" + target)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings.length()").value(0));
+        // the original stays put
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + alaId
+                        + "&from=" + TOMORROW + "&to=" + TOMORROW)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings.length()").value(1));
+    }
+
+    @Test
+    void shouldMoveAcrossClientsAsAFreshEntryLeavingNothingBehind() throws Exception {
+        // Given: a session the first client already commented on
+        String admin = adminToken();
+        String ala = flagAthlete("ala@fireacademy.test", "Ala");
+        flagAthlete("basia@fireacademy.test", "Basia");
+        UUID alaId = idOf("ala@fireacademy.test");
+        UUID basiaId = idOf("basia@fireacademy.test");
+        String id = createAsCoach(admin, alaId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/comments")
+                        .header("Authorization", "Bearer " + ala)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"body":"Boli mnie bark"}"""))
+                .andExpect(status().isCreated());
+        LocalDate target = LocalDate.now().plusDays(3);
+
+        // When: the coach cuts it and pastes into the second client's calendar
+        String pasted = mockMvc.perform(post("/api/admin/personal-trainings/paste")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"MOVE","targetAthleteId":"%s"}"""
+                                .formatted(id, target, basiaId)))
+                .andExpect(status().isOk())
+                // A new row, not the original re-pointed: the comment thread is one person's health
+                // data and must not resurface under another name
+                .andExpect(jsonPath("$.commentCount").value(0))
+                .andExpect(jsonPath("$.status").value("PLANNED"))
+                .andReturn().getResponse().getContentAsString();
+        assertNotEquals(id, JsonPath.read(pasted, "$.id"));
+
+        // Then: it is gone from the source's plan, and they are told — a session vanishing from a
+        // client's week is news whether it was deleted or handed to someone else
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + alaId
+                        + "&from=" + TOMORROW + "&to=" + TOMORROW)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings.length()").value(0));
+        mockMvc.perform(get("/api/user/my-training/calendar?from=" + TOMORROW + "&to=" + TOMORROW)
+                        .header("Authorization", "Bearer " + ala))
+                .andExpect(jsonPath("$.trainings.length()").value(0))
+                .andExpect(jsonPath("$.deletions.length()").value(1));
+    }
+
+    @Test
+    void shouldRefuseAClientPastingIntoSomeoneElsesCalendar() throws Exception {
+        String admin = adminToken();
+        String ala = flagAthlete("ala@fireacademy.test", "Ala");
+        flagAthlete("basia@fireacademy.test", "Basia");
+        UUID alaId = idOf("ala@fireacademy.test");
+        UUID basiaId = idOf("basia@fireacademy.test");
+        String id = createAsCoach(admin, alaId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+
+        // Naming another client is the coach's privilege; from here it is a 404, same as any other
+        // stranger's calendar, so the roster cannot be probed
+        mockMvc.perform(post("/api/user/my-training/trainings/paste")
+                        .header("Authorization", "Bearer " + ala)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"COPY","targetAthleteId":"%s"}"""
+                                .formatted(id, LocalDate.now().plusDays(3), basiaId)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + basiaId
+                        + "&from=" + YESTERDAY + "&to=" + LocalDate.now().plusDays(5))
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings.length()").value(0));
+    }
+
+    @Test
     void shouldOrderUntimedTrainingsBeforeTimedOnesWithinADay() throws Exception {
         // Given: one of each on the same day, created timed-first so insertion order cannot explain it
         String admin = adminToken();

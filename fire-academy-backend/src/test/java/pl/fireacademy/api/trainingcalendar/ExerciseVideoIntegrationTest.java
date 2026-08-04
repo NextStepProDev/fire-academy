@@ -178,6 +178,43 @@ class ExerciseVideoIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldCarryMaterialsOntoCopiesAndDuplicates() throws Exception {
+        // The videos ARE the plan — a copied session that arrives as a bare title is not the session.
+        String admin = adminToken();
+        String videoId = addVideo(admin, "Przysiad", "https://youtu.be/" + ID);
+        UUID clientId = flagClient(admin);
+        String created = mockMvc.perform(post("/api/admin/personal-trainings?athleteId=" + clientId)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Siła","attachments":[
+                              {"kind":"VIDEO","videoId":"%s"},
+                              {"kind":"LINK","url":"https://plan.example","label":"Rozpiska"}]}"""
+                                .formatted(TOMORROW, videoId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String trainingId = JsonPath.read(created, "$.id");
+
+        mockMvc.perform(post("/api/admin/personal-trainings/" + trainingId + "/duplicate")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attachments.length()").value(2))
+                // A VIDEO copy points back at the same library row, so a later rename still fixes both
+                .andExpect(jsonPath("$.attachments[0].videoId").value(videoId))
+                .andExpect(jsonPath("$.attachments[1].label").value("Rozpiska"));
+
+        mockMvc.perform(post("/api/admin/personal-trainings/paste")
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"COPY"}"""
+                                .formatted(trainingId, TOMORROW.plusDays(2))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attachments.length()").value(2));
+    }
+
+    @Test
     void shouldRejectMoreThanThreeMaterials() throws Exception {
         String admin = adminToken();
         UUID clientId = flagClient(admin);

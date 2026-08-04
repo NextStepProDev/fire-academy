@@ -50,7 +50,10 @@ export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
     updateTraining: (id, body) => adminApi.updatePersonalTraining(id, body),
     deleteTraining: (id) => adminApi.deletePersonalTraining(id),
     duplicateTraining: (id, offsetDays) => adminApi.duplicatePersonalTraining(id, offsetDays),
-    pasteTraining: (sourceId, targetDate, mode) => adminApi.pastePersonalTraining(sourceId, targetDate, mode),
+    // The paste lands in the calendar being viewed, which is not necessarily the one the entry was
+    // copied from: the clipboard survives a switch of client on purpose.
+    pasteTraining: (sourceId, targetDate, mode) =>
+      adminApi.pastePersonalTraining(sourceId, targetDate, mode, athleteId),
     getComments: (id) => adminApi.getTrainingComments(id),
     addComment: (id, body) => adminApi.addTrainingComment(id, body),
     markSeen: () => adminApi.markTrainingCalendarSeen(athleteId),
