@@ -43,7 +43,9 @@ export function DayColumn({
   return (
     <div
       className={clsx(
-        'group flex flex-col rounded-lg border border-surface-800 bg-surface-900/60 p-1.5',
+        // Named group: the cards inside carry one of their own, and an unnamed `group-hover` matches
+        // ANY `.group` ancestor — hovering the day would then reveal every card's controls at once.
+        'group/day flex flex-col rounded-lg border border-surface-800 bg-surface-900/60 p-1.5',
         compact ? 'min-h-24 gap-1' : 'min-h-40 gap-2',
         isToday && 'ring-1 ring-primary-500/40',
         outside && 'opacity-40',
@@ -116,7 +118,7 @@ export function DayColumn({
             // the grid must not twitch as the cursor crosses it — and so the button stays tabbable,
             // which `group-focus-within` then reveals.
             'pointer-fine:opacity-0',
-            'pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100',
+            'pointer-fine:group-hover/day:opacity-100 pointer-fine:group-focus-within/day:opacity-100',
             compact ? 'h-6' : 'h-7',
           )}
         >

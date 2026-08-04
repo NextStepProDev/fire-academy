@@ -84,6 +84,18 @@ function renderCalendar(adapter: TrainingCalendarAdapter) {
 }
 
 /**
+ * Renders, then switches to the week view. The calendar opens on the month, whose cells are compact:
+ * no clipboard controls and no kcal/RPE badges, both by design at that size. Anything asserting on a
+ * card's full contents has to say so by asking for the week.
+ */
+async function renderWeek(adapter: TrainingCalendarAdapter) {
+  const user = userEvent.setup()
+  renderCalendar(adapter)
+  await user.click(await screen.findByRole('button', { name: 'Tydzień' }))
+  return user
+}
+
+/**
  * jsdom ships no matchMedia at all, so the calendar sees a desktop by default. Phone-sized tests
  * install one that answers true for the compact query and false for everything else.
  */
@@ -103,20 +115,31 @@ describe('TrainingCalendar', () => {
     sessionStorage.clear()
   })
 
-  it('renders one column per day of the week', async () => {
-    renderCalendar(stubAdapter([training()]))
-    // One "add" button per day column
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7))
+  it('opens on the month view, a fixed 42-cell grid', async () => {
+    renderCalendar(stubAdapter([]))
+    // One "add" button per day cell
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(42))
   })
 
-  it('renders a fixed 42-cell grid in the month view', async () => {
+  it('opens on the week view on a phone', async () => {
+    // A month at phone width is a grid of dots. Someone opening the calendar to see today's session
+    // should not have to tap to find it, so the small screen starts on the week instead.
+    mockCompactViewport()
+
+    renderCalendar(stubAdapter([training()]))
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7))
+    await screen.findByText('Siła')
+  })
+
+  it('renders one column per day of the week', async () => {
     const user = userEvent.setup()
-    renderCalendar(stubAdapter([]))
-    await screen.findByRole('button', { name: 'Miesiąc' })
+    renderCalendar(stubAdapter([training()]))
+    await screen.findByRole('button', { name: 'Tydzień' })
 
-    await user.click(screen.getByRole('button', { name: 'Miesiąc' }))
+    await user.click(screen.getByRole('button', { name: 'Tydzień' }))
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(42))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7))
   })
 
   it('swaps the month view for a dot grid on a phone', async () => {
@@ -186,7 +209,7 @@ describe('TrainingCalendar', () => {
   it('keeps clipboard controls visible instead of hiding them behind hover', async () => {
     // Hover-only controls do not exist on a touch device, and a tap aimed at one opens the card
     // instead — the exact bug the reference implementation shipped.
-    renderCalendar(stubAdapter([training()]))
+    await renderWeek(stubAdapter([training()]))
     const copy = await screen.findByRole('button', { name: 'Kopiuj' })
 
     expect(copy.className).not.toMatch(/opacity-0/)
@@ -195,10 +218,28 @@ describe('TrainingCalendar', () => {
     expect(copy.className).toMatch(/\bw-6\b/)
   })
 
+  it('offers the clipboard on a month cell too, waiting for the hover', async () => {
+    // The month is the view the calendar opens on, so copy/cut has to reach it. But a month cell is
+    // about two words wide: controls parked on top of every card would bury the titles the view is
+    // read for, so where there is a cursor they wait for it. A touch tablet is wide enough for this
+    // layout and has no hover to wait for, hence the `pointer-fine` gate rather than a plain hover.
+    renderCalendar(stubAdapter([training()]))
+
+    const copy = await screen.findByRole('button', { name: 'Kopiuj' })
+    const controls = copy.parentElement!
+
+    expect(controls.className).toMatch(/pointer-fine:opacity-0/)
+    expect(controls.className).toMatch(/pointer-fine:group-hover\/tile:opacity-100/)
+    // The card's own hover, not the day's: the day column is a group too, and an unnamed reference
+    // would light up every card standing in it.
+    expect(controls.className).not.toMatch(/group-hover:/)
+    // A month cell does not get a smaller tap target than anywhere else
+    expect(copy.className).toMatch(/\bh-6\b/)
+  })
+
   it('arms the clipboard on copy and pastes into the clicked day', async () => {
-    const user = userEvent.setup()
     const pasteTraining = vi.fn().mockResolvedValue(training())
-    renderCalendar(stubAdapter([training()], { pasteTraining }))
+    const user = await renderWeek(stubAdapter([training()], { pasteTraining }))
 
     await user.click(await screen.findByRole('button', { name: 'Kopiuj' }))
     // Every day becomes a paste target while the clipboard is armed
@@ -211,9 +252,8 @@ describe('TrainingCalendar', () => {
   it('does not open a training when the click was meant to paste', async () => {
     // The whole day is a drop target while the clipboard is armed. Without this the click both
     // pastes AND opens the card underneath it, which is two actions from one tap.
-    const user = userEvent.setup()
     const pasteTraining = vi.fn().mockResolvedValue(training())
-    renderCalendar(stubAdapter([training()], { pasteTraining }))
+    const user = await renderWeek(stubAdapter([training()], { pasteTraining }))
 
     await user.click(await screen.findByRole('button', { name: 'Kopiuj' }))
     await user.click(screen.getByText('Siła'))
@@ -267,9 +307,8 @@ describe('TrainingCalendar', () => {
   it('keeps a training and a task on the same day as two separate cards', async () => {
     // The whole point of a task being its own entry: the session can be nailed and the diet blown
     // on the same day, and one tick box could not report that.
-    const user = userEvent.setup()
     const completeTraining = vi.fn().mockResolvedValue(training())
-    renderCalendar(stubAdapter([
+    const user = await renderWeek(stubAdapter([
       training({ id: 'tr', title: 'Siła' }),
       training({ id: 'ts', kind: 'TASK', title: 'Limit kalorii', targetCalories: 2200 }),
     ], { role: 'athlete', completeTraining, uncompleteTraining: vi.fn() }))
@@ -336,9 +375,9 @@ describe('TrainingCalendar', () => {
 
     await user.click(screen.getByRole('button', { name: 'Następny okres' }))
 
-    // Seven columns, still there, while the next week is in flight
-    expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7)
-    // The frame is kept, the contents are not: last week's session is not on next week's dates
+    // All six rows, still there, while the next page is in flight
+    expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(42)
+    // The frame is kept, the contents are not: this page's session is not on the next page's dates
     expect(screen.queryByText('Siła')).toBeNull()
 
     resolveNext({ ...first, trainings: [] })
