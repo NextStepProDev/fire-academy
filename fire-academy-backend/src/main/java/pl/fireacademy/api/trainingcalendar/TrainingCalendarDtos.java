@@ -398,9 +398,19 @@ public final class TrainingCalendarDtos {
         MOVE
     }
 
+    /**
+     * @param targetAthleteId whose calendar the entry lands in. Null means the source's own athlete,
+     *                        which is what an older client sends and what a client-side paste always
+     *                        means. The coach sends the calendar currently on screen — without it the
+     *                        server can only guess, and the guess was "the source's athlete", so a
+     *                        paste made after switching clients silently landed on the previous one.
+     *                        Only the coach may name someone else; a client naming anyone but
+     *                        themselves gets the same 404 as a stranger's calendar.
+     */
     public record PasteTrainingRequest(
             @NotNull UUID sourceId,
             @NotNull LocalDate targetDate,
-            @NotNull PasteMode mode
+            @NotNull PasteMode mode,
+            @Nullable UUID targetAthleteId
     ) {}
 }

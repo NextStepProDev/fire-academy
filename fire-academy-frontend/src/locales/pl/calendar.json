@@ -24,7 +24,9 @@
     "copied": "Skopiowano „{{title}}\". Kliknij w dzień, aby wkleić.",
     "cut": "Wycięto „{{title}}\". Kliknij w dzień, aby przenieść.",
     "pasteHere": "Wklej tutaj",
-    "cancel": "Anuluj kopiowanie"
+    "cancel": "Anuluj kopiowanie",
+    "fromOther": "Wpis pochodzi z planu innej osoby — trafi do kalendarza otwartego teraz.",
+    "movedFromOther": "Wpis pochodzi z planu innej osoby — zniknie stamtąd i trafi tutaj jako nowy (bez odhaczenia i komentarzy)."
   },
   "form": {
     "createTitle": "Nowy trening",

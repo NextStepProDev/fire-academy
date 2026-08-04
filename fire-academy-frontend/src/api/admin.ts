@@ -304,9 +304,13 @@ export const adminApi = {
     fetchApi<PersonalTraining>(`/admin/personal-trainings/${id}/duplicate`, {
       method: 'POST', body: JSON.stringify({ offsetDays }),
     }),
-  pastePersonalTraining: (sourceId: string, targetDate: string, mode: PasteMode) =>
+  /**
+   * `targetAthleteId` is the calendar on screen, not the one the entry came from — copying a session
+   * from one client onto another is the point of the clipboard surviving a switch of client.
+   */
+  pastePersonalTraining: (sourceId: string, targetDate: string, mode: PasteMode, targetAthleteId: string) =>
     fetchApi<PersonalTraining>('/admin/personal-trainings/paste', {
-      method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode }),
+      method: 'POST', body: JSON.stringify({ sourceId, targetDate, mode, targetAthleteId }),
     }),
   getTrainingComments: (id: string) =>
     fetchApi<TrainingComment[]>(`/admin/personal-trainings/${id}/comments`),

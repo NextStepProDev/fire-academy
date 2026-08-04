@@ -77,6 +77,31 @@ public class AttachmentService {
         }
     }
 
+    /**
+     * Carries the materials of one training onto a copy of it.
+     * <p>
+     * A copied session without its materials is a title and nothing else — the videos are the plan.
+     * A VIDEO copy points at the same library row (correcting the name there still fixes it
+     * everywhere); a LINK is duplicated, since it belongs to the training rather than to a library.
+     */
+    @Transactional
+    public void copyBetweenTrainings(UUID sourceTrainingId, PersonalTraining target) {
+        int position = 0;
+        for (TrainingAttachment source : repository.findForTrainings(List.of(sourceTrainingId))) {
+            ExerciseVideo video = source.getVideo();
+            TrainingAttachment copy;
+            if (video != null) {
+                copy = TrainingAttachment.video(video, source.getLabel(), position++);
+            } else if (source.getUrl() != null) {
+                copy = TrainingAttachment.link(source.getUrl(), source.getLabel(), position++);
+            } else {
+                continue;
+            }
+            copy.attachTo(target);
+            repository.save(copy);
+        }
+    }
+
     /** Materials for a whole calendar page in one query. */
     @Transactional(readOnly = true)
     public Map<UUID, List<AttachmentResponse>> forTrainings(List<UUID> trainingIds) {

@@ -128,7 +128,7 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 
 **Trener** `/api/admin` (ROLE_ADMIN):
 `GET /athletes` (roster; nieprzeczytane najpierw) · `POST|DELETE /users/{id}/athlete` (flaga)
-`GET|POST /personal-trainings` (`?athleteId=&from=&to=`) · `PUT|DELETE /personal-trainings/{id}` · `POST /{id}/duplicate` · `POST /paste` (`{sourceId, targetDate, mode: COPY|MOVE}`)
+`GET|POST /personal-trainings` (`?athleteId=&from=&to=`) · `PUT|DELETE /personal-trainings/{id}` · `POST /{id}/duplicate` · `POST /paste` (`{sourceId, targetDate, mode: COPY|MOVE, targetAthleteId}` — **`targetAthleteId` = kalendarz otwarty na ekranie, nie właściciel źródła**; brak pola = ten sam podopieczny co źródło. Kopiowanie między podopiecznymi robi się właśnie tym polem)
 `GET|POST /personal-trainings/{id}/comments` · `POST /personal-trainings/mark-seen?athleteId=` · `POST /personal-trainings/deletions/dismiss?athleteId=`
 `GET /personal-trainings/stats?athleteId=` (**z sygnałem przetrenowania**) · `GET /personal-trainings/weights?athleteId=&range=` (read-only, **jedyne miejsce z ostrzeżeniem o szybkim spadku**; brak zapisu — patrz V34)
 `GET|POST /personal-trainings/goals` · `PUT|DELETE /personal-trainings/goals/{id}` · `POST /personal-trainings/goals/{id}/achieve` · `POST /personal-trainings/goals/{id}/reopen` (**tylko osiągnięcie automatyczne**)
@@ -257,6 +257,10 @@ Zasady, które łatwo po cichu złamać przy kolejnej zmianie. Każda ma test, k
 **Koszt nakładki to 3 zapytania niezależnie od zakresu.** API zakresowe w `TrainingBillingService` (`closedDatesInRange` wsadowe, czyste `sessionDatesInRange`, `addDeactivationDates`) istnieje właśnie po to. Test porównuje liczbę zapytań dla tygodnia i dla 6-tygodniowej siatki — regresja do pobierania per miesiąc wywala build.
 
 **Zadanie i trening to dwa wiersze, nigdy jeden.** Kuszące jest dopięcie „limitu kcal" jako pola do treningu — jedno okno, jedno odhaczenie. Wtedy dzień, w którym trening wyszedł, a dieta nie, nie ma jak się zapisać: cokolwiek pokaże checkbox, będzie kłamstwem o połowie dnia. Stąd `kind` na wierszu, dwa kafelki w dniu i dwa niezależne odhaczenia. `kind` jest ustawiany przy tworzeniu i nie ma go w `UpdateTrainingRequest` — przełączenie odhaczonego treningu na zadanie musiałoby po cichu skasować RPE, żeby wiersz przeszedł CHECK-i. Zadanie odhacza się bez RPE (walidacja zależy od wiersza, więc siedzi w serwisie, nie w adnotacji), a statystyki treningowe zadań nie widzą — mają własny blok `tasks`.
+
+**Wklejenie trafia tam, gdzie patrzy trener — nigdy „do właściciela źródła".** Schowek celowo przeżywa zmianę podopiecznego, więc `sourceId` sam w sobie nie mówi, gdzie ma wylądować wpis; bez `targetAthleteId` serwer zgadywał podopiecznego źródła i każde wklejenie po przełączeniu osoby cicho lądowało u poprzedniej (błąd zgłoszony 2026-08-04). Trener wysyła id kalendarza z ekranu, podopieczny może wskazać tylko siebie (inaczej 404, jak wszędzie w tym module). **Przeniesienie (MOVE) między osobami to kopia + usunięcie oryginału**, nie przepięcie wiersza: odhaczenie, RPE i wątek komentarzy to dane zdrowotne jednej osoby i nie mogą wypłynąć pod cudzym nazwiskiem — a strona źródłowa dostaje zwykłe powiadomienie o usunięciu.
+
+**Kopia treningu zabiera materiały.** `duplicate` i `paste`-COPY przepisują załączniki (`AttachmentService.copyBetweenTrainings`); VIDEO wskazuje ten sam wiersz biblioteki, LINK jest duplikowany. Wcześniej kopia przychodziła jako sam tytuł — a filmy są treścią planu.
 
 **Kontrakt `attachments`: `null` = nie ruszaj · `[]` = wyczyść · lista = zamień.** Przesunięcie treningu wysyła cały obiekt; potraktowanie braku listy jako „wyczyść" po cichu gubi materiały, których edycja nie dotykała.
 

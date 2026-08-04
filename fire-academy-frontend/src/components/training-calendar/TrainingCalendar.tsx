@@ -126,6 +126,11 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
     onError: (e: Error) => setActionError(e.message),
   })
 
+  // Older clipboard entries (written before the id was stored) have no athlete — treat them as local.
+  const crossAthletePaste = clipboard != null
+    && clipboard.athleteId != null
+    && clipboard.athleteId !== adapter.athleteId
+
   const pasteMutation = useMutation({
     mutationFn: ({ date }: { date: string }) =>
       adapter.pasteTraining(clipboard!.trainingId, date, clipboard!.mode),
@@ -201,6 +206,14 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
         <div className="flex items-center justify-between gap-3 rounded-lg border border-primary-600/40 bg-primary-500/10 px-3 py-2 text-sm">
           <span className="text-primary-200">
             {t(clipboard.mode === 'MOVE' ? 'clipboard.cut' : 'clipboard.copied', { title: clipboard.title })}
+            {/* Entries taken from another client's plan land HERE, so say so before the click rather
+                than after. A cut across clients cannot carry the tick-off, effort rating or comment
+                thread — those belong to the person it came from — so it leaves a fresh entry. */}
+            {crossAthletePaste && (
+              <span className="ml-1 text-primary-300/80">
+                {t(clipboard.mode === 'MOVE' ? 'clipboard.movedFromOther' : 'clipboard.fromOther')}
+              </span>
+            )}
           </span>
           <button type="button" onClick={clearClipboard}
             className="flex h-6 w-6 items-center justify-center rounded text-primary-300 hover:text-primary-100"
@@ -267,8 +280,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                 onOpen={setSelected}
                 onAdd={d => { setEditing(null); setFormDate(d) }}
                 onPaste={d => pasteMutation.mutate({ date: d })}
-                onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY' })}
-                onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE' })}
+                onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY', athleteId: adapter.athleteId })}
+                onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE', athleteId: adapter.athleteId })}
                 labels={{
                   add: t('day.add'),
                   copy: t('clipboard.copy'),
@@ -306,8 +319,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           onOpen={setSelected}
           onAdd={d => { setEditing(null); setFormDate(d) }}
           onPaste={d => pasteMutation.mutate({ date: d })}
-          onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY' })}
-          onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE' })}
+          onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY', athleteId: adapter.athleteId })}
+          onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE', athleteId: adapter.athleteId })}
           labels={{
             add: t('day.add'),
             copy: t('clipboard.copy'),

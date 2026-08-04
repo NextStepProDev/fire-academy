@@ -5,6 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.*;
 import pl.fireacademy.domain.user.User;
@@ -142,7 +143,10 @@ public class PersonalTrainingService {
 
     @Transactional
     public void delete(UUID trainingId, UUID viewerId, boolean viewerIsAdmin) {
-        PersonalTraining training = access.requireTraining(trainingId, viewerId, viewerIsAdmin);
+        deleteAndAnnounce(access.requireTraining(trainingId, viewerId, viewerIsAdmin), viewerIsAdmin);
+    }
+
+    private void deleteAndAnnounce(PersonalTraining training, boolean viewerIsAdmin) {
         // Only FUTURE deletions are announced. Clearing out a past entry is housekeeping, and an
         // alert for it would train the other side to ignore the banner.
         if (training.getDate().isAfter(LocalDate.now())) {
@@ -157,25 +161,61 @@ public class PersonalTrainingService {
                                               UUID viewerId, boolean viewerIsAdmin) {
         PersonalTraining source = access.requireTraining(trainingId, viewerId, viewerIsAdmin);
         int offset = request.offsetDays() == null ? DEFAULT_DUPLICATE_OFFSET_DAYS : request.offsetDays();
-        return single(repository.save(copyOf(source, source.getDate().plusDays(offset), viewerIsAdmin)));
+        PersonalTraining copy = repository.saveAndFlush(
+                copyOf(source, source.getAthlete(), source.getDate().plusDays(offset), viewerIsAdmin));
+        attachments.copyBetweenTrainings(source.getId(), copy);
+        return single(copy);
     }
 
     /**
      * Clipboard paste. COPY leaves the source alone; MOVE re-dates the original so its id — and with
      * it the completion state and the comment thread — survives, which a delete-and-recreate would lose.
+     * <p>
+     * Across two clients that re-dating is exactly what must NOT happen: the row carries the source
+     * client's completion, effort rating and comment thread — health data about one person that would
+     * reappear under another person's name. A cross-client MOVE is therefore a fresh copy for the
+     * target plus a deletion of the original, announced to the source side like any other deletion.
      */
     @Transactional
     public PersonalTrainingResponse paste(PasteTrainingRequest request, UUID viewerId, boolean viewerIsAdmin) {
         PersonalTraining source = access.requireTraining(request.sourceId(), viewerId, viewerIsAdmin);
+        User target = resolvePasteTarget(request.targetAthleteId(), source, viewerId, viewerIsAdmin);
+        boolean acrossAthletes = !target.getId().equals(source.getAthlete().getId());
 
-        if (request.mode() == PasteMode.COPY) {
-            return single(repository.save(copyOf(source, request.targetDate(), viewerIsAdmin)));
+        if (request.mode() == PasteMode.COPY || acrossAthletes) {
+            PersonalTraining copy = copyOf(source, target, request.targetDate(), viewerIsAdmin);
+            PersonalTraining saved = repository.saveAndFlush(copy);
+            attachments.copyBetweenTrainings(source.getId(), saved);
+            // A COPY leaves the original where it is, here as anywhere else; only a cut clears it.
+            if (acrossAthletes && request.mode() == PasteMode.MOVE) {
+                deleteAndAnnounce(source, viewerIsAdmin);
+            }
+            return single(saved);
         }
 
         source.edit(request.targetDate(), source.getStartTime(), source.getEndTime(),
                 source.getTitle(), source.getDescription(), source.getTargetCalories(), viewerIsAdmin);
         requireCompletedStaysInPast(source);
         return single(save(source));
+    }
+
+    /**
+     * Whose calendar a paste lands in.
+     * <p>
+     * An absent id means "the source's own athlete" — that is what a client always means and what an
+     * older build of the coach's page sent. Naming someone else is the coach's privilege: a client
+     * pointing at another person gets the same 404 the rest of the calendar gives, so the roster
+     * cannot be probed from here either.
+     */
+    private User resolvePasteTarget(@Nullable UUID targetAthleteId, PersonalTraining source,
+                                    UUID viewerId, boolean viewerIsAdmin) {
+        if (targetAthleteId == null || targetAthleteId.equals(source.getAthlete().getId())) {
+            return source.getAthlete();
+        }
+        if (!viewerIsAdmin && !targetAthleteId.equals(viewerId)) {
+            throw new NotFoundException(msg.get("athlete.not.found"));
+        }
+        return access.requireAthlete(targetAthleteId);
     }
 
     /**
@@ -286,9 +326,13 @@ public class PersonalTrainingService {
                         .getOrDefault(training.getId(), List.of()));
     }
 
-    private PersonalTraining copyOf(PersonalTraining source, LocalDate date, boolean byAdmin) {
+    /**
+     * @param athlete whose plan the copy belongs to — the source's own for a duplicate or a paste
+     *                within one calendar, someone else's when the coach copies a session across.
+     */
+    private PersonalTraining copyOf(PersonalTraining source, User athlete, LocalDate date, boolean byAdmin) {
         PersonalTraining copy = new PersonalTraining(
-                source.getAthlete(), source.getKind(), date, source.getTitle(), byAdmin);
+                athlete, source.getKind(), date, source.getTitle(), byAdmin);
         // A copy is a fresh plan, never a fresh achievement: completion, RPE and feedback stay behind.
         copy.edit(date, source.getStartTime(), source.getEndTime(),
                 source.getTitle(), source.getDescription(), source.getTargetCalories(), byAdmin);

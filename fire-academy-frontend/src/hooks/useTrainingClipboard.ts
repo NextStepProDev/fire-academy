@@ -7,6 +7,8 @@ export interface TrainingClipboardEntry {
   trainingId: string
   title: string
   mode: PasteMode
+  /** Whose calendar it was taken from — the coach pasting elsewhere is told so before clicking. */
+  athleteId: string
 }
 
 /**
