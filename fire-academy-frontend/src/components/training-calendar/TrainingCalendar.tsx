@@ -151,7 +151,11 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
     refresh()
   }
 
-  const gridCols = 'grid gap-2 grid-cols-1 sm:grid-cols-7'
+  // Seven columns from `lg` (1024px) and not a pixel below, in step with `useCompactViewport`. Seven
+  // of anything fits at 640px; seven day columns do not — at 768px they are 84px wide, which is a
+  // card of two buttons and a truncated first letter. Below the breakpoint the week stacks into
+  // full-width rows, the same treatment the phone already had.
+  const gridCols = 'grid gap-2 grid-cols-1 lg:grid-cols-7'
 
   return (
     <div className="space-y-4">
@@ -240,7 +244,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
         <>
           {view === 'month' && (
             // Weekday names once above the grid; repeating them in 42 cells would be noise.
-            <div className={clsx(gridCols, 'mb-1 hidden sm:grid')}>
+            <div className={clsx(gridCols, 'mb-1 hidden lg:grid')}>
               {days.slice(0, 7).map(d => (
                 <span key={d} className="px-1 text-center text-xs uppercase text-surface-500">
                   {weekdayShort(d)}
