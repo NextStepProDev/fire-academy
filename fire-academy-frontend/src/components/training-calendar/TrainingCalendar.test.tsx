@@ -96,16 +96,25 @@ async function renderWeek(adapter: TrainingCalendarAdapter) {
 }
 
 /**
- * jsdom ships no matchMedia at all, so the calendar sees a desktop by default. Phone-sized tests
- * install one that answers true for the compact query and false for everything else.
+ * jsdom ships no matchMedia at all, so the calendar sees a desktop by default. Narrow tests install
+ * one that answers `max-width` queries against a real width, so a test pins the breakpoint itself
+ * rather than merely the fact that some query matched.
  */
+function mockViewport(width: number) {
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const max = /max-width:\s*(\d+)px/.exec(query)
+    return {
+      matches: max ? width <= Number(max[1]) : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }
+  })
+}
+
+/** A phone in portrait. */
 function mockCompactViewport() {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query.includes('max-width'),
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  mockViewport(390)
 }
 
 describe('TrainingCalendar', () => {
@@ -130,6 +139,31 @@ describe('TrainingCalendar', () => {
 
     await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7))
     await screen.findByText('Siła')
+  })
+
+  it.each([768, 834, 1023])('treats a %ipx tablet as narrow, not as a small desktop', async width => {
+    // Seven columns used to start at 640px, which is where seven columns FIT, not where they work.
+    // At 768px each day was 84px: a card there is 50px of copy/cut buttons and about one character
+    // of title. It looked right on the phone (one column) and right on the desktop (139px columns),
+    // so the one width in between was the one nobody looked at — and the one the report came from.
+    mockViewport(width)
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training()]))
+    await screen.findByRole('button', { name: 'Miesiąc' })
+
+    // The week stacks into full-width rows: seven day headers, no seven-column grid
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(7))
+
+    // And the month is the dot grid with its day sheet, exactly as on a phone
+    await user.click(screen.getByRole('button', { name: 'Miesiąc' }))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Pokaż dzień/ })).toHaveLength(42))
+  })
+
+  it('keeps the seven-column grid from 1024px up', async () => {
+    mockViewport(1024)
+    renderCalendar(stubAdapter([training()]))
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Dodaj trening/ })).toHaveLength(42))
   })
 
   it('renders one column per day of the week', async () => {
