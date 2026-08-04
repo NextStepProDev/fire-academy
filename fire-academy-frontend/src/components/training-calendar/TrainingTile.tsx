@@ -54,13 +54,15 @@ export function TrainingTile({
   training, compact = false, cut = false, inert = false, onOpen, onCopy, onCut,
   copyLabel, cutLabel, unreadLabel, commentsLabel, taskLabel, caloriesLabel,
 }: TrainingTileProps) {
-  const showClipboard = (onCopy || onCut) && !compact && !inert
+  const showClipboard = (onCopy || onCut) && !inert
   const isTask = training.kind === 'TASK'
 
   return (
     <div
       className={clsx(
-        'group relative w-full rounded-lg border border-surface-800 border-l-2 bg-surface-800 text-left',
+        // Named group: the day column around this card carries one too, and an unnamed `group-hover`
+        // would match either of them — the day's hover must not speak for every card standing in it.
+        'group/tile relative w-full rounded-lg border border-surface-800 border-l-2 bg-surface-800 text-left',
         'transition-colors hover:border-primary-600/50',
         statusBorder[training.status],
         // A dashed outline for tasks. The left border still carries the status, so the two say
@@ -78,7 +80,14 @@ export function TrainingTile({
       <Content
         inert={inert}
         onClick={() => onOpen(training)}
-        className={clsx('block w-full text-left', showClipboard && 'pr-14')}
+        className={clsx(
+          'block w-full text-left',
+          // Room kept for the controls only where they are permanently on screen. A month cell is
+          // roughly 130px wide; holding 56px of it empty would leave about seven characters of
+          // title. Where they appear on hover they overlay instead — the card being covered is the
+          // one under the cursor, and the title truncates there anyway.
+          showClipboard && (compact ? 'pointer-coarse:pr-12' : 'pr-14'),
+        )}
       >
         <span className="flex items-center gap-1.5">
           {training.unread && (
@@ -130,9 +139,26 @@ export function TrainingTile({
       </Content>
 
       {showClipboard && (
-        // Always in the DOM and always visible. Hover-only controls simply do not exist on a phone,
-        // and a tap aimed at one lands on the card instead. 24px is the minimum comfortable target.
-        <div className="absolute right-1 top-1 flex gap-0.5 opacity-70 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        // Always in the DOM, and on a touch device always visible: hover-only controls do not exist
+        // there, and a tap aimed at one lands on the card instead. 24px is the minimum comfortable
+        // target, so the buttons keep their size in a month cell — only their visibility changes.
+        <div
+          className={clsx(
+            'absolute flex gap-0.5 transition-opacity',
+            compact ? 'right-0.5 top-0.5' : 'right-1 top-1',
+            compact
+              // A month cell holds a two-word title. Two buttons parked on top of it, on every card,
+              // would bury the one thing the month view is read for, so with a cursor present they
+              // wait for it — and `pointer-fine` keeps them standing on a touch tablet, which is
+              // wide enough for this layout and has no hover to offer.
+              ? [
+                  'pointer-fine:opacity-0',
+                  'pointer-fine:group-hover/tile:opacity-100',
+                  'pointer-fine:group-focus-within/tile:opacity-100',
+                ]
+              : 'opacity-70 group-hover/tile:opacity-100 focus-within:opacity-100',
+          )}
+        >
           {onCopy && (
             <button
               type="button"
