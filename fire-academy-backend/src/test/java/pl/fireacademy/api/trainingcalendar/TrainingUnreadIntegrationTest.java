@@ -187,9 +187,17 @@ class TrainingUnreadIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldNotifyCoachWhenClientDeletesAFutureTraining() throws Exception {
+        // Their own entry — what the coach assigned cannot be deleted from this side at all
         String admin = adminToken();
         String client = flagAthlete("client@fireacademy.test");
-        String id = createAsCoach(admin, clientId(), NEXT_WEEK, "Sparing");
+        String json = mockMvc.perform(post("/api/user/my-training/trainings")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sparing"}""".formatted(NEXT_WEEK)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(json, "$.id");
         coachOpensCalendar(admin, clientId());
 
         mockMvc.perform(delete("/api/user/my-training/trainings/" + id)

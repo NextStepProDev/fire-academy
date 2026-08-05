@@ -43,6 +43,16 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
         return JsonPath.read(json, "$.id");
     }
 
+    private String createAsClient(String client, String body) throws Exception {
+        String json = mockMvc.perform(post("/api/user/my-training/trainings")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return JsonPath.read(json, "$.id");
+    }
+
     private static String trainingBody(LocalDate date, String title) {
         return """
             {"date":"%s","title":"%s"}""".formatted(date, title);
@@ -280,6 +290,116 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldRefuseClientReshapingWhatTheCoachAssigned() throws Exception {
+        // Given: a session the coach put in the plan
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String id = createAsCoach(admin, clientId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+
+        // When: the client tries to rewrite it, copy it or clear it away
+        // Then: every route is refused — the prescription is the coaching, and a plan the client can
+        // quietly rewrite stops being one. Deleting is in the list because "delete and add my own
+        // version" is otherwise a way straight around the edit refusal.
+        mockMvc.perform(put("/api/user/my-training/trainings/" + id)
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Coś lżejszego","version":0}""".formatted(TOMORROW)))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/duplicate")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON).content("{}"))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/user/my-training/trainings/paste")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"COPY"}"""
+                                .formatted(id, LocalDate.now().plusDays(3))))
+                .andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/user/my-training/trainings/" + id)
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(status().isConflict());
+
+        // And: it is still standing, untouched
+        mockMvc.perform(get("/api/user/my-training/calendar?from=" + TOMORROW + "&to=" + TOMORROW)
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(jsonPath("$.trainings.length()").value(1))
+                .andExpect(jsonPath("$.trainings[0].title").value("Siła"));
+    }
+
+    @Test
+    void shouldStillLetClientTickOffAndCommentOnTheCoachsTraining() throws Exception {
+        // Read-only covers reshaping the entry, never doing it: the two acts the plan exists for stay
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        UUID clientId = idOf("client@fireacademy.test");
+        String id = createAsCoach(admin, clientId, YESTERDAY, trainingBody(YESTERDAY, "Bieg"));
+
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/comments")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"body":"Boli mnie kolano"}"""))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/complete")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"rpe":6}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+        mockMvc.perform(delete("/api/user/my-training/trainings/" + id + "/complete")
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("MISSED"));
+    }
+
+    @Test
+    void shouldLetClientCopyAndDeleteWhatTheyAddedThemselves() throws Exception {
+        // The other half of the rule: their own entries stay fully theirs
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        String id = createAsClient(client, trainingBody(TOMORROW, "Rower"));
+
+        mockMvc.perform(post("/api/user/my-training/trainings/" + id + "/duplicate")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON).content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.createdByAdmin").value(false));
+        mockMvc.perform(post("/api/user/my-training/trainings/paste")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"sourceId":"%s","targetDate":"%s","mode":"MOVE"}"""
+                                .formatted(id, LocalDate.now().plusDays(2))))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/user/my-training/trainings/" + id)
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldLetCoachReshapeWhatTheClientAdded() throws Exception {
+        // The rule is one-way. The coach reads and edits the whole plan, entries the client logged
+        // included — otherwise correcting someone's own note would mean asking them to do it.
+        String admin = adminToken();
+        String client = flagAthlete("client@fireacademy.test", "Ala");
+        String id = createAsClient(client, trainingBody(TOMORROW, "Rower"));
+
+        mockMvc.perform(put("/api/admin/personal-trainings/" + id)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Rower 40 km","version":0}""".formatted(TOMORROW)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Rower 40 km"));
+        mockMvc.perform(delete("/api/admin/personal-trainings/" + id)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void shouldHideAnotherClientsTrainingBehindTheSameNotFoundAsAMissingOne() throws Exception {
         // Given: two clients, one training belonging to the first
         String admin = adminToken();
@@ -306,11 +426,11 @@ class PersonalTrainingFlowIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldRejectASecondUpdateCarryingAStaleVersion() throws Exception {
-        // Given: the plan is shared, so coach and client can be editing the same row at once
+        // Given: an entry the client logged themselves — the coach reaches those too, so this is the
+        // row both sides can be editing at once (what the coach assigned is read-only to the client)
         String admin = adminToken();
         String client = flagAthlete("client@fireacademy.test", "Ala");
-        UUID clientId = idOf("client@fireacademy.test");
-        String id = createAsCoach(admin, clientId, TOMORROW, trainingBody(TOMORROW, "Siła"));
+        String id = createAsClient(client, trainingBody(TOMORROW, "Rower"));
         String body = """
             {"date":"%s","title":"Zmienione","version":0}""".formatted(TOMORROW);
 

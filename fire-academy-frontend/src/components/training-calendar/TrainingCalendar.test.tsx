@@ -320,6 +320,63 @@ describe('TrainingCalendar', () => {
     expect(await screen.findByText('Oznacz jako wykonany')).toBeInTheDocument()
   })
 
+  it('offers a client no way to rewrite or clear what the coach assigned', async () => {
+    // The prescription is the coaching. Ticking it off and commenting stay — those are the acts the
+    // plan exists for — but editing, repeating and deleting are the coach's alone.
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training()], {
+      role: 'athlete', completeTraining: vi.fn(), uncompleteTraining: vi.fn(),
+    }))
+
+    await user.click(await screen.findByText('Siła'))
+
+    expect(await screen.findByText('Oznacz jako wykonany')).toBeInTheDocument()
+    expect(screen.queryByText('Edytuj')).toBeNull()
+    expect(screen.queryByText('Usuń')).toBeNull()
+    expect(screen.queryByText('Powtórz za tydzień')).toBeNull()
+    // Says why they are missing — otherwise the card just looks broken
+    expect(screen.getByText('detail.coachOnlyHint')).toBeInTheDocument()
+  })
+
+  it('leaves a client in full control of what they added themselves', async () => {
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training({ createdByAdmin: false, title: 'Rower' })], {
+      role: 'athlete', completeTraining: vi.fn(), uncompleteTraining: vi.fn(),
+    }))
+
+    await user.click(await screen.findByText('Rower'))
+
+    expect(await screen.findByText('Edytuj')).toBeInTheDocument()
+    expect(screen.getByText('Usuń')).toBeInTheDocument()
+    expect(screen.queryByText('detail.coachOnlyHint')).toBeNull()
+  })
+
+  it('arms the clipboard only on a client\'s own entries', async () => {
+    // Decided per card, not per role: one week holds both kinds side by side.
+    await renderWeek(stubAdapter([
+      training({ id: 't1', title: 'Siła' }),
+      training({ id: 't2', title: 'Rower', createdByAdmin: false }),
+    ], { role: 'athlete', completeTraining: vi.fn(), uncompleteTraining: vi.fn() }))
+
+    await waitFor(() => expect(screen.getByText('Rower')).toBeInTheDocument())
+    expect(screen.getAllByRole('button', { name: 'Kopiuj' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Wytnij' })).toHaveLength(1)
+    // The one that IS armed is the client's own
+    const armed = screen.getByRole('button', { name: 'Kopiuj' }).closest('div.group\\/tile')!
+    expect(within(armed as HTMLElement).getByText('Rower')).toBeInTheDocument()
+  })
+
+  it('keeps the coach able to reshape what the client added', async () => {
+    // The rule is one-way: the coach reaches the whole plan, the client's own notes included.
+    const user = userEvent.setup()
+    renderCalendar(stubAdapter([training({ createdByAdmin: false, title: 'Rower' })]))
+
+    await user.click(await screen.findByText('Rower'))
+
+    expect(await screen.findByText('Edytuj')).toBeInTheDocument()
+    expect(screen.getByText('Usuń')).toBeInTheDocument()
+  })
+
   it('ticks off a task without asking how hard it was', async () => {
     // "How hard was staying under 2200 kcal, 1-10" is a question about nothing, and an answer would
     // land in the same RPE averages the coach reads training load from.
