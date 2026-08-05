@@ -20,7 +20,7 @@ import {
 } from '../../utils/calendarRange'
 import { keepWithinEntity } from '../../utils/queryEntity'
 import type { CreateTrainingBody, PersonalTraining, RecurringSession } from '../../types'
-import type { TrainingCalendarAdapter } from './adapter'
+import { canReshapeTraining, type TrainingCalendarAdapter } from './adapter'
 
 /**
  * The shared 1-on-1 calendar: one component for the coach and the client, told apart only by the
@@ -95,6 +95,10 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: rangeKey })
   }
+
+  // Decided per card: a client's week holds both what they logged and what the coach assigned, and
+  // only the first is theirs to reshape.
+  const canReshape = (training: PersonalTraining) => canReshapeTraining(adapter.role, training)
 
   const markSeenMutation = useMutation({
     mutationFn: () => adapter.markSeen(),
@@ -282,6 +286,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                 onPaste={d => pasteMutation.mutate({ date: d })}
                 onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY', athleteId: adapter.athleteId })}
                 onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE', athleteId: adapter.athleteId })}
+                canReshape={canReshape}
                 labels={{
                   add: t('day.add'),
                   copy: t('clipboard.copy'),
@@ -321,6 +326,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           onPaste={d => pasteMutation.mutate({ date: d })}
           onCopy={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'COPY', athleteId: adapter.athleteId })}
           onCut={tr => copy({ trainingId: tr.id, title: tr.title, mode: 'MOVE', athleteId: adapter.athleteId })}
+          canReshape={canReshape}
           labels={{
             add: t('day.add'),
             copy: t('clipboard.copy'),

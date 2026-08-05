@@ -17,6 +17,8 @@ interface DaySheetProps {
   onPaste: (date: string) => void
   onCopy?: (training: PersonalTraining) => void
   onCut?: (training: PersonalTraining) => void
+  /** Per-card, not per-role — see DayColumn. */
+  canReshape?: (training: PersonalTraining) => boolean
   labels: {
     add: string
     copy: string
@@ -39,7 +41,8 @@ interface DaySheetProps {
  * a second rendering of a training is a second thing to keep in step.
  */
 export function DaySheet({
-  date, trainings, recurring, pasteArmed, onClose, onOpen, onAdd, onPaste, onCopy, onCut, labels,
+  date, trainings, recurring, pasteArmed, onClose, onOpen, onAdd, onPaste, onCopy, onCut,
+  canReshape = () => true, labels,
 }: DaySheetProps) {
   return (
     <Modal isOpen onClose={onClose} title={formatLongDate(date)}>
@@ -53,8 +56,8 @@ export function DaySheet({
             key={training.id}
             training={training}
             onOpen={t => { onClose(); onOpen(t) }}
-            onCopy={onCopy && (t => { onClose(); onCopy(t) })}
-            onCut={onCut && (t => { onClose(); onCut(t) })}
+            onCopy={onCopy && canReshape(training) ? t => { onClose(); onCopy!(t) } : undefined}
+            onCut={onCut && canReshape(training) ? t => { onClose(); onCut!(t) } : undefined}
             copyLabel={labels.copy}
             cutLabel={labels.cut}
             unreadLabel={labels.unread}

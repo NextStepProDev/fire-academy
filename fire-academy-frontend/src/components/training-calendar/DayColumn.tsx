@@ -19,6 +19,8 @@ interface DayColumnProps {
   onPaste?: (date: string) => void
   onCopy?: (training: PersonalTraining) => void
   onCut?: (training: PersonalTraining) => void
+  /** Per-card, not per-role: a client's own entries and the coach's sit side by side in one day. */
+  canReshape?: (training: PersonalTraining) => boolean
   labels: {
     add: string; copy: string; cut: string; pasteHere: string
     unread: string; comments: string; recurring: string; task: string; calories: string
@@ -35,7 +37,7 @@ interface DayColumnProps {
  */
 export function DayColumn({
   date, anchor, trainings, recurring, compact = false, showWeekday = true, cutId, pasteArmed,
-  onOpen, onAdd, onPaste, onCopy, onCut, labels,
+  onOpen, onAdd, onPaste, onCopy, onCut, canReshape = () => true, labels,
 }: DayColumnProps) {
   const isToday = date === todayIso()
   const outside = compact && isOutsideMonth(date, anchor)
@@ -74,8 +76,8 @@ export function DayColumn({
             cut={cutId === training.id}
             inert={pasteArmed}
             onOpen={onOpen}
-            onCopy={onCopy}
-            onCut={onCut}
+            onCopy={canReshape(training) ? onCopy : undefined}
+            onCut={canReshape(training) ? onCut : undefined}
             copyLabel={labels.copy}
             cutLabel={labels.cut}
             unreadLabel={labels.unread}

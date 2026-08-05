@@ -38,6 +38,25 @@ export interface TrainingCalendarAdapter {
   dismissDeletions: () => Promise<void>
 }
 
+/**
+ * Whether this viewer may reshape this entry — edit it, copy it, cut it, repeat it or delete it.
+ *
+ * A client owns what they logged themselves and nothing else: what the coach assigned is theirs to
+ * do, comment on and tick off. Unlike the rest of the permission matrix this cannot live as an
+ * absent adapter method, because it is decided per ROW rather than per role — the same client's
+ * calendar holds both kinds side by side.
+ *
+ * The server enforces the same rule; this only keeps buttons off the screen that could only ever
+ * fail. Keyed on `createdByAdmin`, which is fixed at creation — never on `lastModifiedByAdmin`,
+ * which flips every time either side ticks something off.
+ */
+export function canReshapeTraining(
+  role: TrainingCalendarAdapter['role'],
+  training: Pick<PersonalTraining, 'createdByAdmin'>,
+): boolean {
+  return role === 'coach' || !training.createdByAdmin
+}
+
 export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
   return {
     role: 'coach',

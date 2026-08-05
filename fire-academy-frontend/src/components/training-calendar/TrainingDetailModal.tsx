@@ -10,7 +10,7 @@ import { CommentThread } from './CommentThread'
 import { AttachmentList } from './AttachmentList'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { PersonalTraining, TrainingStatus } from '../../types'
-import type { TrainingCalendarAdapter } from './adapter'
+import { canReshapeTraining, type TrainingCalendarAdapter } from './adapter'
 
 const statusChip: Record<TrainingStatus, string> = {
   PLANNED: 'bg-surface-800 text-surface-300',
@@ -48,6 +48,10 @@ export function TrainingDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const isTask = training.kind === 'TASK'
+  // What the coach assigned is the client's to do and comment on, not to rewrite, repeat elsewhere
+  // or clear away. The server refuses all three regardless; hiding them keeps the card honest about
+  // what it offers rather than letting a click fail.
+  const canReshape = canReshapeTraining(adapter.role, training)
   const canComplete = onComplete != null && training.status !== 'COMPLETED'
   const canUncomplete = onUncomplete != null && training.status === 'COMPLETED'
   // A training needs its effort rating before it can be ticked off; a task has nothing to rate.
@@ -161,26 +165,35 @@ export function TrainingDetailModal({
             </p>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 border-t border-surface-800 pt-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-surface-800 pt-3">
+            {/* Says why the buttons are missing. Without it the card just looks broken, and the
+                client is left wondering whether the plan is theirs to touch at all. */}
+            {!canReshape && (
+              <p className="mr-auto text-xs text-surface-500">{t('detail.coachOnlyHint')}</p>
+            )}
             {canUncomplete && (
               <Button variant="ghost" size="sm" loading={busy}
                 onClick={() => run(() => onUncomplete!(training), 'footer', false)}>
                 {t('detail.undoDone')}
               </Button>
             )}
-            <Button variant="ghost" size="sm" loading={busy}
-              onClick={() => run(() => onDuplicate(training), 'footer', true)}>
-              <CopyPlus className="mr-1.5 h-4 w-4" />
-              {t('detail.duplicate')}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => onEdit(training)}>
-              <Pencil className="mr-1.5 h-4 w-4" />
-              {t('detail.edit')}
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              {t('detail.delete')}
-            </Button>
+            {canReshape && (
+              <>
+                <Button variant="ghost" size="sm" loading={busy}
+                  onClick={() => run(() => onDuplicate(training), 'footer', true)}>
+                  <CopyPlus className="mr-1.5 h-4 w-4" />
+                  {t('detail.duplicate')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => onEdit(training)}>
+                  <Pencil className="mr-1.5 h-4 w-4" />
+                  {t('detail.edit')}
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  {t('detail.delete')}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </Modal>

@@ -128,6 +128,7 @@ public class PersonalTrainingService {
     public PersonalTrainingResponse update(UUID trainingId, UpdateTrainingRequest request,
                                            UUID viewerId, boolean viewerIsAdmin) {
         PersonalTraining training = access.requireTraining(trainingId, viewerId, viewerIsAdmin);
+        requireOwnEntry(training, viewerIsAdmin);
         requireCurrentVersion(training, request.version());
         validateTimes(request.startTime(), request.endTime());
 
@@ -143,7 +144,9 @@ public class PersonalTrainingService {
 
     @Transactional
     public void delete(UUID trainingId, UUID viewerId, boolean viewerIsAdmin) {
-        deleteAndAnnounce(access.requireTraining(trainingId, viewerId, viewerIsAdmin), viewerIsAdmin);
+        PersonalTraining training = access.requireTraining(trainingId, viewerId, viewerIsAdmin);
+        requireOwnEntry(training, viewerIsAdmin);
+        deleteAndAnnounce(training, viewerIsAdmin);
     }
 
     private void deleteAndAnnounce(PersonalTraining training, boolean viewerIsAdmin) {
@@ -160,6 +163,7 @@ public class PersonalTrainingService {
     public PersonalTrainingResponse duplicate(UUID trainingId, DuplicateTrainingRequest request,
                                               UUID viewerId, boolean viewerIsAdmin) {
         PersonalTraining source = access.requireTraining(trainingId, viewerId, viewerIsAdmin);
+        requireOwnEntry(source, viewerIsAdmin);
         int offset = request.offsetDays() == null ? DEFAULT_DUPLICATE_OFFSET_DAYS : request.offsetDays();
         PersonalTraining copy = repository.saveAndFlush(
                 copyOf(source, source.getAthlete(), source.getDate().plusDays(offset), viewerIsAdmin));
@@ -180,6 +184,9 @@ public class PersonalTrainingService {
     public PersonalTrainingResponse paste(PasteTrainingRequest request, UUID viewerId, boolean viewerIsAdmin) {
         PersonalTraining source = access.requireTraining(request.sourceId(), viewerId, viewerIsAdmin);
         User target = resolvePasteTarget(request.targetAthleteId(), source, viewerId, viewerIsAdmin);
+        // After the target is settled, so naming someone else's calendar still answers 404 rather
+        // than admitting the source exists.
+        requireOwnEntry(source, viewerIsAdmin);
         boolean acrossAthletes = !target.getId().equals(source.getAthlete().getId());
 
         if (request.mode() == PasteMode.COPY || acrossAthletes) {
@@ -355,6 +362,24 @@ public class PersonalTrainingService {
     private void requireCurrentVersion(PersonalTraining training, Long expected) {
         if (expected == null || training.getVersion() != expected) {
             throw new IllegalStateException(msg.get("personaltraining.version.conflict"));
+        }
+    }
+
+    /**
+     * The client may reshape only what they put in the plan themselves.
+     * <p>
+     * What the coach assigned is theirs to do, comment on and tick off — not to rewrite, copy away or
+     * clear. The prescription is the coaching, and a plan the client can quietly edit stops being one:
+     * the coach would be reading their own instructions back, changed, with nothing saying so. The
+     * check covers deletion too, otherwise "delete and add my own version" walks straight around it.
+     * <p>
+     * Keyed on {@code createdByAdmin}, which is fixed at creation — never on who touched the row last,
+     * which flips every time either side ticks something off. The coach is exempt: they reach every
+     * row in the plan, including the ones the client logged themselves.
+     */
+    private void requireOwnEntry(PersonalTraining training, boolean viewerIsAdmin) {
+        if (!viewerIsAdmin && training.isCreatedByAdmin()) {
+            throw new IllegalStateException(msg.get("personaltraining.coach.readonly"));
         }
     }
 

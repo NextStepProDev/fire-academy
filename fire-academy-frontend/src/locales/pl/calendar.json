@@ -66,6 +66,7 @@
     "duplicate": "Powtórz za tydzień",
     "edit": "Edytuj",
     "delete": "Usuń",
+    "coachOnlyHint": "Wpis od trenera — zmienić, powtórzyć lub usunąć może go tylko trener.",
     "deleteTitle": "Usunąć trening?",
     "deleteTaskTitle": "Usunąć zadanie?",
     "deleteMessage": "Czy na pewno usunąć „{{title}}\"?"
