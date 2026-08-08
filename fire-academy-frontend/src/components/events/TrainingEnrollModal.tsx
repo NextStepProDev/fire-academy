@@ -7,6 +7,7 @@ import { userApi } from '../../api/user'
 import { useToast } from '../../context/ToastContext'
 import { remainingOccurrences, formatMonth, addMonths, holidaysForDay } from '../../utils/trainingSchedule'
 import type { TrainingSlotCard, TrainingHolidayItem } from '../../types'
+import { inputClass } from '../../utils/fieldClass'
 
 interface TrainingEnrollModalProps {
   slot: TrainingSlotCard | null
@@ -69,7 +70,6 @@ export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: Tra
     .map((iso) => { const [, m, d] = iso.split('-'); return `${d}.${m}` })
     .join(', ')
 
-  const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
   return (
     <Modal isOpen onClose={onClose} title={t('enrollTraining.title')}>

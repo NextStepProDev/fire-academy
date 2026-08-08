@@ -6,6 +6,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.Strings;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.*;
 import pl.fireacademy.domain.user.User;
@@ -118,7 +119,7 @@ public class PersonalTrainingService {
         PersonalTraining training =
                 new PersonalTraining(athlete, kind, request.date(), request.title().trim(), byAdmin);
         training.edit(request.date(), request.startTime(), request.endTime(),
-                request.title().trim(), trimToNull(request.description()), request.targetCalories(), byAdmin);
+                request.title().trim(), Strings.trimToNull(request.description()), request.targetCalories(), byAdmin);
         PersonalTraining saved = repository.saveAndFlush(training);
         attachments.applyToTraining(saved, request.attachments());
         return single(saved);
@@ -133,7 +134,7 @@ public class PersonalTrainingService {
         validateTimes(request.startTime(), request.endTime());
 
         training.edit(request.date(), request.startTime(), request.endTime(),
-                request.title().trim(), trimToNull(request.description()),
+                request.title().trim(), Strings.trimToNull(request.description()),
                 request.targetCalories(), viewerIsAdmin);
         requireCompletedStaysInPast(training);
         PersonalTraining saved = save(training);
@@ -248,7 +249,7 @@ public class PersonalTrainingService {
         if (!training.isTask() && request.rpe() == null) {
             throw new IllegalArgumentException(msg.get("personaltraining.rpe.required"));
         }
-        training.complete(request.rpe(), trimToNull(request.feedback()));
+        training.complete(request.rpe(), Strings.trimToNull(request.feedback()));
         return single(save(training));
     }
 
@@ -411,14 +412,6 @@ public class PersonalTrainingService {
         }
     }
 
-    @Nullable
-    private static String trimToNull(@Nullable String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
 
     private static TrainingCommentResponse toCommentResponse(TrainingComment c) {
         User author = c.getAuthor();

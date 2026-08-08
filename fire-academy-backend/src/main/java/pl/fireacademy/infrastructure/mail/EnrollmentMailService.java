@@ -30,15 +30,13 @@ public class EnrollmentMailService {
             EventCategory.COURSE, "szkolenia"
     );
 
-    private final MailDispatcher mailDispatcher;
-    private final AppConfig appConfig;
+    private final BrandedMailSender mail;
     private final AdminEmailConfig adminEmailConfig;
     private final MessageService msg;
 
-    public EnrollmentMailService(MailDispatcher mailDispatcher, AppConfig appConfig,
+    public EnrollmentMailService(BrandedMailSender mail,
                                  AdminEmailConfig adminEmailConfig, MessageService msg) {
-        this.mailDispatcher = mailDispatcher;
-        this.appConfig = appConfig;
+        this.mail = mail;
         this.adminEmailConfig = adminEmailConfig;
         this.msg = msg;
     }
@@ -76,7 +74,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
+        mail.send(recipientEmail, subject, mail.brandedTemplate(content, category, false));
     }
 
     @Async("mailExecutor")
@@ -108,7 +106,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content, category));
+            mail.send(adminEmail, subject, mail.brandedTemplate(content, category, false));
         }
     }
 
@@ -145,7 +143,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
+        mail.send(recipientEmail, subject, mail.brandedTemplate(content, category, false));
     }
 
     @Async("mailExecutor")
@@ -177,7 +175,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content, category));
+            mail.send(adminEmail, subject, mail.brandedTemplate(content, category, false));
         }
     }
 
@@ -210,7 +208,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
+        mail.send(recipientEmail, subject, mail.brandedTemplate(content, category, false));
     }
 
     @Async("mailExecutor")
@@ -237,7 +235,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content, category));
+            mail.send(adminEmail, subject, mail.brandedTemplate(content, category, false));
         }
     }
 
@@ -263,7 +261,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.deletion.footer")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
+        mail.send(recipientEmail, subject, mail.brandedTemplate(content, category, false));
     }
 
     @Async("mailExecutor")
@@ -291,7 +289,7 @@ public class EnrollmentMailService {
         );
 
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, brandedTemplate(content, category));
+            mail.send(adminEmail, subject, mail.brandedTemplate(content, category, false));
         }
     }
 
@@ -332,9 +330,9 @@ public class EnrollmentMailService {
         );
 
         // Neutral branding (Fire Academy) — the list may span different categories.
-        String body = brandedTemplate(content, EventCategory.TRAINING);
+        String body = mail.brandedTemplate(content, EventCategory.TRAINING, false);
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, body);
+            mail.send(adminEmail, subject, body);
         }
     }
 
@@ -388,7 +386,7 @@ public class EnrollmentMailService {
                 msg.get("email.enrollment.cancel.info")
         );
 
-        sendEmail(recipientEmail, subject, brandedTemplate(content, category));
+        mail.send(recipientEmail, subject, mail.brandedTemplate(content, category, false));
     }
 
     /**
@@ -455,7 +453,7 @@ public class EnrollmentMailService {
 
     private String eventButton(EventCategory category, String eventId) {
         String slug = CATEGORY_SLUGS.get(category);
-        String eventUrl = appConfig.getSiteUrl() + "/" + slug + "/termin/" + eventId;
+        String eventUrl = mail.siteUrl() + "/" + slug + "/termin/" + eventId;
         return """
             <div style="text-align: center; margin: 28px 0;">
                 <a href="%s" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">%s</a>
@@ -463,36 +461,4 @@ public class EnrollmentMailService {
             """.formatted(eventUrl, msg.get("email.event.view"));
     }
 
-    private String brandedTemplate(String content, EventCategory category) {
-        String siteUrl = appConfig.getSiteUrl();
-        // FIRE CAMP logo only for camps; other sections (trainings/courses) → ACADEMY FIRE.
-        boolean camp = category == EventCategory.CAMP;
-        String logoUrl = siteUrl + (camp ? "/images/logo/logo-white.png" : "/images/logo/logo-academy-fire-white.png");
-        String logoAlt = camp ? "Fire Camp" : "Fire Academy";
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #292524; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f97316;">
-                        <a href="%s" style="text-decoration: none;">
-                            <img src="%s" alt="%s" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
-                        </a>
-                    </div>
-                    <div style="padding: 30px;">
-                        %s
-                        <hr style="border-color: #4a4a4a; margin: 20px 0;" />
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
-                            <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
-                        </p>
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(siteUrl, logoUrl, logoAlt, content, siteUrl, msg.get("email.footer.visit"), msg.get("email.footer"));
-    }
-
-    private void sendEmail(String to, String subject, String body) {
-        mailDispatcher.sendHtml(to, subject, body);
-    }
 }

@@ -12,6 +12,7 @@ import { TrainingHistoryPanel } from './TrainingHistoryPanel'
 import { useToast } from '../../context/ToastContext'
 import type { EventCategory, EventInstance, UserEnrollment } from '../../types'
 import clsx from 'clsx'
+import { inputClassLg, textareaClassLg } from '../../utils/fieldClass'
 
 const categoryLabelKey: Record<EventCategory, string> = {
   TRAINING: 'archive.categoryTraining',
@@ -320,7 +321,7 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
               value={selectedEventId}
               required
               onChange={e => setSelectedEventId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={inputClassLg}
             >
               <option value="">{t('users.detail.selectEvent')}</option>
               {eventOptions.map(ev => (
@@ -339,7 +340,7 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
               value={note}
               rows={3}
               onChange={e => setNote(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
+              className={textareaClassLg}
             />
           </div>
           <div className="flex justify-end gap-3">

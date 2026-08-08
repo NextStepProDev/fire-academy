@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { ChevronUp, ChevronDown, Pencil, Trash2, User } from 'lucide-react'
 import type { EventCategory, Instructor } from '../../types'
 import clsx from 'clsx'
+import { inputClass, textareaClass } from '../../utils/fieldClass'
 
 const ALL_CATEGORIES: { key: EventCategory; labelKey: string }[] = [
   { key: 'TRAINING', labelKey: 'kadra.categoryTraining' },
@@ -144,16 +145,16 @@ export function AdminInstructors() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('kadra.firstName')}</label>
-              <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('kadra.lastName')}</label>
-              <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className={inputClass} />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('kadra.bio')}</label>
-            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={16} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y" />
+            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={16} className={textareaClass} />
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-2">{t('kadra.categories')}</label>

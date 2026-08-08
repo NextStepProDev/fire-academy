@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { AdminUserDetail } from './AdminUserDetail'
 import type { AdminUser } from '../../types'
+import { inputClassLg, textareaClassLg } from '../../utils/fieldClass'
 
 type SortField = 'name' | 'email' | 'role' | 'marketing' | 'created'
 type SortDir = 'asc' | 'desc'
@@ -419,7 +420,7 @@ export function AdminUsers() {
               maxLength={200}
               required
               onChange={e => setSubject(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={inputClassLg}
             />
           </div>
           <div>
@@ -430,7 +431,7 @@ export function AdminUsers() {
               required
               rows={8}
               onChange={e => setMessage(e.target.value)}
-              className="w-full px-4 py-2.5 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
+              className={textareaClassLg}
             />
           </div>
           <p className="text-xs text-surface-500">{t('users.emailSignatureHint')}</p>

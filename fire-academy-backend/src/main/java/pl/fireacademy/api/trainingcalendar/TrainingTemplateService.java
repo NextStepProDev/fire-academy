@@ -3,6 +3,7 @@ package pl.fireacademy.api.trainingcalendar;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.Strings;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.TrainingTemplate;
 import pl.fireacademy.domain.training.TrainingTemplateRepository;
@@ -43,7 +44,7 @@ public class TrainingTemplateService {
     @Transactional
     public TrainingTemplateResponse create(TrainingTemplateRequest request) {
         TrainingTemplate template = new TrainingTemplate(request.title().trim(),
-                trimToNull(request.description()), request.defaultDurationMinutes());
+                Strings.trimToNull(request.description()), request.defaultDurationMinutes());
         TrainingTemplate saved = repository.saveAndFlush(template);
         attachments.applyToTemplate(saved, request.attachments());
         return toResponse(saved, attachments.forTemplate(saved.getId()));
@@ -52,7 +53,7 @@ public class TrainingTemplateService {
     @Transactional
     public TrainingTemplateResponse update(UUID id, TrainingTemplateRequest request) {
         TrainingTemplate template = require(id);
-        template.edit(request.title().trim(), trimToNull(request.description()),
+        template.edit(request.title().trim(), Strings.trimToNull(request.description()),
                 request.defaultDurationMinutes());
         TrainingTemplate saved = repository.saveAndFlush(template);
         attachments.applyToTemplate(saved, request.attachments());
@@ -70,11 +71,6 @@ public class TrainingTemplateService {
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingtemplate.not.found")));
     }
 
-    private static String trimToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
 
     private static TrainingTemplateResponse toResponse(TrainingTemplate t, List<AttachmentResponse> materials) {
         return new TrainingTemplateResponse(t.getId(), t.getTitle(), t.getDescription(),

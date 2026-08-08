@@ -4,6 +4,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.Strings;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.AttachmentRequest;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.AttachmentResponse;
 import pl.fireacademy.domain.training.*;
@@ -126,7 +127,7 @@ public class AttachmentService {
         return switch (request.kind()) {
             case LINK -> {
                 String url = requireHttpUrl(request.url());
-                yield TrainingAttachment.link(url, trimToNull(request.label()), position);
+                yield TrainingAttachment.link(url, Strings.trimToNull(request.label()), position);
             }
             case VIDEO -> {
                 if (request.videoId() == null) {
@@ -134,7 +135,7 @@ public class AttachmentService {
                 }
                 ExerciseVideo video = videoRepository.findById(request.videoId())
                         .orElseThrow(() -> new NotFoundException(msg.get("exercisevideo.not.found")));
-                yield TrainingAttachment.video(video, trimToNull(request.label()), position);
+                yield TrainingAttachment.video(video, Strings.trimToNull(request.label()), position);
             }
         };
     }
@@ -157,12 +158,6 @@ public class AttachmentService {
         return url;
     }
 
-    @Nullable
-    private static String trimToNull(@Nullable String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
 
     static AttachmentResponse toResponse(TrainingAttachment a) {
         ExerciseVideo video = a.getVideo();

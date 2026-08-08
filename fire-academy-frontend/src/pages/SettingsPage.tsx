@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Avatar } from '../components/ui/Avatar'
 import { AvatarCropper } from '../components/ui/AvatarCropper'
 import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
+import { inputClassMuted as inputClass } from '../utils/fieldClass'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
 
@@ -188,7 +189,6 @@ export function SettingsPage() {
     setPasswordError(null)
   }
 
-  const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">

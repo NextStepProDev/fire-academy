@@ -1,5 +1,6 @@
 package pl.fireacademy.infrastructure.mail;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
 import pl.fireacademy.api.admin.EventDtos.FieldChange;
@@ -10,10 +11,16 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.util.List;
 
 /**
- * Shared branding and email sending (anthracite + orange). A single source of truth for
- * {@link EnrollmentMailService} (events) and {@link TrainingMailService} (cyclical trainings).
- * Sending delegates to {@link MailDispatcher}, so training emails use the same
- * retrying on transient SMTP failures as the other service emails.
+ * Shared branding and email sending (anthracite + orange), and the only copy of the outer HTML.
+ * <p>
+ * Every mail service renders through here: events ({@link EnrollmentMailService}), cyclical trainings
+ * ({@link TrainingMailService}), account mail ({@link AuthMailService}) and the organizer's own messages
+ * ({@link AdminUserMailService}). It used to be shared by two of the four while the other two carried
+ * their own copy of the same skeleton — same colours, same 600px shell, same footer — so restyling meant
+ * finding all four and a missed one meant a class of emails that quietly looked different.
+ * <p>
+ * Sending delegates to {@link MailDispatcher}, so every email gets the same retrying on transient SMTP
+ * failures.
  */
 @Component
 public class BrandedMailSender {
@@ -58,7 +65,16 @@ public class BrandedMailSender {
         return changesHtml.toString();
     }
 
-    public String brandedTemplate(String content, EventCategory category) {
+    /**
+     * Emails that belong to no section — account mail (verification, reset) and the organizer's own
+     * messages. They always carry the Fire Academy logo, so they say that outright instead of passing a
+     * category they do not have just to mean "not a camp".
+     */
+    public String academyTemplate(String content, boolean signOff) {
+        return brandedTemplate(content, null, signOff);
+    }
+
+    public String brandedTemplate(String content, @Nullable EventCategory category) {
         // By default skips the sign-off if the content already has a warm closing („Do zobaczenia")
         // or its own sign-off („Pozdrawiam"), to avoid duplicating courtesy phrases.
         String lower = content.toLowerCase();
@@ -70,16 +86,19 @@ public class BrandedMailSender {
      * @param signOff whether to add the „Pozdrawiam, Fire Academy/Fire Camp" sign-off. Skipped for emails
      *                that already end with a warm closing („Do zobaczenia!") or have their own sign-off.
      */
-    public String brandedTemplate(String content, EventCategory category, boolean signOff) {
+    public String brandedTemplate(String content, @Nullable EventCategory category, boolean signOff) {
         String siteUrl = appConfig.getSiteUrl();
         // FIRE CAMP logo only for camps; the other sections (trainings/courses) → ACADEMY FIRE.
         boolean camp = category == EventCategory.CAMP;
         String logoUrl = siteUrl + (camp ? "/images/logo/logo-white.png" : "/images/logo/logo-academy-fire-white.png");
         String logoAlt = camp ? "Fire Camp" : "Fire Academy";
-        String signOffHtml = signOff
-                ? "<p style=\"font-size: 15px; line-height: 1.6; margin: 24px 0 0;\">%s<br/><strong>%s</strong></p>"
-                        .formatted(msg.get("email.regards"), logoAlt)
-                : "";
+        // Joined into the content rather than given its own slot: an empty slot would still emit its
+        // line of indentation, and a mail without a sign-off should render byte-for-byte as it always did.
+        String body = signOff
+                ? content + "\n            "
+                        + "<p style=\"font-size: 15px; line-height: 1.6; margin: 24px 0 0;\">%s<br/><strong>%s</strong></p>"
+                                .formatted(msg.get("email.regards"), logoAlt)
+                : content;
         return """
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
@@ -91,7 +110,6 @@ public class BrandedMailSender {
                     </div>
                     <div style="padding: 30px;">
                         %s
-                        %s
                         <hr style="border-color: #4a4a4a; margin: 20px 0;" />
                         <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
                             <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
@@ -101,7 +119,7 @@ public class BrandedMailSender {
                 </div>
             </body>
             </html>
-            """.formatted(siteUrl, logoUrl, logoAlt, content, signOffHtml,
+            """.formatted(siteUrl, logoUrl, logoAlt, body,
                     siteUrl, msg.get("email.footer.visit"), msg.get("email.footer"));
     }
 
