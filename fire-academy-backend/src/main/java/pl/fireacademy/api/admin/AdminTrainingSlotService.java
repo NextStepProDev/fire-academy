@@ -26,8 +26,11 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -237,14 +240,23 @@ public class AdminTrainingSlotService {
 
     @Transactional(readOnly = true)
     public List<DeletedSlotResponse> getDeletedSlots() {
-        return slotRepository.findDeleted().stream().map(s -> {
+        var deleted = slotRepository.findDeleted();
+        if (deleted.isEmpty()) {
+            return List.of();
+        }
+        // Another archive that only grows — its members are fetched for every slot at once rather than
+        // one query per slot.
+        var participantsBySlot = new HashMap<UUID, List<ArchivedParticipant>>();
+        var slotIds = deleted.stream().map(TrainingSlot::getId).toList();
+        for (var te : enrollmentRepository.findAllForSlotsWithUser(slotIds)) {
+            var u = te.getUser();
+            participantsBySlot.computeIfAbsent(te.getSlot().getId(), k -> new ArrayList<>())
+                    .add(new ArchivedParticipant(u.getFirstName(), u.getLastName(),
+                            u.getEmail(), u.getPhone(), te.getStartMonth(), te.getEndMonth()));
+        }
+        return deleted.stream().map(s -> {
             var instr = s.getInstructor();
-            var participants = enrollmentRepository.findAllForSlotWithUser(s.getId()).stream()
-                    .map(te -> {
-                        var u = te.getUser();
-                        return new ArchivedParticipant(u.getFirstName(), u.getLastName(),
-                                u.getEmail(), u.getPhone(), te.getStartMonth(), te.getEndMonth());
-                    }).toList();
+            var participants = participantsBySlot.getOrDefault(s.getId(), List.of());
             return new DeletedSlotResponse(
                     s.getId(), s.getEventType().getName(),
                     instr != null ? instr.getFirstName() + " " + instr.getLastName() : null,
@@ -270,29 +282,40 @@ public class AdminTrainingSlotService {
     @Transactional(readOnly = true)
     public List<CancelledSessionOverviewItem> getCancelledOverview() {
         var today = java.time.LocalDate.now();
-        return cancelledSessionRepository.findAllForOverview().stream().map(cs -> {
+        var sessions = cancelledSessionRepository.findAllForOverview();
+        if (sessions.isEmpty()) {
+            return List.of();
+        }
+        // This list is an archive: it only ever grows, and it used to cost a handful of queries per row.
+        // Subscribers, their payments and the unresolved refunds depend on (slot, month) or on nothing at
+        // all, so they are fetched for the whole page up front.
+        var subscribersBySlotMonth = subscribersFor(sessions);
+        var paidIds = paidEnrollmentIdsFor(subscribersBySlotMonth);
+        var owedBySession = refundService.pendingRefundEnrollmentIdsBySession();
+
+        return sessions.stream().map(cs -> {
             var slot = cs.getSlot();
             var instr = slot.getInstructor();
             String month = YearMonth.from(cs.getSessionDate()).toString();
-            var subscribers = enrollmentRepository.findCoveringForSlot(slot.getId(), month);
-            var ids = subscribers.stream().map(TrainingEnrollment::getId).toList();
-            var paid = ids.isEmpty() ? new HashSet<UUID>()
-                    : new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
+            var subscribers = subscribersBySlotMonth
+                    .getOrDefault(new SlotMonth(slot.getId(), month), List.<TrainingEnrollment>of());
             // "Owed" follows the refund ledger, not just "paid the month": a refund still shows only while it is
             // unresolved. Once it is refunded / credited / made up, the badge clears (same truth as the Zwroty tab
             // and the client's panel). This also skips people who paid after the cancellation — their bill already
             // excluded the session, so nothing was ever owed to them.
-            var owedIds = refundService.pendingRefundEnrollmentIds(slot.getId(), cs.getSessionDate());
+            var owedIds = owedBySession.getOrDefault(
+                    new TrainingRefundService.SessionKey(slot.getId(), cs.getSessionDate()), Set.<UUID>of());
             var participants = subscribers.stream().map(te -> {
                 var u = te.getUser();
-                boolean isPaid = paid.contains(te.getId());
+                boolean isPaid = paidIds.contains(te.getId());
                 boolean owed = owedIds.contains(te.getId());
                 return new AffectedParticipant(u.getFirstName(), u.getLastName(), u.getEmail(),
                         u.getPhone(), isPaid, owed);
             }).toList();
             var cause = TrainingRefundService.ClosureCause.SINGLE_SESSION;
-            boolean restorable = !refundService.hasCashRefundForSlotSession(slot.getId(), cs.getSessionDate(), cause)
-                    && !refundService.hasConsumedCreditForSlotSession(slot.getId(), cs.getSessionDate(), cause);
+            // Still one query per row (plus the credit balances behind it): deciding this needs the session's
+            // own refund rows, and folding that into the batch above would mean reworking the refund engine.
+            boolean restorable = refundService.isSessionRestorable(slot.getId(), cs.getSessionDate(), cause);
             return new CancelledSessionOverviewItem(
                     cs.getId(), slot.getId(), cs.getSessionDate(),
                     slot.getEventType().getName(),
@@ -300,6 +323,46 @@ public class AdminTrainingSlotService {
                     slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime(), slot.getPrice(),
                     !cs.getSessionDate().isBefore(today), restorable, participants);
         }).toList();
+    }
+
+    /** One slot in one billing month — what a page of cancelled sessions collapses down to. */
+    private record SlotMonth(UUID slotId, String month) {
+    }
+
+    /**
+     * Subscribers for every (slot, month) the given sessions touch, in one query per distinct month.
+     * Sessions cluster into a handful of months, so this is a couple of queries for the whole page
+     * instead of one per row.
+     */
+    private Map<SlotMonth, List<TrainingEnrollment>> subscribersFor(List<TrainingCancelledSession> sessions) {
+        var slotsByMonth = new HashMap<String, Set<UUID>>();
+        for (var cs : sessions) {
+            slotsByMonth.computeIfAbsent(YearMonth.from(cs.getSessionDate()).toString(), k -> new HashSet<>())
+                    .add(cs.getSlot().getId());
+        }
+        var bySlotMonth = new HashMap<SlotMonth, List<TrainingEnrollment>>();
+        slotsByMonth.forEach((month, slotIds) -> {
+            for (var te : enrollmentRepository.findCoveringForSlots(slotIds, month)) {
+                bySlotMonth.computeIfAbsent(new SlotMonth(te.getSlot().getId(), month), k -> new ArrayList<>())
+                        .add(te);
+            }
+        });
+        return bySlotMonth;
+    }
+
+    /** Which of those subscriptions have the month paid — one query per distinct month. */
+    private Set<UUID> paidEnrollmentIdsFor(Map<SlotMonth, List<TrainingEnrollment>> subscribers) {
+        var idsByMonth = new HashMap<String, Set<UUID>>();
+        subscribers.forEach((key, list) -> idsByMonth
+                .computeIfAbsent(key.month(), k -> new HashSet<>())
+                .addAll(list.stream().map(TrainingEnrollment::getId).toList()));
+        var paid = new HashSet<UUID>();
+        idsByMonth.forEach((month, ids) -> {
+            if (!ids.isEmpty()) {
+                paid.addAll(paymentRepository.findPaidEnrollmentIds(ids, month));
+            }
+        });
+        return paid;
     }
 
     /** Cancels a specific session of a given slot (e.g. the instructor is ill) and notifies those enrolled for that month. */

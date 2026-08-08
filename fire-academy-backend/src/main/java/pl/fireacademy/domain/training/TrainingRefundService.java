@@ -87,6 +87,25 @@ public class TrainingRefundService {
         return new HashSet<>(refundRepository.findPendingEnrollmentIdsForSlotAndDate(slotId, date));
     }
 
+    /**
+     * The same badge for a whole page of cancelled sessions, in one query: unresolved refunds grouped by
+     * (slot, session date). The per-session variant above stays for the single-session callers; asked once
+     * per row it costs a query per entry of an archive that only grows.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<SessionKey, java.util.Set<UUID>> pendingRefundEnrollmentIdsBySession() {
+        var bySession = new java.util.HashMap<SessionKey, java.util.Set<UUID>>();
+        for (Object[] row : refundRepository.findAllPendingBySlotAndDate()) {
+            bySession.computeIfAbsent(new SessionKey((UUID) row[0], (LocalDate) row[1]),
+                    k -> new HashSet<>()).add((UUID) row[2]);
+        }
+        return bySession;
+    }
+
+    /** One cancelled session: which slot, which day. */
+    public record SessionKey(UUID slotId, LocalDate date) {
+    }
+
     /** A single session of one slot was closed by {@code cause} — register refunds for its paid subscribers. */
     @Transactional
     public void registerForSlotSession(TrainingSlot slot, LocalDate date, String type, @Nullable String label,
@@ -212,6 +231,17 @@ public class TrainingRefundService {
     @Transactional(readOnly = true)
     public boolean hasCashRefundForSlotSession(UUID slotId, LocalDate date, ClosureCause undone) {
         return anyCash(refundsToRevert(refundRepository.findBySlotAndDate(slotId, date), undone));
+    }
+
+    /**
+     * Both blockers of a restore in one fetch. Callers that need the pair — the overview asks "is this
+     * session restorable?" for every row — otherwise run the identical {@code findBySlotAndDate} twice per
+     * session, once for each flag.
+     */
+    @Transactional(readOnly = true)
+    public boolean isSessionRestorable(UUID slotId, LocalDate date, ClosureCause undone) {
+        var toRevert = refundsToRevert(refundRepository.findBySlotAndDate(slotId, date), undone);
+        return !anyCash(toRevert) && !anyConsumedCredit(toRevert);
     }
 
     /** True if a cash refund the day-off removal would revive was already paid out — removal must be blocked. */

@@ -68,11 +68,26 @@ public class TrainingCreditService {
      */
     @Transactional(readOnly = true)
     public BigDecimal liveAppliedFor(TrainingEnrollment te, YearMonth month) {
+        // Priced first, exactly as before: a slot without a price has no bill to discount, so there is
+        // no reason to go and sum its refunds.
+        if (te.getSlot().getPrice() == null) {
+            return BigDecimal.ZERO;
+        }
+        return liveAppliedFor(te, month, availableBalance(te.getId()));
+    }
+
+    /**
+     * As above, on a balance the caller already holds. The roster and the monthly payment overview show the
+     * available balance next to the discount, so they read it anyway — without this overload the same two
+     * sum queries run twice per subscriber.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal liveAppliedFor(TrainingEnrollment te, YearMonth month, BigDecimal availableBalance) {
         var slot = te.getSlot();
         if (slot.getPrice() == null) {
             return BigDecimal.ZERO;
         }
-        BigDecimal balance = availableBalance(te.getId());
+        BigDecimal balance = availableBalance;
         if (balance.signum() <= 0) {
             return BigDecimal.ZERO;
         }

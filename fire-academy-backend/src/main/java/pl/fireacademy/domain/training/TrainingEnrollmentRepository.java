@@ -111,6 +111,30 @@ public interface TrainingEnrollmentRepository extends JpaRepository<TrainingEnro
         """)
     List<TrainingEnrollment> findAllForSlotWithUser(@Param("slotId") UUID slotId);
 
+    /** Same, for many slots at once — the deleted-slot archive lists them all on one page. */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        WHERE te.slot.id IN :slotIds
+        ORDER BY te.createdAt ASC
+        """)
+    List<TrainingEnrollment> findAllForSlotsWithUser(@Param("slotIds") Collection<UUID> slotIds);
+
+    /**
+     * Subscriptions covering a month, for many slots at once. The cancelled-sessions overview needs the
+     * subscribers of every listed session; asked one slot at a time it costs a query per row of an archive
+     * that only ever grows.
+     */
+    @Query("""
+        SELECT te FROM TrainingEnrollment te
+        JOIN FETCH te.user
+        WHERE te.slot.id IN :slotIds
+          AND te.startMonth <= :month AND (te.endMonth IS NULL OR te.endMonth >= :month)
+        ORDER BY te.createdAt ASC
+        """)
+    List<TrainingEnrollment> findCoveringForSlots(@Param("slotIds") Collection<UUID> slotIds,
+                                                  @Param("month") String month);
+
     /**
      * Fixed-term subscriptions that have already expired (endMonth before the current month) and have not
      * received the end-of-subscription email yet. For the scheduler (email K). Cancellations have the flag = true → skipped.
