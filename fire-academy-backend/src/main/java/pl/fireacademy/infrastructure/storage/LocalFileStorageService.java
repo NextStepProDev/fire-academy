@@ -1,5 +1,6 @@
 package pl.fireacademy.infrastructure.storage;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,8 +49,33 @@ public class LocalFileStorageService implements FileStorageService {
             throw new IllegalArgumentException("Niedozwolone rozszerzenie pliku. Dozwolone: .jpg, .jpeg, .png, .webp");
         }
 
+        // Everything checked so far — the content type and the extension — was written by the client.
+        // The bytes are the only part of the upload it cannot lie about.
+        ImageFormat format = detectFormat(file);
+        if (format == null) {
+            throw new IllegalArgumentException("Plik nie jest obrazem JPG, PNG ani WebP");
+        }
+        if (!format.matchesExtension(extension)) {
+            // Extension and content disagree. The served content type comes from the extension, so
+            // storing this would hand the file back out described as something it is not.
+            throw new IllegalArgumentException("Zawartość pliku nie zgadza się z jego rozszerzeniem");
+        }
+
+        // A real JPEG/PNG always decodes. One carrying the right signature that then fails to is truncated
+        // or damaged; the decoder signals that either by returning nothing or by throwing. Both are the
+        // uploader's problem, not the server's, so both become a 400 — this used to surface as a 500.
+        ImageOptimizer.OptimizedImage optimized;
         try {
-            var optimized = imageOptimizer.optimize(file.getInputStream(), extension);
+            optimized = imageOptimizer.optimize(file.getInputStream(), extension);
+        } catch (IOException e) {
+            log.debug("Rejected an undecodable {} upload: {}", extension, e.getMessage());
+            throw new IllegalArgumentException("Plik obrazu jest uszkodzony");
+        }
+        if (format.isDecodable() && !optimized.decoded()) {
+            throw new IllegalArgumentException("Plik obrazu jest uszkodzony");
+        }
+
+        try {
             String finalExtension = optimized.extension();
             String filename = UUID.randomUUID() + finalExtension;
             Path dir = rootLocation.resolve(folder);
@@ -59,6 +85,16 @@ public class LocalFileStorageService implements FileStorageService {
             return filename;
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file", e);
+        }
+    }
+
+    /** Reads just the signature. Multipart streams can be reopened, so the optimizer still sees the whole file. */
+    @Nullable
+    private static ImageFormat detectFormat(MultipartFile file) {
+        try (InputStream in = file.getInputStream()) {
+            return ImageFormat.sniff(in.readNBytes(ImageFormat.HEADER_BYTES));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read uploaded file", e);
         }
     }
 

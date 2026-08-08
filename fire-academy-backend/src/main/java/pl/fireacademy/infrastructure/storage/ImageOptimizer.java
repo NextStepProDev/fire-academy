@@ -25,7 +25,10 @@ public class ImageOptimizer {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(originalBytes));
 
         if (image == null) {
-            return new OptimizedImage(new ByteArrayInputStream(originalBytes), extension);
+            // Either WebP (the JDK ships no reader, so it passes through untouched) or a damaged file.
+            // Which of the two it is, is settled by the signature check in LocalFileStorageService —
+            // this class only reports that nothing could be decoded.
+            return new OptimizedImage(new ByteArrayInputStream(originalBytes), extension, false);
         }
 
         boolean needsResize = image.getWidth() > MAX_DIMENSION || image.getHeight() > MAX_DIMENSION;
@@ -33,7 +36,7 @@ public class ImageOptimizer {
 
         if (!needsResize && !needsCompression) {
             log.debug("Image already optimized ({}×{}, {} KB) — skipping", image.getWidth(), image.getHeight(), originalBytes.length / 1024);
-            return new OptimizedImage(new ByteArrayInputStream(originalBytes), extension);
+            return new OptimizedImage(new ByteArrayInputStream(originalBytes), extension, true);
         }
 
         String outputFormat = outputFormat(extension);
@@ -54,7 +57,7 @@ public class ImageOptimizer {
                 image.getWidth(), image.getHeight(), MAX_DIMENSION, outputFormat);
 
         String newExtension = "." + outputFormat;
-        return new OptimizedImage(new ByteArrayInputStream(baos.toByteArray()), newExtension);
+        return new OptimizedImage(new ByteArrayInputStream(baos.toByteArray()), newExtension, true);
     }
 
     private String outputFormat(String extension) {
@@ -65,5 +68,9 @@ public class ImageOptimizer {
         };
     }
 
-    public record OptimizedImage(InputStream inputStream, String extension) {}
+    /**
+     * @param decoded whether the image could actually be read. False means the bytes never went through a
+     *                decoder, so nothing about them has been verified here.
+     */
+    public record OptimizedImage(InputStream inputStream, String extension, boolean decoded) {}
 }
