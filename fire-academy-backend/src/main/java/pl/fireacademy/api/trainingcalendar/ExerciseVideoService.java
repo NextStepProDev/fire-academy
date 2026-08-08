@@ -5,6 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.Strings;
 import pl.fireacademy.api.trainingcalendar.TrainingCalendarDtos.*;
 import pl.fireacademy.domain.training.ExerciseVideo;
 import pl.fireacademy.domain.training.ExerciseVideoRepository;
@@ -97,7 +98,7 @@ public class ExerciseVideoService {
             throw new IllegalStateException(msg.get("exercisevideo.duplicate", existing.getName()));
         });
         ExerciseVideo video = new ExerciseVideo(request.name().trim(), request.url().trim(), parsed.key(),
-                trimToNull(request.description()));
+                Strings.trimToNull(request.description()));
         return toResponse(repository.save(video));
     }
 
@@ -111,7 +112,7 @@ public class ExerciseVideoService {
             }
         });
         video.edit(request.name().trim(), request.url().trim(), parsed.key(),
-                trimToNull(request.description()));
+                Strings.trimToNull(request.description()));
         return toResponse(repository.save(video));
     }
 
@@ -158,11 +159,6 @@ public class ExerciseVideoService {
         return stripped.replace('ł', 'l').replace('Ł', 'L').toLowerCase(Locale.ROOT);
     }
 
-    private static String trimToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
 
     static ExerciseVideoResponse toResponse(ExerciseVideo v) {
         YouTubeUrl parsed = new YouTubeUrl(v.getVideoKey());

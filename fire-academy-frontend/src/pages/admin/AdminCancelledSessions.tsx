@@ -10,10 +10,10 @@ import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../context/ToastContext'
 import type { CancelledSessionOverview } from '../../types'
 import clsx from 'clsx'
+import { inputClass } from '../../utils/fieldClass'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 /** Who has cancelled sessions, and when — club-wide. Upcoming sessions can be restored; the rest is archive. */
 export function AdminCancelledSessions() {

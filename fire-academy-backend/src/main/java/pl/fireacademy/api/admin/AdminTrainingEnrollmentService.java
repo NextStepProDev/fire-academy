@@ -12,10 +12,17 @@ import pl.fireacademy.infrastructure.mail.TrainingMailService;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -61,36 +68,55 @@ public class AdminTrainingEnrollmentService {
             return List.of();
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paymentByEnrollment = new java.util.HashMap<UUID, TrainingPayment>();
+        var paymentByEnrollment = new HashMap<UUID, TrainingPayment>();
         for (var p : paymentRepository.findPaidForMonth(ids, month.toString())) {
             paymentByEnrollment.put(p.getEnrollment().getId(), p);
         }
+        // One roster is one slot, so every row bills off the same closed dates — fetch them once
+        // rather than twice per subscriber.
+        var closed = closedFor(enrollments, month);
+
         return enrollments.stream().map(te -> {
             var u = te.getUser();
             var payment = paymentByEnrollment.get(te.getId());
             boolean paid = payment != null;
-            boolean overdue = !paid && billing.isPaymentOverdue(te, month);
+            var closedForSlot = closed.getOrDefault(te.getSlot().getId(), Set.<LocalDate>of());
+            var balance = creditService.availableBalance(te.getId());
+            boolean overdue = !paid && billing.isPaymentOverdue(te, month, closedForSlot);
             return new RosterEntry(
                     te.getId(), u.getId(), u.getFirstName(), u.getLastName(), u.getEmail(), u.getPhone(),
                     te.getStartMonth(), te.getEndMonth(), te.getEndMonth() == null, paid,
-                    creditService.availableBalance(te.getId()), te.getBillableFrom(),
-                    netFor(te, month, payment), overdue
+                    balance, te.getBillableFrom(),
+                    netFor(te, month, payment, closedForSlot, balance), overdue
             );
         }).toList();
+    }
+
+    /** The month's closed dates for every slot the given subscriptions sit on, in one pair of queries. */
+    private Map<UUID, Set<LocalDate>> closedFor(List<TrainingEnrollment> enrollments, YearMonth month) {
+        return billing.closedBySlotForMonth(
+                enrollments.stream().map(TrainingEnrollment::getSlot).toList(), month);
     }
 
     /**
      * NET amount owed for the month: the amount frozen at payment time when paid (never drifts), otherwise the live
      * bill (price × sessions) minus the surplus credit that would apply. Legacy paid rows without a stored amount
      * fall back to the live figure.
+     * <p>
+     * Takes the payment row rather than looking it up: both callers have already batched the month's payments, and
+     * {@code creditService.appliedFor} would re-query the very same row to decide between the frozen and the live
+     * credit. The branch is the same one it makes — a paid month uses what it froze, an unpaid one the live figure.
      */
-    private java.math.BigDecimal netFor(TrainingEnrollment te, YearMonth month, @org.jspecify.annotations.Nullable TrainingPayment payment) {
+    private BigDecimal netFor(TrainingEnrollment te, YearMonth month, @Nullable TrainingPayment payment,
+                              Set<LocalDate> closed, BigDecimal availableBalance) {
         if (payment != null && payment.getAmount() != null) {
             return payment.getAmount();
         }
-        var gross = billing.amount(te, month);
-        var credit = creditService.appliedFor(te, month);
-        return gross != null ? gross.subtract(credit).max(java.math.BigDecimal.ZERO) : java.math.BigDecimal.ZERO;
+        var gross = billing.amount(te, month, closed);
+        var credit = payment != null
+                ? payment.getCreditApplied()
+                : creditService.liveAppliedFor(te, month, availableBalance);
+        return gross != null ? gross.subtract(credit).max(BigDecimal.ZERO) : BigDecimal.ZERO;
     }
 
     /**
@@ -156,7 +182,7 @@ public class AdminTrainingEnrollmentService {
         var billingMonth = start.isAfter(current) ? start : current;
         int sessions = billing.sessions(saved, billingMonth);
         var amount = slot.getPrice() != null
-                ? slot.getPrice().multiply(java.math.BigDecimal.valueOf(sessions)) : null;
+                ? slot.getPrice().multiply(BigDecimal.valueOf(sessions)) : null;
         trainingMail.sendAdminAddedConfirmation(user.getEmail(), user.getFirstName(), info,
                 start, request.months(), billingMonth, sessions, amount);
     }
@@ -206,7 +232,7 @@ public class AdminTrainingEnrollmentService {
             throw new NotFoundException(msg.get("trainingenrollment.not.found"));
         }
         var user = enrollments.getFirst().getUser();
-        var lines = new java.util.ArrayList<TrainingMailService.SessionLine>();
+        var lines = new ArrayList<TrainingMailService.SessionLine>();
         var totalRefund = BigDecimal.ZERO;
         for (var te : enrollments) {
             var eff = effective.isBefore(te.getStartMonth().atDay(1)) ? te.getStartMonth().atDay(1) : effective;
@@ -263,7 +289,7 @@ public class AdminTrainingEnrollmentService {
                 .orElseThrow(() -> new NotFoundException(msg.get("trainingenrollment.user.not.found")));
         var current = YearMonth.now();
 
-        var subscriptions = new java.util.ArrayList<TrainingUserHistoryDtos.Subscription>();
+        var subscriptions = new ArrayList<TrainingUserHistoryDtos.Subscription>();
         var creditBalance = BigDecimal.ZERO;
         for (var te : enrollmentRepository.findAllByUserWithSlot(userId)) {
             var slot = te.getSlot();
@@ -308,25 +334,25 @@ public class AdminTrainingEnrollmentService {
      * reconstruct it: per subscription the credited refunds are matched — earliest source month first — to the paid
      * months that absorbed surplus (their frozen credit_applied), in calendar order.
      */
-    private static java.util.Map<UUID, String> mapCreditConsumption(List<TrainingRefund> refunds,
+    private static Map<UUID, String> mapCreditConsumption(List<TrainingRefund> refunds,
                                                                      List<TrainingPayment> payments) {
-        var creditedByEnrollment = new java.util.HashMap<UUID, List<CreditedRef>>();
+        var creditedByEnrollment = new HashMap<UUID, List<CreditedRef>>();
         for (var r : refunds) {
             if (!TrainingRefund.SETTLEMENT_CREDITED.equals(r.getSettlementType())) {
                 continue;
             }
-            creditedByEnrollment.computeIfAbsent(r.getEnrollment().getId(), k -> new java.util.ArrayList<>())
+            creditedByEnrollment.computeIfAbsent(r.getEnrollment().getId(), k -> new ArrayList<>())
                     .add(new CreditedRef(r.getId(), r.getYearMonth().toString(), r.getCreatedAt(), r.getAmount()));
         }
-        var consumersByEnrollment = new java.util.HashMap<UUID, List<CreditConsumer>>();
+        var consumersByEnrollment = new HashMap<UUID, List<CreditConsumer>>();
         for (var p : payments) {
             if (p.getCreditApplied().signum() <= 0) {
                 continue;
             }
-            consumersByEnrollment.computeIfAbsent(p.getEnrollment().getId(), k -> new java.util.ArrayList<>())
+            consumersByEnrollment.computeIfAbsent(p.getEnrollment().getId(), k -> new ArrayList<>())
                     .add(new CreditConsumer(p.getYearMonth().toString(), p.getCreditApplied()));
         }
-        var result = new java.util.HashMap<UUID, String>();
+        var result = new HashMap<UUID, String>();
         for (var e : creditedByEnrollment.entrySet()) {
             allocateCreditConsumption(e.getValue(),
                     consumersByEnrollment.getOrDefault(e.getKey(), List.of()), result);
@@ -335,7 +361,7 @@ public class AdminTrainingEnrollmentService {
     }
 
     /** One CREDITED refund's surplus, with the month it came from. */
-    record CreditedRef(UUID id, String sourceMonth, java.time.Instant createdAt, BigDecimal amount) {}
+    record CreditedRef(UUID id, String sourceMonth, Instant createdAt, BigDecimal amount) {}
 
     /** A paid month that absorbed surplus, with how much of it is still to be attributed to a source. */
     static final class CreditConsumer {
@@ -351,12 +377,12 @@ public class AdminTrainingEnrollmentService {
      * its inputs.
      */
     static void allocateCreditConsumption(List<CreditedRef> credited, List<CreditConsumer> consumers,
-                                          java.util.Map<UUID, String> out) {
+                                          Map<UUID, String> out) {
         var sortedCredited = credited.stream()
-                .sorted(java.util.Comparator.comparing(CreditedRef::sourceMonth).thenComparing(CreditedRef::createdAt))
+                .sorted(Comparator.comparing(CreditedRef::sourceMonth).thenComparing(CreditedRef::createdAt))
                 .toList();
         var queue = consumers.stream()
-                .sorted(java.util.Comparator.comparing(c -> c.month))
+                .sorted(Comparator.comparing(c -> c.month))
                 .map(c -> new CreditConsumer(c.month, c.remaining))
                 .toList();
         for (var cr : sortedCredited) {
@@ -401,24 +427,27 @@ public class AdminTrainingEnrollmentService {
             return List.of();
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paymentByEnrollment = new java.util.HashMap<java.util.UUID, TrainingPayment>();
+        var paymentByEnrollment = new HashMap<UUID, TrainingPayment>();
         for (var p : paymentRepository.findPaidForMonth(ids, month.toString())) {
             paymentByEnrollment.put(p.getEnrollment().getId(), p);
         }
         var paidIds = paymentByEnrollment.keySet();
+        // The whole overview spans a handful of slots — fetch their closed dates once, instead of the
+        // same two queries per subscriber per line (amount, first session, overdue all wanted them).
+        var closed = closedFor(enrollments, month);
 
-        var byUser = new java.util.LinkedHashMap<java.util.UUID, List<TrainingEnrollment>>();
+        var byUser = new LinkedHashMap<UUID, List<TrainingEnrollment>>();
         for (var te : enrollments) {
-            byUser.computeIfAbsent(te.getUser().getId(), k -> new java.util.ArrayList<>()).add(te);
+            byUser.computeIfAbsent(te.getUser().getId(), k -> new ArrayList<>()).add(te);
         }
-        var result = new java.util.ArrayList<UserMonthlyPayment>();
+        var result = new ArrayList<UserMonthlyPayment>();
         for (var group : byUser.values()) {
             var user = group.getFirst().getUser();
-            var lines = new java.util.ArrayList<MonthlyTrainingLine>();
-            var total = java.math.BigDecimal.ZERO;
+            var lines = new ArrayList<MonthlyTrainingLine>();
+            var total = BigDecimal.ZERO;
             boolean allPaid = true;
-            java.time.Instant paidAt = null;
-            var creditBalance = java.math.BigDecimal.ZERO;
+            Instant paidAt = null;
+            var creditBalance = BigDecimal.ZERO;
             for (var te : group) {
                 var slot = te.getSlot();
                 boolean paid = paidIds.contains(te.getId());
@@ -427,15 +456,18 @@ public class AdminTrainingEnrollmentService {
                 if (payment != null && (paidAt == null || payment.getCreatedAt().isAfter(paidAt))) {
                     paidAt = payment.getCreatedAt();
                 }
+                var closedForSlot = closed.getOrDefault(slot.getId(), Set.<LocalDate>of());
+                var balance = creditService.availableBalance(te.getId());
                 // A paid line shows the amount frozen at payment time (never drifts); an unpaid one the live NET bill.
-                var net = netFor(te, month, payment);
-                boolean overdue = !paid && billing.isPaymentOverdue(te, month);
+                var net = netFor(te, month, payment, closedForSlot, balance);
+                boolean overdue = !paid && billing.isPaymentOverdue(te, month, closedForSlot);
                 total = total.add(net);
-                creditBalance = creditBalance.add(creditService.availableBalance(te.getId()));
+                creditBalance = creditBalance.add(balance);
                 var instr = slot.getInstructor();
                 lines.add(new MonthlyTrainingLine(slot.getEventType().getName(), slot.getDayOfWeek(),
                         slot.getStartTime(), slot.getEndTime(), net, paid, payment != null && payment.isPinned(), overdue,
-                        te.getId(), te.getStartMonth(), te.getBillableFrom(), billing.partialStartDate(te, month),
+                        te.getId(), te.getStartMonth(), te.getBillableFrom(),
+                        billing.partialStartDate(te, month, closedForSlot),
                         slot.getId(), slot.getEventType().getId(),
                         instr != null ? instr.getId() : null,
                         instr != null ? instr.getFirstName() + " " + instr.getLastName() : null));
@@ -491,7 +523,7 @@ public class AdminTrainingEnrollmentService {
                 // and the NET amount collected, so displays never drift with passing days or price edits.
                 var applied = creditService.liveAppliedFor(te, requestMonth);
                 var gross = billing.amount(te, requestMonth);
-                var net = gross != null ? gross.subtract(applied).max(java.math.BigDecimal.ZERO) : null;
+                var net = gross != null ? gross.subtract(applied).max(BigDecimal.ZERO) : null;
                 paymentRepository.save(new TrainingPayment(te, requestMonth, applied, net, individual));
             }
         } else {
@@ -534,7 +566,7 @@ public class AdminTrainingEnrollmentService {
     }
 
     /** Rejects paying {@code month} while an earlier covered payable month (from the current month) is unpaid. */
-    private void requireEarlierMonthsPaid(TrainingEnrollment te, YearMonth month, java.util.Set<String> paidMonths) {
+    private void requireEarlierMonthsPaid(TrainingEnrollment te, YearMonth month, Set<String> paidMonths) {
         var current = YearMonth.now();
         var start = te.getStartMonth();
         var firstPayable = start.isAfter(current) ? start : current;   // max(current, start)

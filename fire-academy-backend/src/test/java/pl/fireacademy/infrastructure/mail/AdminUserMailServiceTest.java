@@ -36,7 +36,7 @@ class AdminUserMailServiceTest {
         when(msg.get("email.bulk.signature")).thenReturn("Pozdrawiam,");
         when(msg.get("email.footer")).thenReturn("Fire Academy");
 
-        service = new AdminUserMailService(mailDispatcher, appConfig, msg);
+        service = new AdminUserMailService(new BrandedMailSender(mailDispatcher, appConfig, msg), msg);
     }
 
     @Test

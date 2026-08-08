@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { formatLongDate, todayIso } from '../../utils/calendarRange'
 import { DEFAULT_WEIGHT_RANGE, weightsKey } from '../../utils/weightQueryKeys'
 import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
+import { inputClass } from '../../utils/fieldClass'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
 
@@ -60,7 +61,6 @@ function HorizonLabel({ horizon, className }: { horizon: GoalHorizon; className?
 /** A freshly reached goal keeps its card for a week before the slot goes back to "set a new one". */
 const CELEBRATION_DAYS = 7
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 /**
  * Three goal cards above the calendar, plus the trophy case behind them.

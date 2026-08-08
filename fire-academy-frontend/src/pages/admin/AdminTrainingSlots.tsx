@@ -11,6 +11,7 @@ import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/train
 import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
+import { inputClass } from '../../utils/fieldClass'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
@@ -44,7 +45,6 @@ type SlotRowForm = { dayOfWeek: number; startTime: string; endTime: string; maxP
 const emptyRow = (): SlotRowForm => ({ dayOfWeek: 1, startTime: '', endTime: '', maxParticipants: '', price: '' })
 const emptyCreate = () => ({ eventTypeId: '', instructorId: '', rows: [emptyRow()] })
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 // Form field class.
 // `error` (red border) is enabled ONLY after a save attempt, when a required field is empty.

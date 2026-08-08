@@ -32,7 +32,8 @@ class AuthMailServiceTest {
         appConfig.setBaseUrl("http://localhost:8081");
         appConfig.setSiteUrl("http://localhost:5174");
 
-        service = new AuthMailService(mailDispatcher, appConfig, adminEmailConfig, msg);
+        service = new AuthMailService(new BrandedMailSender(mailDispatcher, appConfig, msg),
+                appConfig, adminEmailConfig, msg);
 
         user = new User("jan@test.com", "Jan", "Kowalski", "+48123456789");
         user.setPreferredLanguage("pl");
@@ -106,9 +107,9 @@ class AuthMailServiceTest {
         when(msg.get("email.admin.new.user.marketing.no")).thenReturn("Nie");
         when(msg.get(eq("email.admin.new.user.marketing"), anyString())).thenReturn("Zgoda marketingowa: Nie");
         when(msg.get("email.admin.new.user.button")).thenReturn("Zobacz w panelu");
-        when(msg.getForLang(eq("email.footer.visit"), eq("pl"))).thenReturn("Odwiedź naszą stronę");
-        when(msg.getForLang(eq("email.footer"), eq("pl"))).thenReturn("Fire Academy");
-        when(msg.getForLang(eq("email.regards"), eq("pl"))).thenReturn("Pozdrawiam,");
+        when(msg.get("email.footer.visit")).thenReturn("Odwiedź naszą stronę");
+        when(msg.get("email.footer")).thenReturn("Fire Academy");
+        when(msg.get("email.regards")).thenReturn("Pozdrawiam,");
 
         service.sendNewUserAdminNotification(user);
 

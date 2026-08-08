@@ -8,6 +8,7 @@ import { ApiError } from '../../api/client'
 import { VideoPickerModal } from '../exercise-videos/VideoPickerModal'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { AttachmentKind, CreateTrainingBody, PersonalTraining, TrainingKind } from '../../types'
+import { inputClass } from '../../utils/fieldClass'
 
 /** Three materials fit on a card without turning it into a reading list. */
 const MAX_MATERIALS = 3
@@ -16,7 +17,6 @@ const MAX_MATERIALS = 3
 const MIN_CALORIES = 500
 const MAX_CALORIES = 10000
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 interface TrainingFormModalProps {
   /** Present when editing, absent when creating. */

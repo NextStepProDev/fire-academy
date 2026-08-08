@@ -42,7 +42,8 @@ class EnrollmentMailServiceTest {
         when(msg.get(anyString())).thenReturn("text");
         when(msg.get(anyString(), any())).thenReturn("text");
 
-        service = new EnrollmentMailService(mailDispatcher, appConfig, adminEmailConfig, msg);
+        service = new EnrollmentMailService(new BrandedMailSender(mailDispatcher, appConfig, msg),
+                adminEmailConfig, msg);
     }
 
     @Test

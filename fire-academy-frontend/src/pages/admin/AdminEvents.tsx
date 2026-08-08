@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare, Mail, CheckCircle } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
+import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
 
 interface AdminEventsProps {
   category: EventCategory
@@ -231,7 +232,7 @@ function EventCard({
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
               placeholder={t('enrollments.searchUserPlaceholder')}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={inputClass}
             />
             <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-surface-800 divide-y divide-surface-800">
               {usersQuery.isLoading ? (
@@ -260,7 +261,7 @@ function EventCard({
             <label className="block text-sm font-medium text-surface-300 mb-1">
               {t('enrollments.note')} <span className="text-surface-500 font-normal">({t('enrollments.optional')})</span>
             </label>
-            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000} className={textareaClassFixed} />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>{t('actions.cancel')}</Button>
@@ -291,7 +292,7 @@ function EventCard({
               rows={6}
               maxLength={5000}
               placeholder={t('bulkEmail.messagePlaceholder')}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              className={textareaClassFixed}
             />
             <p className="text-xs text-surface-500 mt-1 text-right">{emailMessage.length} / 5000</p>
           </div>
@@ -476,7 +477,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
               value={form.eventTypeName}
               onChange={e => setForm(f => ({ ...f, eventTypeName: e.target.value }))}
               placeholder={t('events.typeOrSelect')}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={inputClass}
             />
             <datalist id={`event-types-${category}`}>
               {eventTypes?.map(et => <option key={et.id} value={et.name} />)}
@@ -485,41 +486,41 @@ export function AdminEvents({ category }: AdminEventsProps) {
           {(form.eventTypeName && !eventTypes?.find(et => et.name === form.eventTypeName)) && (
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.description')}</label>
-              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={12} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y" />
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={12} className={textareaClass} />
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
-              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
-              <input type="date" value={form.endDate} min={form.startDate || undefined} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="date" value={form.endDate} min={form.startDate || undefined} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className={inputClass} />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startTime')}</label>
-              <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endTime')}</label>
-              <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.location')}</label>
-              <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} className={inputClass} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.price')}</label>
-              <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.maxParticipants')}</label>
-              <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className={inputClass} />
             </div>
           </div>
           <div className="flex justify-end gap-3">

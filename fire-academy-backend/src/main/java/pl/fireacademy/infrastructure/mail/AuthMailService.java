@@ -11,14 +11,14 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 @Service
 public class AuthMailService {
 
-    private final MailDispatcher mailDispatcher;
+    private final BrandedMailSender mail;
     private final AdminEmailConfig adminEmailConfig;
     private final MessageService msg;
     private final String siteUrl;
 
-    public AuthMailService(MailDispatcher mailDispatcher, AppConfig appConfig,
+    public AuthMailService(BrandedMailSender mail, AppConfig appConfig,
                            AdminEmailConfig adminEmailConfig, MessageService msg) {
-        this.mailDispatcher = mailDispatcher;
+        this.mail = mail;
         this.adminEmailConfig = adminEmailConfig;
         this.msg = msg;
         this.siteUrl = appConfig.getSiteUrl();
@@ -48,7 +48,7 @@ public class AuthMailService {
                 msg.getForLang("email.verification.ignore", lang)
         );
 
-        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+        mail.send(user.getEmail(), subject, brandedTemplate(content));
     }
 
     @Async("mailExecutor")
@@ -67,7 +67,7 @@ public class AuthMailService {
                 msg.getForLang("email.welcome.see.you", lang)
         );
 
-        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+        mail.send(user.getEmail(), subject, brandedTemplate(content));
     }
 
     @Async("mailExecutor")
@@ -96,7 +96,7 @@ public class AuthMailService {
                 msg.getForLang("email.reset.ignore", lang)
         );
 
-        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+        mail.send(user.getEmail(), subject, brandedTemplate(content));
     }
 
     @Async("mailExecutor")
@@ -115,7 +115,7 @@ public class AuthMailService {
                 msg.getForLang("email.password.changed.warning", lang)
         );
 
-        sendEmail(user.getEmail(), subject, brandedTemplate(content, lang));
+        mail.send(user.getEmail(), subject, brandedTemplate(content));
     }
 
     /**
@@ -171,46 +171,23 @@ public class AuthMailService {
                 msg.get("email.admin.new.user.button")
         );
 
-        String body = brandedTemplate(content, "pl");
+        String body = brandedTemplate(content);
         for (String adminEmail : adminEmailConfig.getAdminEmails()) {
-            sendEmail(adminEmail, subject, body);
+            mail.send(adminEmail, subject, body);
         }
     }
 
-    private String brandedTemplate(String content, String lang) {
-        // Account emails are not tied to a section → the generic ACADEMY FIRE logo (not the camp FIRE CAMP one).
-        String logoUrl = siteUrl + "/images/logo/logo-academy-fire-white.png";
-        // Sign-off skipped when the content already has a warm closing („Do zobaczenia", e.g. a welcome).
-        String signOffHtml = content.toLowerCase().contains("do zobaczenia")
-                ? ""
-                : "<p style=\"font-size: 15px; line-height: 1.6; margin: 24px 0 0;\">%s<br/><strong>%s</strong></p>"
-                        .formatted(msg.getForLang("email.regards", lang), msg.getForLang("email.footer", lang));
-        return """
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1a1816; color: #e0e0e0; padding: 20px; margin: 0;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #312e2b; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #292524; padding: 24px 30px; text-align: center; border-bottom: 2px solid #f97316;">
-                        <a href="%s" style="text-decoration: none;">
-                            <img src="%s" alt="Fire Academy" width="170" style="display: inline-block; width: 170px; max-width: 70%%; height: auto;" />
-                        </a>
-                    </div>
-                    <div style="padding: 30px;">
-                        %s
-                        %s
-                        <hr style="border-color: #4a4a4a; margin: 20px 0;" />
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">
-                            <a href="%s" style="color: #f97316; text-decoration: none;">%s</a>
-                        </p>
-                        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 4px 0;">%s</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.formatted(siteUrl, logoUrl, content, signOffHtml, siteUrl,
-                msg.getForLang("email.footer.visit", lang), msg.getForLang("email.footer", lang));
-    }
 
-    private void sendEmail(String to, String subject, String body) {
-        mailDispatcher.sendHtml(to, subject, body);
+    /**
+     * Account mail carries no section, so it always renders in Fire Academy branding. The sign-off is left
+     * to the shared rule: skipped when the content already closes warmly („Do zobaczenia" in the welcome
+     * mail) or signs off itself.
+     * <p>
+     * The footer strings now resolve through {@code msg.get} rather than the user's language. With a single
+     * {@code messages.properties} and Polish as the only supported language those are the same lookup; if a
+     * second language is ever added, this is where account mail would need its language back.
+     */
+    private String brandedTemplate(String content) {
+        return mail.brandedTemplate(content, null);
     }
 }

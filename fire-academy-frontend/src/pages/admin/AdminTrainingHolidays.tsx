@@ -10,11 +10,11 @@ import { useToast } from '../../context/ToastContext'
 import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
 import type { TrainingHoliday } from '../../types'
 import clsx from 'clsx'
+import { inputClass } from '../../utils/fieldClass'
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 /** Whole-club days off — reduce the billed session count of every slot on that weekday. */
 export function AdminTrainingHolidays() {

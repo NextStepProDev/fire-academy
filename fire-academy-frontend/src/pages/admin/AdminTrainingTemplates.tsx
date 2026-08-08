@@ -9,8 +9,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import type { TrainingTemplate } from '../../types'
+import { inputClass } from '../../utils/fieldClass'
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 /**
  * Reusable skeletons. Applying one COPIES its content into a training, so editing a template never

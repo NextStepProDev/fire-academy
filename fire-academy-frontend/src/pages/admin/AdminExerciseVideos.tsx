@@ -12,8 +12,8 @@ import { VideoSearchInput } from '../../components/exercise-videos/VideoSearchIn
 import { useToast } from '../../context/ToastContext'
 import { parseYouTubeId, youTubeEmbedUrl } from '../../utils/youtube'
 import type { ExerciseVideo, VideoMetadata } from '../../types'
+import { inputClass } from '../../utils/fieldClass'
 
-const inputClass = 'w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 export function AdminExerciseVideos() {
   const { t } = useTranslation('calendar')

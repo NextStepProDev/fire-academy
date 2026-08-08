@@ -47,6 +47,14 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
             + "WHERE r.enrollment.slot.id = :slotId AND r.sessionDate = :date AND r.settledAt IS NULL")
     List<UUID> findPendingEnrollmentIdsForSlotAndDate(@Param("slotId") UUID slotId, @Param("date") LocalDate date);
 
+    /**
+     * Every unresolved refund keyed by its (slot, session date) — one query for a whole overview page.
+     * Returns rows of {@code [slotId, sessionDate, enrollmentId]}; the caller groups them.
+     */
+    @Query("SELECT r.enrollment.slot.id, r.sessionDate, r.enrollment.id FROM TrainingRefund r "
+            + "WHERE r.settledAt IS NULL")
+    List<Object[]> findAllPendingBySlotAndDate();
+
     /** All refunds for a date across all slots (any settlement) — to decide/undo a day-off removal. */
     @Query("SELECT r FROM TrainingRefund r WHERE r.sessionDate = :date")
     List<TrainingRefund> findByDate(@Param("date") LocalDate date);

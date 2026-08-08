@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { resetPassword } from '../api/auth'
 import { Button } from '../components/ui/Button'
 import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter'
+import { inputClassMuted } from '../utils/fieldClass'
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : String(err)
 
@@ -77,7 +78,7 @@ export function ResetPasswordPage() {
               minLength={10}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={inputClassMuted}
             />
             <PasswordStrengthMeter password={newPassword} />
             <p className="text-xs text-surface-500 mt-1">{t('resetPassword.passwordHint')}</p>
@@ -93,7 +94,7 @@ export function ResetPasswordPage() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className={inputClassMuted}
             />
           </div>
 

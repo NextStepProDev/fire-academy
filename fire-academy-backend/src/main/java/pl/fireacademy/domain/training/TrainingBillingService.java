@@ -151,6 +151,35 @@ public class TrainingBillingService {
         return dates;
     }
 
+    /**
+     * Closed dates of a whole month, batched across slots — the monthly counterpart of
+     * {@link #closedDatesInRange(Collection, Map, LocalDate, LocalDate)}, with each slot's scheduled
+     * deactivation already folded in.
+     * <p>
+     * Every method below that bills a single subscription derives this set on its own, at the cost of two
+     * queries per call. That is the right shape for one subscriber, and quadratic for a page of them: the
+     * slot roster and the monthly payment overview ask for sessions, first session, overdue and amount per
+     * subscriber, all off the same handful of slots, and re-run the same two queries for each. Callers that
+     * bill many subscriptions at once fetch this once and pass the result to the {@code closed}-taking
+     * overloads — the same batching {@code RecurringSessionOverlayService} already does for the calendar.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Set<LocalDate>> closedBySlotForMonth(Collection<TrainingSlot> slots, YearMonth month) {
+        Map<UUID, TrainingSlot> distinct = new HashMap<>();
+        Map<UUID, Integer> dayOfWeekBySlot = new HashMap<>();
+        for (TrainingSlot slot : slots) {
+            distinct.put(slot.getId(), slot);
+            dayOfWeekBySlot.put(slot.getId(), slot.getDayOfWeek());
+        }
+        LocalDate from = month.atDay(1);
+        LocalDate to = month.atEndOfMonth();
+        Map<UUID, Set<LocalDate>> closed = closedDatesInRange(distinct.keySet(), dayOfWeekBySlot, from, to);
+        for (TrainingSlot slot : distinct.values()) {
+            addDeactivationDates(slot, from, to, closed.computeIfAbsent(slot.getId(), k -> new HashSet<>()));
+        }
+        return closed;
+    }
+
     /** Preview flavor (would-be new enrollment): current month counted from today. */
     @Transactional(readOnly = true)
     public int sessions(TrainingSlot slot, YearMonth month) {
@@ -164,16 +193,25 @@ public class TrainingBillingService {
      */
     @Transactional(readOnly = true)
     public int sessions(TrainingEnrollment te, YearMonth month) {
-        var slot = te.getSlot();
-        return sessionsInMonth(slot.getDayOfWeek(), month, closedIncludingDeactivation(slot, month),
-                billableFromDay(te, month));
+        return sessions(te, month, closedIncludingDeactivation(te.getSlot(), month));
+    }
+
+    /** As above, on a closed-date set the caller already holds. */
+    public int sessions(TrainingEnrollment te, YearMonth month, Set<LocalDate> closed) {
+        return sessionsInMonth(te.getSlot().getDayOfWeek(), month, closed, billableFromDay(te, month));
     }
 
     @Nullable
     @Transactional(readOnly = true)
     public BigDecimal amount(TrainingEnrollment te, YearMonth month) {
+        return amount(te, month, closedIncludingDeactivation(te.getSlot(), month));
+    }
+
+    /** As above, on a closed-date set the caller already holds. */
+    @Nullable
+    public BigDecimal amount(TrainingEnrollment te, YearMonth month, Set<LocalDate> closed) {
         var price = te.getSlot().getPrice();
-        return price != null ? price.multiply(BigDecimal.valueOf(sessions(te, month))) : null;
+        return price != null ? price.multiply(BigDecimal.valueOf(sessions(te, month, closed))) : null;
     }
 
     /**
@@ -212,6 +250,14 @@ public class TrainingBillingService {
         return firstSessionDate(te, month);
     }
 
+    /** As above, on a closed-date set the caller already holds. */
+    @Nullable
+    public LocalDate partialStartDate(TrainingEnrollment te, YearMonth month, Set<LocalDate> closed) {
+        if (!te.getStartMonth().equals(month)) return null;
+        if (billableFromDay(te, month) <= 1) return null;
+        return firstSessionDate(te, month, closed);
+    }
+
     /** How many days after the month's first session a payment stays "on time" before it counts as overdue. */
     private static final int OVERDUE_GRACE_DAYS = 1;
 
@@ -219,8 +265,13 @@ public class TrainingBillingService {
     @Nullable
     @Transactional(readOnly = true)
     public LocalDate firstSessionDate(TrainingEnrollment te, YearMonth month) {
+        return firstSessionDate(te, month, closedIncludingDeactivation(te.getSlot(), month));
+    }
+
+    /** As above, on a closed-date set the caller already holds. */
+    @Nullable
+    public LocalDate firstSessionDate(TrainingEnrollment te, YearMonth month, Set<LocalDate> closed) {
         var slot = te.getSlot();
-        Set<LocalDate> closed = closedIncludingDeactivation(slot, month);
         for (int day = billableFromDay(te, month); day <= month.lengthOfMonth(); day++) {
             LocalDate date = LocalDate.of(month.getYear(), month.getMonthValue(), day);
             if (date.getDayOfWeek().getValue() == slot.getDayOfWeek() && !closed.contains(date)) {
@@ -257,8 +308,16 @@ public class TrainingBillingService {
      */
     @Transactional(readOnly = true)
     public boolean isPaymentOverdue(TrainingEnrollment te, YearMonth month) {
-        LocalDate first = firstSessionDate(te, month);
-        return first != null && LocalDate.now().isAfter(first.plusDays(OVERDUE_GRACE_DAYS));
+        return isOverdue(firstSessionDate(te, month));
+    }
+
+    /** As above, on a closed-date set the caller already holds. */
+    public boolean isPaymentOverdue(TrainingEnrollment te, YearMonth month, Set<LocalDate> closed) {
+        return isOverdue(firstSessionDate(te, month, closed));
+    }
+
+    private static boolean isOverdue(@Nullable LocalDate firstSession) {
+        return firstSession != null && LocalDate.now().isAfter(firstSession.plusDays(OVERDUE_GRACE_DAYS));
     }
 
     /** Closed dates of the month plus the slot's weekday dates on/after a scheduled deactivation. */

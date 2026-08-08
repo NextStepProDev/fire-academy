@@ -3,9 +3,13 @@ package pl.fireacademy.infrastructure.storage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +24,28 @@ class LocalFileStorageServiceTest {
 
     private LocalFileStorageService storageService;
 
+    /**
+     * Real encoded images, because uploads are now accepted on their signature. These tests used to post
+     * strings like "image data" and pass — which was the hole, not a convenience.
+     */
+    private static byte[] image(String format) throws IOException {
+        var out = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), format, out);
+        return out.toByteArray();
+    }
+
+    /** A minimal RIFF/WEBP container — the JDK has no WebP encoder, and none is needed for a signature. */
+    private static byte[] webp() {
+        byte[] bytes = new byte[64];
+        System.arraycopy("RIFF".getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0, bytes, 0, 4);
+        System.arraycopy("WEBP".getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0, bytes, 8, 4);
+        return bytes;
+    }
+
+    private static MultipartFile upload(String filename, String contentType, byte[] content) {
+        return new MockMultipartFile("file", filename, contentType, content);
+    }
+
     @BeforeEach
     void setUp() {
         storageService = new LocalFileStorageService(tempDir.toString(), new ImageOptimizer());
@@ -27,10 +53,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldStoreFileSuccessfully() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/jpeg");
-        when(file.getOriginalFilename()).thenReturn("photo.jpg");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("image data".getBytes()));
+        MultipartFile file = upload("photo.jpg", "image/jpeg", image("jpg"));
 
         String filename = storageService.store("instructors", file);
 
@@ -41,10 +64,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldStorePngFile() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/png");
-        when(file.getOriginalFilename()).thenReturn("image.png");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("png data".getBytes()));
+        MultipartFile file = upload("image.png", "image/png", image("png"));
 
         String filename = storageService.store("eventtypes", file);
 
@@ -54,10 +74,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldStoreWebpFile() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/webp");
-        when(file.getOriginalFilename()).thenReturn("image.webp");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("webp data".getBytes()));
+        MultipartFile file = upload("image.webp", "image/webp", webp());
 
         String filename = storageService.store("instructors", file);
 
@@ -100,10 +117,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldDeleteFile() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/jpeg");
-        when(file.getOriginalFilename()).thenReturn("photo.jpg");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("data".getBytes()));
+        MultipartFile file = upload("photo.jpg", "image/jpeg", image("jpg"));
 
         String filename = storageService.store("instructors", file);
         assertTrue(storageService.exists("instructors", filename));
@@ -119,27 +133,21 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldReturnFileInputStream() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/jpeg");
-        when(file.getOriginalFilename()).thenReturn("photo.jpg");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("test content".getBytes()));
+        byte[] stored = image("jpg");
+        MultipartFile file = upload("photo.jpg", "image/jpeg", stored);
 
         String filename = storageService.store("instructors", file);
 
         try (InputStream is = storageService.getInputStream("instructors", filename)) {
             assertNotNull(is);
-            String content = new String(is.readAllBytes());
-            assertEquals("test content", content);
+            assertArrayEquals(stored, is.readAllBytes());
         }
     }
 
     @Test
     void shouldReturnFileSize() throws Exception {
-        byte[] data = "file content here".getBytes();
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/png");
-        when(file.getOriginalFilename()).thenReturn("image.png");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(data));
+        byte[] data = image("png");
+        MultipartFile file = upload("image.png", "image/png", data);
 
         String filename = storageService.store("instructors", file);
 
@@ -153,10 +161,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldCreateDirectoriesAutomatically() throws Exception {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.getContentType()).thenReturn("image/jpeg");
-        when(file.getOriginalFilename()).thenReturn("photo.jpg");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("data".getBytes()));
+        MultipartFile file = upload("photo.jpg", "image/jpeg", image("jpg"));
 
         String filename = storageService.store("new-folder", file);
 
@@ -166,15 +171,8 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldGenerateUniqueFilenames() throws Exception {
-        MultipartFile file1 = mock(MultipartFile.class);
-        when(file1.getContentType()).thenReturn("image/jpeg");
-        when(file1.getOriginalFilename()).thenReturn("same.jpg");
-        when(file1.getInputStream()).thenReturn(new ByteArrayInputStream("data1".getBytes()));
-
-        MultipartFile file2 = mock(MultipartFile.class);
-        when(file2.getContentType()).thenReturn("image/jpeg");
-        when(file2.getOriginalFilename()).thenReturn("same.jpg");
-        when(file2.getInputStream()).thenReturn(new ByteArrayInputStream("data2".getBytes()));
+        MultipartFile file1 = upload("same.jpg", "image/jpeg", image("jpg"));
+        MultipartFile file2 = upload("same.jpg", "image/jpeg", image("jpg"));
 
         String name1 = storageService.store("instructors", file1);
         String name2 = storageService.store("instructors", file2);
