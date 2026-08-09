@@ -234,7 +234,12 @@ public final class TrainingCalendarDtos {
     ) {}
 
     /**
+     * @param totalCount          every 1-on-1 training ever ticked off — counted in the database, not
+     *                            from the rolling year the rest of this response is built on
+     * @param firstActivityDate   the earliest one, on the same lifetime basis, so the date a client
+     *                            started does not drift forward as old sessions leave the window
      * @param heatmap             non-zero days only, so a year of squares stays a small payload
+     * @param byType              both halves cover the last year, so the two numbers are comparable
      * @param attendancePercent   null when nothing was planned in the window — 0% would claim a
      *                            failure that never happened
      * @param overtraining        null for the client: this signal is for the coach's eyes only, and

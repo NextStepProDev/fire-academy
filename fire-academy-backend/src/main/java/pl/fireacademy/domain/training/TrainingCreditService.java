@@ -63,6 +63,20 @@ public class TrainingCreditService {
     }
 
     /**
+     * As above, on a balance the caller already holds — a page that shows the surplus next to the
+     * discount has read it anyway, and without this overload the same two sum queries run twice for
+     * every subscription on screen.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal appliedFor(TrainingEnrollment te, YearMonth month, BigDecimal availableBalance) {
+        var paid = paymentRepository.findByEnrollmentIdAndYearMonth(te.getId(), month.toString());
+        if (paid.isPresent()) {
+            return paid.get().getCreditApplied();
+        }
+        return liveAppliedFor(te, month, availableBalance);
+    }
+
+    /**
      * Surplus that would discount {@code month} if it were the next to be paid — used both for display of an
      * unpaid month and to freeze the amount when the month is marked paid (call before saving the payment).
      */

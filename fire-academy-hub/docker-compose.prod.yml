@@ -77,8 +77,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       APP_BASE_URL: ${APP_BASE_URL}
       SITE_URL: ${SITE_URL:-${APP_BASE_URL}}
-      # Puste — pozwala JVM ergonomicznie wybrać SerialGC poniżej 2 GB RAM (lekszy na ciasnym boxie).
-      # Po ew. upgradzie RAM można tu wstawić -XX:+UseG1GC. Memory flags (MaxRAMPercentage itd.) są w Dockerfile.
+      # Empty on purpose: below 2 GB of RAM the JVM ergonomically picks SerialGC, which uses less
+      # native memory than G1 on a box this tight. Put -XX:+UseG1GC here after a RAM upgrade.
+      # The memory flags themselves (MaxRAMPercentage and friends) live in the backend Dockerfile.
       JAVA_OPTS: ""
       # Redundant with -Duser.timezone in the backend Dockerfile — keeps OS-level timestamps consistent too.
       TZ: Europe/Warsaw

@@ -16,19 +16,17 @@ export interface TrainingClipboardEntry {
  *
  * Kept in sessionStorage rather than component state so it survives paging between weeks and months
  * — copying a training and then navigating to the target week is the whole point, and a state reset
- * on the way there would make the feature useless. Cleared when the tab closes.
+ * on the way there would make the feature useless. Cleared when the tab closes, which is the right
+ * lifetime for a clipboard: an entry armed yesterday, pasted by accident today, is a session in
+ * someone's plan they never asked for.
+ *
+ * Deliberately NOT synchronised across tabs. There used to be a `storage` listener here meaning to
+ * do that, and it could never have fired: sessionStorage is per-tab, so nothing else is watching
+ * the same store. Two tabs each keep their own clipboard, which is also what someone comparing two
+ * clients side by side would expect.
  */
 export function useTrainingClipboard() {
   const [entry, setEntry] = useState<TrainingClipboardEntry | null>(() => read())
-
-  // Keep two tabs of the same calendar in step.
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setEntry(read())
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [])
 
   const clear = useCallback(() => {
     sessionStorage.removeItem(STORAGE_KEY)

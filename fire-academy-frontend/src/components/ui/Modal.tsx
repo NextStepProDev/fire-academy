@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,10 +24,28 @@ const SIZE_CLASS: Record<ModalSize, string> = {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
 
+/**
+ * Every modal currently on screen, innermost last.
+ *
+ * Modals nest here as a matter of course — a delete confirmation over a training's details, the
+ * video picker over the training form — and each one used to keep its own document-level key
+ * handler and clear `body.overflow` on the way out, with no idea the others existed. Two things
+ * followed: closing the inner one handed the page back to the scroll wheel while the outer still
+ * covered it, and a single Escape reached every handler at once, so dismissing a confirmation tore
+ * down the dialog behind it too.
+ *
+ * With a shared stack only the topmost modal answers the keyboard, and scrolling returns when the
+ * last one leaves. Module-level rather than context: a modal must behave the same wherever it is
+ * rendered, including from a portal or a page that never thought about nesting.
+ */
+const modalStack: symbol[] = []
+
 export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   const { t } = useTranslation('common')
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
+  // Identity for the stack, stable for this modal's lifetime.
+  const [modalId] = useState(() => Symbol('modal'))
 
   // onClose in a ref so the effect doesn't restart on every new callback reference
   const onCloseRef = useRef(onClose)
@@ -38,6 +56,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   useEffect(() => {
     if (!isOpen) return
 
+    modalStack.push(modalId)
     document.body.style.overflow = 'hidden'
     const previouslyFocused = document.activeElement as HTMLElement | null
 
@@ -46,7 +65,13 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
     const first = panel?.querySelector<HTMLElement>(FOCUSABLE)
     ;(first ?? panel)?.focus()
 
+    // Only the modal on top of the stack reacts. Escape belongs to whatever is in front of the
+    // user, and so does the focus trap — a ConfirmDialog is a SIBLING of the modal that opened it,
+    // so the one underneath would otherwise pull focus back out of the dialog on the next Tab.
+    const isTopmost = () => modalStack[modalStack.length - 1] === modalId
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isTopmost()) return
       if (e.key === 'Escape') {
         onCloseRef.current()
         return
@@ -75,11 +100,17 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
+      const index = modalStack.indexOf(modalId)
+      if (index !== -1) modalStack.splice(index, 1)
+      // Scrolling comes back only once the LAST modal is gone. An inner dialog closing must not
+      // release the page while its parent is still covering it.
+      if (modalStack.length === 0) {
+        document.body.style.overflow = ''
+      }
       // Restore focus to the triggering element
       previouslyFocused?.focus?.()
     }
-  }, [isOpen])
+  }, [isOpen, modalId])
 
   if (!isOpen) return null
 

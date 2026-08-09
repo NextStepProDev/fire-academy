@@ -13,6 +13,8 @@ import pl.fireacademy.domain.training.TrainingEnrollment;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
 import pl.fireacademy.domain.training.TrainingHoliday;
 import pl.fireacademy.domain.training.TrainingHolidayRepository;
+import pl.fireacademy.domain.training.TrainingPaymentRepository;
+import pl.fireacademy.domain.training.TrainingRefundRepository;
 import pl.fireacademy.domain.training.TrainingSlot;
 import pl.fireacademy.domain.training.TrainingSlotRepository;
 import pl.fireacademy.domain.user.UserRepository;
@@ -21,8 +23,13 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class TrainingEnrollmentService {
@@ -43,8 +50,8 @@ public class TrainingEnrollmentService {
     private final TrainingHolidayRepository holidayRepository;
     private final TrainingBillingService billing;
     private final TrainingCreditService creditService;
-    private final pl.fireacademy.domain.training.TrainingPaymentRepository paymentRepository;
-    private final pl.fireacademy.domain.training.TrainingRefundRepository refundRepository;
+    private final TrainingPaymentRepository paymentRepository;
+    private final TrainingRefundRepository refundRepository;
     private final UserRepository userRepository;
     private final MessageService msg;
     private final TrainingMailService trainingMail;
@@ -55,8 +62,8 @@ public class TrainingEnrollmentService {
                                      TrainingHolidayRepository holidayRepository,
                                      TrainingBillingService billing,
                                      TrainingCreditService creditService,
-                                     pl.fireacademy.domain.training.TrainingPaymentRepository paymentRepository,
-                                     pl.fireacademy.domain.training.TrainingRefundRepository refundRepository,
+                                     TrainingPaymentRepository paymentRepository,
+                                     TrainingRefundRepository refundRepository,
                                      UserRepository userRepository,
                                      MessageService msg,
                                      TrainingMailService trainingMail) {
@@ -143,16 +150,36 @@ public class TrainingEnrollmentService {
         var to = current.plusMonths(BOOKABLE_MONTHS_AHEAD).atEndOfMonth();
         var cancelledMap = cancelledSessionRepository
                 .findForSlotsInRange(slotIds, LocalDate.now(), to).stream()
-                .collect(java.util.stream.Collectors.groupingBy(cs -> cs.getSlot().getId(),
-                        java.util.stream.Collectors.mapping(cs -> cs.getSessionDate(), java.util.stream.Collectors.toList())));
+                .collect(Collectors.groupingBy(cs -> cs.getSlot().getId(),
+                        Collectors.mapping(cs -> cs.getSessionDate(), Collectors.toList())));
         var holidays = holidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(LocalDate.now(), to);
+
+        // Days off and cancellations depend on the SLOT and the MONTH, never on the person, so they
+        // are fetched once for the whole page — the same batching the organizer's roster and the
+        // monthly payment overview already do. Per subscription this used to be two queries for the
+        // billing month and two more for the next-month estimate; now it is two per distinct month
+        // for the entire list. A subscription starting later than this one bills off its own start
+        // month, hence a set of months rather than a single one.
+        var slots = enrollments.stream().map(TrainingEnrollment::getSlot).toList();
+        var months = new HashSet<YearMonth>();
+        for (var te : enrollments) {
+            var billingMonth = te.getStartMonth().isAfter(current) ? te.getStartMonth() : current;
+            months.add(billingMonth);
+            months.add(billingMonth.plusMonths(1));
+        }
+        var closedByMonth = new HashMap<YearMonth, Map<UUID, Set<LocalDate>>>();
+        for (var m : months) {
+            closedByMonth.put(m, billing.closedBySlotForMonth(slots, m));
+        }
+
         return enrollments.stream()
                 .map(te -> {
                     var slotHolidays = holidays.stream()
                             .map(TrainingHoliday::getHolidayDate)
                             .filter(d -> d.getDayOfWeek().getValue() == te.getSlot().getDayOfWeek())
                             .toList();
-                    return toResponse(te, current, cancelledMap.getOrDefault(te.getSlot().getId(), List.of()), slotHolidays);
+                    return toResponse(te, current, cancelledMap.getOrDefault(te.getSlot().getId(), List.of()),
+                            slotHolidays, closedByMonth);
                 })
                 .toList();
     }
@@ -233,6 +260,16 @@ public class TrainingEnrollmentService {
                 slot.getDayOfWeek(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());
     }
 
+    /**
+     * The slot's closed dates for a month out of the page-wide prefetch. Empty when the month was
+     * never asked for — which cannot happen for the two months a row actually bills, and is the
+     * right answer (nothing closed) rather than a crash if a third one is ever added.
+     */
+    private static Set<LocalDate> closedFor(Map<YearMonth, Map<UUID, Set<LocalDate>>> closedByMonth,
+                                            YearMonth month, UUID slotId) {
+        return closedByMonth.getOrDefault(month, Map.of()).getOrDefault(slotId, Set.of());
+    }
+
     private String periodLabel(YearMonth start, @Nullable YearMonth end) {
         String startLbl = TrainingMailService.monthLabel(start);
         return end != null ? startLbl + " – " + TrainingMailService.monthLabel(end)
@@ -240,21 +277,31 @@ public class TrainingEnrollmentService {
     }
 
     private MyTrainingEnrollmentResponse toResponse(TrainingEnrollment te, YearMonth current,
-                                                    List<LocalDate> cancelledDates, List<LocalDate> holidayDates) {
+                                                    List<LocalDate> cancelledDates, List<LocalDate> holidayDates,
+                                                    Map<YearMonth, Map<UUID, Set<LocalDate>>> closedByMonth) {
         TrainingSlot slot = te.getSlot();
         var et = slot.getEventType();
         var instr = slot.getInstructor();
         var start = te.getStartMonth();
         var billingMonth = start.isAfter(current) ? start : current;
-        int sessions = billing.sessions(te, billingMonth);
-        // Surplus credit (from CREDITED refunds) discounts the bill; monthlyAmount is the NET the user pays.
-        BigDecimal monthlyCredit = creditService.appliedFor(te, billingMonth);
-        BigDecimal monthlyAmount = slot.getPrice() != null
-                ? slot.getPrice().multiply(BigDecimal.valueOf(sessions)).subtract(monthlyCredit).max(BigDecimal.ZERO)
-                : null;
+        var closed = closedFor(closedByMonth, billingMonth, slot.getId());
+        int sessions = billing.sessions(te, billingMonth, closed);
+        // The surplus balance and the month's payment row are each read ONCE and then handed to
+        // everything below that needs them. Both used to be fetched again inside creditService's
+        // convenience methods, which is how one line of a bill came to cost nine queries.
+        BigDecimal creditBalance = creditService.availableBalance(te.getId());
         var billingPayment = paymentRepository
                 .findByEnrollmentIdAndYearMonth(te.getId(), billingMonth.toString());
         boolean billingMonthPaid = billingPayment.isPresent();
+        // Surplus credit (from CREDITED refunds) discounts the bill; monthlyAmount is the NET the user pays.
+        // A paid month uses the amount frozen on its payment row, an unpaid one the live figure —
+        // the same branch creditService.appliedFor makes, on rows we already hold.
+        BigDecimal monthlyCredit = billingMonthPaid
+                ? billingPayment.get().getCreditApplied()
+                : creditService.liveAppliedFor(te, billingMonth, creditBalance);
+        BigDecimal monthlyAmount = slot.getPrice() != null
+                ? slot.getPrice().multiply(BigDecimal.valueOf(sessions)).subtract(monthlyCredit).max(BigDecimal.ZERO)
+                : null;
         // Money owed for cancelled paid sessions not yet resolved by the organizer.
         BigDecimal pendingRefundAmount = refundRepository.sumPendingForEnrollment(te.getId());
         // What the client actually paid for the billing month — the amount frozen on the payment row. Legacy
@@ -269,7 +316,7 @@ public class TrainingEnrollmentService {
         }
         // Surplus still waiting for upcoming months = total available minus the part already shown on the
         // (unpaid) current bill; when the current month is paid, nothing was applied to it, so it's the full balance.
-        BigDecimal upcomingCreditBalance = creditService.availableBalance(te.getId())
+        BigDecimal upcomingCreditBalance = creditBalance
                 .subtract(billingMonthPaid ? BigDecimal.ZERO : monthlyCredit).max(BigDecimal.ZERO);
 
         // Next-month estimate: only once we are within the preview window before it starts and the
@@ -283,8 +330,8 @@ public class TrainingEnrollmentService {
         boolean activeNextMonth = te.getEndMonth() == null || !te.getEndMonth().isBefore(nextMonth);
         if (inPreviewWindow && activeNextMonth) {
             nextBillingMonth = nextMonth;
-            nextMonthSessions = billing.sessions(te, nextMonth);
-            nextMonthCredit = creditService.appliedFor(te, nextMonth);
+            nextMonthSessions = billing.sessions(te, nextMonth, closedFor(closedByMonth, nextMonth, slot.getId()));
+            nextMonthCredit = creditService.appliedFor(te, nextMonth, creditBalance);
             nextMonthAmount = slot.getPrice() != null
                     ? slot.getPrice().multiply(BigDecimal.valueOf(nextMonthSessions)).subtract(nextMonthCredit).max(BigDecimal.ZERO)
                     : null;
@@ -305,6 +352,6 @@ public class TrainingEnrollmentService {
      * cancellations. Kept for the pure-counting unit tests; production billing uses {@link TrainingBillingService}.
      */
     public static int sessionsInMonth(int isoDayOfWeek, YearMonth month) {
-        return TrainingBillingService.sessionsInMonth(isoDayOfWeek, month, java.util.Set.of());
+        return TrainingBillingService.sessionsInMonth(isoDayOfWeek, month, Set.of());
     }
 }

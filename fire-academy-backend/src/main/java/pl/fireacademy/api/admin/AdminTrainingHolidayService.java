@@ -3,6 +3,7 @@ package pl.fireacademy.api.admin;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.TrainingSlotDtos.TrainingHolidayResponse;
 import pl.fireacademy.domain.training.*;
 import pl.fireacademy.infrastructure.i18n.MessageService;
@@ -138,7 +139,7 @@ public class AdminTrainingHolidayService {
     @Transactional
     public void remove(UUID id) {
         var holiday = holidayRepository.findById(id)
-                .orElseThrow(() -> new pl.fireacademy.api.NotFoundException(msg.get("trainingholiday.not.found")));
+                .orElseThrow(() -> new NotFoundException(msg.get("trainingholiday.not.found")));
         var date = holiday.getHolidayDate();
         // Sessions come back — blocked if a cash refund was already paid out (or credited surplus already spent).
         if (refundService.hasCashRefundForDate(date)) {

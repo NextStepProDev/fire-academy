@@ -14,6 +14,7 @@ import pl.fireacademy.domain.auth.TokenType;
 import pl.fireacademy.domain.enrollment.EnrollmentErasureService;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRepository;
+import pl.fireacademy.domain.user.UserRole;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.mail.EnrollmentMailService;
 import pl.fireacademy.infrastructure.security.JwtAuthenticationFilter;
@@ -268,7 +269,7 @@ public class UserService {
         return new UserDtos.UserResponse(
             user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
             user.getPhone(), user.getRole().name(),
-            user.getRole() == pl.fireacademy.domain.user.UserRole.ADMIN,
+            user.getRole() == UserRole.ADMIN,
             adminEmailConfig.isAdminEmail(user.getEmail()),
             user.isEmailVerified(),
             user.hasPrivacyAccepted(), user.hasMarketingConsent(),

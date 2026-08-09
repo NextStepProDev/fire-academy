@@ -55,4 +55,30 @@ public interface PersonalTrainingRepository extends JpaRepository<PersonalTraini
         """)
     @Nullable
     LocalDate findNextTrainingDate(@Param("athleteId") UUID athleteId, @Param("from") LocalDate from);
+
+    /**
+     * Everything ever ticked off, counted in the database rather than from a loaded page.
+     * <p>
+     * The statistics panel reads a rolling year of rows for the heatmap, streaks and averages, and
+     * the lifetime figures used to be derived from that same list. They cannot be: after a year of
+     * coaching the "total" stops growing — old sessions drop out of the window exactly as fast as
+     * new ones arrive — and the "first activity" date creeps forward month by month, so a client's
+     * own history quietly rewrites itself. Tasks are excluded here for the same reason they are
+     * excluded everywhere else in the training numbers: holding a calorie ceiling is not a session.
+     */
+    @Query("""
+        SELECT COUNT(pt) FROM PersonalTraining pt
+        WHERE pt.athlete.id = :athleteId AND pt.completedAt IS NOT NULL
+          AND pt.kind = pl.fireacademy.domain.training.TrainingKind.TRAINING
+        """)
+    long countCompleted(@Param("athleteId") UUID athleteId);
+
+    /** Date of the earliest completed training ever, or null when there is none yet. */
+    @Query("""
+        SELECT MIN(pt.date) FROM PersonalTraining pt
+        WHERE pt.athlete.id = :athleteId AND pt.completedAt IS NOT NULL
+          AND pt.kind = pl.fireacademy.domain.training.TrainingKind.TRAINING
+        """)
+    @Nullable
+    LocalDate findFirstCompletedDate(@Param("athleteId") UUID athleteId);
 }

@@ -58,7 +58,8 @@ app:
     root: ${STORAGE_ROOT:./uploads}
   admin:
     email: ${ADMIN_EMAIL:}
-    # Konta techniczne/deweloperskie (CSV) — mają admina do testów, ale są ukryte na liście użytkowników w panelu.
+    # Technical/developer accounts (CSV) — they hold admin for testing but stay hidden from the
+    # user list in the panel, from admin-add search, and from bulk mail recipients.
     hidden-emails: ${ADMIN_HIDDEN_EMAILS:}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:noreply@fireworkout.pl}}
@@ -100,8 +101,8 @@ management:
     health:
       show-details: never
   health:
-    # Wolny SMTP (~10 s) przekracza timeout docker healthchecka (5 s) → fałszywe "unhealthy" → zbędny restart.
-    # Maile to nie liveness — wyłączamy ich sondowanie w /actuator/health.
+    # A slow SMTP probe (~10 s) overruns the docker healthcheck timeout (5 s) → a false "unhealthy"
+    # → a pointless restart. Mail is not liveness-critical, so it stays out of /actuator/health.
     mail:
       enabled: false
 

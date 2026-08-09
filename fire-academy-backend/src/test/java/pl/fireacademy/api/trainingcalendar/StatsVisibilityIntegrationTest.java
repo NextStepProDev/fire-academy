@@ -157,6 +157,30 @@ class StatsVisibilityIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.attendancePercent").doesNotExist());
     }
 
+    /**
+     * The lifetime figures are asked of the database, not counted off the rolling year the rest of
+     * the panel is built from. Derived from that window they would have gone wrong quietly: after
+     * twelve months the "total" stops growing, because old sessions leave the window exactly as fast
+     * as new ones arrive, and the "first activity" date walks forward — a client's own history
+     * rewriting itself while nobody is looking.
+     */
+    @Test
+    void shouldCountEveryCompletedTrainingEverInTheTotal() throws Exception {
+        String admin = adminToken();
+        String client = flagClient();
+        LocalDate longAgo = LocalDate.now().minusDays(500);   // well outside the 365-day window
+        completedTraining(admin, client, longAgo, 5);
+        completedTraining(admin, client, LocalDate.now().minusDays(3), 5);
+
+        mockMvc.perform(get("/api/user/my-training/stats").header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2))
+                .andExpect(jsonPath("$.firstActivityDate").value(longAgo.toString()))
+                // The breakdown stays windowed on purpose: it is set against a year of group
+                // sessions, and comparing a lifetime figure to a year would misread as absence.
+                .andExpect(jsonPath("$.byType.personal").value(1));
+    }
+
     @Test
     void shouldKeepStatsOutOfReachForOtherPeople() throws Exception {
         String admin = adminToken();
