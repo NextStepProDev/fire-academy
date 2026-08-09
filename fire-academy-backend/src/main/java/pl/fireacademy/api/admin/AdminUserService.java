@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
+import pl.fireacademy.api.user.TrainingEnrollmentService;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
@@ -48,7 +49,7 @@ public class AdminUserService {
     private final FileStorageService fileStorageService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final MessageService msg;
-    private final pl.fireacademy.api.user.TrainingEnrollmentService trainingEnrollmentService;
+    private final TrainingEnrollmentService trainingEnrollmentService;
 
     public AdminUserService(UserRepository userRepository,
                             AuthTokenRepository authTokenRepository,
@@ -59,7 +60,7 @@ public class AdminUserService {
                             FileStorageService fileStorageService,
                             JwtAuthenticationFilter jwtAuthenticationFilter,
                             MessageService msg,
-                            pl.fireacademy.api.user.TrainingEnrollmentService trainingEnrollmentService) {
+                            TrainingEnrollmentService trainingEnrollmentService) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentRepository = enrollmentRepository;

@@ -89,6 +89,14 @@ export async function fetchApi<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
+  // Only reads may be replayed. A write that timed out or came back 502 may well have been
+  // applied — the request reached the server and the answer was lost on the way back — so sending
+  // it again creates a second training, a second comment, a second copy. The endpoints that can
+  // detect a repeat (an enrolment, a duplicate e-mail) already answer 409; the 1-on-1 calendar
+  // deliberately cannot, because two identical sessions on one day is a legitimate plan.
+  const method = (options?.method ?? 'GET').toUpperCase()
+  const replayable = method === 'GET' || method === 'HEAD'
+
   let response: Response
 
   const doFetch = async (): Promise<Response> => {
@@ -111,7 +119,13 @@ export async function fetchApi<T>(
   try {
     response = await doFetch()
   } catch {
-    console.warn(`[API] ${options?.method ?? 'GET'} ${endpoint} — network error, retrying in 1.5s…`)
+    // A dropped connection says nothing about whether the server acted on the request, so a write
+    // stops here and lets the caller decide — every form in the app surfaces the error next to its
+    // save button rather than retrying behind the user's back.
+    if (!replayable) {
+      throw new Error(i18n.t('network', { ns: 'errors' }))
+    }
+    console.warn(`[API] ${method} ${endpoint} — network error, retrying in 1.5s…`)
     await new Promise(r => setTimeout(r, 1500))
     try {
       response = await doFetch()
@@ -139,11 +153,13 @@ export async function fetchApi<T>(
   // Retry a few times with backoff so a redeploy degrades to a brief "updating" blip
   // (combined with React Query's own retries) instead of a hard error screen. A genuine
   // 500 (app error) gets a single quick retry — no point waiting on a real bug.
-  if (response.status >= 500 && response.status < 600) {
+  // Reads only, for the reason given above the first fetch: a 502 from a backend that is going
+  // down can follow a request it already committed.
+  if (replayable && response.status >= 500 && response.status < 600) {
     const isGateway = response.status === 502 || response.status === 503 || response.status === 504
     const backoffs = isGateway ? [1500, 3000, 5000] : [1000]
     for (const delay of backoffs) {
-      console.warn(`[API] ${options?.method ?? 'GET'} ${endpoint} → ${response.status}, retrying in ${delay}ms…`)
+      console.warn(`[API] ${method} ${endpoint} → ${response.status}, retrying in ${delay}ms…`)
       await new Promise(r => setTimeout(r, delay))
       const retryToken = await ensureValidToken()
       if (retryToken) headers['Authorization'] = `Bearer ${retryToken}`

@@ -140,15 +140,21 @@ public class TrainingStatsService {
                 .filter(s -> !s.date().isAfter(today))
                 .count();
 
+        // The two lifetime figures are asked of the database, not derived from the rolling year
+        // above: counted from the window, "total" would stop growing after twelve months and
+        // "first activity" would walk forward as the oldest sessions fell out of it.
         return new TrainingStatsResponse(
                 thisMonthCount,
                 prevMonthCount,
-                completedDates.size(),
-                completedDates.stream().min(LocalDate::compareTo).orElse(null),
+                (int) trainingRepository.countCompleted(athleteId),
+                trainingRepository.findFirstCompletedDate(athleteId),
                 TrainingStatsCalculator.currentStreakWeeks(completedDates, today),
                 TrainingStatsCalculator.bestStreakWeeks(completedDates),
                 TrainingStatsCalculator.averagePerMonth(completedDates, today),
                 heatmap,
+                // Both halves of the breakdown cover the same rolling year — a lifetime 1-on-1 count
+                // set against a year of group sessions would compare two different spans and read
+                // as though the client had barely shown up to their group slot.
                 new TypeBreakdown(completedDates.size(), (int) recurringDone),
                 TrainingStatsCalculator.attendancePercent(completedInWindow, missedInWindow),
                 TrainingStatsCalculator.average(rpeNewestFirst),

@@ -72,7 +72,15 @@ public final class TrainingStatsCalculator {
         return streak;
     }
 
-    /** Longest run of consecutive active ISO weeks ever recorded. */
+    /**
+     * Longest run of consecutive active ISO weeks among the dates it is given.
+     * <p>
+     * The caller passes a rolling year, so in practice this is the best streak of the last twelve
+     * months rather than of all time — a run that ended two years ago has already fallen out. Said
+     * plainly here because the shorter phrasing ("ever recorded") claimed something the input
+     * cannot support; making it truly lifetime means loading every completed date, which is a
+     * separate decision from the one that fixed the lifetime total.
+     */
     public static int bestStreakWeeks(List<LocalDate> completedDates) {
         TreeSet<LocalDate> mondays = new TreeSet<>();
         for (LocalDate date : completedDates) {

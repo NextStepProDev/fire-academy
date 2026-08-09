@@ -106,9 +106,32 @@ else
   fi
 fi
 
+# 4. CSP lets the exercise-video library load -------------------------------
+# Same class of failure as the bot loop: it lives in nginx, not in Java, and no
+# test can see it, because the Vite dev server sends no CSP at all. A CSP that
+# forgets the two YouTube hosts leaves the coach's video library rendering blank
+# players and broken posters — on production only, and silently.
+echo "---"
+CSP=$(curl -sSI -m 15 "${BASE}/" | tr -d '\r' | grep -i '^content-security-policy:' || true)
+if [ -z "$CSP" ]; then
+  fail "no Content-Security-Policy header on the SPA shell"
+else
+  if echo "$CSP" | grep -q "img.youtube.com"; then
+    pass "CSP img-src allows YouTube posters"
+  else
+    fail "CSP blocks YouTube posters (img.youtube.com missing from img-src)"
+  fi
+  # frame-src must be spelled out; falling back to default-src 'self' blocks the player.
+  if echo "$CSP" | grep -q "frame-src[^;]*youtube-nocookie.com"; then
+    pass "CSP frame-src allows the YouTube player"
+  else
+    fail "CSP blocks the YouTube player (frame-src youtube-nocookie.com missing)"
+  fi
+fi
+
 echo "---"
 if [ "$FAILED" -ne 0 ]; then
   echo "SEO smoke FAILED — see FAIL lines above."
   exit 1
 fi
-echo "SEO smoke passed: robots, sitemap and crawler routing all healthy."
+echo "SEO smoke passed: robots, sitemap, crawler routing and CSP all healthy."

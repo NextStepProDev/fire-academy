@@ -1,5 +1,6 @@
 package pl.fireacademy.api;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,17 +33,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("code", "NOT_FOUND", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
-        return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CONFLICT", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -49,12 +51,12 @@ public class GlobalExceptionHandler {
         String errors = e.getBindingResult().getFieldErrors().stream()
             .map(FieldError::getDefaultMessage)
             .collect(Collectors.joining(", "));
-        return ResponseEntity.badRequest().body(Map.of("code", "VALIDATION_ERROR", "message", errors, "timestamp", Instant.now().toString()));
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", errors);
     }
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<Map<String, Object>> handleBadRequestParam(Exception e) {
-        return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -62,28 +64,46 @@ public class GlobalExceptionHandler {
         // Malformed/incomplete JSON body (e.g. missing required primitive field, wrong type).
         // e.getMessage() can be verbose and leak internal details — return a generic message.
         log.warn("Malformed request body: {}", e.getMessage());
-        return ResponseEntity.badRequest().body(Map.of("code", "BAD_REQUEST", "message", msg.get("error.request.body.invalid"), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", msg.get("error.request.body.invalid"));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(Map.of("code", "METHOD_NOT_ALLOWED", "message", msg.get("error.method.not.allowed"), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", msg.get("error.method.not.allowed"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("code", "NOT_FOUND", "message", msg.get("error.resource.not.found"), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.NOT_FOUND, "NOT_FOUND", msg.get("error.resource.not.found"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
         log.warn("Upload size exceeded: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(Map.of("code", "PAYLOAD_TOO_LARGE", "message", msg.get("file.too.large"), "timestamp", Instant.now().toString()));
+        return error(HttpStatus.CONTENT_TOO_LARGE, "PAYLOAD_TOO_LARGE", msg.get("file.too.large"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception e) {
         log.error("Unexpected error", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("code", "INTERNAL_ERROR", "message", "Internal server error", "timestamp", Instant.now().toString()));
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Internal server error");
+    }
+
+    /**
+     * The one place an error body is built — and the reason it is not {@code Map.of}.
+     * <p>
+     * {@code Map.of} rejects a null value, so an exception carrying no message (a bare
+     * {@code new IllegalStateException()}, or one thrown from a library that did not bother) blew up
+     * the handler itself. What reached the client was then a container-generated 500 with none of
+     * the {@code code}/{@code message}/{@code timestamp} shape the frontend reads — a missing
+     * sentence turning a 400 into an unexplained server error.
+     */
+    private ResponseEntity<Map<String, Object>> error(HttpStatus status, String code, @Nullable String message) {
+        String body = message == null || message.isBlank() ? msg.get("error.unexpected") : message;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("code", code);
+        payload.put("message", body);
+        payload.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(status).body(payload);
     }
 }

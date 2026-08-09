@@ -14,6 +14,7 @@ import pl.fireacademy.domain.training.TrainingCancelledSession;
 import pl.fireacademy.domain.training.TrainingCancelledSessionRepository;
 import pl.fireacademy.domain.training.TrainingEnrollment;
 import pl.fireacademy.domain.training.TrainingEnrollmentRepository;
+import pl.fireacademy.domain.training.TrainingHolidayRepository;
 import pl.fireacademy.domain.training.TrainingPaymentRepository;
 import pl.fireacademy.domain.training.TrainingRefund;
 import pl.fireacademy.domain.training.TrainingRefundService;
@@ -46,7 +47,7 @@ public class AdminTrainingSlotService {
     private final TrainingEnrollmentRepository enrollmentRepository;
     private final TrainingCancelledSessionRepository cancelledSessionRepository;
     private final TrainingPaymentRepository paymentRepository;
-    private final pl.fireacademy.domain.training.TrainingHolidayRepository holidayRepository;
+    private final TrainingHolidayRepository holidayRepository;
     private final TrainingRefundService refundService;
     private final EventTypeRepository eventTypeRepository;
     private final InstructorRepository instructorRepository;
@@ -57,7 +58,7 @@ public class AdminTrainingSlotService {
                                     TrainingEnrollmentRepository enrollmentRepository,
                                     TrainingCancelledSessionRepository cancelledSessionRepository,
                                     TrainingPaymentRepository paymentRepository,
-                                    pl.fireacademy.domain.training.TrainingHolidayRepository holidayRepository,
+                                    TrainingHolidayRepository holidayRepository,
                                     TrainingRefundService refundService,
                                     EventTypeRepository eventTypeRepository,
                                     InstructorRepository instructorRepository,

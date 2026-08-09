@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  /** Reload on demand (exposed as refreshUser) — shows the spinner, unlike the mount load below. */
   const fetchUser = useCallback(async () => {
     if (!hasTokens()) {
       setUser(null)
@@ -56,6 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [syncLanguage])
 
+  /**
+   * The initial load. It repeats the body of fetchUser above rather than calling it, and that is not
+   * an oversight: `react-hooks/set-state-in-effect` follows calls out of an effect, so any shared
+   * helper that eventually sets state trips it — awaiting first does not help, because the rule is
+   * static. Written as a promise chain, the state changes sit in callbacks where they belong and the
+   * cascading render the rule warns about does not happen. If you unify these two, run `npm run
+   * lint` before believing it worked.
+   */
   useEffect(() => {
     if (!hasTokens()) return
     authApi.getCurrentUser()

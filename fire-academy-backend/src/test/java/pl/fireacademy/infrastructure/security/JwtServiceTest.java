@@ -87,6 +87,24 @@ class JwtServiceTest {
         assertFalse(otherService.validateToken(token));
     }
 
+    /**
+     * Same secret, different issuer. Only reachable if a second service is ever configured with this
+     * key — which is exactly the case worth refusing, and the reason the parser demands the claim
+     * rather than merely writing it.
+     */
+    @Test
+    void shouldRejectTokenFromAnotherIssuerSharingTheSecret() {
+        JwtConfig foreignConfig = new JwtConfig();
+        foreignConfig.setSecret("test-secret-key-that-is-at-least-32-characters-long-for-hmac");
+        foreignConfig.setAccessTokenExpirationMs(900_000);
+        foreignConfig.setRefreshTokenExpirationMs(604_800_000);
+        foreignConfig.setIssuer("some-other-service");
+        String foreignToken = new JwtService(foreignConfig).generateAccessToken(testUser);
+
+        assertFalse(jwtService.validateToken(foreignToken));
+        assertFalse(jwtService.isAccessToken(foreignToken));
+    }
+
     @Test
     void shouldRejectExpiredToken() {
         JwtConfig config = new JwtConfig();

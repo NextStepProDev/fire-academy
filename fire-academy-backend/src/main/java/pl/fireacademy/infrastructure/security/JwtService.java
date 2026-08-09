@@ -106,6 +106,10 @@ public class JwtService {
     private Claims parseToken(String token) {
         return Jwts.parser()
             .verifyWith(secretKey)
+            // We stamp an issuer on every token, so we may as well insist on it coming back. It buys
+            // nothing against a forged signature, but it does mean a token minted by another service
+            // that happens to share this secret cannot be replayed here.
+            .requireIssuer(jwtConfig.getIssuer())
             .build()
             .parseSignedClaims(token)
             .getPayload();

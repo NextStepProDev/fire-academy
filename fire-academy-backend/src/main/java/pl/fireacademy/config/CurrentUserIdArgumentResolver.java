@@ -1,7 +1,5 @@
 package pl.fireacademy.config;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,17 +33,9 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
             return oAuth2User.getUserId();
         }
 
-        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        if (request != null) {
-            HttpSession session = request.getSession(false);
-            if (session != null) {
-                Object userId = session.getAttribute("DEV_USER_ID");
-                if (userId instanceof UUID uuid) {
-                    return uuid;
-                }
-            }
-        }
-
+        // No DEV_USER_ID session fallback: the filter chain is STATELESS, so there was never a
+        // session to read it from, and an identity source that answers on production without any
+        // profile guard is not something to keep around on the off chance.
         return null;
     }
 }
