@@ -43,6 +43,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // DB on every request (availability counts are deliberately no-store, and the sitemap scans three
     // tables), so without a ceiling an unauthenticated client can drain the small Hikari pool on its own.
     private static final int PUBLIC_LIMIT = 120;
+    // Photo uploads, both roles. Every other ceiling here rations cheap requests; this one rations
+    // bytes arriving on a 1 GB box, and the request is parsed into memory before any handler can
+    // reject it. Twelve a minute is far more than a person attaching screenshots to a session will
+    // ever need — the per-training cap of three is what shapes normal use — and it puts a hard
+    // number on the question an audit asks: what stops a client uploading thousands of files?
+    private static final int UPLOAD_LIMIT = 12;
 
     private final Cache<String, AtomicInteger> requestCounts = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofMinutes(1))
@@ -89,11 +95,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     // NOTE: the two methods below must test prefixes in the SAME order, most specific first. A bucket
     // resolved from a different branch than its limit would silently pair the wrong ceiling with the
-    // wrong counter — hence MY_TRAINING_PATH before the generic /api/user/ in both.
+    // wrong counter — hence the upload paths before MY_TRAINING_PATH, and that before /api/user/, in
+    // both. Adding a prefix means adding it to both methods, in the same position.
     private static final String MY_TRAINING_PATH = "/api/user/my-training/";
+    private static final String PHOTO_UPLOAD_USER = "/api/user/my-training/photos";
+    private static final String PHOTO_UPLOAD_ADMIN = "/api/admin/training-photos";
+
+    /**
+     * Reading a photo is deliberately NOT here — it lives at {@code .../comments/{id}/photo} and
+     * stays on the ordinary calendar ceiling, because opening a handful of trainings is already a
+     * dozen GETs. Only the multipart writes are rationed.
+     */
+    private static boolean isPhotoUpload(String path) {
+        return path.startsWith(PHOTO_UPLOAD_USER) || path.startsWith(PHOTO_UPLOAD_ADMIN);
+    }
 
     private int resolveLimit(String path) {
         if (path.startsWith("/api/auth/")) return AUTH_LIMIT;
+        if (isPhotoUpload(path)) return UPLOAD_LIMIT;
         if (path.startsWith(MY_TRAINING_PATH)) return MY_TRAINING_LIMIT;
         if (path.startsWith("/api/user/")) return USER_LIMIT;
         if (path.startsWith("/api/admin/")) return ADMIN_LIMIT;
@@ -103,6 +122,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String resolveBucket(String path) {
         if (path.startsWith("/api/auth/")) return "auth";
+        if (isPhotoUpload(path)) return "upload";
         if (path.startsWith(MY_TRAINING_PATH)) return "mytraining";
         if (path.startsWith("/api/user/")) return "user";
         if (path.startsWith("/api/admin/")) return "admin";

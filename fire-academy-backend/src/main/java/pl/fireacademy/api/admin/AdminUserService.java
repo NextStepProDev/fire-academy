@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
+import pl.fireacademy.api.trainingcalendar.TrainingPhotoService;
 import pl.fireacademy.api.user.TrainingEnrollmentService;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
@@ -50,6 +51,7 @@ public class AdminUserService {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final MessageService msg;
     private final TrainingEnrollmentService trainingEnrollmentService;
+    private final TrainingPhotoService trainingPhotoService;
 
     public AdminUserService(UserRepository userRepository,
                             AuthTokenRepository authTokenRepository,
@@ -60,7 +62,8 @@ public class AdminUserService {
                             FileStorageService fileStorageService,
                             JwtAuthenticationFilter jwtAuthenticationFilter,
                             MessageService msg,
-                            TrainingEnrollmentService trainingEnrollmentService) {
+                            TrainingEnrollmentService trainingEnrollmentService,
+                            TrainingPhotoService trainingPhotoService) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -71,6 +74,7 @@ public class AdminUserService {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.msg = msg;
         this.trainingEnrollmentService = trainingEnrollmentService;
+        this.trainingPhotoService = trainingPhotoService;
     }
 
     @Transactional(readOnly = true)
@@ -211,6 +215,10 @@ public class AdminUserService {
             adminUserMailService.sendAccountDeletedNotification(
                     target.getEmail(), target.getFirstName(), cancelled);
         }
+
+        // Comment photos live on disk, and the rows pointing at them go through the DB cascade
+        // without Hibernate loading them — so nothing else would ever unlink these files.
+        trainingPhotoService.purgeForUser(targetId);
 
         if (target.getAvatarFilename() != null) {
             fileStorageService.delete(AVATAR_FOLDER, target.getAvatarFilename());

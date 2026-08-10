@@ -1,4 +1,4 @@
-# Decyzje projektowe — treningi (V24–V37)
+# Decyzje projektowe — treningi (V24–V39)
 
 Uzasadnienia migracji od V24 w górę: **dlaczego** schemat wygląda tak, a nie inaczej.
 Wyprowadzone z `CLAUDE.md`, żeby nie obciążać kontekstu każdej sesji — CLAUDE.md ma
@@ -222,3 +222,120 @@ niesie całe znaczenie.
 Do tego nazwa filmu **uzupełnia się sama z tytułu YouTube** (publiczny oEmbed, bez klucza;
 request budowany z **sparsowanego `video_key`**, nigdy z wklejonego stringa — inaczej to SSRF
 z uprzejmą twarzą) i tylko do pustego pola.
+
+---
+
+## Zdjęcia w komentarzach (V39)
+
+`training_comments` + `photo_filename/width/height/expires_at`, `body` nullable + CHECK
+`body IS NOT NULL OR photo_filename IS NOT NULL`.
+
+### Dlaczego kolumna na komentarzu, a nie tabela
+
+Kuszące jest `training_photos` z własnym kluczem — wygląda porządniej i od razu daje wiele zdjęć
+na komentarz. Kosztuje jednak dokładnie tam, gdzie ten moduł psuje się po cichu:
+`TrainingUnreadService` czyta z **siedmiu** źródeł, a zapomniane źródło nie sypie błędem, tylko
+przestaje kogokolwiek powiadamiać. Zdjęcie na wierszu komentarza dziedziczy kropki, badge rostera
+i licznik per kafelek za darmo — osobna tabela byłaby ósmym źródłem do dopisania w trzech
+metodach, i to takim, którego brak zauważyłby dopiero trener, do którego nie dotarło zdjęcie.
+
+Do `training_attachments` też nie pasuje: to materiały **trenera** (filmy, linki), kopiowane
+przez `duplicate`/`paste`. Zrzut zawodnika nie ma podróżować z przeklejonym planem, a
+`chk_ta_owner` i tak zamyka właściciela na `training_id` XOR `template_id` — `comment_id`
+oznaczałby przepisanie tego CHECK-a i narzucenie komentarzom limitu trzech pozycji, który
+w tamtej tabeli znaczy co innego.
+
+Limit **3 na trening** (nie na komentarz) wynika z tego, jak wygląda sesja z zegarka:
+podsumowanie, strefy, splity.
+
+### Dlaczego wyłącznie JPEG i zawsze przekodowanie
+
+`StorePolicy.TRAINING_PHOTO` odrzuca PNG i WebP, choć reszta serwisu je przyjmuje. Powód jest
+jeden: **JDK nie ma czytnika WebP**, więc WebP ląduje na dysku niezdekodowany i jedyną kontrolą
+jest jego sygnatura. Dla zdjęcia z galerii to akceptowalny kompromis; dla danych zdrowotnych nie.
+JPEG serwer dekoduje i koduje **sam**, co daje trzy rzeczy niezależne od tego, co przysłał
+klient: prawdziwe wymiary (a nie deklarowane), zdjęty **cały EXIF wraz z GPS**, i pewność, że
+serwowany `Content-Type` opisuje faktyczne bajty. `forceReencode` jest tu konieczne — bez niego
+mały plik przeszedłby w oryginale, czyli razem ze swoimi metadanymi.
+
+Przeglądarka i tak konwertuje wszystko przez canvas (1280 px, q0.75, ~110 KB), więc podopieczny
+nadal wybiera z telefonu PNG, WebP czy HEIC. Ta sama konwersja zdejmuje EXIF **jeszcze przed
+wysłaniem**, więc lokalizacja nie opuszcza urządzenia.
+
+Cały łańcuch kontroli został **sparametryzowany, nie skopiowany**: `StorePolicy` to argument
+`LocalFileStorageService.storeImage`, nie druga ścieżka. Druga implementacja tych samych pięciu
+sprawdzeń byłaby drugim miejscem do utrzymania w zgodzie — a ta, która by odstała, byłaby tą,
+w którą nikt nie patrzy.
+
+### Limit pikseli przed dekodowaniem
+
+Przy okazji domknięta dziura, która istniała już wcześniej na avatarach: `ImageIO.read` wołane
+bez sprawdzenia wymiarów alokuje ~4 bajty na piksel, więc 1,5 MB JPEG opisujący 10000×10000
+zjada ~400 MB w kontenerze z `mem_limit: 384m`. Wymiary czyta się teraz **z nagłówka**
+(`ImageIO.getImageReaders`), przed dotknięciem pikseli, i odrzuca powyżej 40 MPx.
+
+### Dlaczego `private, no-store`, a nie publiczny cache
+
+`/api/files` oddaje pliki bez logowania, z `max-age=7d, public` — i przyjmował **dowolny** folder
+pasujący do `^[a-z]+$`, więc każdy katalog pod `uploads/` był światowo czytelny, gdy tylko
+wyciekła nazwa pliku. Stąd biała lista `PUBLIC_FOLDERS` (nowy folder jest odtąd domyślnie
+prywatny) i osobne, uwierzytelnione endpointy dla zdjęć, przechodzące przez
+`TrainingAccessService` — czyli z tą samą dyscypliną **404 zamiast 403** co reszta modułu.
+
+`no-store`, bo dane zdrowotne nie mają prawa osiąść w dyskowym cache przeglądarki ani u
+pośrednika. Użytkownik nic na tym nie traci: front trzyma `Blob` w pamięci React Query na czas
+sesji, więc ponowne otwarcie modala nie schodzi po sieci. Konsekwencja dla frontu: zdjęcie **nie
+może być zwykłym `<img src>`**, bo ten nie niesie nagłówka `Authorization` — stąd pobranie bajtów
+i `URL.createObjectURL`. Cache trzyma **Bloba**, nigdy gotowego object URL-a: dwa dymki z tym
+samym zdjęciem dzieliłyby jeden URL, a pierwszy odmontowany unieważniłby go drugiemu.
+
+### Retencja 30 dni i zamiatarka osieroconych
+
+Zrzut z zegarka odpowiada na pytanie „jak poszła ta sesja" i traci wartość, gdy odpowiedź została
+przeczytana. Krótka retencja jest więc uczciwa merytorycznie, a przy okazji jest **jedyną**
+odpowiedzią na to, że katalog danych zdrowotnych nie rośnie latami. `photo_expires_at` jest
+**zapisane, nie liczone**: front pokazuje realną datę zamiast odtwarzać ją ze stałej, a zmiana
+okna nie przepisuje losu istniejących wierszy. Kasowane jest samo zdjęcie — komentarz „nogi
+ciężkie" jest wart trzymania i rok później; komentarz będący **wyłącznie** zdjęciem znika w
+całości, bo nie zostaje w nim nic do przeczytania (i CHECK i tak by go nie przyjął).
+
+Drugi przebieg schedulera — **usuwanie plików, do których nie ma wiersza** — jest tym, który
+odpowiada audytowi. `PersonalTraining` nie ma kaskady JPA, więc komentarze znikają przez
+`ON DELETE CASCADE`, Hibernate ich nie ładuje i **żaden callback nie ma jak sięgnąć po pliki**;
+stąd trzy jawne `purge*`. Każdy z nich siedzi jednak w transakcji, która może się wycofać, a
+`LocalFileStorageService.delete` błędy tylko loguje. Bez zamiatarki jeden zgubiony `delete` to
+trwały wyciek; z nią — plik żyje najwyżej do rana. Pliki młodsze niż godzina są pomijane, bo
+upload między odczytem wierszy a listingiem katalogu wyglądałby jak sierota, a skasowanie zdjęcia
+tuż po wysłaniu jest znacznie gorsze niż zamiecenie go dobę później.
+
+### Zdjęcie flagi `is_athlete` nic nie kasuje
+
+Świadomie spójne z V29/V38: dane wracają po ponownym włączeniu, dostęp odcina
+`TrainingAccessService`, a zdjęcia i tak wygasają w ≤30 dni. To decyzja, nie przeoczenie —
+pilnuje jej test.
+
+### Usuwanie zdjęcia: jedyny wyłom w „komentarze są tylko do dopisywania"
+
+Komentarze nie mają i nie będą miały endpointu usuwania — wątek jest zapisem rozmowy. Zdjęcie
+ma, bo zrzut ekranu potrafi pokazać więcej, niż autor zamierzał, a prawo do wycofania danych
+zdrowotnych musi mieć techniczną drogę realizacji. Kasuje **autor swojego** albo **trener
+dowolnego** w wątku swojego podopiecznego (to on odpowiada za to, co klub trzyma); podopieczny
+nie rusza zdjęcia trenera. Tekst komentarza przeżywa usunięcie obrazu.
+
+### Zgoda: poszerzenie zakresu to nowa zgoda, nie dopisek
+
+V38 wymienia wagę, trend, cele wagowe, limity kalorii, RPE i komentarze — nie zdjęcia. Zgoda
+udzielona pod tamtym tekstem nie obejmuje nowego zakresu art. 9, więc migracja **zeruje
+`training_consent_at` wszystkim** i każdy podopieczny przechodzi ekran zgody raz jeszcze, już
+z nową treścią. Kasowany jest wyłącznie dowód zgody — żadne dane. Dokładając cokolwiek do
+`consent.items`, powtórz ten ruch.
+
+### Osobny prefiks uploadu
+
+`POST /api/user/my-training/photos` i `POST /api/admin/training-photos` leżą **poza** prefiksami
+komentarzy nie z powodów estetycznych: `RateLimitFilter` rozstrzyga kubełek **wyłącznie po
+prefiksie ścieżki**, więc upload pod prefiksem kalendarza dziedziczyłby limit 120/min. Własny
+prefiks pozwala dołożyć branch przed pozostałymi, zgodnie z regułą „od najbardziej
+szczegółowego", i dać uploadom 12/min. Kubełek racjonuje **bajty, nie żądania** — multipart jest
+parsowany do pamięci, zanim handler zdąży cokolwiek odrzucić. **Odczyt zdjęć celowo w nim nie
+siedzi**: otwarcie kilku treningów pod rząd to kilkanaście GET-ów i nie ma powodu ich reglamentować.

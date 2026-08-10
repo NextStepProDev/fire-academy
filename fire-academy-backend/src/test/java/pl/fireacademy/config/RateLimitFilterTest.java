@@ -247,6 +247,89 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void shouldRationPhotoUploadsFarBelowTheCalendarCeiling() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: twelve uploads fit — nothing like the 120 the calendar itself gets
+        for (int i = 0; i < 12; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/user/my-training/photos");
+            request.setRemoteAddr("10.40.0.1");
+            MockHttpServletResponse ok = new MockHttpServletResponse();
+            filter.doFilterInternal(request, ok, filterChain);
+            assertEquals(200, ok.getStatus());
+        }
+
+        MockHttpServletRequest thirteenth = new MockHttpServletRequest("POST", "/api/user/my-training/photos");
+        thirteenth.setRemoteAddr("10.40.0.1");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilterInternal(thirteenth, blocked, filterChain);
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
+    /**
+     * The trap this file warns about: the upload prefix has to be tested before the my-training one
+     * in BOTH resolve methods. Matched in the wrong order, uploads would land on the 120/min counter
+     * — or worse, browsing the calendar would be rationed at 12/min and nobody would notice until a
+     * client could not scroll through their own plan.
+     */
+    @Test
+    void shouldNotLetPhotoUploadsEatTheCalendarBudget() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: the upload bucket is spent
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 12; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/user/my-training/photos");
+            request.setRemoteAddr("10.40.0.2");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+
+        // When: the same client keeps browsing, and reads a photo they already have
+        MockHttpServletRequest calendar = new MockHttpServletRequest("GET", "/api/user/my-training/calendar");
+        calendar.setRemoteAddr("10.40.0.2");
+        MockHttpServletResponse calendarResponse = new MockHttpServletResponse();
+        filter.doFilterInternal(calendar, calendarResponse, filterChain);
+
+        MockHttpServletRequest read = new MockHttpServletRequest(
+            "GET", "/api/user/my-training/comments/" + UUID.randomUUID() + "/photo");
+        read.setRemoteAddr("10.40.0.2");
+        MockHttpServletResponse readResponse = new MockHttpServletResponse();
+        filter.doFilterInternal(read, readResponse, filterChain);
+
+        // Then: both are untouched — only the multipart writes are rationed
+        assertEquals(200, calendarResponse.getStatus());
+        assertEquals(200, readResponse.getStatus());
+    }
+
+    @Test
+    void shouldRationCoachPhotoUploadsSeparatelyFromTheAdminBucket() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 12; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/admin/training-photos");
+            request.setRemoteAddr("10.40.0.3");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+
+        // The rest of the admin panel keeps its own 60/min
+        MockHttpServletRequest admin = new MockHttpServletRequest("GET", "/api/admin/instructors");
+        admin.setRemoteAddr("10.40.0.3");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(admin, response, filterChain);
+
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
     void shouldReturnJsonErrorResponse() throws ServletException, IOException {
         when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
             .thenReturn("Zbyt wiele żądań");

@@ -33,7 +33,14 @@ export interface TrainingCalendarAdapter {
   completeTraining?: (id: string, body: { rpe?: number | null; feedback?: string | null }) => Promise<PersonalTraining>
   uncompleteTraining?: (id: string) => Promise<PersonalTraining>
   getComments: (trainingId: string) => Promise<TrainingComment[]>
-  addComment: (trainingId: string, body: string) => Promise<TrainingComment>
+  /**
+   * One method for both kinds of reply, so the thread component never branches on it. The choice
+   * between the JSON endpoint and the multipart one is made here, where it belongs: a plain comment
+   * has no reason to travel as a file upload.
+   */
+  addComment: (trainingId: string, body: string, photo?: File | null) => Promise<TrainingComment>
+  /** The words survive; only the picture goes. A photo-only comment goes with it. */
+  deleteCommentPhoto: (commentId: string) => Promise<void>
   markSeen: () => Promise<void>
   dismissDeletions: () => Promise<void>
 }
@@ -74,7 +81,10 @@ export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
     pasteTraining: (sourceId, targetDate, mode) =>
       adminApi.pastePersonalTraining(sourceId, targetDate, mode, athleteId),
     getComments: (id) => adminApi.getTrainingComments(id),
-    addComment: (id, body) => adminApi.addTrainingComment(id, body),
+    addComment: (id, body, photo) => photo
+      ? adminApi.addTrainingPhotoComment(id, photo, body)
+      : adminApi.addTrainingComment(id, body),
+    deleteCommentPhoto: (commentId) => adminApi.deleteTrainingCommentPhoto(commentId),
     markSeen: () => adminApi.markTrainingCalendarSeen(athleteId),
     dismissDeletions: () => adminApi.dismissTrainingDeletions(athleteId),
   }
@@ -94,7 +104,10 @@ export function athleteAdapter(athleteId: string): TrainingCalendarAdapter {
     completeTraining: (id, body) => myTrainingApi.completeTraining(id, body),
     uncompleteTraining: (id) => myTrainingApi.uncompleteTraining(id),
     getComments: (id) => myTrainingApi.getComments(id),
-    addComment: (id, body) => myTrainingApi.addComment(id, body),
+    addComment: (id, body, photo) => photo
+      ? myTrainingApi.addPhotoComment(id, photo, body)
+      : myTrainingApi.addComment(id, body),
+    deleteCommentPhoto: (commentId) => myTrainingApi.deleteCommentPhoto(commentId),
     markSeen: () => myTrainingApi.markSeen(),
     dismissDeletions: () => myTrainingApi.dismissDeletions(),
   }

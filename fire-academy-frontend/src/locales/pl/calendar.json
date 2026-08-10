@@ -103,7 +103,20 @@
     "empty": "Brak komentarzy. Napisz pierwszy.",
     "placeholder": "Napisz wiadomość…",
     "send": "Wyślij",
-    "deletedAuthor": "Konto usunięte"
+    "deletedAuthor": "Konto usunięte",
+    "addPhoto": "Dodaj zdjęcie",
+    "photoHint": "Możesz dołączyć zrzut ekranu z zegarka lub aplikacji sportowej — maksymalnie 3 zdjęcia do jednego treningu. Zdjęcia znikają automatycznie po 30 dniach. Nie wysyłaj dokumentacji medycznej ani zdjęć z danymi innych osób.",
+    "photoReady": "Zdjęcie gotowe do wysłania",
+    "photoRemove": "Usuń wybrane zdjęcie",
+    "photoAlt": "Zdjęcie dołączone do komentarza",
+    "photoOpen": "Otwórz podgląd",
+    "photoPreviewTitle": "Podgląd zdjęcia",
+    "photoExpires": "Zdjęcie zniknie {{date}}",
+    "photoUnavailable": "Nie udało się wczytać zdjęcia. Mogło już zostać usunięte.",
+    "photoUnreadable": "Nie udało się odczytać tego pliku. Wybierz zdjęcie w formacie JPG, PNG lub HEIC.",
+    "photoDelete": "Usuń zdjęcie",
+    "photoDeleteCancel": "Zostaw",
+    "photoDeleteConfirm": "Usunąć na stałe?"
   },
   "deletions": {
     "title_one": "Usunięto zaplanowany trening",
@@ -295,12 +308,13 @@
       "Zadania z dziennym limitem kalorii wraz z ich odhaczeniem",
       "Pomiary porannej wagi wraz z datami oraz wyliczany z nich trend",
       "Cele wagowe: waga startowa i docelowa, ustawiane przez trenera",
-      "Wiadomości wymieniane z trenerem przy poszczególnych treningach"
+      "Wiadomości wymieniane z trenerem przy poszczególnych treningach",
+      "Zdjęcia dołączane do tych wiadomości — na przykład zrzuty ekranu z zegarka sportowego lub aplikacji treningowej, razem z widocznymi na nich parametrami (tętno, strefy, tempo, sen). Zdjęcia usuwamy automatycznie po 30 dniach"
     ],
     "coachAccess": "Wszystko powyżej widzi Twój trener prowadzący — to jest sens wspólnego planu. Trenerowi pokazywany jest też sygnał, gdy waga spada szybciej niż zakładany próg tygodniowy. Nikt poza Tobą i trenerem nie ma do tych danych dostępu.",
     "readPolicy": "Przeczytaj politykę prywatności (sekcja o planie treningowym)",
-    "checkbox": "Zapoznałem/-am się z <1>polityką prywatności</1> i wyrażam zgodę na przetwarzanie moich danych treningowych, w tym pomiarów wagi, celów wagowych, limitów kalorii i ocen wysiłku, w celu prowadzenia mojego planu treningowego.",
+    "checkbox": "Zapoznałem/-am się z <1>polityką prywatności</1> i wyrażam zgodę na przetwarzanie moich danych treningowych, w tym pomiarów wagi, celów wagowych, limitów kalorii, ocen wysiłku oraz zdjęć, które sam/-a dołączę do komentarzy, w celu prowadzenia mojego planu treningowego.",
     "accept": "Akceptuję i przechodzę do planu",
-    "withdrawNote": "Zgodę możesz wycofać w każdej chwili, pisząc na fireacademy.biz@gmail.com — usuniemy wtedy dane wagowe, kaloryczne i oceny wysiłku. Bez zgody plan treningowy pozostaje zamknięty, reszta konta i zapisy na zajęcia działają normalnie."
+    "withdrawNote": "Zgodę możesz wycofać w każdej chwili, pisząc na fireacademy.biz@gmail.com — usuniemy wtedy dane wagowe, kaloryczne, oceny wysiłku i dołączone zdjęcia. Pojedyncze zdjęcie możesz też usunąć samodzielnie, w dowolnym momencie. Bez zgody plan treningowy pozostaje zamknięty, reszta konta i zapisy na zajęcia działają normalnie."
   }
 }

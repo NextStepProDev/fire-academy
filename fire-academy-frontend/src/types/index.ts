@@ -182,11 +182,23 @@ export interface CalendarRange {
 }
 
 export interface TrainingComment {
+  /** Null when the comment is a bare photo — a screenshot says enough on its own. */
+  body: string | null
   id: string
-  body: string
   fromCoach: boolean
   authorName: string | null
   createdAt: string
+  photo: TrainingCommentPhoto | null
+}
+
+export interface TrainingCommentPhoto {
+  /** Needs the bearer token — health data never goes through the public /api/files namespace. */
+  url: string
+  width: number
+  height: number
+  /** When the retention sweep removes it. Shown, so its disappearance is never a surprise. */
+  expiresAt: string
+  canDelete: boolean
 }
 
 export interface MyTrainingSummary {

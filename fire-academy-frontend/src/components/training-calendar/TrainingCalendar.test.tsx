@@ -68,6 +68,7 @@ function stubAdapter(
     pasteTraining: vi.fn(),
     getComments: vi.fn().mockResolvedValue([]),
     addComment: vi.fn(),
+    deleteCommentPhoto: vi.fn(),
     markSeen: vi.fn().mockResolvedValue(undefined),
     dismissDeletions: vi.fn().mockResolvedValue(undefined),
     ...over,
