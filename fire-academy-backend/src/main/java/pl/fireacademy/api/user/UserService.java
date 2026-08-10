@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.trainingcalendar.TrainingPhotoService;
 import pl.fireacademy.config.AdminEmailConfig;
 import pl.fireacademy.config.CacheConfig;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
@@ -41,12 +42,14 @@ public class UserService {
     private final AdminEmailConfig adminEmailConfig;
     private final PasswordPolicyValidator passwordPolicy;
     private final TrainingEnrollmentService trainingEnrollmentService;
+    private final TrainingPhotoService trainingPhotoService;
 
     public UserService(UserRepository userRepository, AuthTokenRepository authTokenRepository,
                        EnrollmentErasureService enrollmentErasureService, EnrollmentMailService enrollmentMailService,
                        PasswordEncoder passwordEncoder, MessageService msg, JwtAuthenticationFilter jwtAuthenticationFilter,
                        FileStorageService fileStorageService, AdminEmailConfig adminEmailConfig,
-                       PasswordPolicyValidator passwordPolicy, TrainingEnrollmentService trainingEnrollmentService) {
+                       PasswordPolicyValidator passwordPolicy, TrainingEnrollmentService trainingEnrollmentService,
+                       TrainingPhotoService trainingPhotoService) {
         this.userRepository = userRepository;
         this.authTokenRepository = authTokenRepository;
         this.enrollmentErasureService = enrollmentErasureService;
@@ -58,6 +61,7 @@ public class UserService {
         this.adminEmailConfig = adminEmailConfig;
         this.passwordPolicy = passwordPolicy;
         this.trainingEnrollmentService = trainingEnrollmentService;
+        this.trainingPhotoService = trainingPhotoService;
     }
 
     public UserDtos.UserResponse getMe(UUID userId) {
@@ -156,6 +160,9 @@ public class UserService {
         // Future enrollments are freed, past ones anonymized — BEFORE deleting the account
         // (after delete the FK nulls user_id and the enrollments can't be found). Shared logic with the admin panel.
         var erasure = enrollmentErasureService.eraseForUser(userId);
+        // Comment photos live on disk, and the rows pointing at them go through the DB cascade
+        // without Hibernate loading them — so nothing else would ever unlink these files.
+        trainingPhotoService.purgeForUser(userId);
         if (user.getAvatarFilename() != null) {
             fileStorageService.delete(AVATAR_FOLDER, user.getAvatarFilename());
         }

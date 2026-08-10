@@ -318,6 +318,16 @@ export const adminApi = {
     fetchApi<TrainingComment>(`/admin/personal-trainings/${id}/comments`, {
       method: 'POST', body: JSON.stringify({ body }),
     }),
+  /** Its own path, not `.../comments`, so the rate limiter can ration uploads separately. */
+  addTrainingPhotoComment: (id: string, photo: File, body: string) => {
+    const form = new FormData()
+    form.append('trainingId', id)
+    form.append('file', photo)
+    if (body) form.append('body', body)
+    return fetchApi<TrainingComment>('/admin/training-photos', { method: 'POST', body: form })
+  },
+  deleteTrainingCommentPhoto: (commentId: string) =>
+    fetchApi<void>(`/admin/personal-trainings/comments/${commentId}/photo`, { method: 'DELETE' }),
   markTrainingCalendarSeen: (athleteId: string) =>
     fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
   dismissTrainingDeletions: (athleteId: string) =>

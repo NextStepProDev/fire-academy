@@ -113,10 +113,31 @@ public final class TrainingCalendarDtos {
 
     public record TrainingCommentResponse(
             UUID id,
-            String body,
+            /** Null when the comment is a bare photo. */
+            @Nullable String body,
             boolean fromCoach,
             @Nullable String authorName,
-            Instant createdAt
+            Instant createdAt,
+            @Nullable TrainingCommentPhoto photo
+    ) {}
+
+    /**
+     * A photo attached to a comment.
+     *
+     * @param url       role-aware endpoint, built the way UserService builds avatar URLs. It needs a
+     *                  bearer token — this is health data and never reaches the public file namespace
+     * @param width     dimensions of the stored file, so the client can reserve the box and keep the
+     *                  thread from jumping while the bytes are still in flight
+     * @param expiresAt when the retention sweep will delete it, shown so nobody is surprised by it
+     * @param canDelete whether THIS viewer may remove it: its author always, and the coach for
+     *                  anything in their client's thread
+     */
+    public record TrainingCommentPhoto(
+            String url,
+            int width,
+            int height,
+            Instant expiresAt,
+            boolean canDelete
     ) {}
 
     public record AddCommentRequest(

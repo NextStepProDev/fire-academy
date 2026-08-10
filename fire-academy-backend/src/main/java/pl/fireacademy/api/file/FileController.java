@@ -8,11 +8,26 @@ import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
 import java.io.InputStream;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
+
+    /**
+     * The folders this endpoint may hand out. Everything here is unauthenticated and publicly
+     * cacheable (see SecurityConfig), so the list is the line between "catalog artwork" and
+     * "somebody's private file".
+     * <p>
+     * Without it the path pattern alone decided, and it accepts ANY lowercase name — so any folder
+     * ever created under the storage root became world-readable the moment a filename leaked. An
+     * allowlist inverts that: a new folder is private until someone deliberately adds it here.
+     * Training photos are health data and must never appear on this list.
+     */
+    private static final Set<String> PUBLIC_FOLDERS =
+        Set.of("avatars", "instructors", "eventtypes", "eventtypephotos");
+
     private final FileStorageService fileStorageService;
 
     public FileController(FileStorageService fileStorageService) {
@@ -21,7 +36,7 @@ public class FileController {
 
     @GetMapping("/{folder}/{filename}")
     public ResponseEntity<InputStreamResource> getFile(@PathVariable String folder, @PathVariable String filename) {
-        if (!folder.matches("^[a-z]+$")) {
+        if (!folder.matches("^[a-z]+$") || !PUBLIC_FOLDERS.contains(folder)) {
             return ResponseEntity.badRequest().build();
         }
         if (!filename.matches("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|jpeg|png|webp)$")) {

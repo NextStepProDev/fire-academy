@@ -7,7 +7,7 @@ vi.mock('../i18n', () => ({
 }))
 vi.mock('./auth', () => ({ refreshTokens: vi.fn() }))
 
-import { fetchApi } from './client'
+import { fetchApi, fetchApiBlob } from './client'
 
 /** Minimal stand-in for what fetchApi reads off a Response. */
 function response(status: number, body: unknown = {}): Response {
@@ -90,5 +90,39 @@ describe('fetchApi retries', () => {
     await vi.advanceTimersByTimeAsync(15_000)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('fetchApiBlob', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  /**
+   * Training comment photos cannot be an `<img src>`: the endpoint needs a bearer token because the
+   * files are health data. So they come back as bytes, and the caller turns them into an object URL.
+   */
+  it('shouldReturnRawBytesInsteadOfParsingJson', async () => {
+    const blob = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' })
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => blob,
+      // JPEG bytes are not JSON — reaching for the text path here would throw
+      text: async () => { throw new Error('should not read this as text') },
+    } as unknown as Response)
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchApiBlob('/api/user/my-training/comments/c1/photo')).resolves.toBe(blob)
+  })
+
+  /** fetchApi prefixes /api itself, so the server-supplied absolute path must lose its own. */
+  it('shouldNotDoubleThePathPrefix', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, blob: async () => new Blob([]),
+    } as unknown as Response)
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchApiBlob('/api/admin/personal-trainings/comments/c1/photo')
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/personal-trainings/comments/c1/photo')
   })
 })

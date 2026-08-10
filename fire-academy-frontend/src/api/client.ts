@@ -70,9 +70,16 @@ async function doRefresh(): Promise<string | null> {
   }
 }
 
+/**
+ * `blob` is for responses that are not JSON — currently the training comment photos, which cannot
+ * be an `<img src>` because that carries no Authorization header and these files are health data
+ * behind an authenticated endpoint.
+ */
+type FetchOptions = RequestInit & { responseType?: 'json' | 'blob' }
+
 export async function fetchApi<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: FetchOptions
 ): Promise<T> {
   const token = await ensureValidToken()
 
@@ -194,12 +201,25 @@ export async function fetchApi<T>(
     throw new Error(i18n.t('generic', { status: response.status, ns: 'errors' }))
   }
 
+  if (options?.responseType === 'blob') {
+    return (await response.blob()) as T
+  }
+
   // Some endpoints ack with an empty body (204, or a 201/200 "created/updated" with no payload).
   // Read as text first and only parse when there's something — calling .json() on an empty body
   // throws "Unexpected end of JSON input".
   const text = await response.text()
   return (text ? JSON.parse(text) : undefined) as T
 }
+
+/**
+ * Fetches an authenticated binary resource by the absolute API path the server handed back.
+ *
+ * Both roles use this unchanged: the server already returns the URL that belongs to the caller, so
+ * there is nothing here to branch on. The leading `/api` is stripped because `fetchApi` adds it.
+ */
+export const fetchApiBlob = (absolutePath: string) =>
+  fetchApi<Blob>(absolutePath.replace(/^\/api/, ''), { responseType: 'blob' })
 
 export const authApi = {
   getCurrentUser: () => fetchApi<User>('/user/me'),

@@ -52,6 +52,7 @@ public class PersonalTrainingService {
     private final TrainingAccessService access;
     private final TrainingUnreadService unread;
     private final AttachmentService attachments;
+    private final TrainingPhotoService photos;
     private final RecurringSessionOverlayService recurring;
     private final UserRepository userRepository;
     private final MessageService msg;
@@ -62,6 +63,7 @@ public class PersonalTrainingService {
                                    TrainingAccessService access,
                                    TrainingUnreadService unread,
                                    AttachmentService attachments,
+                                   TrainingPhotoService photos,
                                    RecurringSessionOverlayService recurring,
                                    UserRepository userRepository,
                                    MessageService msg) {
@@ -71,6 +73,7 @@ public class PersonalTrainingService {
         this.access = access;
         this.unread = unread;
         this.attachments = attachments;
+        this.photos = photos;
         this.recurring = recurring;
         this.userRepository = userRepository;
         this.msg = msg;
@@ -156,6 +159,9 @@ public class PersonalTrainingService {
         if (training.getDate().isAfter(LocalDate.now())) {
             deletionRepository.save(new TrainingDeletion(training, viewerIsAdmin));
         }
+        // Before the row goes: the comments cascade away in the database, so once delete() has run
+        // nothing can find the photo files they pointed at. This class has no JPA cascade to hook.
+        photos.purgeForTraining(training.getId());
         repository.delete(training);
     }
 
@@ -264,7 +270,7 @@ public class PersonalTrainingService {
     public List<TrainingCommentResponse> getComments(UUID trainingId, UUID viewerId, boolean viewerIsAdmin) {
         access.requireTraining(trainingId, viewerId, viewerIsAdmin);
         return commentRepository.findThread(trainingId).stream()
-                .map(PersonalTrainingService::toCommentResponse)
+                .map(c -> TrainingCommentMapper.toResponse(c, viewerId, viewerIsAdmin))
                 .toList();
     }
 
@@ -275,7 +281,7 @@ public class PersonalTrainingService {
         User author = userRepository.findById(viewerId)
                 .orElseThrow(() -> new IllegalStateException(msg.get("error.user.not.found")));
         TrainingComment comment = new TrainingComment(training, author, viewerIsAdmin, request.body().trim());
-        return toCommentResponse(commentRepository.save(comment));
+        return TrainingCommentMapper.toResponse(commentRepository.save(comment), viewerId, viewerIsAdmin);
     }
 
     @Transactional
@@ -413,11 +419,6 @@ public class PersonalTrainingService {
     }
 
 
-    private static TrainingCommentResponse toCommentResponse(TrainingComment c) {
-        User author = c.getAuthor();
-        return new TrainingCommentResponse(c.getId(), c.getBody(), c.isAuthorIsAdmin(),
-                author == null ? null : author.getFirstName(), c.getCreatedAt());
-    }
 
     static PersonalTrainingResponse toResponse(PersonalTraining t, LocalDateTime now,
                                                boolean unread, int commentCount,

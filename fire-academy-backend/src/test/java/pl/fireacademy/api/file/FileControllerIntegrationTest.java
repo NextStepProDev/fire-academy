@@ -47,6 +47,24 @@ class FileControllerIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isBadRequest());
     }
 
+    /**
+     * This endpoint is unauthenticated and publicly cacheable, so the folder allowlist is what keeps
+     * it to catalog artwork. The name pattern alone accepts any lowercase word, which meant every
+     * folder ever created under the storage root became world-readable once a filename leaked.
+     */
+    @Test
+    void shouldRefuseAFolderThatIsNotPublic() throws Exception {
+        String storageRoot = System.getProperty("java.io.tmpdir") + "/fire-academy-test-uploads";
+        Path dir = Path.of(storageRoot, "trainingphotos");
+        Files.createDirectories(dir);
+        String filename = UUID.randomUUID() + ".jpg";
+        Files.write(dir.resolve(filename), "health data".getBytes());
+
+        // The file is right there and the name is well-formed. It still must not come back.
+        mockMvc.perform(get("/api/files/trainingphotos/" + filename))
+            .andExpect(status().isBadRequest());
+    }
+
     @Test
     void shouldRejectFolderWithNumbers() throws Exception {
         mockMvc.perform(get("/api/files/folder123/" + testFilename))

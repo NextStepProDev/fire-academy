@@ -249,8 +249,9 @@ export function PrivacyPolicyPage() {
         <Section id="plan-treningowy" title="5. Plan treningowy 1:1 — dane o zdrowiu">
           <p className="text-surface-300 leading-relaxed mb-4">
             Plan treningowy 1:1 to jedyna część serwisu, w której zbieramy dane o Twoim ciele: masę ciała
-            i jej trend, cele wagowe, dzienne limity kalorii, ocenę wysiłku i Twój opis samopoczucia po
-            treningu. W tym kontekście traktujemy je jako <span className="text-surface-200 font-medium">dane
+            i jej trend, cele wagowe, dzienne limity kalorii, ocenę wysiłku, Twój opis samopoczucia po
+            treningu oraz zdjęcia, które sam dołączysz do komentarzy (np. zrzut ekranu z zegarka
+            sportowego). W tym kontekście traktujemy je jako <span className="text-surface-200 font-medium">dane
             dotyczące zdrowia</span> — kategorię, którą RODO chroni najmocniej. Dlatego nie wystarcza tu sama
             umowa: prosimy o odrębną, wyraźną zgodę, zanim po raz pierwszy otworzysz plan.
           </p>
@@ -270,8 +271,8 @@ export function PrivacyPolicyPage() {
               Zgodę wyrażasz świadomym zaznaczeniem oświadczenia przed pierwszym wejściem do planu — nie
               wynika ona z samego korzystania z serwisu ani z wpisania pomiaru. Zapisujemy datę i godzinę jej
               udzielenia jako wymagany przez RODO dowód. Zgodę możesz wycofać w każdej chwili, pisząc na adres
-              podany w punkcie 1 — wtedy usuwamy dane wagowe, kaloryczne oraz oceny wysiłku, a plan przestaje
-              być dostępny. Wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania i nie ma
+              podany w punkcie 1 — wtedy usuwamy dane wagowe, kaloryczne, oceny wysiłku i dołączone zdjęcia,
+              a plan przestaje być dostępny. Wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania i nie ma
               wpływu na Twoje konto ani zapisy na zajęcia. Jeśli trener odbierze Ci status podopiecznego,
               zgoda wygasa automatycznie, a ponowne otwarcie planu wymaga jej udzielenia od nowa.
             </p>
@@ -282,6 +283,26 @@ export function PrivacyPolicyPage() {
               Trener nie ma technicznej możliwości wpisania ani zmiany Twojej masy ciała — to świadoma decyzja,
               nie przeoczenie. Ma wyłącznie podgląd. Każdy pomiar możesz poprawić lub usunąć samodzielnie,
               w dowolnym momencie, a usunięcie pomiaru nigdy nie odbiera już osiągniętego celu.
+            </p>
+          </SubSection>
+
+          <SubSection title="Zdjęcia dołączane do komentarzy">
+            <p className="text-surface-400 text-sm leading-relaxed">
+              Do wiadomości przy treningu można dołączyć zdjęcie — najczęściej zrzut ekranu z zegarka
+              sportowego albo aplikacji treningowej. Traktujemy je jako{' '}
+              <span className="text-surface-200 font-medium">dane dotyczące zdrowia</span>, bo widać na
+              nich tętno, strefy wysiłku, tempo czy sen. Dlatego takie zdjęcia{' '}
+              <span className="text-surface-200 font-medium">nigdy nie trafiają pod publiczny adres</span> —
+              żeby je zobaczyć, trzeba być zalogowanym jako Ty albo jako Twój trener prowadzący, a
+              przeglądarka nie zapisuje ich w pamięci podręcznej na dysku.
+            </p>
+            <p className="text-surface-400 text-sm leading-relaxed mt-3">
+              Zdjęcia <span className="text-surface-200 font-medium">usuwamy automatycznie po 30 dniach</span> od
+              wysłania — sam komentarz zostaje, znika tylko obraz. Do jednego treningu można dołączyć
+              najwyżej 3 zdjęcia. Własne zdjęcie możesz usunąć samodzielnie w dowolnym momencie, bez
+              czekania na ten termin; usunąć je może też trener. Prosimy, aby nie wysyłać tą drogą
+              dokumentacji medycznej ani zdjęć, na których widać dane innych osób — do przekazania
+              takich informacji służy kontakt bezpośredni z trenerem.
             </p>
           </SubSection>
 
@@ -321,6 +342,12 @@ export function PrivacyPolicyPage() {
               z komentarzami — usuwamy najpóźniej w ciągu 30 dni. Pojedynczy pomiar masy ciała możesz usunąć
               samodzielnie w każdej chwili. Samo wyłączenie planu przez trenera nie kasuje pozostałych danych —
               ukrywa je, a po ponownym włączeniu wracają.
+            </p>
+            <p>
+              <span className="text-surface-200 font-medium">Zdjęcia dołączone do komentarzy</span> — usuwane
+              automatycznie <span className="text-surface-200 font-medium">30 dni</span> po wysłaniu, niezależnie
+              od tego, czy współpraca trwa. Treść komentarza zostaje, znika sam obraz. Wcześniej możesz usunąć
+              każde swoje zdjęcie samodzielnie.
             </p>
             <p>
               <span className="text-surface-200 font-medium">Kopie zapasowe</span> — przechowywane w cyklu 7-dniowym
