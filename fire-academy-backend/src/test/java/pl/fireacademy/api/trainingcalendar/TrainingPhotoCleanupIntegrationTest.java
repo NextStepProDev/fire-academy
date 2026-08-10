@@ -139,16 +139,50 @@ class TrainingPhotoCleanupIntegrationTest extends BaseIntegrationTest {
         String json = mockMvc.perform(MockMvcRequestBuilders.multipart("/api/admin/training-photos")
                         .file(new MockMultipartFile("file", "g.jpg", "image/jpeg", out.toByteArray()))
                         .param("trainingId", trainingId)
+                        .param("body", "Tak ma wyglądać ustawienie")
                         .header("Authorization", "Bearer " + admin))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String filename = filenameOf(JsonPath.read(json, "$.id"));
+        String commentId = JsonPath.read(json, "$.id");
+        String filename = filenameOf(commentId);
         assertTrue(onDisk(filename));
 
         // The training is the client's; the photo is the coach's
         photoService.purgeForUser(adminUserId());
 
         assertFalse(onDisk(filename));
+        // ...and the surviving comment must not still claim a photo. Its text stays (author_id is
+        // only nulled), so a stale filename here would leave the client staring at a broken frame
+        // for as long as the comment exists.
+        TrainingComment survivor = commentRepository.findById(UUID.fromString(commentId)).orElseThrow();
+        assertEquals("Tak ma wyglądać ustawienie", survivor.getBody());
+        assertNull(survivor.getPhotoFilename());
+        assertNull(survivor.getPhotoExpiresAt());
+    }
+
+    /** Same purge, but the coach sent only a picture — nothing readable is left, so the row goes. */
+    @Test
+    void shouldRemoveAPhotoOnlyCommentWhenItsAuthorIsDeleted() throws Exception {
+        String admin = adminToken();
+        flagAthlete("cleanup-author-silent@fireacademy.test");
+        UUID clientId = userRepository.findByEmail("cleanup-author-silent@fireacademy.test").orElseThrow().getId();
+        String trainingId = planTraining(admin, clientId);
+
+        var out = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(400, 800, BufferedImage.TYPE_INT_RGB), "jpg", out);
+        String json = mockMvc.perform(MockMvcRequestBuilders.multipart("/api/admin/training-photos")
+                        .file(new MockMultipartFile("file", "g.jpg", "image/jpeg", out.toByteArray()))
+                        .param("trainingId", trainingId)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String commentId = JsonPath.read(json, "$.id");
+        String filename = filenameOf(commentId);
+
+        photoService.purgeForUser(adminUserId());
+
+        assertFalse(onDisk(filename));
+        assertTrue(commentRepository.findById(UUID.fromString(commentId)).isEmpty());
     }
 
     /**

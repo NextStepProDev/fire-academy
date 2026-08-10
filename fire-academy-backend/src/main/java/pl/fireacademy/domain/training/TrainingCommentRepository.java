@@ -79,11 +79,11 @@ public interface TrainingCommentRepository extends JpaRepository<TrainingComment
      * to NULL by the cascade, so those files would otherwise outlive their author.
      */
     @Query("""
-        SELECT c.photoFilename FROM TrainingComment c
+        SELECT c FROM TrainingComment c
         WHERE c.photoFilename IS NOT NULL
           AND (c.training.athlete.id = :userId OR c.author.id = :userId)
         """)
-    List<String> findPhotoFilenamesForUser(@Param("userId") UUID userId);
+    List<TrainingComment> findPhotosForUser(@Param("userId") UUID userId);
 
     @Query("""
         SELECT c FROM TrainingComment c

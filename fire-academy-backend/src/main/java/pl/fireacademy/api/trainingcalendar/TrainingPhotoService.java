@@ -21,6 +21,7 @@ import pl.fireacademy.infrastructure.storage.StorePolicy;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -153,13 +154,37 @@ public class TrainingPhotoService {
     }
 
     /**
-     * Unlinks every photo tied to an account about to be deleted — both the ones on that person's
-     * own trainings and the ones they wrote in someone else's thread, which the {@code author_id}
-     * cascade would merely orphan.
+     * Removes every photo tied to an account about to be deleted — both the ones on that person's
+     * own trainings and the ones they wrote in someone else's thread.
+     * <p>
+     * The two halves end differently, which is why the rows are cleared and not just the files.
+     * Comments on the person's own trainings vanish with them through the cascade. Comments they
+     * wrote in someone ELSE's plan survive: {@code author_id} is only set to NULL, so the text stays
+     * and reads as "Konto usunięte". Unlinking the file without clearing {@code photo_filename}
+     * would leave those rows pointing at nothing, and the other side would be looking at a broken
+     * frame for as long as the comment exists.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void purgeForUser(UUID userId) {
-        deleteAll(commentRepository.findPhotoFilenamesForUser(userId));
+        detachAll(commentRepository.findPhotosForUser(userId));
+    }
+
+    /** Clears the photo off each comment — row and all, when the photo was the whole message. */
+    private void detachAll(List<TrainingComment> comments) {
+        List<String> filenames = new ArrayList<>(comments.size());
+        for (TrainingComment comment : comments) {
+            String filename = comment.getPhotoFilename();
+            if (filename != null) {
+                filenames.add(filename);
+            }
+            if (comment.getBody() == null) {
+                commentRepository.delete(comment);
+            } else {
+                comment.clearPhoto();
+                commentRepository.save(comment);
+            }
+        }
+        deleteAll(filenames);
     }
 
     private void deleteAll(List<String> filenames) {
