@@ -10,7 +10,6 @@ import pl.fireacademy.domain.training.TrainingComment;
 import pl.fireacademy.domain.training.TrainingCommentRepository;
 import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRole;
-import pl.fireacademy.infrastructure.scheduler.TrainingPhotoRetentionScheduler;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 
 import javax.imageio.ImageIO;
@@ -40,7 +39,7 @@ class TrainingPhotoCleanupIntegrationTest extends BaseIntegrationTest {
     private static final LocalDate TOMORROW = LocalDate.now().plusDays(1);
 
     @Autowired private TrainingCommentRepository commentRepository;
-    @Autowired private TrainingPhotoRetentionScheduler scheduler;
+    @Autowired private TrainingPhotoRetentionService retention;
     @Autowired private TrainingPhotoService photoService;
     @Autowired private FileStorageService storage;
 
@@ -225,7 +224,7 @@ class TrainingPhotoCleanupIntegrationTest extends BaseIntegrationTest {
 
         expire(withText, photoOnly);
 
-        assertEquals(2, scheduler.deleteExpired());
+        assertEquals(2, retention.deleteExpired());
 
         assertFalse(onDisk(textFile));
         assertFalse(onDisk(onlyFile));
@@ -255,7 +254,7 @@ class TrainingPhotoCleanupIntegrationTest extends BaseIntegrationTest {
         Files.setLastModifiedTime(orphanPath,
                 java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
 
-        scheduler.deleteOrphans();
+        retention.deleteOrphans();
 
         assertFalse(onDisk(orphan));
     }
@@ -273,10 +272,42 @@ class TrainingPhotoCleanupIntegrationTest extends BaseIntegrationTest {
         String justArrived = UUID.randomUUID() + ".jpg";
         Files.write(folder.resolve(justArrived), "seconds old".getBytes());
 
-        scheduler.deleteOrphans();
+        retention.deleteOrphans();
 
         assertTrue(onDisk(filename), "a file a row still points at must never be swept");
         assertTrue(onDisk(justArrived), "a file younger than the grace window must survive the sweep");
+    }
+
+    /**
+     * A file the service could not have written — put there by hand, or left by something else
+     * entirely. It is skipped rather than deleted, because we do not destroy what we cannot account
+     * for; the point of the test is the rest of the pass, which must still finish. One stray name
+     * aborting the sweep would leave every genuinely expired photo on disk, and the only trace would
+     * be a stack trace in a log nobody reads at 03:45.
+     */
+    @Test
+    void shouldKeepSweepingPastAFileItCouldNotHaveWritten() throws Exception {
+        Path folder = Path.of(System.getProperty("java.io.tmpdir"), "fire-academy-test-uploads",
+                TrainingPhotoService.FOLDER);
+        Files.createDirectories(folder);
+
+        Path stray = folder.resolve("notatka.txt");
+        Files.write(stray, "put here by hand".getBytes());
+
+        String orphan = UUID.randomUUID() + ".jpg";
+        Path orphanPath = folder.resolve(orphan);
+        Files.write(orphanPath, "leaked".getBytes());
+        Files.setLastModifiedTime(orphanPath,
+                java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(7200)));
+
+        try {
+            assertDoesNotThrow(() -> retention.deleteOrphans());
+
+            assertFalse(onDisk(orphan), "the real orphan must still be swept");
+            assertTrue(Files.exists(stray), "an unrecognised file is left alone, not deleted");
+        } finally {
+            Files.deleteIfExists(stray);
+        }
     }
 
     /** Backdates the photos of the given comments so the retention pass picks them up. */

@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
+import pl.fireacademy.infrastructure.storage.StoragePaths;
 
 import java.io.InputStream;
 import java.util.Set;
@@ -36,10 +37,12 @@ public class FileController {
 
     @GetMapping("/{folder}/{filename}")
     public ResponseEntity<InputStreamResource> getFile(@PathVariable String folder, @PathVariable String filename) {
-        if (!folder.matches("^[a-z]+$") || !PUBLIC_FOLDERS.contains(folder)) {
+        // The shapes come from StoragePaths, which the storage layer also enforces. The rule is one
+        // rule; only the answer differs — a bad request is a 400 here, an outright refusal there.
+        if (!StoragePaths.FOLDER.matcher(folder).matches() || !PUBLIC_FOLDERS.contains(folder)) {
             return ResponseEntity.badRequest().build();
         }
-        if (!filename.matches("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|jpeg|png|webp)$")) {
+        if (!StoragePaths.FILENAME.matcher(filename).matches()) {
             return ResponseEntity.badRequest().build();
         }
         if (!fileStorageService.exists(folder, filename)) {
