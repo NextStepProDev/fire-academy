@@ -3,6 +3,8 @@ package pl.fireacademy.infrastructure.storage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -128,7 +131,7 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldNotThrowWhenDeletingNonExistentFile() {
-        assertDoesNotThrow(() -> storageService.delete("instructors", "nonexistent.jpg"));
+        assertDoesNotThrow(() -> storageService.delete("instructors", absentName()));
     }
 
     @Test
@@ -156,17 +159,17 @@ class LocalFileStorageServiceTest {
 
     @Test
     void shouldReturnFalseForNonExistentFile() {
-        assertFalse(storageService.exists("instructors", "does-not-exist.jpg"));
+        assertFalse(storageService.exists("instructors", absentName()));
     }
 
     @Test
     void shouldCreateDirectoriesAutomatically() throws Exception {
         MultipartFile file = upload("photo.jpg", "image/jpeg", image("jpg"));
 
-        String filename = storageService.store("new-folder", file);
+        String filename = storageService.store("newfolder", file);
 
-        assertTrue(Files.exists(tempDir.resolve("new-folder")));
-        assertTrue(storageService.exists("new-folder", filename));
+        assertTrue(Files.exists(tempDir.resolve("newfolder")));
+        assertTrue(storageService.exists("newfolder", filename));
     }
 
     @Test
@@ -178,5 +181,62 @@ class LocalFileStorageServiceTest {
         String name2 = storageService.store("instructors", file2);
 
         assertNotEquals(name1, name2);
+    }
+
+    // --- names this service could never have written ---------------------------------------------
+
+    /**
+     * Nothing reaches these methods with a name it did not mint itself: names come from the database,
+     * and the one public endpoint that takes a filename from a URL screens it first. That is exactly
+     * why the check belongs here too — a layer whose safety rests entirely on every caller staying
+     * careful is one refactor away from not being safe, and the failure would be silent.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "../../../etc/passwd",
+        "../secret.jpg",
+        "/etc/passwd",
+        "not-a-uuid.jpg",
+        "12345678-1234-1234-1234-123456789abc.exe",
+        "12345678-1234-1234-1234-123456789ABC.jpg",  // uppercase: never produced by randomUUID()
+        "12345678-1234-1234-1234-123456789abc.jpg.txt",
+        "12345678-1234-1234-1234-123456789abc.jpg\0.txt"  // null byte, in case anything downstream truncates
+    })
+    void shouldRejectAFilenameItCouldNotHaveWritten(String filename) {
+        assertThrows(IllegalArgumentException.class, () -> storageService.delete("instructors", filename));
+        assertThrows(IllegalArgumentException.class, () -> storageService.exists("instructors", filename));
+        assertThrows(IllegalArgumentException.class, () -> storageService.getInputStream("instructors", filename));
+        assertThrows(IllegalArgumentException.class, () -> storageService.getFileSize("instructors", filename));
+        assertThrows(IllegalArgumentException.class, () -> storageService.getLastModified("instructors", filename));
+    }
+
+    /** A folder is chosen in code, so anything shaped otherwise is a bug — including on the way in. */
+    @ParameterizedTest
+    @ValueSource(strings = {"..", "../uploads", "avatars/../trainingphotos", "Avatars", "training_photos"})
+    void shouldRejectAFolderOutsideItsOwnNamingRules(String folder) {
+        assertThrows(IllegalArgumentException.class, () -> storageService.exists(folder, absentName()));
+        assertThrows(IllegalArgumentException.class, () -> storageService.listFilenames(folder));
+        assertThrows(IllegalArgumentException.class,
+            () -> storageService.store(folder, upload("photo.jpg", "image/jpeg", image("jpg"))));
+    }
+
+    /** The consequence in full: a traversal name must not be able to read a file outside the root. */
+    @Test
+    void shouldNotReachAFileOutsideTheStorageRoot() throws Exception {
+        Path outside = tempDir.getParent().resolve("outside-" + UUID.randomUUID() + ".jpg");
+        Files.writeString(outside, "not yours");
+        try {
+            String traversal = "../" + outside.getFileName();
+
+            assertThrows(IllegalArgumentException.class, () -> storageService.exists("instructors", traversal));
+            assertTrue(Files.exists(outside), "the file outside the root must still be there, untouched");
+        } finally {
+            Files.deleteIfExists(outside);
+        }
+    }
+
+    /** A valid-looking name for a file that was never stored — the "missing", not "malformed", case. */
+    private static String absentName() {
+        return UUID.randomUUID() + ".jpg";
     }
 }

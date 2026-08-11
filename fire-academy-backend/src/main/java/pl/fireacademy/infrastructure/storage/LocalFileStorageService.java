@@ -41,6 +41,10 @@ public class LocalFileStorageService implements FileStorageService {
 
     @Override
     public StoredImage storeImage(String folder, MultipartFile file, StorePolicy policy) {
+        // The filename below is minted here, so only the folder can carry a caller's mistake — and it
+        // is the more dangerous half: a folder that escapes the root escapes it for a write.
+        StoragePaths.requireFolder(folder);
+
         if (file.getSize() > policy.maxBytes()) {
             throw new IllegalArgumentException(
                 "Plik jest za duży. Maksymalny rozmiar to " + policy.maxBytes() / (1024 * 1024) + " MB");
@@ -116,10 +120,20 @@ public class LocalFileStorageService implements FileStorageService {
         }
     }
 
+    /**
+     * The single point where a folder and a filename become a path. Everything that reads or removes
+     * a file goes through here, so the check cannot be forgotten by one method the way it would be
+     * if each resolved its own path.
+     */
+    private Path resolve(String folder, String filename) {
+        StoragePaths.require(folder, filename);
+        return rootLocation.resolve(folder).resolve(filename);
+    }
+
     @Override
     public void delete(String folder, String filename) {
+        Path path = resolve(folder, filename);
         try {
-            Path path = rootLocation.resolve(folder).resolve(filename);
             Files.deleteIfExists(path);
             log.info("Deleted file: {}/{}", folder, filename);
         } catch (IOException e) {
@@ -129,13 +143,13 @@ public class LocalFileStorageService implements FileStorageService {
 
     @Override
     public boolean exists(String folder, String filename) {
-        return Files.exists(rootLocation.resolve(folder).resolve(filename));
+        return Files.exists(resolve(folder, filename));
     }
 
     @Override
     public InputStream getInputStream(String folder, String filename) {
         try {
-            return Files.newInputStream(rootLocation.resolve(folder).resolve(filename));
+            return Files.newInputStream(resolve(folder, filename));
         } catch (IOException e) {
             throw new RuntimeException("Failed to read file", e);
         }
@@ -144,7 +158,7 @@ public class LocalFileStorageService implements FileStorageService {
     @Override
     public long getFileSize(String folder, String filename) {
         try {
-            return Files.size(rootLocation.resolve(folder).resolve(filename));
+            return Files.size(resolve(folder, filename));
         } catch (IOException e) {
             throw new RuntimeException("Failed to get file size", e);
         }
@@ -152,6 +166,7 @@ public class LocalFileStorageService implements FileStorageService {
 
     @Override
     public Set<String> listFilenames(String folder) {
+        StoragePaths.requireFolder(folder);
         Path dir = rootLocation.resolve(folder);
         if (!Files.isDirectory(dir)) {
             return Set.of();
@@ -168,8 +183,9 @@ public class LocalFileStorageService implements FileStorageService {
 
     @Override
     public Instant getLastModified(String folder, String filename) {
+        Path path = resolve(folder, filename);
         try {
-            return Files.getLastModifiedTime(rootLocation.resolve(folder).resolve(filename)).toInstant();
+            return Files.getLastModifiedTime(path).toInstant();
         } catch (IOException e) {
             // Treat an unreadable timestamp as "just written" so a sweep leaves it alone. Losing a
             // pass costs a day; deleting a file that a transaction is still about to claim is worse.
