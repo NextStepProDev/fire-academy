@@ -347,5 +347,76 @@ class RateLimitFilterTest {
 
         assertTrue(response.getContentType().startsWith("application/json"));
         assertTrue(response.getContentAsString().contains("\"message\":\"Zbyt wiele żądań\""));
+        // A client told to back off has to be told for how long, or it just retries in a loop
+        assertEquals("60", response.getHeader("Retry-After"));
+    }
+
+    /**
+     * Public file streaming used to match no prefix at all, so it was served without any ceiling.
+     * Cloudflare caches the hits; requests for names that are not on disk miss the edge every time
+     * and land on the origin.
+     */
+    @Test
+    void shouldBlockFileStreamingAfterItsOwnCeiling() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: a gallery's worth of images is nowhere near the ceiling
+        for (int i = 0; i < 240; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/files/eventtypephotos/" + UUID.randomUUID() + ".jpg");
+            request.setRemoteAddr("10.50.0.1");
+            MockHttpServletResponse ok = new MockHttpServletResponse();
+            filter.doFilterInternal(request, ok, filterChain);
+            assertEquals(200, ok.getStatus());
+        }
+
+        MockHttpServletRequest flood = new MockHttpServletRequest("GET", "/api/files/avatars/" + UUID.randomUUID() + ".jpg");
+        flood.setRemoteAddr("10.50.0.1");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilterInternal(flood, blocked, filterChain);
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
+    @Test
+    void shouldNotLetFileStreamingEatTheAnonymousBucket() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: the file bucket is spent
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 240; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/files/avatars/x.jpg");
+            request.setRemoteAddr("10.50.0.2");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+
+        // Then: the catalog the same visitor is browsing still answers — separate counter
+        MockHttpServletRequest catalog = new MockHttpServletRequest("GET", "/api/public/events");
+        catalog.setRemoteAddr("10.50.0.2");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(catalog, response, filterChain);
+
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void shouldCountGoogleSignInAgainstTheCredentialBucket() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: the OAuth handshake shares the 15/min auth ceiling instead of sitting outside every bucket
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 15; i++) {
+            String path = i % 2 == 0 ? "/oauth2/authorization/google" : "/login/oauth2/code/google";
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+            request.setRemoteAddr("10.60.0.1");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
     }
 }
