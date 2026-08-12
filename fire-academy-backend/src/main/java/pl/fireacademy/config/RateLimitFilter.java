@@ -7,6 +7,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -21,7 +24,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
+/**
+ * Per-IP request throttling, keyed on the real client address and bucketed by path.
+ *
+ * <p><strong>Deny by default.</strong> Anything under {@code /api} that no rule claims falls into
+ * {@link #DEFAULT_LIMIT} rather than through the filter untouched. The rule table used to end in
+ * "no prefix matched, so no ceiling", which meant every new controller started life completely
+ * unthrottled and nothing at the call site looked wrong — the omission was invisible until someone
+ * audited the filter. The generic bucket makes the gap survivable; {@code RateLimitCoverageTest}
+ * makes it visible, by failing the build when a controller base path lands in it.
+ */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -54,6 +68,52 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // cache every time and reaches the JVM, where each one costs a thread and a stat() on a 1 GB box. This
     // is a ceiling on a flood, not a brake on browsing.
     private static final int FILES_LIMIT = 240;
+    // The catch-all. Deliberately generous: it exists to stop a script, not to surprise a household or an
+    // office behind one NAT address. A path that reaches it has no ceiling anyone chose for it, so the
+    // number has to be safe for traffic nobody has thought about yet.
+    private static final int DEFAULT_LIMIT = 120;
+
+    /**
+     * One bucket, one limit, one predicate — so a request can no longer be counted into one bucket
+     * while being measured against another's ceiling. That was the standing hazard of the two
+     * parallel {@code if} ladders this replaced: they had to test the same prefixes in the same
+     * order, and nothing but a comment held them together.
+     */
+    record Rule(String bucket, int limit, Predicate<String> matches) {}
+
+    /**
+     * First match wins, so the narrowest rules come first: the upload paths sit inside the calendar
+     * and admin prefixes, and would otherwise inherit their far roomier ceilings.
+     *
+     * <p>Reading a photo is deliberately NOT in the upload bucket — it lives at
+     * {@code .../comments/{id}/photo} and stays on the ordinary calendar ceiling, because opening a
+     * handful of trainings is already a dozen GETs. Only the multipart writes are rationed.
+     */
+    private static final List<Rule> RULES = List.of(
+        new Rule("upload", UPLOAD_LIMIT, path -> under(path, "/api/user/my-training/photos")
+            || under(path, "/api/admin/training-photos")),
+        // The Google sign-in handshake shares the credential bucket: both legs end in a session, so
+        // they belong with the other ways of getting one rather than outside every ceiling.
+        new Rule("auth", AUTH_LIMIT, path -> under(path, "/api/auth")
+            || under(path, "/oauth2")
+            || under(path, "/login/oauth2")),
+        new Rule("mytraining", MY_TRAINING_LIMIT, path -> under(path, "/api/user/my-training")),
+        new Rule("user", USER_LIMIT, path -> under(path, "/api/user")),
+        new Rule("admin", ADMIN_LIMIT, path -> under(path, "/api/admin")),
+        new Rule("files", FILES_LIMIT, path -> under(path, "/api/files")),
+        // Unauthenticated, DB-backed reads: the public catalog API, the OG crawler stubs and the sitemap.
+        new Rule("public", PUBLIC_LIMIT, path -> under(path, "/api/public")
+            || under(path, "/og")
+            || path.equals("/sitemap.xml"))
+    );
+
+    /**
+     * Catch-all for {@code /api}. Scoped to the API on purpose: {@code /actuator/health} is polled by
+     * the container healthcheck from a single address every few seconds, and a 429 there would flap
+     * the container to unhealthy — a rate limiter that restarts the service is worse than none.
+     */
+    private static final Rule DEFAULT_RULE =
+        new Rule("default", DEFAULT_LIMIT, path -> under(path, "/api"));
 
     private final Cache<String, AtomicInteger> requestCounts = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofMinutes(1))
@@ -63,28 +123,41 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final MessageSource messageSource;
+    private final boolean enabled;
 
-    public RateLimitFilter(MessageSource messageSource) {
+    /**
+     * @param enabled escape hatch for load testing, where every request arrives from one address and
+     *                the limiter would measure itself instead of the application. Left on everywhere
+     *                else — it is not a switch for turning throttling off "for a moment" in production.
+     */
+    @Autowired
+    public RateLimitFilter(MessageSource messageSource,
+                           @Value("${app.rate-limit.enabled:true}") boolean enabled) {
         this.messageSource = messageSource;
+        this.enabled = enabled;
+    }
+
+    /** Default wiring: throttling on, as in production. */
+    public RateLimitFilter(MessageSource messageSource) {
+        this(messageSource, true);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        int limit = resolveLimit(path);
+        Rule rule = enabled ? resolveRule(request.getRequestURI()) : null;
 
-        if (limit <= 0) {
+        if (rule == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String cacheKey = getClientIp(request) + ":" + resolveBucket(path);
+        String cacheKey = getClientIp(request) + ":" + rule.bucket();
         AtomicInteger counter = requestCounts.get(cacheKey, k -> new AtomicInteger(0));
         int count = counter.incrementAndGet();
 
-        if (count > limit) {
+        if (count > rule.limit()) {
             Locale locale = resolveLocale(request);
             String message = messageSource.getMessage("rate.limit.exceeded", null, locale);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
@@ -101,59 +174,37 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    // NOTE: the two methods below must test prefixes in the SAME order, most specific first. A bucket
-    // resolved from a different branch than its limit would silently pair the wrong ceiling with the
-    // wrong counter — hence the upload paths before MY_TRAINING_PATH, and that before /api/user/, in
-    // both. Adding a prefix means adding it to both methods, in the same position.
-    private static final String MY_TRAINING_PATH = "/api/user/my-training/";
-    private static final String PHOTO_UPLOAD_USER = "/api/user/my-training/photos";
-    private static final String PHOTO_UPLOAD_ADMIN = "/api/admin/training-photos";
-    private static final String FILES_PATH = "/api/files/";
-
     /**
-     * Reading a photo is deliberately NOT here — it lives at {@code .../comments/{id}/photo} and
-     * stays on the ordinary calendar ceiling, because opening a handful of trainings is already a
-     * dozen GETs. Only the multipart writes are rationed.
+     * The rule a path is subject to, or {@code null} when it lives outside the API and is left alone.
      */
-    private static boolean isPhotoUpload(String path) {
-        return path.startsWith(PHOTO_UPLOAD_USER) || path.startsWith(PHOTO_UPLOAD_ADMIN);
-    }
-
-    private int resolveLimit(String path) {
-        if (isAuthPath(path)) return AUTH_LIMIT;
-        if (isPhotoUpload(path)) return UPLOAD_LIMIT;
-        if (path.startsWith(MY_TRAINING_PATH)) return MY_TRAINING_LIMIT;
-        if (path.startsWith("/api/user/")) return USER_LIMIT;
-        if (path.startsWith("/api/admin/")) return ADMIN_LIMIT;
-        if (path.startsWith(FILES_PATH)) return FILES_LIMIT;
-        if (isPublicPath(path)) return PUBLIC_LIMIT;
-        return 0;
-    }
-
-    private String resolveBucket(String path) {
-        if (isAuthPath(path)) return "auth";
-        if (isPhotoUpload(path)) return "upload";
-        if (path.startsWith(MY_TRAINING_PATH)) return "mytraining";
-        if (path.startsWith("/api/user/")) return "user";
-        if (path.startsWith("/api/admin/")) return "admin";
-        if (path.startsWith(FILES_PATH)) return "files";
-        if (isPublicPath(path)) return "public";
-        return "default";
+    static @Nullable Rule resolveRule(String path) {
+        for (Rule rule : RULES) {
+            if (rule.matches().test(path)) {
+                return rule;
+            }
+        }
+        return DEFAULT_RULE.matches().test(path) ? DEFAULT_RULE : null;
     }
 
     /**
-     * The Google sign-in handshake shares the credential bucket: both legs end in a session, so they
-     * belong with the other ways of getting one rather than outside every ceiling.
+     * Name of the bucket a path counts into, or {@code null} when it is not throttled at all. Exposed
+     * for the architecture gate, which asserts that every controller base path lands in some bucket,
+     * and in the same one as its sub-paths.
      */
-    private static boolean isAuthPath(String path) {
-        return path.startsWith("/api/auth/")
-            || path.startsWith("/oauth2/")
-            || path.startsWith("/login/oauth2/");
+    public static @Nullable String bucketFor(String path) {
+        Rule rule = resolveRule(path);
+        return rule == null ? null : rule.bucket();
     }
 
-    /** Unauthenticated, DB-backed reads: the public catalog API, the OG crawler stubs and the sitemap. */
-    private static boolean isPublicPath(String path) {
-        return path.startsWith("/api/public/") || path.startsWith("/og/") || path.equals("/sitemap.xml");
+    /**
+     * Base-path match that includes the base itself. An endpoint mapped on the bare base carries no
+     * trailing slash, so a plain {@code startsWith(base + "/")} misses it — in the sibling climbing
+     * app that is exactly how the heaviest query in the app ran unthrottled for months, under a rule
+     * that looked like it covered the feature. Requiring the separator on the sub-path side is what
+     * still keeps {@code /api/users-export} from being read as {@code /api/user}.
+     */
+    private static boolean under(String path, String base) {
+        return path.equals(base) || path.startsWith(base + "/");
     }
 
     private Locale resolveLocale(HttpServletRequest request) {

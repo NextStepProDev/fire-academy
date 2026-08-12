@@ -335,7 +335,7 @@ z nową treścią. Kasowany jest wyłącznie dowód zgody — żadne dane. Dokł
 `POST /api/user/my-training/photos` i `POST /api/admin/training-photos` leżą **poza** prefiksami
 komentarzy nie z powodów estetycznych: `RateLimitFilter` rozstrzyga kubełek **wyłącznie po
 prefiksie ścieżki**, więc upload pod prefiksem kalendarza dziedziczyłby limit 120/min. Własny
-prefiks pozwala dołożyć branch przed pozostałymi, zgodnie z regułą „od najbardziej
-szczegółowego", i dać uploadom 12/min. Kubełek racjonuje **bajty, nie żądania** — multipart jest
+prefiks pozwala postawić regułę uploadu **na początku `RULES`**, przed kalendarzem i panelem
+(pierwsza pasująca wygrywa), i dać uploadom 12/min. Kubełek racjonuje **bajty, nie żądania** — multipart jest
 parsowany do pamięci, zanim handler zdąży cokolwiek odrzucić. **Odczyt zdjęć celowo w nim nie
 siedzi**: otwarcie kilku treningów pod rząd to kilkanaście GET-ów i nie ma powodu ich reglamentować.
