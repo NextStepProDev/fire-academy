@@ -49,6 +49,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // ever need — the per-training cap of three is what shapes normal use — and it puts a hard
     // number on the question an audit asks: what stops a client uploading thousands of files?
     private static final int UPLOAD_LIMIT = 12;
+    // Public image streaming (/api/files/**). Deliberately generous: a gallery page pulls a dozen files at
+    // once and Cloudflare only shields the hits — a request for a name that is not on disk misses the edge
+    // cache every time and reaches the JVM, where each one costs a thread and a stat() on a 1 GB box. This
+    // is a ceiling on a flood, not a brake on browsing.
+    private static final int FILES_LIMIT = 240;
 
     private final Cache<String, AtomicInteger> requestCounts = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofMinutes(1))
@@ -83,6 +88,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             Locale locale = resolveLocale(request);
             String message = messageSource.getMessage("rate.limit.exceeded", null, locale);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            // The counter expires a minute after its first request, so a full window is the honest upper
+            // bound on the wait. Without this header a client — ours or a crawler — just keeps hammering.
+            response.setHeader("Retry-After", "60");
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
             OBJECT_MAPPER.writeValue(response.getWriter(),
@@ -100,6 +108,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String MY_TRAINING_PATH = "/api/user/my-training/";
     private static final String PHOTO_UPLOAD_USER = "/api/user/my-training/photos";
     private static final String PHOTO_UPLOAD_ADMIN = "/api/admin/training-photos";
+    private static final String FILES_PATH = "/api/files/";
 
     /**
      * Reading a photo is deliberately NOT here — it lives at {@code .../comments/{id}/photo} and
@@ -111,23 +120,35 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private int resolveLimit(String path) {
-        if (path.startsWith("/api/auth/")) return AUTH_LIMIT;
+        if (isAuthPath(path)) return AUTH_LIMIT;
         if (isPhotoUpload(path)) return UPLOAD_LIMIT;
         if (path.startsWith(MY_TRAINING_PATH)) return MY_TRAINING_LIMIT;
         if (path.startsWith("/api/user/")) return USER_LIMIT;
         if (path.startsWith("/api/admin/")) return ADMIN_LIMIT;
+        if (path.startsWith(FILES_PATH)) return FILES_LIMIT;
         if (isPublicPath(path)) return PUBLIC_LIMIT;
         return 0;
     }
 
     private String resolveBucket(String path) {
-        if (path.startsWith("/api/auth/")) return "auth";
+        if (isAuthPath(path)) return "auth";
         if (isPhotoUpload(path)) return "upload";
         if (path.startsWith(MY_TRAINING_PATH)) return "mytraining";
         if (path.startsWith("/api/user/")) return "user";
         if (path.startsWith("/api/admin/")) return "admin";
+        if (path.startsWith(FILES_PATH)) return "files";
         if (isPublicPath(path)) return "public";
         return "default";
+    }
+
+    /**
+     * The Google sign-in handshake shares the credential bucket: both legs end in a session, so they
+     * belong with the other ways of getting one rather than outside every ceiling.
+     */
+    private static boolean isAuthPath(String path) {
+        return path.startsWith("/api/auth/")
+            || path.startsWith("/oauth2/")
+            || path.startsWith("/login/oauth2/");
     }
 
     /** Unauthenticated, DB-backed reads: the public catalog API, the OG crawler stubs and the sitemap. */

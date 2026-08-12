@@ -443,6 +443,67 @@ class AuthServiceTest {
         verify(authMailService, never()).sendPasswordResetEmail(any(), any());
     }
 
+    // --- Per-address mail quota ---
+
+    /**
+     * Both flows mail a stranger on request, so the hourly allowance belongs to the recipient, not to
+     * the endpoint — otherwise emptying one and moving to the other doubles what lands in the inbox.
+     * The key is normalised, or changing the capitalisation would buy a fresh allowance.
+     */
+    @Test
+    void shouldStopMailingAnAddressOnceItsHourlyQuotaIsSpent() {
+        existingUser.setEmailVerified(false);
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(existingUser));
+        when(authTokenRepository.hasRecentUnusedToken(eq(existingUser.getId()), any(), any())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("reset-token");
+        when(jwtService.hashToken("reset-token")).thenReturn("reset-hash");
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
+        when(msg.get("auth.resend.success")).thenReturn("Wysłano");
+
+        // Given: three reset requests for the same address use up the allowance
+        for (int i = 0; i < 3; i++) {
+            authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+        }
+        verify(authMailService, times(3)).sendPasswordResetEmail(eq(existingUser), anyString());
+
+        // When: a fourth request arrives, and the flooder switches flow and capitalisation
+        MessageResponse fourth = authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+        MessageResponse resend = authService.resendVerification(new ResendVerificationRequest("TEST@Example.com "));
+
+        // Then: no further mail leaves — and the caller is told exactly what it was told the first time,
+        // because a "you have had enough" answer would reveal that the account exists
+        verify(authMailService, times(3)).sendPasswordResetEmail(any(), anyString());
+        verify(authMailService, never()).sendVerificationEmail(any(), anyString());
+        assertEquals("Wysłano reset", fourth.message());
+        assertEquals("Wysłano", resend.message());
+    }
+
+    @Test
+    void shouldKeepTheQuotaPerAddress() throws Exception {
+        User other = new User("other@example.com", "Anna", "Nowak", null);
+        setId(other, UUID.randomUUID());
+        other.setPasswordHash("encoded-password");
+        other.markEmailVerified();
+
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByEmailIgnoreCase("other@example.com")).thenReturn(Optional.of(other));
+        when(authTokenRepository.hasRecentUnusedToken(any(), eq(TokenType.PASSWORD_RESET), any())).thenReturn(false);
+        when(jwtService.generateSecureToken()).thenReturn("reset-token");
+        when(jwtService.hashToken("reset-token")).thenReturn("reset-hash");
+        when(msg.get("auth.forgot.success")).thenReturn("Wysłano reset");
+
+        // Given: one address is flooded past its allowance
+        for (int i = 0; i < 5; i++) {
+            authService.forgotPassword(new ForgotPasswordRequest("test@example.com"));
+        }
+
+        // When: somebody else asks for a reset
+        authService.forgotPassword(new ForgotPasswordRequest("other@example.com"));
+
+        // Then: they get their mail — one flooded inbox must not lock everyone else out of resets
+        verify(authMailService).sendPasswordResetEmail(eq(other), anyString());
+    }
+
     // --- Reset Password ---
 
     @Test

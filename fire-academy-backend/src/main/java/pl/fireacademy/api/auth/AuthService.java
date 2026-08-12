@@ -19,9 +19,14 @@ import pl.fireacademy.infrastructure.mail.AuthMailService;
 import pl.fireacademy.infrastructure.security.JwtService;
 import pl.fireacademy.infrastructure.security.PasswordPolicyValidator;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AuthService {
@@ -34,6 +39,14 @@ public class AuthService {
     private static final Duration EMAIL_VERIFICATION_EXPIRATION = Duration.ofMinutes(15);
     private static final Duration PASSWORD_RESET_EXPIRATION = Duration.ofHours(1);
     private static final Duration RESEND_COOLDOWN = Duration.ofMinutes(1);
+    // Ceiling on unsolicited mail to a single address, on top of the one-minute cooldown above and the
+    // per-IP limit on /api/auth/. Neither of those caps what matters here: both "forgot password" and
+    // "resend verification" mail a stranger on request, so anyone can point them at a victim's inbox and,
+    // rotating IPs, keep it up for an hour a message. That also burns the Gmail relay's daily allowance
+    // (500), and once it is gone nobody gets a verification or reset mail until the counter rolls over.
+    // Three an hour is more than a person who lost a message to a spam folder will ever need.
+    private static final Duration MAIL_QUOTA_WINDOW = Duration.ofHours(1);
+    private static final int MAIL_QUOTA_PER_ADDRESS = 3;
     // Grace window after refresh-token rotation: a just-used token stays acceptable this long,
     // so concurrent tabs racing to refresh don't get logged out (they share one refresh token).
     private static final Duration REFRESH_ROTATION_GRACE = Duration.ofSeconds(30);
@@ -46,6 +59,14 @@ public class AuthService {
     private final AdminEmailConfig adminEmailConfig;
     private final MessageService msg;
     private final PasswordPolicyValidator passwordPolicy;
+
+    // One counter per recipient, both flows sharing it: the thing being rationed is somebody else's
+    // inbox, not either endpoint. In memory on purpose — a restart resetting it costs nothing, and a
+    // DB row per attempt would hand the flooder a write of ours for every request of theirs.
+    private final Cache<String, AtomicInteger> mailQuota = Caffeine.newBuilder()
+        .expireAfterWrite(MAIL_QUOTA_WINDOW)
+        .maximumSize(10_000)
+        .build();
 
     public AuthService(
             UserRepository userRepository,
@@ -203,7 +224,7 @@ public class AuthService {
             && !user.isEmailVerified()
             && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.EMAIL_VERIFICATION, Instant.now().minus(RESEND_COOLDOWN));
 
-        if (shouldSend) {
+        if (shouldSend && claimMailQuota(request.email())) {
             sendVerificationEmail(user);
         }
 
@@ -220,11 +241,27 @@ public class AuthService {
             && user.getPasswordHash() != null
             && !authTokenRepository.hasRecentUnusedToken(user.getId(), TokenType.PASSWORD_RESET, Instant.now().minus(RESEND_COOLDOWN));
 
-        if (shouldSend) {
+        if (shouldSend && claimMailQuota(request.email())) {
             sendPasswordResetEmail(user);
         }
 
         return new MessageResponse(msg.get("auth.forgot.success"));
+    }
+
+    /**
+     * Takes one slot off the hourly per-address allowance; false means the allowance is spent and the
+     * caller must not send. Counted only where a message would really go out, so probing addresses that
+     * have no account costs nothing — and the answer to the caller never changes either way, because a
+     * "you have had enough mail" response would be the enumeration oracle these endpoints avoid.
+     */
+    private boolean claimMailQuota(String email) {
+        String key = email.trim().toLowerCase(Locale.ROOT);
+        int used = mailQuota.get(key, k -> new AtomicInteger(0)).incrementAndGet();
+        if (used > MAIL_QUOTA_PER_ADDRESS) {
+            log.warn("Suppressed an auth e-mail: hourly per-address quota spent for {}", key);
+            return false;
+        }
+        return true;
     }
 
     // Stays @Transactional even though passwordPolicy.validate makes the same network call as in register:
