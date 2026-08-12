@@ -116,15 +116,95 @@ class RateLimitFilterTest {
         assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blockedResponse.getStatus());
     }
 
+    /**
+     * The health probe staying unlimited is a contract, not an accident: the container healthcheck
+     * polls it from one address every few seconds, and a 429 would flap the container to unhealthy.
+     * That is why the catch-all below stops at /api instead of covering every path.
+     */
     @Test
-    void shouldNotRateLimitUnmatchedPaths() throws ServletException, IOException {
-        // Given: paths outside the known buckets (e.g. the actuator health probe) stay unlimited
+    void shouldNotRateLimitTheHealthProbe() throws ServletException, IOException {
         MockHttpServletResponse response = null;
         for (int i = 0; i <= 200; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
             request.setRemoteAddr("192.168.1.50");
             response = new MockHttpServletResponse();
             filter.doFilterInternal(request, response, filterChain);
+        }
+
+        assertEquals(200, response.getStatus());
+    }
+
+    /**
+     * Deny by default. A path under /api that no rule claims used to pass with no ceiling at all,
+     * which meant a controller nobody remembered to add here started life completely unthrottled —
+     * and nothing about the omission was visible from the controller.
+     */
+    @Test
+    void shouldThrottleApiPathsNoRuleClaims() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 120; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/something-nobody-bucketed");
+            request.setRemoteAddr("10.70.0.1");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
+    /**
+     * The bare base carries no trailing slash, so a rule written as startsWith("/api/user/") would
+     * miss it and drop the request into the generic bucket instead of the one it belongs to.
+     */
+    @Test
+    void shouldCountABareBasePathIntoTheSameBucketAsItsSubPaths() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Given: the user bucket is spent through ordinary sub-paths
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 20; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
+            request.setRemoteAddr("10.80.0.1");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+
+        // When: a request arrives on the bare base
+        MockHttpServletRequest bare = new MockHttpServletRequest("GET", "/api/user");
+        bare.setRemoteAddr("10.80.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(bare, response, filterChain);
+
+        // Then: it counts into the same exhausted bucket, not past the limiter
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), response.getStatus());
+    }
+
+    /** A neighbouring path must not be swallowed by a base it merely starts with. */
+    @Test
+    void shouldNotTreatALongerSiblingPathAsTheBase() {
+        assertEquals("user", RateLimitFilter.bucketFor("/api/user"));
+        assertEquals("default", RateLimitFilter.bucketFor("/api/users-export"));
+    }
+
+    /**
+     * The escape hatch for load testing, where every request comes from one address and the limiter
+     * would measure itself instead of the application. Off by default everywhere else.
+     */
+    @Test
+    void shouldPassEverythingThroughWhenDisabled() throws ServletException, IOException {
+        RateLimitFilter disabled = new RateLimitFilter(messageSource, false);
+
+        MockHttpServletResponse response = null;
+        for (int i = 0; i <= 200; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+            request.setRemoteAddr("10.90.0.1");
+            response = new MockHttpServletResponse();
+            disabled.doFilterInternal(request, response, filterChain);
         }
 
         assertEquals(200, response.getStatus());

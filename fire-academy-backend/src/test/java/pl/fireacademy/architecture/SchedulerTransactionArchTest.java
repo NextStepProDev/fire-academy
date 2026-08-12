@@ -2,16 +2,11 @@ package pl.fireacademy.architecture;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,9 +35,6 @@ class SchedulerTransactionArchTest {
     private static final Pattern ANNOTATED_METHOD = Pattern.compile(
         "((?:@\\w+(?:\\([^)]*\\))?\\s+)+)(?:public|protected|private)\\s+[\\w<>\\[\\],.?\\s]+?\\s(\\w+)\\s*\\(");
 
-    private static final Pattern BLOCK_COMMENT = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL);
-    private static final Pattern LINE_COMMENT = Pattern.compile("//[^\\n]*");
-
     /**
      * The rule. A transactional method inside a scheduler is reachable only from that scheduler —
      * nothing injects a cron holder — so unless it is the scheduled method itself, the only caller it
@@ -57,8 +49,8 @@ class SchedulerTransactionArchTest {
         int schedulerClasses = 0;
         boolean sawScheduledAndTransactionalTogether = false;
 
-        for (Path file : javaSources()) {
-            String source = stripComments(read(file));
+        for (Path file : SourceFiles.mainJavaFiles()) {
+            String source = SourceFiles.readWithoutComments(file);
             if (!source.contains("@Scheduled")) {
                 continue;
             }
@@ -134,7 +126,8 @@ class SchedulerTransactionArchTest {
 
     private static List<String> transactionalNonScheduledMethods(String source) {
         List<String> found = new ArrayList<>();
-        Matcher matcher = ANNOTATED_METHOD.matcher(stripComments(source));
+        // Comments go first: prose about @Transactional is not code carrying it.
+        Matcher matcher = ANNOTATED_METHOD.matcher(SourceFiles.stripComments(source));
         while (matcher.find()) {
             String annotations = matcher.group(1);
             if (annotations.contains("@Transactional") && !annotations.contains("@Scheduled")) {
@@ -142,33 +135,5 @@ class SchedulerTransactionArchTest {
             }
         }
         return found;
-    }
-
-    /** Comments go first: prose about {@code @Transactional} is not code carrying it. */
-    private static String stripComments(String source) {
-        return LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(source).replaceAll("")).replaceAll("");
-    }
-
-    private static List<Path> javaSources() {
-        Path root = Path.of("src/main/java");
-        if (!Files.isDirectory(root)) {
-            // Depending on where the suite is started from, the module may or may not be the working
-            // directory. Fail loudly rather than scan nothing and call it a pass.
-            root = Path.of("fire-academy-backend/src/main/java");
-        }
-        assertTrue(Files.isDirectory(root), "cannot locate the Java sources to scan");
-        try (Stream<Path> files = Files.walk(root)) {
-            return files.filter(path -> path.toString().endsWith(".java")).toList();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static String read(Path file) {
-        try {
-            return Files.readString(file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 }
