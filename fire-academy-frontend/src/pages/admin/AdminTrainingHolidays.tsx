@@ -11,6 +11,7 @@ import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
 import type { TrainingHoliday } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
@@ -34,7 +35,7 @@ export function AdminTrainingHolidays() {
   const { data: holidays, isLoading, isFetching } = useQuery({
     queryKey: ['admin', 'training-holidays', month],
     queryFn: () => adminApi.getTrainingHolidays(month),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const invalidate = () => {

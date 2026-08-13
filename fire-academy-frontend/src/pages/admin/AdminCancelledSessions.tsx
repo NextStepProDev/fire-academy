@@ -11,6 +11,7 @@ import { useToast } from '../../context/ToastContext'
 import type { CancelledSessionOverview } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
@@ -31,7 +32,7 @@ export function AdminCancelledSessions() {
   const overviewQuery = useQuery({
     queryKey: ['admin', 'cancelled-overview'],
     queryFn: adminApi.getCancelledSessionsOverview,
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
   const { data: instructors } = useQuery({
     queryKey: ['admin', 'instructors'],

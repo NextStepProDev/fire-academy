@@ -22,6 +22,11 @@ export function VideoPickerModal({
   const { t } = useTranslation('calendar')
   const [query, setQuery] = useState('')
 
+  // The one live query in the app that keeps staleTime 0, while the lists and counters moved to a
+  // 30 s floor to stop refetch storms. Here the key carries the query text (debounced in
+  // VideoSearchInput), so each search is its own cache entry and a staleTime would apply to exactly
+  // one case: reopening this modal with an identical phrase. A cache hit there means a clip added
+  // minutes ago is missing from the list and cannot be attached — a wrong answer, not a stale one.
   const videosQuery = useQuery({
     queryKey: ['admin', 'exercise-videos', 'suggest', query],
     queryFn: () => adminApi.suggestExerciseVideos(query),

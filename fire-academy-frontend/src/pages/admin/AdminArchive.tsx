@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { ChevronDown, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 type ArchivedEvent = EventInstance & { category: EventCategory }
 
@@ -34,11 +35,14 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
   const config = categoryConfig[event.category]
   const hasEnrollments = event.enrollmentCount > 0
 
+  // One query per archived event, same as on the events tab — the archive only grows, so this is the
+  // one that gets worse with time. `enabled` keeps it to the expanded rows, but a focus still refires
+  // every one of them at once, which is what the 30 s floor is for.
   const { data: enrollments } = useQuery({
     queryKey: ['admin', 'enrollments', event.id],
     queryFn: () => adminApi.getEnrollmentsByEvent(event.id),
     enabled: expanded || confirmOpen,
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const deleteMut = useMutation({
@@ -180,17 +184,17 @@ export function AdminArchive() {
   const { data: trainings, isLoading: l1 } = useQuery({
     queryKey: ['admin', 'events', 'TRAINING'],
     queryFn: () => adminApi.getEvents('TRAINING'),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
   const { data: camps, isLoading: l2 } = useQuery({
     queryKey: ['admin', 'events', 'CAMP'],
     queryFn: () => adminApi.getEvents('CAMP'),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
   const { data: courses, isLoading: l3 } = useQuery({
     queryKey: ['admin', 'events', 'COURSE'],
     queryFn: () => adminApi.getEvents('COURSE'),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   if (l1 || l2 || l3) return <LoadingSpinner />

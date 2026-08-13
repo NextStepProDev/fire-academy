@@ -36,6 +36,18 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage());
     }
 
+    /**
+     * A refused refresh token is 401, not the 400 its supertype would get — the frontend ends a
+     * session on 401/403 and on nothing else, so a dead token answered with 400 left the app
+     * convinced the user was still logged in while nothing worked. Declared above the
+     * IllegalArgumentException handler for readability only; Spring picks the closest match by class
+     * hierarchy, not by order.
+     */
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRefreshToken(InvalidRefreshTokenException e) {
+        return error(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", e.getMessage());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         return error(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage());

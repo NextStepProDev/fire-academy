@@ -16,6 +16,7 @@ import { formatLongDate, todayIso } from '../../utils/calendarRange'
 import { DEFAULT_WEIGHT_RANGE, weightsKey } from '../../utils/weightQueryKeys'
 import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
 
@@ -82,7 +83,7 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
   const goalsQuery = useQuery({
     queryKey: isCoach ? ['admin', 'goals', athleteId] : ['user', 'my-training', 'goals'],
     queryFn: () => (isCoach ? adminApi.getAthleteGoals(athleteId) : myTrainingApi.getGoals()),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
     refetchOnMount: 'always',
     // The key holds nothing but the person, so there is no page to smooth over and the global
     // keepPreviousData has nothing to offer here except the chance to show one client's goals under
@@ -109,13 +110,15 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
   //
   // Same key as WeightPanel's default window, on purpose — it is the same request. Built separately
   // they drifted apart by one element, which cost a duplicate fetch on every visit and left this
-  // board showing the weight from before the client's morning weigh-in.
+  // board showing the weight from before the client's morning weigh-in. Keep the staleTime equal to
+  // WeightPanel's too: with one key and two observers React Query refetches on the shortest of them,
+  // so a difference here would quietly govern both.
   const weightsQuery = useQuery({
     queryKey: weightsKey(athleteId, DEFAULT_WEIGHT_RANGE),
     queryFn: () => (isCoach
       ? adminApi.getAthleteWeights(athleteId, DEFAULT_WEIGHT_RANGE)
       : myTrainingApi.getWeights(DEFAULT_WEIGHT_RANGE)),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
     placeholderData: undefined,
   })
   const currentTrendKg = weightsQuery.data?.currentTrendKg ?? null

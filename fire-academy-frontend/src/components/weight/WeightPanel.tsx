@@ -13,6 +13,7 @@ import { addDaysIso, formatLongDate, todayIso } from '../../utils/calendarRange'
 import { keepWithinEntity } from '../../utils/queryEntity'
 import { DEFAULT_WEIGHT_RANGE, weightsKey, weightsKeyPrefix } from '../../utils/weightQueryKeys'
 import type { WeightPoint, WeightRange } from '../../types'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 /**
  * How far back a weigh-in may be dated: the server sends 120 days of history, and a reading saved
@@ -55,7 +56,7 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
     queryFn: () => (isCoach
       ? adminApi.getAthleteWeights(athleteId, range)
       : myTrainingApi.getWeights(range)),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
     refetchOnMount: 'always',
     // Widening the window keeps the chart on screen — it is the same person, seen further back. The
     // person is not negotiable: one client's readings must never stand under another client's name,

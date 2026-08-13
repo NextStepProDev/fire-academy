@@ -167,6 +167,40 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
 
+    /**
+     * The status matters as much as the rejection. The frontend ends a session on 401/403 and on
+     * nothing else — deliberately, so that a 429 from the rate limiter or a 502 mid-deploy cannot log
+     * out a valid account. A refused refresh token answered with 400 would land in that same
+     * "transient" bucket, and the app would keep insisting the user was logged in while every request
+     * failed, with no way back but clearing storage by hand.
+     */
+    @Test
+    void shouldAnswerUnauthorizedWhenTheRefreshTokenWasRevoked() throws Exception {
+        User user = new User("revoked@test.com", "Jan", "Kowalski", null);
+        user.setPasswordHash("hash");
+        user.markEmailVerified();
+        userRepository.save(user);
+
+        // A well-formed token that was never stored — the shape of one that was logged out or rotated
+        // past its grace window.
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void shouldAnswerUnauthorizedWhenTheRefreshTokenIsNotEvenAToken() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"not-a-jwt\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
     @Test
     void shouldLogout() throws Exception {
         User user = new User("logout@test.com", "Jan", "Kowalski", null);

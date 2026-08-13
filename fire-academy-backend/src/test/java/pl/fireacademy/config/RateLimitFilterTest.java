@@ -166,7 +166,7 @@ class RateLimitFilterTest {
 
         // Given: the user bucket is spent through ordinary sub-paths
         MockHttpServletResponse blocked = null;
-        for (int i = 0; i <= 20; i++) {
+        for (int i = 0; i <= 40; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
             request.setRemoteAddr("10.80.0.1");
             blocked = new MockHttpServletResponse();
@@ -267,6 +267,56 @@ class RateLimitFilterTest {
         assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), last.getStatus());
     }
 
+    /**
+     * The one place the /api/user ceiling is stated as a number, so raising or lowering it has to be
+     * a deliberate edit here. The other tests in this class spend this bucket to prove something else
+     * and would happily keep passing against a different limit.
+     */
+    @Test
+    void shouldAllowFortyUserRequestsAndBlockTheFortyFirst() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        for (int i = 0; i < 40; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
+            request.setRemoteAddr("10.85.0.1");
+            MockHttpServletResponse ok = new MockHttpServletResponse();
+            filter.doFilterInternal(request, ok, filterChain);
+            assertEquals(200, ok.getStatus(), "request " + i + " is within the user limit");
+        }
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
+        request.setRemoteAddr("10.85.0.1");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilterInternal(request, blocked, filterChain);
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
+    /**
+     * Reads and writes under /api/user share one counter and cannot be split by path — GET and POST
+     * /api/user/enrollments are the same URI. So the ceiling itself has to leave room for the traffic
+     * that arrives without anyone asking for it: at 20/min, a session that had merely browsed was
+     * refused the booking. Twenty-one reads is exactly the case that used to fail.
+     */
+    @Test
+    void shouldNotSpendTheBookingLimitOnOrdinaryProfileReads() throws ServletException, IOException {
+        for (int i = 0; i < 21; i++) {
+            MockHttpServletRequest read = new MockHttpServletRequest("GET", "/api/user/me");
+            read.setRemoteAddr("10.86.0.1");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            filter.doFilterInternal(read, response, filterChain);
+            assertEquals(200, response.getStatus(), "read " + i + " is within the user limit");
+        }
+
+        MockHttpServletRequest booking = new MockHttpServletRequest("POST", "/api/user/enrollments");
+        booking.setRemoteAddr("10.86.0.1");
+        MockHttpServletResponse bookingResponse = new MockHttpServletResponse();
+        filter.doFilterInternal(booking, bookingResponse, filterChain);
+
+        assertEquals(200, bookingResponse.getStatus(), "browsing must not block signing up");
+    }
+
     @Test
     void shouldAllowHigherLimitForAdminEndpoints() throws ServletException, IOException {
         for (int i = 0; i < 60; i++) {
@@ -280,11 +330,11 @@ class RateLimitFilterTest {
 
     @Test
     void shouldGiveTrainingCalendarItsOwnBudgetWhenUserBucketIsExhausted() throws ServletException, IOException {
-        // Given: the generic /api/user/ bucket (20/min) is fully spent
+        // Given: the generic /api/user/ bucket (40/min) is fully spent
         when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
             .thenReturn("Zbyt wiele żądań");
         MockHttpServletResponse userResponse = null;
-        for (int i = 0; i <= 20; i++) {
+        for (int i = 0; i <= 40; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/user/me");
             request.setRemoteAddr("10.30.0.1");
             userResponse = new MockHttpServletResponse();

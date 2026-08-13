@@ -45,11 +45,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     );
 
     private static final int AUTH_LIMIT = 15;
-    private static final int USER_LIMIT = 20;
+    // Reads and writes share this one counter, and they cannot be split by path: GET and POST
+    // /api/user/enrollments are the same URI, and a rule here is a Predicate over the URI alone.
+    // Twenty is a sane cap on booking a place and a silly one on the traffic that reaches this bucket
+    // without anyone asking for it — every page load spends one on /user/me, and the events listings
+    // add GET /user/training-enrollments to render "already enrolled". Being throttled out of
+    // BOOKING because you browsed the catalogue is worse than the abuse the cap exists to stop.
+    private static final int USER_LIMIT = 40;
     private static final int ADMIN_LIMIT = 60;
     // The personal training calendar needs its own budget. Browsing it generates far more requests than
     // the rest of /api/user/** put together (range fetch per week/month navigation, unread summary on every
-    // window focus, mark-seen, comment threads), and sharing the 20/min user bucket would lock a coaching
+    // window focus, mark-seen, comment threads), and sharing the user bucket above would lock a coaching
     // client out of their own plan after a couple of minutes of normal use.
     private static final int MY_TRAINING_LIMIT = 120;
     // Anonymous read-only traffic (catalog, OG stubs, sitemap). Set well above what a person browsing the

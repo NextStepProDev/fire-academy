@@ -3,6 +3,8 @@
   "server": "Błąd serwera. Spróbuj ponownie później.",
   "generic": "Wystąpił błąd ({{status}})",
   "sessionExpired": "Sesja wygasła. Zaloguj się ponownie.",
+  "rateLimited": "Za dużo żądań w krótkim czasie. Odczekaj chwilę i spróbuj ponownie.",
+  "refreshUnavailable": "Nie udało się odświeżyć sesji. Nadal jest aktywna — spróbuj ponownie za chwilę.",
   "notFound": "Nie znaleziono",
   "forbidden": "Brak dostępu",
   "serviceUnavailable": "Usługa niedostępna. Spróbuj ponownie później.",

@@ -12,6 +12,7 @@ import { GoalsBoard } from '../../components/goals/GoalsBoard'
 import { TrainingStatsPanel } from '../../components/training-stats/TrainingStatsPanel'
 import { WeightPanel } from '../../components/weight/WeightPanel'
 import type { AthleteSummary } from '../../types'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 /**
  * Coach's entry point: pick a client, then their calendar takes over the whole tab.
@@ -36,8 +37,10 @@ export function AdminAthletes({ openAthlete, onOpen }: {
   const athletesQuery = useQuery({
     queryKey: ['admin', 'athletes'],
     queryFn: () => adminApi.getAthletes(),
-    // Roster counters (unread, overtraining) land here later and must never be served stale.
-    staleTime: 0,
+    // Roster counters (unread, overtraining) live here, so this refetches on focus rather than
+    // waiting out the global 5 minutes — but with a 30 s floor, because the coach's panel alt-tabs
+    // constantly and this bucket is rationed at 60/min.
+    staleTime: SHORT_STALE_MS,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   })
