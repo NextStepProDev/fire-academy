@@ -6,6 +6,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.fireacademy.api.InvalidRefreshTokenException;
 import pl.fireacademy.api.auth.AuthDtos.*;
 import pl.fireacademy.domain.auth.AuthToken;
 import pl.fireacademy.domain.auth.AuthTokenRepository;
@@ -301,11 +302,11 @@ public class AuthService {
         String refreshToken = request.refreshToken();
 
         if (!jwtService.validateToken(refreshToken)) {
-            throw new IllegalArgumentException(msg.get("auth.refresh.invalid"));
+            throw new InvalidRefreshTokenException(msg.get("auth.refresh.invalid"));
         }
 
         if (!jwtService.isRefreshToken(refreshToken)) {
-            throw new IllegalArgumentException(msg.get("auth.refresh.invalid.type"));
+            throw new InvalidRefreshTokenException(msg.get("auth.refresh.invalid.type"));
         }
 
         // Verify refresh token exists in database (not revoked). A token rotated within the
@@ -314,7 +315,7 @@ public class AuthService {
         Instant now = Instant.now();
         AuthToken storedToken = authTokenRepository
             .findRefreshableToken(tokenHash, TokenType.REFRESH_TOKEN, now, now.minus(REFRESH_ROTATION_GRACE))
-            .orElseThrow(() -> new IllegalArgumentException(msg.get("auth.refresh.revoked")));
+            .orElseThrow(() -> new InvalidRefreshTokenException(msg.get("auth.refresh.revoked")));
 
         User user = storedToken.getUser();
 

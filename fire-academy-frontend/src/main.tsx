@@ -7,13 +7,16 @@ import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import App from './App'
+import { shouldRetryQuery } from './utils/queryFreshness'
 import './index.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
-      retry: 1,
+      // One retry, except on 429 — see shouldRetryQuery: retrying into a full bucket cannot work
+      // and only makes the burst worse.
+      retry: shouldRetryQuery,
       // Smooth query-key transitions (pagination, month/filter switches): keep the previous
       // result on screen while the next one loads instead of blanking to a spinner. Opt out
       // per-query with `placeholderData: undefined` where the key change means a different

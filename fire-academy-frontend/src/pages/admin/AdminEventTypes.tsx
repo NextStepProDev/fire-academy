@@ -11,6 +11,7 @@ import { ChevronUp, ChevronDown, Pencil, Trash2, Plus, X } from 'lucide-react'
 import type { EventCategory, EventType } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 interface AdminEventTypesProps {
   category: EventCategory
@@ -29,7 +30,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const { data: types, isLoading } = useQuery({
     queryKey,
     queryFn: () => adminApi.getEventTypes(category),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const invalidate = () => {

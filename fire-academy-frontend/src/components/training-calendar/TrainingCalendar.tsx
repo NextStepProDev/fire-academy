@@ -21,6 +21,7 @@ import {
 import { keepWithinEntity } from '../../utils/queryEntity'
 import type { CreateTrainingBody, PersonalTraining, RecurringSession } from '../../types'
 import { canReshapeTraining, type TrainingCalendarAdapter } from './adapter'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 /**
  * The shared 1-on-1 calendar: one component for the coach and the client, told apart only by the
@@ -59,9 +60,11 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const rangeQuery = useQuery({
     queryKey: rangeKey,
     queryFn: () => adapter.fetchRange(range.from, range.to),
-    // The global default is a 5-minute staleTime with keepPreviousData. The first is wrong here: a
-    // plan the other side just changed must not be served from cache.
-    staleTime: 0,
+    // The global 5-minute staleTime is wrong here: a plan the other side just changed must not sit
+    // in cache that long. Half a minute is the compromise — own edits invalidate this key outright,
+    // switching person/month/view is a new key and fetches anyway, and the other side's changes are
+    // announced by the unread dots regardless.
+    staleTime: SHORT_STALE_MS,
     refetchOnMount: 'always',
     // Previous data is kept ONLY inside one person's calendar (the trailing `from`/`to` pair is the
     // page, everything before it is whose calendar). Paging to an uncached month otherwise tears the

@@ -11,6 +11,7 @@ import { ChevronUp, ChevronDown, Pencil, Trash2, User } from 'lucide-react'
 import type { EventCategory, Instructor } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const ALL_CATEGORIES: { key: EventCategory; labelKey: string }[] = [
   { key: 'TRAINING', labelKey: 'kadra.categoryTraining' },
@@ -30,7 +31,7 @@ export function AdminInstructors() {
   const { data: instructors, isLoading } = useQuery({
     queryKey: ['admin', 'instructors'],
     queryFn: adminApi.getInstructors,
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const invalidate = () => {

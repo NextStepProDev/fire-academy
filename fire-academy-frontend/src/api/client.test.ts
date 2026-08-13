@@ -9,11 +9,17 @@ vi.mock('./auth', () => ({ refreshTokens: vi.fn() }))
 
 import { fetchApi, fetchApiBlob } from './client'
 
-/** Minimal stand-in for what fetchApi reads off a Response. */
-function response(status: number, body: unknown = {}): Response {
+/**
+ * Minimal stand-in for what fetchApi reads off a Response.
+ *
+ * `headers` is part of that surface now: every failure path reads `Retry-After` to build the
+ * ApiError, so a stand-in without it turns a 4xx into a TypeError that still looks like a rejection.
+ */
+function response(status: number, body: unknown = {}, headers: Record<string, string> = {}): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: { get: (name: string) => headers[name] ?? null },
     text: async () => JSON.stringify(body),
     json: async () => body,
   } as unknown as Response

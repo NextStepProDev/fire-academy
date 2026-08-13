@@ -1,4 +1,5 @@
 import i18n from '../i18n'
+import { ApiError, parseRetryAfter } from '../utils/errors'
 
 const API_BASE = '/api/auth'
 
@@ -40,19 +41,32 @@ async function authFetch<T>(endpoint: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
     })
   } catch {
+    // Deliberately a bare Error: "I never reached the server" is the one case with no status to
+    // carry, and doRefresh classifies exactly that absence as transient.
     throw new Error(i18n.t('network', { ns: 'errors' }))
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => null)
+    // The status has to leave this function, because /refresh runs through it and doRefresh may only
+    // end the session when the server actually refused the token — not when it was too busy to answer.
+    const fail = (message: string) => new ApiError(
+      message,
+      response.status,
+      error?.code ?? null,
+      parseRetryAfter(response.headers.get('Retry-After')),
+    )
     const serverMessage = error?.message
     if (serverMessage) {
-      throw new Error(serverMessage)
+      throw fail(serverMessage)
+    }
+    if (response.status === 429) {
+      throw fail(i18n.t('rateLimited', { ns: 'errors' }))
     }
     if (response.status >= 500) {
-      throw new Error(i18n.t('authServer', { ns: 'errors' }))
+      throw fail(i18n.t('authServer', { ns: 'errors' }))
     }
-    throw new Error(i18n.t('authGeneric', { status: response.status, ns: 'errors' }))
+    throw fail(i18n.t('authGeneric', { status: response.status, ns: 'errors' }))
   }
 
   return response.json()

@@ -8,6 +8,7 @@ import { userApi as trainingApi, myTrainingApi } from '../api/user'
 import { Seo } from '../components/seo/Seo'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
+import { SHORT_STALE_MS } from '../utils/queryFreshness'
 
 export function MyAccountPage() {
   const { t } = useTranslation('account')
@@ -24,14 +25,16 @@ export function MyAccountPage() {
     queryFn: trainingApi.getMyTrainingEnrollments,
   })
 
-  // Notification counters are the one thing that must never be served stale: the read marker lives
-  // on the server per account, so clearing alerts on a phone has to be reflected on a laptop the
-  // moment its window regains focus. The global 5-minute staleTime would keep showing the old count.
+  // The read marker lives on the server per account, so clearing alerts on a phone has to reach a
+  // laptop without a reload — hence refetchOnWindowFocus, which the global 5-minute staleTime would
+  // have suppressed. A 30 s floor keeps that behaviour and drops the part that hurt: with staleTime 0
+  // every single alt-tab refired this and every other live query at once. A badge half a minute
+  // behind is invisible.
   const summaryQuery = useQuery({
     queryKey: ['user', 'my-training', 'summary'],
     queryFn: myTrainingApi.getSummary,
     enabled: user?.isAthlete ?? false,
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   })

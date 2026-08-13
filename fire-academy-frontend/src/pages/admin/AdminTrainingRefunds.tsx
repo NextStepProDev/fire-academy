@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { formatMonth } from '../../utils/trainingSchedule'
 import type { RefundEntry, SettlementType } from '../../types'
 import clsx from 'clsx'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
@@ -34,7 +35,7 @@ export function AdminTrainingRefunds() {
   const pendingQuery = useQuery({
     queryKey: ['admin', 'training-refunds', 'pending'],
     queryFn: () => adminApi.getTrainingRefunds(false),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
   const historyQuery = useQuery({
     queryKey: ['admin', 'training-refunds', 'history'],

@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import type { TrainingTemplate } from '../../types'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 
 /**
@@ -28,7 +29,7 @@ export function AdminTrainingTemplates() {
   const templatesQuery = useQuery({
     queryKey: ['admin', 'training-templates'],
     queryFn: () => adminApi.getTrainingTemplates(),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'training-templates'] })

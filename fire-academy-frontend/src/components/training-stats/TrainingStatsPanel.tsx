@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { HEAT_CLASSES, HEAT_LEGEND, heatLevel } from './heatmapScale'
 import { todayIso } from '../../utils/calendarRange'
 import type { TrainingStats } from '../../types'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 /** Badge thresholds are computed here from the totals — the server sends numbers, not decorations. */
 const TOTAL_MILESTONES = [10, 25, 50, 100, 250]
@@ -30,8 +31,10 @@ export function TrainingStatsPanel({ athleteId }: { athleteId: string | null }) 
   const statsQuery = useQuery({
     queryKey: isCoach ? ['admin', 'training-stats', athleteId] : ['user', 'my-training', 'stats'],
     queryFn: () => (isCoach ? adminApi.getAthleteStats(athleteId) : myTrainingApi.getStats()),
-    // Unticking a session has to move these numbers at once, or nobody trusts them.
-    staleTime: 0,
+    // Unticking a session has to move these numbers at once, or nobody trusts them — and it does,
+    // because the mutation invalidates this key and invalidation ignores staleTime. The 30 s floor
+    // only stops a window focus from refetching numbers nobody has touched.
+    staleTime: SHORT_STALE_MS,
     refetchOnMount: 'always',
     // Nothing but the person in the key, so keeping the previous result could only ever mean showing
     // one client's streak and attendance under another client's name.

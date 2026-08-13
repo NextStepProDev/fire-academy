@@ -4,8 +4,28 @@ import { useTranslation } from 'react-i18next'
 import { authApi } from '../api/client'
 import { loginUser as apiLogin } from '../api/auth'
 import { saveTokens, clearTokens, hasTokens, type AuthTokens } from '../utils/tokenStorage'
+import { ApiError } from '../utils/errors'
 import { useToast } from './ToastContext'
 import type { User } from '../types'
+
+/**
+ * A failed `/user/me` is not proof that the login is over.
+ *
+ * This used to clear the tokens on ANY error, so one 429 from the rate limiter — or a momentary
+ * network drop — threw the user out of a session that was never in question and made them log in
+ * again. Only a server that actively refused the credentials ends a session.
+ *
+ * The default is to KEEP the session, and it needs positive proof to do anything: a network failure
+ * arrives here as a plain Error, so "not an ApiError" has to mean "I don't know", not "log them out".
+ * Keeping a dead token costs nothing — the next request gets a 401, the refresh runs, and THAT path
+ * ends the session properly if the server really refuses it. The mistake does not reverse: cleared
+ * tokens are gone, and the user is on the login screen with a valid account.
+ */
+function endSessionOnlyIfRejected(error: unknown, forget: () => void) {
+  if (!(error instanceof ApiError) || !error.isAuthRejection) return
+  clearTokens()
+  forget()
+}
 
 interface AuthContextType {
   user: User | null
@@ -49,9 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await authApi.getCurrentUser()
       setUser(currentUser)
       syncLanguage(currentUser.preferredLanguage)
-    } catch {
-      clearTokens()
-      setUser(null)
+    } catch (error) {
+      endSessionOnlyIfRejected(error, () => setUser(null))
     } finally {
       setIsLoading(false)
     }
@@ -72,9 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser)
         syncLanguage(currentUser.preferredLanguage)
       })
-      .catch(() => {
-        clearTokens()
-        setUser(null)
+      .catch(error => {
+        endSessionOnlyIfRejected(error, () => setUser(null))
       })
       .finally(() => setIsLoading(false))
   }, [syncLanguage])

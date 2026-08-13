@@ -13,6 +13,7 @@ import { useToast } from '../../context/ToastContext'
 import { parseYouTubeId, youTubeEmbedUrl } from '../../utils/youtube'
 import type { ExerciseVideo, VideoMetadata } from '../../types'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 
 export function AdminExerciseVideos() {
@@ -29,7 +30,7 @@ export function AdminExerciseVideos() {
   const videosQuery = useQuery({
     queryKey: ['admin', 'exercise-videos', query, includeArchived],
     queryFn: () => adminApi.getExerciseVideos({ query, includeArchived }),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'exercise-videos'] })

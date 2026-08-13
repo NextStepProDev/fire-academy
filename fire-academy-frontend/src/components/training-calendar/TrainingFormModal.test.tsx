@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TrainingFormModal } from './TrainingFormModal'
-import { ApiError } from '../../api/client'
+import { ApiError } from '../../utils/errors'
 import type { PersonalTraining } from '../../types'
 
 const tMap: Record<string, string> = {

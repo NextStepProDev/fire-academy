@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner'
 import { CommentPhoto } from './CommentPhoto'
 import { compressImage, TRAINING_PHOTO_COMPRESSION, validateImageFile } from '../../utils/imageUtils'
 import type { TrainingCalendarAdapter } from './adapter'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 /** Phones shoot HEIC; the canvas pass turns it into the JPEG the server expects. */
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
@@ -25,7 +26,7 @@ export function CommentThread({ trainingId, adapter }: { trainingId: string; ada
   const commentsQuery = useQuery({
     queryKey: ['training-comments', trainingId],
     queryFn: () => adapter.getComments(trainingId),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const addMutation = useMutation({

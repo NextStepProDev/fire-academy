@@ -12,6 +12,7 @@ import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, Ca
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
@@ -502,7 +503,7 @@ export function AdminTrainingSlots() {
   const { data: slots, isLoading, isFetching } = useQuery({
     queryKey: ['admin', 'training-slots', month],
     queryFn: () => adminApi.getTrainingSlots(month),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
   const { data: eventTypes } = useQuery({
     queryKey: ['admin', 'event-types', 'TRAINING'],

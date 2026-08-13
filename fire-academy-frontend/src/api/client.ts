@@ -8,33 +8,22 @@ import {
   clearTokens,
 } from '../utils/tokenStorage'
 import { refreshTokens } from './auth'
+import { ApiError, parseRetryAfter } from '../utils/errors'
 
 const API_BASE = '/api'
 
 /**
- * An error the backend described itself. Carries the HTTP status and the `code` field from the
- * standard error body, so callers can react to a specific failure (a 409 version conflict needs a
- * "refresh" affordance, a 404 does not) instead of pattern-matching the human-readable message.
+ * Why a refresh failed, because the answer decides whether the user stays logged in.
  *
- * Extends Error, so every existing `e instanceof Error` / `e.message` path keeps working.
+ * A bare `string | null` could not carry it: the caller saw "no token" and had to guess between
+ * "the server refused us" and "I could not ask". `transient` keeps the tokens — the request fails,
+ * the session does not.
  */
-export class ApiError extends Error {
-  readonly status: number
-  readonly code: string | null
+type RefreshOutcome =
+  | { token: string; reason?: undefined; status?: undefined }
+  | { token: null; reason: 'rejected' | 'transient'; status?: number }
 
-  constructor(message: string, status: number, code: string | null) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-    this.code = code
-  }
-
-  get isConflict(): boolean {
-    return this.status === 409
-  }
-}
-
-let refreshPromise: Promise<string | null> | null = null
+let refreshPromise: Promise<RefreshOutcome> | null = null
 
 async function ensureValidToken(): Promise<string | null> {
   const accessToken = getAccessToken()
@@ -42,6 +31,20 @@ async function ensureValidToken(): Promise<string | null> {
 
   if (!isAccessTokenExpired()) return accessToken
 
+  return (await refreshOnce()).token
+}
+
+/**
+ * Refresh, joining an attempt already in flight instead of starting a second one.
+ *
+ * Used both when the local clock says the token expired and when the server answers 401 on a token
+ * we still believed valid (clock skew, or a token rotated away by another tab). The 401 path used to
+ * call `doRefresh()` directly and so skipped this dedupe: a page firing eight requests at once fired
+ * eight refreshes, all into the `auth` bucket the backend rations at 15/min. Nobody was logged out by
+ * it — the backend keeps a grace window after rotation — but it was the app manufacturing the 429
+ * that then did log people out.
+ */
+async function refreshOnce(): Promise<RefreshOutcome> {
   if (refreshPromise) return refreshPromise
 
   refreshPromise = doRefresh()
@@ -52,21 +55,33 @@ async function ensureValidToken(): Promise<string | null> {
   }
 }
 
-async function doRefresh(): Promise<string | null> {
+async function doRefresh(): Promise<RefreshOutcome> {
   const refresh = getRefreshToken()
   if (!refresh) {
     clearTokens()
-    return null
+    return { token: null, reason: 'rejected' }
   }
 
   try {
     const tokens = await refreshTokens(refresh)
     saveTokens(tokens)
-    return tokens.accessToken
-  } catch {
+    return { token: tokens.accessToken }
+  } catch (error) {
+    // Only a server that actively refused the refresh token means the session is over. A 429 from
+    // the limiter, a 502 mid-deploy or a dead network are transient, and wiping the tokens for one
+    // of those is exactly the reported bug: "too many requests, and then it logged me out" of an
+    // account that was perfectly valid. A non-ApiError here is the network throw from authFetch —
+    // also transient, also not proof of anything.
+    if (!(error instanceof ApiError) || !error.isAuthRejection) {
+      return {
+        token: null,
+        reason: 'transient',
+        status: error instanceof ApiError ? error.status : undefined,
+      }
+    }
     clearTokens()
     window.dispatchEvent(new CustomEvent('auth:session-expired'))
-    return null
+    return { token: null, reason: 'rejected' }
   }
 }
 
@@ -142,16 +157,27 @@ export async function fetchApi<T>(
   }
 
   if (response.status === 401 && token) {
-    const newToken = await doRefresh()
-    if (newToken) {
-      headers['Authorization'] = `Bearer ${newToken}`
+    const outcome = await refreshOnce()
+    if (outcome.token) {
+      headers['Authorization'] = `Bearer ${outcome.token}`
       try {
         response = await doFetch()
       } catch {
         throw new Error(i18n.t('network', { ns: 'errors' }))
       }
+    } else if (outcome.reason === 'transient') {
+      // The session is intact — say so, instead of sending someone to the login screen over a rate
+      // limit or a restarting backend. The status carried here is the one that actually failed (429,
+      // 502, or 503 when the network never answered) and MUST NOT be the 401 of the original
+      // request: this very object reaches the catch in AuthContext, where a 401 counts as proof that
+      // the server refused us and ends the session.
+      throw new ApiError(
+        i18n.t('refreshUnavailable', { ns: 'errors' }),
+        outcome.status ?? 503,
+        'REFRESH_UNAVAILABLE',
+      )
     } else {
-      throw new Error(i18n.t('sessionExpired', { ns: 'errors' }))
+      throw new ApiError(i18n.t('sessionExpired', { ns: 'errors' }), 401, null)
     }
   }
 
@@ -181,24 +207,36 @@ export async function fetchApi<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)
+    // ApiError for every failure, not just the ones the backend described: the two places that
+    // decide whether a session is over need the status, and a bare Error gave them nothing to tell
+    // "this token was refused" from "I was rate limited" or "the network blinked".
+    const fail = (message: string) => new ApiError(
+      message,
+      response.status,
+      body?.code ?? null,
+      parseRetryAfter(response.headers.get('Retry-After')),
+    )
     const serverMessage = body?.message
     if (serverMessage) {
-      throw new ApiError(serverMessage, response.status, body?.code ?? null)
+      throw fail(serverMessage)
+    }
+    if (response.status === 429) {
+      throw fail(i18n.t('rateLimited', { ns: 'errors' }))
     }
     if (response.status === 500) {
-      throw new Error(i18n.t('server', { ns: 'errors' }))
+      throw fail(i18n.t('server', { ns: 'errors' }))
     }
     // 502/503/504 survived the retry loop above -> backend still down (likely a deploy).
     if (response.status === 502 || response.status === 503 || response.status === 504) {
-      throw new Error(i18n.t('serviceUpdating', { ns: 'errors' }))
+      throw fail(i18n.t('serviceUpdating', { ns: 'errors' }))
     }
     if (response.status === 404) {
-      throw new Error(i18n.t('notFound', { ns: 'errors' }))
+      throw fail(i18n.t('notFound', { ns: 'errors' }))
     }
     if (response.status === 403) {
-      throw new Error(i18n.t('forbidden', { ns: 'errors' }))
+      throw fail(i18n.t('forbidden', { ns: 'errors' }))
     }
-    throw new Error(i18n.t('generic', { status: response.status, ns: 'errors' }))
+    throw fail(i18n.t('generic', { status: response.status, ns: 'errors' }))
   }
 
   if (options?.responseType === 'blob') {

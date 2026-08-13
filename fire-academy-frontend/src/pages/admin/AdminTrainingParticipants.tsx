@@ -11,6 +11,7 @@ import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/train
 import { formatDate } from '../../utils/dates'
 import type { MonthlyTrainingLine, UserMonthlyPayment } from '../../types'
 import clsx from 'clsx'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 type Status = '' | 'paid' | 'unpaid' | 'overdue'
 
@@ -52,7 +53,7 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['admin', 'training-payments', month],
     queryFn: () => adminApi.getMonthlyPayments(month),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
     enabled: expanded,
   })
 

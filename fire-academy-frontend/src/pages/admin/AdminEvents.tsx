@@ -11,6 +11,7 @@ import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare, Mai
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
+import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
 interface AdminEventsProps {
   category: EventCategory
@@ -42,10 +43,15 @@ function EventCard({
   const [emailConfirm, setEmailConfirm] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState<number | null>(null)
 
+  // One query per event row, so this single line is as many requests as the list is long. That is
+  // why it may not be staleTime 0: fifteen terms on screen meant fifteen requests on every window
+  // focus, against a bucket the backend rations at 60/min — the burst that walked the panel into
+  // the rate limiter. The count below is a headline number; half a minute behind is invisible, and
+  // the mutations on this row invalidate the key anyway.
   const { data: enrollments } = useQuery({
     queryKey: ['admin', 'enrollments', event.id],
     queryFn: () => adminApi.getEnrollmentsByEvent(event.id),
-    staleTime: 0,
+    staleTime: SHORT_STALE_MS,
   })
 
   const enrollCount = enrollments?.length ?? 0
@@ -336,8 +342,8 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const queryKey = ['admin', 'events', category]
   // Opt out of the global keepPreviousData: switching category tabs is a different dataset,
   // so we'd rather show a spinner than briefly flash the other category's events/types.
-  const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: 0, placeholderData: undefined })
-  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: 0, placeholderData: undefined })
+  const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
+  const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
 
   const today = new Date().toISOString().split('T')[0]
   const events = allEvents?.filter(ev => (ev.endDate ?? ev.startDate) >= today)
