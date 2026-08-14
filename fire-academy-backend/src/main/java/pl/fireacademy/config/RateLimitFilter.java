@@ -63,11 +63,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // DB on every request (availability counts are deliberately no-store, and the sitemap scans three
     // tables), so without a ceiling an unauthenticated client can drain the small Hikari pool on its own.
     private static final int PUBLIC_LIMIT = 120;
-    // Photo uploads, both roles. Every other ceiling here rations cheap requests; this one rations
-    // bytes arriving on a 1 GB box, and the request is parsed into memory before any handler can
-    // reject it. Twelve a minute is far more than a person attaching screenshots to a session will
-    // ever need — the per-training cap of three is what shapes normal use — and it puts a hard
-    // number on the question an audit asks: what stops a client uploading thousands of files?
+    // Every file upload in the app, whoever sends it. Every other ceiling here rations cheap requests;
+    // this one rations bytes arriving on a 1 GB box, and the request is parsed into memory (up to
+    // 10 MB of it) before any handler can reject it. Twelve a minute is far more than a person
+    // attaching screenshots to a session or changing their profile picture will ever need — the
+    // per-training cap of three is what shapes normal use — and it puts a hard number on the question
+    // an audit asks: what stops a client uploading thousands of files?
+    //
+    // The rule below must list EVERY multipart endpoint. Missing one does not fail, warn, or show up
+    // anywhere: the request simply gets measured by whatever roomier ceiling its prefix happens to
+    // have, so the ration meant to protect memory covers some of the doors into the same expensive
+    // operation and not others. That is exactly how the avatar upload sat outside it for months.
     private static final int UPLOAD_LIMIT = 12;
     // Public image streaming (/api/files/**). Deliberately generous: a gallery page pulls a dozen files at
     // once and Cloudflare only shields the hits — a request for a name that is not on disk misses the edge
@@ -96,8 +102,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * handful of trainings is already a dozen GETs. Only the multipart writes are rationed.
      */
     private static final List<Rule> RULES = List.of(
+        // The avatar is the third way to put a file on this server, and it is the same cost as the
+        // other two: a multipart read into memory before anything can refuse it. It counted against
+        // the ordinary user ceiling for no reason anybody chose — the ration was written when the
+        // training photos were added and named the two paths that existed then. Its DELETE lands here
+        // too, because the rules match on path alone; nobody removes a profile picture twelve times a
+        // minute, so that costs nothing.
         new Rule("upload", UPLOAD_LIMIT, path -> under(path, "/api/user/my-training/photos")
-            || under(path, "/api/admin/training-photos")),
+            || under(path, "/api/admin/training-photos")
+            || under(path, "/api/user/me/avatar")),
         // The Google sign-in handshake shares the credential bucket: both legs end in a session, so
         // they belong with the other ways of getting one rather than outside every ceiling.
         new Rule("auth", AUTH_LIMIT, path -> under(path, "/api/auth")
