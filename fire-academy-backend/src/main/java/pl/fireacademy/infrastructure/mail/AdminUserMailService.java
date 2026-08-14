@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -79,9 +81,31 @@ public class AdminUserMailService {
                 unsubscribeToken != null ? unsubscribeBlock(unsubscribeToken) : ""
         );
 
-        mail.send(recipientEmail, subject, mail.academyTemplate(content, false));
+        String html = mail.academyTemplate(content, false);
+        // The token is the whole test of "is this marketing", here as in the footer above. Service mail must
+        // never carry the unsubscribe headers: there is no opting out of a verification link, and saying
+        // otherwise to a mailbox is a promise we cannot keep.
+        if (unsubscribeToken != null) {
+            mail.sendBulk(recipientEmail, subject, html, oneClickUnsubscribeUrl(unsubscribeToken));
+        } else {
+            mail.send(recipientEmail, subject, html);
+        }
     }
 
+    /**
+     * The machine-facing unsubscribe address, for the button the mailbox draws itself.
+     * <p>
+     * Deliberately a different address from the footer link below, and the difference is the point: this one
+     * goes to the API, because the mailbox POSTs to it directly and runs no JavaScript, so the page the
+     * human gets would leave it holding an empty document and nobody unsubscribed. Same operation on the
+     * server, two ways in.
+     */
+    private String oneClickUnsubscribeUrl(String unsubscribeToken) {
+        return mail.siteUrl() + "/api/public/marketing/unsubscribe?token="
+                + URLEncoder.encode(unsubscribeToken, StandardCharsets.UTF_8);
+    }
+
+    /** The human-facing link in the footer: our own page, with a button that explains what it is doing. */
     private String unsubscribeBlock(String unsubscribeToken) {
         String unsubscribeUrl = mail.siteUrl() + "/wypisz-sie?token=" + unsubscribeToken;
         return """
