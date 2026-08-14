@@ -126,4 +126,12 @@ public class BrandedMailSender {
     public void send(String to, String subject, String htmlBody) {
         mailDispatcher.sendHtml(to, subject, htmlBody);
     }
+
+    /**
+     * A bulk send: the same message, plus the headers that let the mailbox offer its own unsubscribe button
+     * (see {@link MailDispatcher#sendBulkHtml}). Reserved for mail the recipient can actually opt out of.
+     */
+    public void sendBulk(String to, String subject, String htmlBody, String unsubscribeUrl) {
+        mailDispatcher.sendBulkHtml(to, subject, htmlBody, unsubscribeUrl);
+    }
 }

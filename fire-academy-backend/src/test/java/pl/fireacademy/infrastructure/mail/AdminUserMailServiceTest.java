@@ -55,9 +55,38 @@ class AdminUserMailServiceTest {
     void shouldAppendUnsubscribeLinkForMarketingMessage() {
         service.sendCustomMessage("jan@test.com", "Jan", "Nowy obóz", "Zapraszamy", "tok-123");
 
-        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        // Marketing goes out as a bulk send — that is what carries the one-click headers.
+        verify(mailDispatcher).sendBulkHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture(), anyString());
         assertTrue(bodyCaptor.getValue().contains("/wypisz-sie?token=tok-123"),
                 "mail marketingowy zawiera link rezygnacji z tokenem usera");
+    }
+
+    /**
+     * The address handed to the mailbox has to be the API, not the SPA page from the footer: the mailbox
+     * POSTs to it itself and runs no JavaScript, so the page would leave it with an empty document and
+     * nobody unsubscribed.
+     */
+    @Test
+    void shouldGiveTheMailboxTheApiUnsubscribeAddressNotTheSpaPage() {
+        var urlCaptor = ArgumentCaptor.forClass(String.class);
+
+        service.sendCustomMessage("jan@test.com", "Jan", "Nowy obóz", "Zapraszamy", "tok-123");
+
+        verify(mailDispatcher).sendBulkHtml(eq("jan@test.com"), anyString(), anyString(), urlCaptor.capture());
+        assertTrue(urlCaptor.getValue().endsWith("/api/public/marketing/unsubscribe?token=tok-123"),
+                "nagłówek prowadzi do backendu z tokenem w URL-u, było: " + urlCaptor.getValue());
+    }
+
+    /**
+     * The invariant worth a test of its own: a service message must not be sent as bulk, because that is
+     * what would declare an unsubscribe address on mail nobody can unsubscribe from.
+     */
+    @Test
+    void shouldNeverSendServiceMessageAsBulk() {
+        service.sendCustomMessage("jan@test.com", "Jan", "Ważna informacja", "Treść", null);
+
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
+        verify(mailDispatcher, never()).sendBulkHtml(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -68,7 +97,9 @@ class AdminUserMailServiceTest {
         ), "Temat", "Treść");
 
         var order = inOrder(mailDispatcher);
-        order.verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture());
+        // Per recipient the token also decides the send path: bulk (with the unsubscribe headers) for the one
+        // who has it, an ordinary send for the one who does not.
+        order.verify(mailDispatcher).sendBulkHtml(eq("jan@test.com"), anyString(), bodyCaptor.capture(), anyString());
         order.verify(mailDispatcher).sendHtml(eq("anna@test.com"), anyString(), bodyCaptor.capture());
         var bodies = bodyCaptor.getAllValues();
         assertTrue(bodies.get(0).contains("/wypisz-sie?token=tok-jan"),
