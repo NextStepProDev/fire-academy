@@ -459,6 +459,60 @@ class RateLimitFilterTest {
         assertEquals(200, response.getStatus());
     }
 
+    /**
+     * The avatar is the third multipart endpoint in the app and costs exactly what the other two cost:
+     * up to 10 MB read into memory before any handler can refuse it. It used to count against the
+     * ordinary user ceiling, so the ration that exists to protect a 384 MB container guarded two of
+     * the three doors into the same operation.
+     */
+    @Test
+    void shouldRationAvatarUploadsWithTheOtherFileUploads() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        MockHttpServletResponse blocked = null;
+        for (int i = 0; i <= 12; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/user/me/avatar");
+            request.setRemoteAddr("10.87.0.1");
+            blocked = new MockHttpServletResponse();
+            filter.doFilterInternal(request, blocked, filterChain);
+        }
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+
+        // The rest of the account keeps its own 40/min — this is a narrower rule, not a tighter user bucket.
+        MockHttpServletRequest profile = new MockHttpServletRequest("GET", "/api/user/me");
+        profile.setRemoteAddr("10.87.0.1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(profile, response, filterChain);
+
+        assertEquals(200, response.getStatus(), "uploading a picture must not throttle the profile");
+    }
+
+    /**
+     * One ration for all file uploads, not three ceilings that happen to share a number: a client that
+     * has spent the budget on training photos may not turn around and spend it again on avatars.
+     */
+    @Test
+    void shouldCountAvatarsAndTrainingPhotosIntoOneUploadBudget() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        for (int i = 0; i < 12; i++) {
+            MockHttpServletRequest photo = new MockHttpServletRequest("POST", "/api/user/my-training/photos");
+            photo.setRemoteAddr("10.87.0.2");
+            MockHttpServletResponse ok = new MockHttpServletResponse();
+            filter.doFilterInternal(photo, ok, filterChain);
+            assertEquals(200, ok.getStatus(), "photo " + i + " is within the upload limit");
+        }
+
+        MockHttpServletRequest avatar = new MockHttpServletRequest("POST", "/api/user/me/avatar");
+        avatar.setRemoteAddr("10.87.0.2");
+        MockHttpServletResponse blocked = new MockHttpServletResponse();
+        filter.doFilterInternal(avatar, blocked, filterChain);
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
     @Test
     void shouldReturnJsonErrorResponse() throws ServletException, IOException {
         when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
