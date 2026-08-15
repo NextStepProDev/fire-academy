@@ -348,3 +348,15 @@ Zasady, które łatwo po cichu złamać przy kolejnej zmianie. Każda ma test, k
 ```
 
 **Naming:** `shouldDoSomethingWhenCondition()`, struktura Given/When/Then
+
+**Bramka frontu — `frontend/src/__architecture__/dateInput.test.ts`.** Surowy `<input type="date">`
+poza `components/ui/DateInput` wywala build. Safari na macOS **nie zamyka** swojego popovera po
+kliknięciu dnia: wartość jest już zapisana, więc klik czyta się jako „nic się nie stało", a data
+„pojawia się" dopiero po kliknięciu obok. `DateInput` robi `blur` i **zaraz oddaje fokus** temu
+samemu polu — bez tego powrotu reszta przeglądarek (które popover zamykają same) płaciłaby za fix
+fokusem na `body`: Enter przestaje zapisywać, a Tab startuje od góry strony. Powrót fokusu popovera
+**nie** otwiera, bo natywny picker otwiera się na klik, nie na fokus. Jedno i drugie **nie** dzieje
+się przy pisaniu z klawiatury (zdarzenie leci po każdym znaku, więc fokus uciekałby po dniu, przed
+miesiącem) ani na dotyku (kółko na iOS wysyła zdarzenie przy każdym przekręceniu i zamyka się
+własnym „Done"). Bramka czyta źródła przez `import.meta.glob`, nie `node:fs`, bo ten pakiet nie ma
+`@types/node`; osobny test pilnuje, że glob **cokolwiek** widzi — pusty glob przechodziłby zawsze.

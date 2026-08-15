@@ -12,6 +12,7 @@ import { formatDate } from '../../utils/dates'
 import type { MonthlyTrainingLine, UserMonthlyPayment } from '../../types'
 import clsx from 'clsx'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../../components/ui/DateInput'
 
 type Status = '' | 'paid' | 'unpaid' | 'overdue'
 
@@ -363,12 +364,11 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
                       {startIds.length > 0 && (
                         <label className="flex items-center gap-1.5 text-xs text-surface-400 shrink-0" title={t('participants.startAllHint')}>
                           {t('participants.startAll')}
-                          <input
-                            type="date"
+                          <DateInput
                             min={`${month}-01`}
                             max={monthLastDay}
                             value={commonStart}
-                            onChange={e => startMut.mutate({ ids: startIds, startDate: e.target.value || null })}
+                            onChange={startDate => startMut.mutate({ ids: startIds, startDate: startDate || null })}
                             disabled={startMut.isPending}
                             className="px-1.5 py-0.5 bg-surface-800 border border-surface-700 rounded text-surface-200"
                           />
@@ -431,12 +431,11 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
                             {!l.paid && l.startMonth === month && (
                               <div className="flex items-center gap-1.5 mt-1 text-xs text-surface-400">
                                 {t('participants.billFrom')}
-                                <input
-                                  type="date"
+                                <DateInput
                                   min={`${month}-01`}
                                   max={monthLastDay}
                                   value={l.billableFrom ?? ''}
-                                  onChange={e => startMut.mutate({ ids: [l.enrollmentId], startDate: e.target.value || null })}
+                                  onChange={startDate => startMut.mutate({ ids: [l.enrollmentId], startDate: startDate || null })}
                                   disabled={startMut.isPending}
                                   className="px-1.5 py-0.5 bg-surface-800 border border-surface-700 rounded text-surface-200"
                                   title={t('participants.billFromHint')}
@@ -466,7 +465,7 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
         danger
       >
         <label className="block text-sm font-medium text-surface-300 mb-1">{t('participants.removeAllDateLabel')}</label>
-        <input type="date" max={TODAY_ISO} value={removeAllDate} onChange={e => setRemoveAllDate(e.target.value)} className={selectClass} />
+        <DateInput max={TODAY_ISO} value={removeAllDate} onChange={setRemoveAllDate} className={selectClass} />
         <p className="mt-2 text-xs text-surface-500">{t('participants.removeAllDateHint')}</p>
       </ConfirmDialog>
     </div>

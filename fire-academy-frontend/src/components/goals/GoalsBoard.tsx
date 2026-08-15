@@ -17,6 +17,7 @@ import { DEFAULT_WEIGHT_RANGE, weightsKey } from '../../utils/weightQueryKeys'
 import type { AthleteGoal, GoalHorizon, GoalKind, AthleteGoals } from '../../types'
 import { inputClass } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../ui/DateInput'
 
 const HORIZONS: GoalHorizon[] = ['SHORT', 'MEDIUM', 'LONG']
 
@@ -534,8 +535,8 @@ function GoalFormModal({
           <label htmlFor="goal-target" className="mb-1 block text-sm text-surface-300">
             {t('goals.targetDate')}
           </label>
-          <input id="goal-target" type="date" className={inputClass} value={targetDate}
-            onChange={e => setTargetDate(e.target.value)} />
+          <DateInput id="goal-target" className={inputClass} value={targetDate}
+            onChange={setTargetDate} />
         </div>
 
         {error && (
@@ -590,8 +591,8 @@ function AchieveGoalModal({
           <label htmlFor="achieve-date" className="mb-1 block text-sm text-surface-300">
             {t('goals.achievedOn')}
           </label>
-          <input id="achieve-date" type="date" className={inputClass} value={date}
-            max={todayIso()} onChange={e => setDate(e.target.value)} />
+          <DateInput id="achieve-date" className={inputClass} value={date}
+            max={todayIso()} onChange={setDate} />
         </div>
         {error && (
           <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{error}</p>

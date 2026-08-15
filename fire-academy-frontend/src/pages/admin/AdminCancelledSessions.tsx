@@ -12,6 +12,7 @@ import type { CancelledSessionOverview } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../../components/ui/DateInput'
 
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
@@ -197,7 +198,7 @@ export function AdminCancelledSessions() {
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('cancelledSessions.cancelInstructorDate')}</label>
             {/* Past dates allowed — a historical day that didn't take place still refunds paid subscribers. */}
-            <input type="date" value={cancelDate} onChange={e => setCancelDate(e.target.value)} className={clsx(inputClass, !cancelDate && 'text-surface-500')} />
+            <DateInput value={cancelDate} onChange={setCancelDate} className={clsx(inputClass, !cancelDate && 'text-surface-500')} />
             <p className="text-xs text-surface-500 mt-1">{t('cancelledSessions.cancelInstructorPastHint')}</p>
           </div>
           <div className="flex justify-end gap-3">
