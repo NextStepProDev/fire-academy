@@ -12,6 +12,7 @@ import type { TrainingHoliday } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../../components/ui/DateInput'
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
@@ -89,9 +90,9 @@ export function AdminTrainingHolidays() {
 
       {/* Add form */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <input
-          type="date" value={date} min={minDate} max={monthEnd}
-          onChange={e => setDate(e.target.value)}
+        <DateInput
+          value={date} min={minDate} max={monthEnd}
+          onChange={setDate}
           className={clsx(inputClass, 'sm:w-44', !date && 'text-surface-500')}
           aria-label={t('trainingHolidays.dateLabel')}
         />

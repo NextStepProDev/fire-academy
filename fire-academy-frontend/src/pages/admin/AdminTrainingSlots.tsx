@@ -13,6 +13,7 @@ import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../../components/ui/DateInput'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
@@ -264,12 +265,11 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
                         {r.startMonth === month && !r.paid && (
                           <span className="flex items-center gap-1.5 mt-1 text-xs text-surface-400">
                             {t('trainingSlots.billFrom')}
-                            <input
-                              type="date"
+                            <DateInput
                               min={`${month}-01`}
                               max={monthLastDay}
                               value={r.billableFrom ?? ''}
-                              onChange={e => startMut.mutate({ id: r.enrollmentId, startDate: e.target.value || null })}
+                              onChange={startDate => startMut.mutate({ id: r.enrollmentId, startDate: startDate || null })}
                               className="px-1.5 py-0.5 bg-surface-800 border border-surface-700 rounded text-surface-200"
                               title={t('trainingSlots.billFromHint')}
                             />
@@ -399,7 +399,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
           </div>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.startDay')}</label>
-            <input type="date" min={`${month}-01`} max={monthLastDay} value={addForm.startDate} onChange={e => setAddForm(f => ({ ...f, startDate: e.target.value }))} className={inputClass} />
+            <DateInput min={`${month}-01`} max={monthLastDay} value={addForm.startDate} onChange={startDate => setAddForm(f => ({ ...f, startDate }))} className={inputClass} />
             <p className="mt-1 text-xs text-surface-500">{t('trainingSlots.startDayHint')}</p>
           </div>
           <div>
@@ -435,7 +435,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
         danger
       >
         <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.removeDateLabel')}</label>
-        <input type="date" max={TODAY_ISO} value={removeDate} onChange={e => setRemoveDate(e.target.value)} className={inputClass} />
+        <DateInput max={TODAY_ISO} value={removeDate} onChange={setRemoveDate} className={inputClass} />
         <p className="mt-2 text-xs text-surface-500">{t('trainingSlots.removeDateHint')}</p>
       </ConfirmDialog>
 
@@ -444,7 +444,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
           <p className="text-sm text-surface-400">{t('trainingSlots.deactivateHint')}</p>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.deactivateFrom')}</label>
-            <input type="date" min={TODAY_ISO} value={deactivateDate} onChange={e => setDeactivateDate(e.target.value)} className={inputClass} />
+            <DateInput min={TODAY_ISO} value={deactivateDate} onChange={setDeactivateDate} className={inputClass} />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsDeactivating(false)}>{t('actions.cancel')}</Button>

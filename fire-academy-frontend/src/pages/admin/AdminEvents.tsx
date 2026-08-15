@@ -12,6 +12,7 @@ import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../../components/ui/DateInput'
 
 interface AdminEventsProps {
   category: EventCategory
@@ -498,11 +499,11 @@ export function AdminEvents({ category }: AdminEventsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
-              <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className={inputClass} />
+              <DateInput value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={startDate => setForm(f => ({ ...f, startDate }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
-              <input type="date" value={form.endDate} min={form.startDate || undefined} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className={inputClass} />
+              <DateInput value={form.endDate} min={form.startDate || undefined} onChange={endDate => setForm(f => ({ ...f, endDate }))} className={inputClass} />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">

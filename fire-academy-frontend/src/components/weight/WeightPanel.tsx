@@ -14,6 +14,7 @@ import { keepWithinEntity } from '../../utils/queryEntity'
 import { DEFAULT_WEIGHT_RANGE, weightsKey, weightsKeyPrefix } from '../../utils/weightQueryKeys'
 import type { WeightPoint, WeightRange } from '../../types'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { DateInput } from '../ui/DateInput'
 
 /**
  * How far back a weigh-in may be dated: the server sends 120 days of history, and a reading saved
@@ -177,14 +178,13 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
             <label htmlFor="weight-date" className="mb-1 block text-xs text-surface-400">
               {t('weight.dateLabel')}
             </label>
-            <input
+            <DateInput
               id="weight-date"
-              type="date"
               max={todayIso()}
               min={earliestChartedDay()}
               className="rounded-lg border border-surface-700 bg-surface-800 px-3 py-2 text-surface-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={setDate}
             />
           </div>
           <Button type="submit" variant="primary" size="sm"
