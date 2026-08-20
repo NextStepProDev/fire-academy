@@ -14,6 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class ImageOptimizer {
@@ -26,9 +28,36 @@ public class ImageOptimizer {
      * 12000x12000 image, and {@code ImageIO.read} would then allocate roughly 4 bytes per pixel —
      * ~576 MB inside a container capped at 384 MB. One request would be enough to get the backend
      * OOM-killed. The header carries the dimensions, so the size can be settled without decoding.
-     * 40 MPx leaves every real camera and phone screenshot comfortably inside.
+     * <p>
+     * The number is arithmetic, not taste. The heap is 55% of a 384 MB container, so ~211 MB; at
+     * 4 bytes a pixel this cap costs ~96 MB for the decoded image, plus the source bytes (≤10 MB)
+     * and the encoder's output. That fits with the rest of the application still running — and only
+     * because {@link #decodePermits} guarantees it is paid once at a time. The two belong together:
+     * the previous 40 MPx allowed ~160 MB per request, so a single upload took most of the heap and
+     * two concurrent ones ended the process (the JVM runs with {@code ExitOnOutOfMemoryError}).
+     * <p>
+     * 24 MPx is 6000×4000 — a full-frame camera export passes, a phone photo passes several times
+     * over. Anything above that is not a picture somebody wanted to show, it is a picture somebody
+     * wanted us to decode.
      */
-    private static final long MAX_PIXELS = 40_000_000L;
+    static final long MAX_PIXELS = 24_000_000L;
+
+    /**
+     * How many uploads may hold decoded pixels at once, and how long the next one waits its turn.
+     * <p>
+     * A per-request ceiling bounds nothing on its own — N requests multiply it. Uploads are rare
+     * (the limiter allows twelve a minute per address, and a person changes their avatar or attaches
+     * a watch screenshot in seconds), so serialising them costs nothing anybody will notice, and it
+     * turns the heap budget above from an average into a guarantee.
+     * <p>
+     * Fair queueing so a steady stream of uploads cannot starve one straggler. The wait is short on
+     * purpose: requests waiting here are cheap (their bytes are still in Tomcat's temp file, not on
+     * the heap), but a queue that never gives up is its own way of falling over.
+     */
+    private static final int CONCURRENT_DECODES = 1;
+    private static final long DECODE_WAIT_MS = 10_000L;
+
+    private final Semaphore decodePermits = new Semaphore(CONCURRENT_DECODES, true);
 
     /**
      * How an image is re-encoded on the way in.
@@ -63,7 +92,35 @@ public class ImageOptimizer {
         return optimize(inputStream, extension, Profile.DEFAULT);
     }
 
+    /**
+     * Runs the body under a decode permit, so the heap arithmetic on {@link #MAX_PIXELS} holds for
+     * the process and not merely for one request.
+     * <p>
+     * The permit is taken before the bytes are read into memory: everything expensive — the source
+     * array, the decoded image, the encoder's buffer — lives inside it, and a request still waiting
+     * holds nothing but the temp file the servlet container already wrote.
+     */
     public OptimizedImage optimize(InputStream inputStream, String extension, Profile profile) throws IOException {
+        boolean acquired;
+        try {
+            acquired = decodePermits.tryAcquire(DECODE_WAIT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ImageDecodeBusyException();
+        }
+        if (!acquired) {
+            log.warn("Upload rejected: no decode permit free after {} ms", DECODE_WAIT_MS);
+            throw new ImageDecodeBusyException();
+        }
+        try {
+            return optimizeExclusively(inputStream, extension, profile);
+        } finally {
+            decodePermits.release();
+        }
+    }
+
+    private OptimizedImage optimizeExclusively(InputStream inputStream, String extension, Profile profile)
+            throws IOException {
         byte[] originalBytes = inputStream.readAllBytes();
 
         // Dimensions first, from the header alone. Decoding a bomb to find out how big it is would
@@ -74,7 +131,7 @@ public class ImageOptimizer {
             throw new IllegalArgumentException("Obraz ma zbyt duże wymiary");
         }
 
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(originalBytes));
+        BufferedImage image = decode(originalBytes);
 
         if (image == null) {
             // Either WebP (the JDK ships no reader, so it passes through untouched) or a damaged file.
@@ -125,12 +182,24 @@ public class ImageOptimizer {
     }
 
     /**
+     * The one allocation this class exists to bound, behind its own method so a test can watch how
+     * many callers are inside it at once. Overridden nowhere in production.
+     */
+    protected BufferedImage decode(byte[] bytes) throws IOException {
+        return ImageIO.read(new ByteArrayInputStream(bytes));
+    }
+
+    /**
      * Width × height straight from the file header, without decoding a single pixel.
+     * <p>
+     * Package-private rather than private so the test can prove the number comes from the header:
+     * a file that claims 400 MPx in twenty bytes must be measured without those pixels ever
+     * existing, which is the whole reason the check runs before {@link #decode}.
      *
      * @return 0 when no reader recognises the bytes — WebP takes this path, and so does a damaged
      *         file; both are settled later by the signature check and the decode attempt.
      */
-    private static long readPixelCount(byte[] bytes) throws IOException {
+    static long readPixelCount(byte[] bytes) throws IOException {
         try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             if (in == null) {
                 return 0;
