@@ -22,10 +22,13 @@
  *      The `oauth2` profile resolves both without a default, so enabling the profile while they are
  *      missing takes the whole application down, not just the login.
  *   3. Only then set `SPRING_PROFILES_ACTIVE=prod,oauth2`.
- *   4. Close the two audit findings that sit on this exact path first: nginx has to send
- *      `X-Forwarded-Host` of its own (otherwise the callback address can be bent by a request
- *      header), and the tokens should stop travelling in the query string.
- *   5. Flip this to `true` and bump `LAST_UPDATED` in `PrivacyPolicyPage` — the policy already
+ *   4. Flip this to `true` and bump `LAST_UPDATED` in `PrivacyPolicyPage` — the policy already
  *      describes the feature in full, and the flag is what removes the "w przygotowaniu" markers.
+ *
+ * The two audit findings that used to sit on this path are closed: nginx sets `X-Forwarded-Host`
+ * itself and `redirect-uri` is pinned to `${app.site-url}`, so the callback address can no longer be
+ * bent by a request header; and the tokens come back in the URL fragment instead of the query
+ * string, so they stay out of the proxy logs. Whatever `app.site-url` resolves to has to be
+ * registered in the Google console, exactly.
  */
 export const GOOGLE_LOGIN_ENABLED = false

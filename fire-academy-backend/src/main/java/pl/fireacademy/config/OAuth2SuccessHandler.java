@@ -14,6 +14,8 @@ import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.security.JwtService;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 @Component
@@ -47,11 +49,38 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         String baseUrl = frontendUrl.split(",")[0].trim();
         String targetUrl = UriComponentsBuilder.fromUriString(baseUrl + "/oauth-callback")
-            .queryParam("accessToken", accessToken)
-            .queryParam("refreshToken", refreshToken)
-            .queryParam("expiresIn", jwtService.getAccessTokenExpirationSeconds())
+            .fragment(tokenFragment(accessToken, refreshToken))
             .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+
+    /**
+     * The tokens travel in the URL fragment, never the query string.
+     *
+     * <p>A refresh token is good for seven days, and a query string is written down everywhere: the
+     * browser's history, nginx's access log, Cloudflare's log, and the {@code Referer} of anything
+     * the callback page happens to load. All of those outlive the session they belong to, and none
+     * of them are places anybody would think to look for a credential.
+     *
+     * <p>A fragment is never sent to a server, so it reaches the page and stops there. That is the
+     * whole trick, and it costs one thing worth stating: the page must read
+     * {@code window.location.hash} rather than the query, and wipe it once the tokens are stored —
+     * see {@code OAuthCallbackPage}. This is still a handover through the address bar, which is what
+     * a redirect-based flow gives you; the proper fix is a one-time code exchanged over POST, and
+     * that is a larger change than this one.
+     */
+    private String tokenFragment(String accessToken, String refreshToken) {
+        return "accessToken=" + encode(accessToken)
+            + "&refreshToken=" + encode(refreshToken)
+            + "&expiresIn=" + jwtService.getAccessTokenExpirationSeconds();
+    }
+
+    /**
+     * JWTs are base64url plus dots, so nothing here actually needs escaping today — encoded anyway,
+     * because the day the token format changes is not the day to remember this.
+     */
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }
