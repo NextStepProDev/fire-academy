@@ -249,6 +249,16 @@ export interface WeightSeries {
   trendReadings: number
   /** Below this many readings a weight goal will not close itself. Sent, never assumed here. */
   minReadingsToCloseGoal: number
+  /**
+   * Lowest CONFIRMED trend of the fixed window below — the server has already dropped every day
+   * that did not clear the goal-closing bar, so null is the only thing to check here. Never
+   * re-derive confirmation on the client: two implementations of one rule drift.
+   */
+  lowestTrendKg: number | null
+  /** The day that minimum fell on; null exactly when the value is. */
+  lowestTrendDate: string | null
+  /** Fixed at 90 days server-side — NOT the range on screen. Read from here, never hardcoded. */
+  lowestTrendWindowDays: number
 }
 
 export interface TrainingStats {

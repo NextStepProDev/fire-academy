@@ -277,6 +277,11 @@
     "fromReadings_few": "z {{count}} ważeń",
     "fromReadings_many": "z {{count}} ważeń",
     "fromReadings_other": "z {{count}} ważeń",
+    "lowestTrend": "Najniższy trend 7-dniowy ({{months}} mies.)",
+    "lowestTrendHint_one": "Liczony tylko z dni z min. {{count}} ważeniem w tygodniu — tak samo jak cele wagowe.",
+    "lowestTrendHint_few": "Liczony tylko z dni z min. {{count}} ważeniami w tygodniu — tak samo jak cele wagowe.",
+    "lowestTrendHint_many": "Liczony tylko z dni z min. {{count}} ważeniami w tygodniu — tak samo jak cele wagowe.",
+    "lowestTrendHint_other": "Liczony tylko z dni z min. {{count}} ważeniami w tygodniu — tak samo jak cele wagowe.",
     "rangeGroup": "Zakres wykresu",
     "range": {
       "QUARTER": "3 miesiące",

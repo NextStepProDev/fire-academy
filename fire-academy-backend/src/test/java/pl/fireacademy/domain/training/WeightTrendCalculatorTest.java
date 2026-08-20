@@ -133,4 +133,95 @@ class WeightTrendCalculatorTest {
         assertFalse(WeightTrendCalculator.isRapidLoss(new BigDecimal("-1.0")));
         assertTrue(WeightTrendCalculator.isRapidLoss(new BigDecimal("-1.1")));
     }
+
+    /** Weighs in on {@code day} and the two mornings before it — the smallest confirmed window. */
+    private static void confirmedWeek(Map<LocalDate, BigDecimal> byDate, LocalDate day, String kg) {
+        for (int i = 0; i < WeightTrendCalculator.MIN_READINGS_TO_CLOSE_GOAL; i++) {
+            byDate.put(day.minusDays(i), new BigDecimal(kg));
+        }
+    }
+
+    private static WeightTrendCalculator.ConfirmedTrend lowest(Map<LocalDate, BigDecimal> byDate) {
+        return WeightTrendCalculator.lowestConfirmedTrend(
+                byDate, TODAY, WeightTrendCalculator.LOWEST_TREND_WINDOW_DAYS);
+    }
+
+    @Test
+    void shouldReportTheRealDipFromLastMonthAsTheLowestTrend() {
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        confirmedWeek(byDate, TODAY.minusDays(60), "74.0");
+        confirmedWeek(byDate, TODAY.minusDays(30), "71.0");
+        confirmedWeek(byDate, TODAY, "73.0");
+
+        var result = lowest(byDate);
+
+        assertNotNull(result);
+        assertEquals(0, new BigDecimal("71.0").compareTo(result.trendKg()));
+        assertEquals(TODAY.minusDays(30), result.day());
+    }
+
+    @Test
+    void shouldIgnoreASingleLowMorningAfterALongBreak() {
+        // The point of the whole statistic: 68.9 on one morning is dehydration, not a result. It is
+        // arithmetically a trend and evidentially nothing, so it must not become the record.
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        confirmedWeek(byDate, TODAY.minusDays(40), "74.0");
+        byDate.put(TODAY.minusDays(20), new BigDecimal("68.9"));
+
+        var result = lowest(byDate);
+
+        assertNotNull(result);
+        assertEquals(0, new BigDecimal("74.0").compareTo(result.trendKg()));
+        assertEquals(TODAY.minusDays(40), result.day());
+        // The lone morning does have a trend — that is precisely why it needs excluding.
+        assertNotNull(WeightTrendCalculator.trendOn(byDate, TODAY.minusDays(20)));
+        assertNull(WeightTrendCalculator.confirmedTrendOn(byDate, TODAY.minusDays(20)));
+    }
+
+    @Test
+    void shouldReportNoLowestTrendWhenNobodyEverWeighedInOftenEnough() {
+        // Roughly twice a week, every week: two mornings is the most any window ever holds, so no
+        // day is ever confirmed. Better nothing than the best of the unconfirmed ones.
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        for (int i = 0; i < 80; i += 4) {
+            byDate.put(TODAY.minusDays(i), new BigDecimal(i % 8 == 0 ? "74.0" : "73.0"));
+        }
+
+        assertEquals(2, WeightTrendCalculator.readingsInWindow(byDate, TODAY));
+        assertNull(lowest(byDate));
+    }
+
+    @Test
+    void shouldTakeTheLastDayInsideTheWindowAndNotTheFirstOutside() {
+        int window = WeightTrendCalculator.LOWEST_TREND_WINDOW_DAYS;
+        Map<LocalDate, BigDecimal> inside = new LinkedHashMap<>();
+        confirmedWeek(inside, TODAY.minusDays(window - 1L), "70.0");
+        confirmedWeek(inside, TODAY, "74.0");
+
+        var result = lowest(inside);
+        assertNotNull(result);
+        assertEquals(TODAY.minusDays(window - 1L), result.day());
+
+        Map<LocalDate, BigDecimal> outside = new LinkedHashMap<>();
+        confirmedWeek(outside, TODAY.minusDays(window), "70.0");
+        confirmedWeek(outside, TODAY, "74.0");
+
+        var pushedOut = lowest(outside);
+        assertNotNull(pushedOut);
+        assertEquals(TODAY, pushedOut.day());
+        assertEquals(0, new BigDecimal("74.0").compareTo(pushedOut.trendKg()));
+    }
+
+    @Test
+    void shouldBreakATieOnTheMostRecentDay() {
+        // Coming back down to your own minimum is news; having once been there is not.
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        confirmedWeek(byDate, TODAY.minusDays(50), "72.0");
+        confirmedWeek(byDate, TODAY.minusDays(10), "72.0");
+
+        var result = lowest(byDate);
+
+        assertNotNull(result);
+        assertEquals(TODAY.minusDays(10), result.day());
+    }
 }

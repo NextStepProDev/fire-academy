@@ -35,6 +35,17 @@ public final class WeightTrendCalculator {
     public static final int MIN_READINGS_TO_CLOSE_GOAL = 3;
 
     /**
+     * How far back the lowest-trend statistic looks. Deliberately a constant rather than the range
+     * the chart happens to be showing.
+     * <p>
+     * The figure is labelled "last 3 months" on screen, and that label has to stay true when
+     * somebody switches the chart to a year — a number that silently means something different
+     * depending on a toggle above it is worse than no number. Same reasoning as the fixed backfill
+     * limit: a window somebody signs their name under is policy, not whatever is currently in view.
+     */
+    public static final int LOWEST_TREND_WINDOW_DAYS = 90;
+
+    /**
      * Weekly loss beyond this is worth a word from the coach. Around 0.5–1% of body weight per week
      * is the usual guidance for athletes; past 1% the loss increasingly comes from somewhere other
      * than fat, and in a club with weight classes that is exactly the failure mode to catch early.
@@ -77,6 +88,66 @@ public final class WeightTrendCalculator {
             }
         }
         return count;
+    }
+
+    /**
+     * The trend on {@code day}, but only when the window behind it holds enough mornings to be
+     * believed — otherwise null.
+     * <p>
+     * This is the same bar a weight goal has to clear before it closes itself (see
+     * {@link #MIN_READINGS_TO_CLOSE_GOAL}), stated once instead of being spelled out at each call
+     * site. The goal and the lowest-trend figure sit on the same screen, so a record standing below
+     * a goal that never closed would be two numbers contradicting each other in front of the same
+     * person.
+     */
+    @Nullable
+    public static BigDecimal confirmedTrendOn(Map<LocalDate, BigDecimal> byDate, LocalDate day) {
+        return readingsInWindow(byDate, day) < MIN_READINGS_TO_CLOSE_GOAL ? null : trendOn(byDate, day);
+    }
+
+    /** A trend that cleared {@link #MIN_READINGS_TO_CLOSE_GOAL}, together with the day it fell on. */
+    public record ConfirmedTrend(BigDecimal trendKg, LocalDate day) {}
+
+    /**
+     * The lowest confirmed trend within the last {@code windowDays} days, or null when no day in
+     * that window ever had enough mornings behind it.
+     * <p>
+     * Not the lowest raw reading, for two reasons. It has to be the number that could close a weight
+     * goal, or the screen contradicts itself. And a minimum over N samples falls with N: somebody
+     * weighing in every morning would "beat" somebody weighing in twice a week at identical real
+     * weight, which would make this a measure of diary-keeping rather than of progress.
+     * <p>
+     * Walks only the days that hold a reading, never every date in the range: an average computed on
+     * a day nobody stepped on the scale would plant a record on a day when nothing happened. The
+     * chart draws its trend points the same way, one per reading.
+     *
+     * @return on a tie, the LATEST day — coming back down to your own minimum is news; having once
+     *         been there is not
+     */
+    @Nullable
+    public static ConfirmedTrend lowestConfirmedTrend(Map<LocalDate, BigDecimal> byDate,
+                                                      LocalDate today,
+                                                      int windowDays) {
+        LocalDate from = today.minusDays(windowDays - 1L);
+        BigDecimal bestKg = null;
+        LocalDate bestDay = null;
+        for (LocalDate day : byDate.keySet()) {
+            if (day.isBefore(from) || day.isAfter(today)) {
+                continue;
+            }
+            BigDecimal trend = confirmedTrendOn(byDate, day);
+            if (trend == null) {
+                continue;
+            }
+            // Compared explicitly rather than relying on iteration order: index() hands over a
+            // TreeMap, but this takes any Map and the tie rule must not depend on that.
+            int cmp = bestKg == null ? -1 : trend.compareTo(bestKg);
+            if (cmp < 0 || (cmp == 0 && day.isAfter(bestDay))) {
+                bestKg = trend;
+                bestDay = day;
+            }
+        }
+        return bestKg == null ? null : new ConfirmedTrend(bestKg, bestDay);
     }
 
     /**

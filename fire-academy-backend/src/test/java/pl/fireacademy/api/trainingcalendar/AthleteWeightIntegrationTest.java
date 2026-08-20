@@ -174,6 +174,65 @@ class AthleteWeightIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldKeepADipOlderThanTheFixedWindowOutOfTheLowestTrend() throws Exception {
+        // The lowest-trend figure is labelled "last 3 months" and has to mean it whatever range the
+        // chart is on. An old dip still belongs on the chart at the widest range — it happened —
+        // but the statistic signed with a fixed window must not reach back for it.
+        String client = flagClient();
+        for (int i = 2; i >= 0; i--) {
+            weighIn(client, LocalDate.now().minusDays(120L + i), "68.0");
+        }
+        for (int i = 2; i >= 0; i--) {
+            weighIn(client, LocalDate.now().minusDays(30L + i), "74.0");
+        }
+
+        mockMvc.perform(get("/api/user/my-training/weights?range=ALL")
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.points.length()").value(6))
+                .andExpect(jsonPath("$.points[0].weightKg").value(68.0))
+                .andExpect(jsonPath("$.lowestTrendKg").value(74.0))
+                .andExpect(jsonPath("$.lowestTrendDate").value(LocalDate.now().minusDays(30).toString()))
+                .andExpect(jsonPath("$.lowestTrendWindowDays").value(90));
+    }
+
+    @Test
+    void shouldFindTheLowestConfirmedTrendWhateverRangeIsAskedFor() throws Exception {
+        // The window is fixed, so the reads have to cover it even when the range asked for is
+        // shorter. Switching the chart must not move the number or the day beneath it.
+        String client = flagClient();
+        for (int i = 2; i >= 0; i--) {
+            weighIn(client, LocalDate.now().minusDays(60L + i), "71.0");
+        }
+        for (int i = 2; i >= 0; i--) {
+            weighIn(client, LocalDate.now().minusDays(i), "73.0");
+        }
+
+        for (String range : new String[]{"QUARTER", "YEAR", "ALL"}) {
+            mockMvc.perform(get("/api/user/my-training/weights?range=" + range)
+                            .header("Authorization", "Bearer " + client))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.lowestTrendKg").value(71.0))
+                    .andExpect(jsonPath("$.lowestTrendDate").value(LocalDate.now().minusDays(60).toString()));
+        }
+    }
+
+    @Test
+    void shouldSendNoLowestTrendWhenNoWeekWasEverConfirmed() throws Exception {
+        // Two mornings is not a confirmed week, so there is nothing to show — and the response says
+        // nothing rather than offering the best unconfirmed reading under a label saying "trend".
+        String client = flagClient();
+        weighIn(client, LocalDate.now().minusDays(20), "70.0");
+        weighIn(client, LocalDate.now(), "74.0");
+
+        mockMvc.perform(get("/api/user/my-training/weights").header("Authorization", "Bearer " + client))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lowestTrendKg").doesNotExist())
+                .andExpect(jsonPath("$.lowestTrendDate").doesNotExist())
+                .andExpect(jsonPath("$.lowestTrendWindowDays").value(90));
+    }
+
+    @Test
     void shouldKeepTheRapidLossWarningOutOfTheClientsResponse() throws Exception {
         // Coach-only, and absent rather than false — the same reasoning as the overtraining signal.
         String admin = adminToken();

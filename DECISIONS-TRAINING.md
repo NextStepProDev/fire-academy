@@ -211,6 +211,45 @@ w granicach zakresu ciągnie trend przez cel; decyzja człowieka pozostaje ostat
 unique rozszerzony na `(athlete, kind, horizon)`, więc cel techniczny i wagowy nie konkurują
 o ten sam horyzont. Ocena odpala się przy zapisie wagi (`MyTrainingController`), nie schedulerem.
 
+### Najniższy potwierdzony trend (okno 90 dni)
+
+Panel wagi pokazuje **najniższy POTWIERDZONY trend ostatnich 90 dni** — czyli minimum z tych dni,
+w których okno trzymało co najmniej `MIN_READINGS_TO_CLOSE_GOAL` ważeń. Nie minimum z surowych
+odczytów, z dwóch niezależnych powodów.
+
+Po pierwsze: **to musi być ta sama liczba, która jest w stanie zamknąć cel wagowy.** Kafel wisi na
+tym samym ekranie co cele, więc „rekord" niższy od celu, który się nie zamknął, to dwie wykluczające
+się liczby obok siebie — i wtedy jedna z nich uczy, że drugiej nie warto wierzyć. Warunek
+potwierdzenia mieszka odtąd w jednej metodzie (`WeightTrendCalculator.confirmedTrendOn`), a nie
+w warunku przepisywanym u każdego wywołującego; `AthleteGoalService.evaluateWeightGoals` sprawdza
+dalej to samo po swojemu (świadomie nietknięte przy tej zmianie — osobny commit).
+
+Po drugie: **minimum z N próbek spada razem z N.** Ważący się codziennie „pobiłby rekord" niżej niż
+ważący się dwa razy w tygodniu przy identycznej realnej wadze, bo miał więcej losowań z tego samego
+rozkładu. Kafel mierzyłby wtedy sumienność prowadzenia dziennika, nie postęp — a to zachęta do
+ważenia się częściej zamiast do trenowania.
+
+**Okno 90 dni jest stałe i nie chodzi za przełącznikiem zakresu wykresu.** Etykieta mówi „3 mies."
+i ma zostać prawdziwa, gdy ktoś przestawi wykres na rok — ta sama zasada, według której limit
+uzupełniania wstecz jest polityką, a nie oglądanym zakresem. Konsekwencja siedzi w warstwie odczytu:
+`AthleteWeightService.series` czyta co najmniej `LOWEST_TREND_WINDOW_DAYS + (TREND_WINDOW_DAYS - 1)`
+= 96 dni wstecz **niezależnie od zakresu**, bo najstarszy dzień okna potrzebuje jeszcze własnego
+ogona na średnią kroczącą. Dziś nie zmienia to niczego (najkrótszy zakres to 120 dni), ale krótszy
+zakres dodany kiedyś zwęziłby po cichu okno, którym kafel się podpisuje, i nikt nie połączyłby tego
+z tą zmianą. Rozszerzenie liczone jako `min(...)`, nie arytmetyką — `Range.ALL` to data-wartownik
+`1900-01-01`.
+
+**Remis rozstrzyga dzień najpóźniejszy.** Powrót do swojego minimum to informacja („jestem tam
+znowu"); bycie tam kiedyś nią nie jest. Porównanie jest jawne, nie oparte na kolejności iteracji —
+`index()` daje `TreeMap`, ale metoda przyjmuje dowolną mapę.
+
+**Brak potwierdzonej wartości = cała linijka znika**, nie „—" ani „brak danych". Kreska przy
+statystyce rekordowej czyta się jak zero albo jak awaria, a najlepsza z niepotwierdzonych wartości
+podpisana słowem „trend" byłaby dokładnie tym kłamstwem, przed którym broni cały moduł wagi.
+Serwer przysyła wartość już przefiltrowaną albo `null`; klient sprawdza wyłącznie `null` i nigdy
+nie liczy potwierdzenia po swojej stronie. Liczba miesięcy w etykiecie idzie z DTO
+(`lowestTrendWindowDays`), żeby nie mieszkać w tłumaczeniu.
+
 ---
 
 ## Biblioteka filmów (V36)
