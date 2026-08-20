@@ -261,11 +261,13 @@ Rozwijany przycisk (Facebook / WhatsApp / Kopiuj link) na: kartach rodzajów, wi
 
 ### Serwer produkcyjny
 - **Swap 2 GB — krytyczny przy ograniczonej pamięci (bez tego OOM).** Przy pierwszym deploy uruchomić raz: `sudo bash setup-swap.sh` (skrypt w `fire-academy-hub/`, idempotentny: 2 GB `/swapfile`, swappiness 10, utrwalone w fstab + sysctl)
+> ⚠️ **Obraz backendu ma domyślny profil `prod`, nie `docker`.** Wcześniej `Dockerfile` ustawiał `SPRING_PROFILES_ACTIVE=docker` — profil, którego **żaden `application-docker.yml` nigdy nie definiował**. Na produkcji ratował to compose (`${SPRING_PROFILES_ACTIVE:-prod}`), ale każde uruchomienie obrazu bez compose (debug na serwerze, nowe środowisko) startowało po cichu **bez ustawień produkcyjnych**: pula 8 zamiast 5, brak `max-connections` broniącego pamięci, gadatliwe logi i CORS na `http://localhost:*`. Nic nie ostrzegało. Domyślna wartość ma być tą samą odpowiedzią co compose, nie pułapką.
+
 - **JVM tuning backendu (mem_limit 384m).** ENTRYPOINT w `fire-academy-backend/Dockerfile`: `-XX:MaxRAMPercentage=55.0` (~211 MB heap; + non-heap ~120 MB mieści się w 384 MB z zapasem — przy 75% było ~288 MB heap → ~408 MB > limit = ryzyko OOM-kill i wypychania bezczynnego heapu do swapu), `-XX:MaxMetaspaceSize=128m`, `-XX:+ExitOnOutOfMemoryError`, `-XX:TieredStopAtLevel=1` (C1-only JIT — skraca start na 2 vCPU; wdrożone 2026-06-20, start 103→64 s). Kontener chodzi jako **non-root** (`USER app`). **Bez wymuszonego `-XX:+UseG1GC`** — poniżej 2 GB RAM JVM ergonomicznie wybiera lekszy SerialGC (mniej pamięci natywnej niż G1 na ciasnym boxie). `$JAVA_OPTS` zachowany jako passthrough; w `docker-compose.prod.yml` `JAVA_OPTS=""` (po upgradzie RAM można tam wstawić `-XX:+UseG1GC`).
 - **Mail health poza liveness probe.** `management.health.mail.enabled=false` w `application.yml` (domyślnie, niezależnie od env). Wolny SMTP (~10 s) przekraczał 5 s timeout docker healthchecka `/actuator/health` → fałszywe „unhealthy" → zbędny restart. Maile nie są liveness-critical. (W compose env `MANAGEMENT_HEALTH_MAIL_ENABLED=false` zostaje jako redundantny, jawny override.)
 
 ### CI/CD (GitHub Actions)
-- `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main
+- `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main + **skan CVE obrazu (Trivy, HIGH/CRITICAL, `ignore-unfixed`) wywala build** — tylko na merge'u do `main`, nie blokuje `deploy.yml`; znalezisko = czerwony build proszący o bump obrazu bazowego. Nie wracać do `exit-code: 0` (skan, który nic nie blokuje, to skan, którego nikt nie czyta) — jeśli szumi, zawężać `severity`
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
 
 ### Zmienne środowiskowe (`.env`)

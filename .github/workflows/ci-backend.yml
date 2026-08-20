@@ -79,10 +79,12 @@ jobs:
           build-args: APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Skan CVE w warstwie systemowej obrazu (czego gradle dependency-check nie widzi).
-      # Informacyjnie na razie (exit-code 0 = nie blokuje deployu). ignore-unfixed
-      # ucina szum z podatności bez łatki; zostają te naprawialne bumpem bazy.
-      # Gdy wyniki będą czyste, ustaw exit-code na 1, by high/critical wywalały build.
+      # Image CVE scan, and it now FAILS the build. It sat at exit-code 0 for months with a comment
+      # saying "flip this to 1 once the results are clean" — which is a scan nobody reads, written
+      # into a log nobody opens. ignore-unfixed keeps the noise out: what is left is fixable by
+      # bumping the base image. This job runs only on merges to main and does not gate deploy.yml,
+      # so the cost of a finding is a red build asking for a base bump, not a blocked release.
+      # If it turns out to be too noisy in practice, narrow `severity` rather than going back to 0.
       - name: Trivy image scan (high+)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -92,7 +94,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '0'
+          exit-code: '1'
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
