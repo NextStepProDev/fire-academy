@@ -336,6 +336,16 @@ public final class TrainingCalendarDtos {
      * @param minReadingsToCloseGoal sent rather than hardcoded in the frontend: the rule for closing a
      *                               weight goal lives in one place, and the copy explaining it stays
      *                               true if that number ever moves
+     * @param lowestTrendKg          lowest CONFIRMED trend of the last {@code lowestTrendWindowDays}
+     *                               days — already filtered by the same bar that closes a weight
+     *                               goal, so the frontend checks null and never re-derives it. Null
+     *                               when no day in the window ever earned confirmation, and then the
+     *                               whole line is absent from the page rather than showing a dash
+     * @param lowestTrendDate        the day that minimum fell on; null exactly when the value is
+     * @param lowestTrendWindowDays  fixed, NOT the range the chart is showing — the label naming the
+     *                               window has to stay true when somebody switches to a year. Sent so
+     *                               that label reads the number off the server instead of carrying
+     *                               its own copy in a translation
      */
     public record WeightSeriesResponse(
             List<WeightPoint> points,
@@ -343,7 +353,10 @@ public final class TrainingCalendarDtos {
             @Nullable BigDecimal weeklyChangePercent,
             @Nullable Boolean rapidLoss,
             int trendReadings,
-            int minReadingsToCloseGoal
+            int minReadingsToCloseGoal,
+            @Nullable BigDecimal lowestTrendKg,
+            @Nullable LocalDate lowestTrendDate,
+            int lowestTrendWindowDays
     ) {}
 
     /** {@code date} omitted means today — the normal case is weighing yourself this morning. */

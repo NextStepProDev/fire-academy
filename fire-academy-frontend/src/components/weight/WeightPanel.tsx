@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Scale, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { pl } from 'date-fns/locale'
+import { ArrowDownToLine, Scale, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { myTrainingApi } from '../../api/user'
 import { Button } from '../ui/Button'
@@ -147,6 +149,38 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
           </span>
         )}
       </div>
+
+      {/* The lowest CONFIRMED trend, not the lowest number the scale ever showed. Two reasons, and
+          the copy below carries the second one: it has to be the same figure that could close a
+          weight goal (the goals sit on this very screen), and a minimum over N samples falls with N,
+          so a raw record would reward diary-keeping rather than progress.
+
+          Rendered only when the server sent a value. Nothing is shown otherwise — no dash, no "no
+          data": an unconfirmed number under a label saying "trend" would be the one lie this panel
+          exists to prevent. The server has already applied the confirmation rule, so null is all
+          there is to check. */}
+      {data.lowestTrendKg != null && data.lowestTrendDate != null && (
+        <div className="space-y-0.5">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+            <ArrowDownToLine className="h-4 w-4 shrink-0 text-primary-400" />
+            {/* "trend" belongs in the label itself, not in a tooltip or an aria-label: somebody
+                remembering a lower morning reading has to be able to see why the two differ. */}
+            <span className="text-surface-300">
+              {t('weight.lowestTrend', { months: Math.round(data.lowestTrendWindowDays / 30) })}
+            </span>
+            <span className="text-surface-100 [font-variant-numeric:tabular-nums]">
+              {Number(data.lowestTrendKg).toFixed(1)} kg
+            </span>
+            <span className="text-surface-500">·</span>
+            <span className="text-surface-400 [font-variant-numeric:tabular-nums]">
+              {format(parseISO(data.lowestTrendDate), 'd MMM yyyy', { locale: pl })}
+            </span>
+          </p>
+          <p className="pl-6 text-xs text-surface-500">
+            {t('weight.lowestTrendHint', { count: data.minReadingsToCloseGoal })}
+          </p>
+        </div>
+      )}
 
       {/* Coach-only, exactly like the overtraining signal — the field is absent from the client's
           response, so this cannot render for them by accident. */}

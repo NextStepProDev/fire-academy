@@ -76,8 +76,17 @@ public class AthleteWeightService {
         // Reads reach back one trend window BEFORE the range so the first points on the chart carry
         // a full seven days behind them. Without it the left edge of every series would dip or jump
         // purely because the earlier readings were not fetched.
-        List<AthleteWeight> weights = repository.findRange(
-                athleteId, from.minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS - 1L), today);
+        //
+        // And never less far back than the lowest-trend window plus its own tail, whatever range was
+        // asked for: that statistic is labelled with a fixed 90 days and has to mean it. Today this
+        // changes nothing (the shortest range is 120 days), but a shorter range added later would
+        // otherwise quietly narrow the window the figure signs its name under, and nobody would
+        // connect the two. Taken as a minimum rather than by arithmetic so the ALL sentinel date
+        // stays out of it.
+        LocalDate lowestFrom = today.minusDays(WeightTrendCalculator.LOWEST_TREND_WINDOW_DAYS - 1L);
+        LocalDate readFrom = (from.isBefore(lowestFrom) ? from : lowestFrom)
+                .minusDays(WeightTrendCalculator.TREND_WINDOW_DAYS - 1L);
+        List<AthleteWeight> weights = repository.findRange(athleteId, readFrom, today);
         Map<LocalDate, BigDecimal> byDate = WeightTrendCalculator.index(weights);
 
         // The trend is emitted per reading, so the frontend never has to reimplement the window.
@@ -91,13 +100,22 @@ public class AthleteWeightService {
         }
 
         BigDecimal weeklyChange = WeightTrendCalculator.weeklyChangePercent(byDate, today);
+
+        // Its own fixed window, independent of the range on screen — the label says "3 months" and
+        // must keep saying something true when the chart is switched to a year.
+        var lowest = WeightTrendCalculator.lowestConfirmedTrend(
+                byDate, today, WeightTrendCalculator.LOWEST_TREND_WINDOW_DAYS);
+
         return new WeightSeriesResponse(
                 points,
                 WeightTrendCalculator.trendOn(byDate, today),
                 weeklyChange,
                 includeRapidLossWarning ? WeightTrendCalculator.isRapidLoss(weeklyChange) : null,
                 WeightTrendCalculator.readingsInWindow(byDate, today),
-                WeightTrendCalculator.MIN_READINGS_TO_CLOSE_GOAL);
+                WeightTrendCalculator.MIN_READINGS_TO_CLOSE_GOAL,
+                lowest == null ? null : lowest.trendKg(),
+                lowest == null ? null : lowest.day(),
+                WeightTrendCalculator.LOWEST_TREND_WINDOW_DAYS);
     }
 
     /**

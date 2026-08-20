@@ -60,6 +60,7 @@ describe('GoalsBoard', () => {
     vi.mocked(adminApi.getAthleteWeights).mockResolvedValue({
       points: [], currentTrendKg: null, weeklyChangePercent: null,
       trendReadings: 0, minReadingsToCloseGoal: 3,
+      lowestTrendKg: null, lowestTrendDate: null, lowestTrendWindowDays: 90,
     })
   })
 

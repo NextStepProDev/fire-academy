@@ -61,6 +61,9 @@ function series(over: Partial<WeightSeries> = {}): WeightSeries {
     weeklyChangePercent: null,
     trendReadings: 0,
     minReadingsToCloseGoal: 3,
+    lowestTrendKg: null,
+    lowestTrendDate: null,
+    lowestTrendWindowDays: 90,
     ...over,
   }
 }
@@ -148,6 +151,45 @@ describe('WeightPanel', () => {
 
     await waitFor(() => expect(myTrainingApi.getWeights).toHaveBeenCalledWith('ALL'))
     expect(myTrainingApi.getWeights).toHaveBeenCalledWith('QUARTER')
+  })
+
+  it('shouldShowTheLowestConfirmedTrendWithTheDayItFellOn', async () => {
+    // Not the lowest number the scale ever showed: the server sends the lowest CONFIRMED trend, the
+    // same figure that could close a weight goal. The word "trend" and the window belong in the
+    // label itself — somebody remembering a lower morning reading has to see why the two differ.
+    vi.mocked(myTrainingApi.getWeights).mockResolvedValue(series({
+      points: [{ date: todayIso(), weightKg: 70.4, trendKg: 70.9 }],
+      currentTrendKg: 70.9,
+      trendReadings: 5,
+      lowestTrendKg: 69.8,
+      lowestTrendDate: '2026-06-12',
+      lowestTrendWindowDays: 90,
+    }))
+    renderPanel()
+
+    // The label carries the months the server sent, not a number baked into the translation
+    expect(await screen.findByText(/weight\.lowestTrend.*"months":3/)).toBeInTheDocument()
+    expect(screen.getByText('69.8 kg')).toBeInTheDocument()
+    expect(screen.getByText('12 cze 2026')).toBeInTheDocument()
+    // And what the number stands on, so 69,8 does not read as a broken app next to a remembered 68,9
+    expect(screen.getByText(/weight\.lowestTrendHint.*"count":3/)).toBeInTheDocument()
+  })
+
+  it('shouldDropTheWholeLineWhenNoWeekWasEverConfirmed', async () => {
+    // No dash, no "no data" — an unconfirmed number under a label saying "trend" is the one lie
+    // this panel exists to prevent. The client checks null and nothing else.
+    vi.mocked(myTrainingApi.getWeights).mockResolvedValue(series({
+      points: [{ date: todayIso(), weightKg: 70.4, trendKg: 70.4 }],
+      currentTrendKg: 70.4,
+      trendReadings: 1,
+      lowestTrendKg: null,
+      lowestTrendDate: null,
+    }))
+    renderPanel()
+
+    // The panel rendered, so the absence below is about the line and not about an empty page
+    expect(await screen.findByText('Waga')).toBeInTheDocument()
+    expect(screen.queryByText(/weight\.lowestTrend/)).not.toBeInTheDocument()
   })
 
   it('shouldDefaultToTodayAndRefuseTheFuture', async () => {
