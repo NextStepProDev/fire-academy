@@ -16,6 +16,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.fireacademy.infrastructure.i18n.MessageService;
+import pl.fireacademy.infrastructure.storage.ImageDecodeBusyException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -56,6 +57,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
         return error(HttpStatus.CONFLICT, "CONFLICT", e.getMessage());
+    }
+
+    /**
+     * Uploads queue for the decoder, and this one waited too long — 429 rather than the 409 its
+     * supertype would get. It is the same event the rate limiter reports (too much at once), it
+     * carries the same {@code Retry-After}, and the frontend already turns that status into "try
+     * again in a moment" instead of the gateway-error wording it shows for 5xx.
+     */
+    @ExceptionHandler(ImageDecodeBusyException.class)
+    public ResponseEntity<Map<String, Object>> handleImageDecodeBusy(ImageDecodeBusyException e) {
+        log.warn("Upload turned away: the image decoder is saturated");
+        // Built through error() like every other response here, then re-issued with the header —
+        // the body shape stays in one place.
+        var base = error(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", e.getMessage());
+        return ResponseEntity.status(base.getStatusCode())
+            .header("Retry-After", "5")
+            .body(base.getBody());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
