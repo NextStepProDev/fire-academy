@@ -1,8 +1,18 @@
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
+import { GOOGLE_LOGIN_ENABLED } from '../config/features'
 
-const LAST_UPDATED = '2 sierpnia 2026'
+const LAST_UPDATED = '20 sierpnia 2026'
+
+/**
+ * Google sign-in is described here in full while it is still switched off, so that the day it goes
+ * live nobody has to be re-informed about a processor that appeared overnight. A privacy notice has
+ * to be true when somebody reads it, though, so every place describing it carries this marker until
+ * {@link GOOGLE_LOGIN_ENABLED} says otherwise — one flag, and the page stops promising what the
+ * application does not yet do.
+ */
+const notYet = (title: string) => GOOGLE_LOGIN_ENABLED ? title : `${title} — w przygotowaniu`
 
 export function PrivacyPolicyPage() {
   const { hash } = useLocation()
@@ -161,6 +171,30 @@ export function PrivacyPolicyPage() {
             </p>
           </SubSection>
 
+          <SubSection title={notYet('Logowanie przez konto Google')}>
+            {!GOOGLE_LOGIN_ENABLED && (
+              <p className="text-surface-400 text-sm mb-2 leading-relaxed">
+                Ta metoda logowania nie jest jeszcze uruchomiona. Opisujemy ją z wyprzedzeniem, żeby zakres
+                przetwarzanych danych był znany, zanim funkcja ruszy, a nie ogłaszany po fakcie.
+              </p>
+            )}
+            <p className="text-surface-400 text-sm mb-2 leading-relaxed">
+              Konto można będzie założyć także przez Google. W takim wypadku Google przekazuje nam wyłącznie:
+            </p>
+            <DataList items={[
+              'Imię i nazwisko zapisane w koncie Google',
+              'Adres e-mail przypisany do konta Google',
+              'Identyfikator konta Google — techniczny numer, po którym rozpoznajemy, że to wciąż ta sama osoba przy kolejnym logowaniu',
+            ]} />
+            <p className="text-surface-500 text-sm mt-2 leading-relaxed">
+              Hasło do konta Google nigdy do nas nie trafia — wpisywane jest wyłącznie po stronie Google.
+              Nie otrzymujemy dostępu do poczty, kontaktów, kalendarza ani plików na Dysku Google. Numeru
+              telefonu Google nam nie przekazuje, więc trzeba go uzupełnić samodzielnie przed pierwszym
+              zapisem na wydarzenie — razem z akceptacją tej polityki, o którą prosimy przy pierwszym
+              logowaniu.
+            </p>
+          </SubSection>
+
           <p className="text-surface-500 text-sm mt-4">
             Nie korzystamy z plików cookies śledzących, Google Analytics, Facebook Pixel ani żadnych innych narzędzi analitycznych.
           </p>
@@ -183,6 +217,10 @@ export function PrivacyPolicyPage() {
             <LegalBasis
               purpose="Zdjęcie profilowe (avatar)"
               basis="Art. 6 ust. 1 lit. a RODO — dobrowolna zgoda, którą możesz w każdej chwili wycofać, usuwając zdjęcie w ustawieniach konta"
+            />
+            <LegalBasis
+              purpose={notYet('Logowanie przez konto Google')}
+              basis="Art. 6 ust. 1 lit. b RODO — wykonanie umowy (założenie konta i dostęp do niego). Korzystanie z tej metody jest dobrowolne: konto można założyć również adresem e-mail i hasłem, a zakres danych jest wtedy taki sam."
             />
             <LegalBasis
               purpose="Weryfikacja adresu e-mail i odzyskiwanie hasła"
@@ -389,6 +427,10 @@ export function PrivacyPolicyPage() {
               description="Wykorzystywany do dostarczenia wszystkich wiadomości e-mail wysyłanych z systemu — zarówno serwisowych (potwierdzenie zapisu, weryfikacja konta, reset hasła, zmiany w terminach), jak i marketingowych (po udzieleniu zgody). Dostawca nie przetwarza Twoich danych w żadnym innym celu."
             />
             <InfoItem
+              title={notYet('Google LLC (logowanie przez konto Google)')}
+              description="Osoby, które wybiorą logowanie przez Google, uwierzytelnia Google — to Google potwierdza nam tożsamość i przekazuje imię, nazwisko oraz adres e-mail. Nie przekazujemy Google żadnych danych o Twoich treningach, zapisach ani planie 1:1. Kto zakłada konto adresem e-mail i hasłem, nie ma z tym nic wspólnego."
+            />
+            <InfoItem
               title="Google LLC (kopie zapasowe)"
               description="Zaszyfrowane kopie zapasowe bazy danych i przesłanych plików przechowywane są na prywatnym, niepublicznym dysku Google Drive. Kopia obejmuje całą bazę, a więc również dane planu treningowego 1:1. Google nie ma dostępu do treści kopii — są zaszyfrowane przed wysłaniem."
             />
@@ -396,11 +438,12 @@ export function PrivacyPolicyPage() {
           <div className="mt-4 bg-surface-800/50 rounded-xl p-4">
             <p className="text-surface-200 font-medium text-sm mb-1">Przekazywanie danych poza EOG</p>
             <p className="text-surface-500 text-sm leading-relaxed">
-              Serwer i baza danych pozostają w EOG. Wyjątkiem są kopie zapasowe na Google Drive — Google LLC
-              ma siedzibę w USA, więc w tym zakresie dane mogą być przetwarzane poza EOG. Transfer odbywa się
-              na podstawie programu EU‑US Data Privacy Framework (Google jest certyfikowany) oraz standardowych
-              klauzul umownych zatwierdzonych przez Komisję Europejską (SCC), a same kopie są zaszyfrowane przed
-              wysłaniem. Kopię stosowanych zabezpieczeń możesz uzyskać, kontaktując się z nami.
+              Serwer i baza danych pozostają w EOG. Wyjątkiem jest współpraca z Google LLC opisana wyżej —
+              Google ma siedzibę w USA, więc w tym zakresie dane mogą być przetwarzane poza EOG. Transfer
+              odbywa się na podstawie programu EU‑US Data Privacy Framework (Google jest certyfikowany) oraz
+              standardowych klauzul umownych zatwierdzonych przez Komisję Europejską (SCC). Kopie zapasowe są
+              dodatkowo szyfrowane przed wysłaniem. Kopię stosowanych zabezpieczeń możesz uzyskać,
+              kontaktując się z nami.
             </p>
           </div>
         </Section>
