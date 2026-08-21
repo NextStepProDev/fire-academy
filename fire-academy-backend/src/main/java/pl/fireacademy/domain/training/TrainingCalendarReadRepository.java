@@ -96,4 +96,9 @@ public interface TrainingCalendarReadRepository
         UUID getAthleteId();
         long getTotal();
     }
+
+    /** Erasing one athlete's plan: both sides' read markers about that athlete go with it. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM TrainingCalendarRead r WHERE r.athleteId = :athleteId")
+    int deleteAllForAthlete(@Param("athleteId") UUID athleteId);
 }

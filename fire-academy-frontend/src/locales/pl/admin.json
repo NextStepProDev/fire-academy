@@ -97,7 +97,11 @@
       "athleteEnabled": "Kalendarz treningów indywidualnych włączony.",
       "athleteDisabled": "Kalendarz treningów indywidualnych wyłączony.",
       "athleteDisableTitle": "Wyłączyć kalendarz 1:1?",
-      "athleteDisableMessage": "Kalendarz przestanie być widoczny dla osoby {{name}} i zniknie z listy podopiecznych. Nic nie zostanie usunięte — zaplanowane treningi, komentarze i cele zostaną zapisane i wrócą po ponownym włączeniu."
+      "athleteDisableMessage": "Kalendarz przestanie być widoczny dla osoby {{name}} i zniknie z listy podopiecznych. Nic nie zostanie usunięte — zaplanowane treningi, komentarze i cele zostaną zapisane i wrócą po ponownym włączeniu.",
+      "erasePlanTitle": "Usuń plan treningowy 1:1",
+      "erasePlanDesc": "Trwale kasuje plan, wagi, cele, wiadomości, zdjęcia i notatki o tej osobie. Zajęcia grupowe, płatności i konto zostają nietknięte.",
+      "erasePlanAction": "Usuń plan",
+      "erasePlanMessage": "Trwale usunąć plan treningowy 1:1 osoby {{name}}? Zniknie cały plan, pomiary wagi, cele, wiadomości przy treningach, zdjęcia oraz Twoje notatki o tej osobie. Zapisy na zajęcia grupowe, płatności i samo konto pozostaną bez zmian. Tej operacji nie da się cofnąć."
     }
   },
   "actions": {

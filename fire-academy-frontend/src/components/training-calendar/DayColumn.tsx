@@ -10,6 +10,11 @@ interface DayColumnProps {
   anchor: string
   trainings: PersonalTraining[]
   recurring: RecurringSession[]
+  /** Coach only: opens the private note for that occurrence. Absent for the client. */
+  onOpenSession?: (session: RecurringSession) => void
+  /** Coach only: ids that already carry a private note. */
+  notedTrainingIds?: Set<string>
+  notedSessions?: Set<string>
   compact?: boolean
   showWeekday?: boolean
   cutId?: string | null
@@ -24,6 +29,8 @@ interface DayColumnProps {
   labels: {
     add: string; copy: string; cut: string; pasteHere: string
     unread: string; comments: string; recurring: string; task: string; calories: string
+    openSession?: string
+    note?: string
   }
 }
 
@@ -36,7 +43,7 @@ interface DayColumnProps {
  * short list, and its height follows its content.
  */
 export function DayColumn({
-  date, anchor, trainings, recurring, compact = false, showWeekday = true, cutId, pasteArmed,
+  date, anchor, trainings, recurring, onOpenSession, notedTrainingIds, notedSessions, compact = false, showWeekday = true, cutId, pasteArmed,
   onOpen, onAdd, onPaste, onCopy, onCut, canReshape = () => true, labels,
 }: DayColumnProps) {
   const isToday = date === todayIso()
@@ -70,6 +77,8 @@ export function DayColumn({
       <div className={clsx('flex flex-col', compact ? 'gap-1' : 'gap-2')}>
         {trainings.map(training => (
           <TrainingTile
+            hasNote={notedTrainingIds?.has(training.id)}
+            noteLabel={labels.note}
             key={training.id}
             training={training}
             compact={compact}
@@ -90,6 +99,10 @@ export function DayColumn({
             context around it. */}
         {recurring.map(session => (
           <RecurringTile
+            onOpen={onOpenSession && !pasteArmed ? () => onOpenSession(session) : undefined}
+            openLabel={labels.openSession}
+            hasNote={notedSessions?.has(`${session.slotId}@${session.date}`)}
+            noteLabel={labels.note}
             key={`${session.slotId}-${session.date}`}
             session={session}
             compact={compact}

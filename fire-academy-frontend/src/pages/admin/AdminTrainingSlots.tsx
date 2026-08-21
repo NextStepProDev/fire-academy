@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { AdminPrivateNote } from '../../components/notes/AdminPrivateNote'
+import { useNoteMarkers } from '../../components/notes/useNoteMarkers'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
-import { Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Check, X, Plus, CalendarOff, RotateCcw, Archive } from 'lucide-react'
+import { Archive, CalendarOff, Check, ChevronDown, ChevronRight, NotebookPen, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
@@ -57,13 +59,15 @@ const fieldClass = (error?: boolean, paleEmpty?: boolean) => clsx(
   paleEmpty ? 'text-surface-500' : 'text-surface-100',
 )
 
-function SlotRow({ slot, month, onEdit, onDelete }: {
+function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
+  hasNote: boolean
   slot: TrainingSlot
   month: string
   onEdit: (s: TrainingSlot) => void
   onDelete: (id: string) => void
 }) {
   const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('calendar')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -185,7 +189,10 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpanded(e => !e)}>
-          <p className="font-medium text-surface-100 truncate">
+          <p className="flex items-center gap-1.5 font-medium text-surface-100 truncate">
+            {hasNote && (
+            <NotebookPen aria-label={tc('notes.marker')} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+          )}
             {slot.startTime?.slice(0, 5)}{slot.endTime ? `–${slot.endTime.slice(0, 5)}` : ''} · {slot.eventTypeName}
           </p>
           <p className="text-sm text-surface-400">
@@ -344,6 +351,9 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
             )}
             <p className="text-xs text-surface-500 mt-2">{t('trainingSlots.cancelSessionsHint')}</p>
           </div>
+
+          {/* The owner's note about this recurring group as a whole — no date, no person. */}
+          <AdminPrivateNote anchor={{ target: 'slot', id: slot.id }} />
         </div>
       )}
 
@@ -477,6 +487,7 @@ function SlotRow({ slot, month, onEdit, onDelete }: {
 
 export function AdminTrainingSlots() {
   const { t } = useTranslation('admin')
+  const { notedSlotIds } = useNoteMarkers()
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const months = adminVisibleMonths()   // includes a couple of past months for historical cancellations
@@ -637,7 +648,7 @@ export function AdminTrainingSlots() {
                 {open && (
                   <div className="space-y-2">
                     {daySlots.map(s => (
-                      <SlotRow key={s.id} slot={s} month={month} onEdit={openEdit} onDelete={setDeleteId} />
+                      <SlotRow key={s.id} slot={s} month={month} hasNote={notedSlotIds.has(s.id)} onEdit={openEdit} onDelete={setDeleteId} />
                     ))}
                   </div>
                 )}

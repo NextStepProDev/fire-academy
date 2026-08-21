@@ -51,4 +51,9 @@ public interface TrainingDeletionRepository extends JpaRepository<TrainingDeleti
     @Modifying
     @Query("DELETE FROM TrainingDeletion d WHERE d.deletedAt < :cutoff")
     int deleteOlderThan(@Param("cutoff") Instant cutoff);
+
+    /** Erasing one athlete's 1-on-1 plan. Rows only — files are unlinked before this runs. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM TrainingDeletion d WHERE d.athlete.id = :athleteId")
+    int deleteAllForAthlete(@Param("athleteId") UUID athleteId);
 }

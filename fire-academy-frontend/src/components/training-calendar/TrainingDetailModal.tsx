@@ -11,6 +11,7 @@ import { AttachmentList } from './AttachmentList'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { PersonalTraining, TrainingStatus } from '../../types'
 import { canReshapeTraining, type TrainingCalendarAdapter } from './adapter'
+import { AdminPrivateNote } from '../notes/AdminPrivateNote'
 
 const statusChip: Record<TrainingStatus, string> = {
   PLANNED: 'bg-surface-800 text-surface-300',
@@ -153,6 +154,12 @@ export function TrainingDetailModal({
             <div className="border-t border-surface-800 pt-3">
               <AttachmentList attachments={training.attachments} />
             </div>
+          )}
+
+          {/* The coach's own notebook. Gated on the role the modal already carries rather than on a
+              global useAuth() — the adapter is this component's source of truth for who is looking. */}
+          {adapter.role === 'coach' && (
+            <AdminPrivateNote anchor={{ target: 'training', id: training.id }} />
           )}
 
           <div className="border-t border-surface-800 pt-3">

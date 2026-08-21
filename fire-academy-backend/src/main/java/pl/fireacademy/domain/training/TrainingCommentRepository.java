@@ -95,6 +95,20 @@ public interface TrainingCommentRepository extends JpaRepository<TrainingComment
     List<String> findPhotoFilenamesForTraining(@Param("trainingId") UUID trainingId);
 
     /**
+     * Every photo sitting on one athlete's trainings, whoever uploaded it.
+     * <p>
+     * Deliberately not {@code findPhotosForUser}: that one follows AUTHORSHIP, so it would miss the
+     * coach's photos on this athlete's calendar — which are exactly the ones an erasure of that
+     * athlete's plan has to remove.
+     */
+    @Query("""
+        SELECT c.photoFilename FROM TrainingComment c
+        WHERE c.training.athlete.id = :athleteId
+          AND c.photoFilename IS NOT NULL
+        """)
+    List<String> findPhotoFilenamesForAthlete(@Param("athleteId") UUID athleteId);
+
+    /**
      * Filenames to unlink before an account is deleted. Covers both sides: photos on this person's
      * own trainings, and photos they wrote in someone else's thread — {@code author_id} is only set
      * to NULL by the cascade, so those files would otherwise outlive their author.

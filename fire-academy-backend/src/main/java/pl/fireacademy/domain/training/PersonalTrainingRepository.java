@@ -2,6 +2,7 @@ package pl.fireacademy.domain.training;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -81,4 +82,9 @@ public interface PersonalTrainingRepository extends JpaRepository<PersonalTraini
         """)
     @Nullable
     LocalDate findFirstCompletedDate(@Param("athleteId") UUID athleteId);
+
+    /** Erasing one athlete's 1-on-1 plan. Rows only — files are unlinked before this runs. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM PersonalTraining t WHERE t.athlete.id = :athleteId")
+    int deleteAllForAthlete(@Param("athleteId") UUID athleteId);
 }
