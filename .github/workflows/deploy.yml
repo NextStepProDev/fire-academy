@@ -43,23 +43,42 @@ jobs:
         id: swap
         run: echo "content=$(base64 -w 0 fire-academy-hub/setup-swap.sh)" >> $GITHUB_OUTPUT
 
+      - name: Encode backup script
+        id: backup
+        run: echo "content=$(base64 -w 0 fire-academy-hub/fire-academy-backup.sh)" >> $GITHUB_OUTPUT
+
+      - name: Encode backup logrotate config
+        id: logrotate
+        run: echo "content=$(base64 -w 0 fire-academy-hub/logrotate-fire-academy-backup)" >> $GITHUB_OUTPUT
+
       - name: Deploy to production VM
         uses: appleboy/ssh-action@v1
         env:
           COMPOSE_B64: ${{ steps.compose.outputs.content }}
           NGINX_B64: ${{ steps.nginx.outputs.content }}
           SWAP_B64: ${{ steps.swap.outputs.content }}
+          BACKUP_B64: ${{ steps.backup.outputs.content }}
+          LOGROTATE_B64: ${{ steps.logrotate.outputs.content }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: COMPOSE_B64,NGINX_B64,SWAP_B64
+          envs: COMPOSE_B64,NGINX_B64,SWAP_B64,BACKUP_B64,LOGROTATE_B64
           script: |
             echo "$COMPOSE_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/docker-compose.prod.yml
             echo "$NGINX_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/nginx.conf
             # Ensure swap exists before starting memory-hungry containers (idempotent).
             echo "$SWAP_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/setup-swap.sh
             sudo -n bash ${{ secrets.DEPLOY_PATH }}/setup-swap.sh || echo "WARN: swap setup skipped/failed (check passwordless sudo)"
+            # The backup script used to exist only on this box — the one file in the backup system
+            # with no backup of its own. It ships from the repo now, like nginx.conf above. Cron
+            # keeps running whatever is at this path, so updating the file is the whole deployment.
+            echo "$BACKUP_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/fire-academy-backup.sh
+            sudo -n install -m 0755 ${{ secrets.DEPLOY_PATH }}/fire-academy-backup.sh /usr/local/bin/fire-academy-backup.sh \
+              || echo "WARN: could not install the backup script (check passwordless sudo)"
+            echo "$LOGROTATE_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/logrotate-fire-academy-backup
+            sudo -n install -m 0644 ${{ secrets.DEPLOY_PATH }}/logrotate-fire-academy-backup /etc/logrotate.d/fire-academy-backup \
+              || echo "WARN: could not install log rotation for the backup log"
             cd ${{ secrets.DEPLOY_PATH }}
             export VERSION=${{ steps.version.outputs.version }}
             # Persist the resolved version into the host .env so a later MANUAL
