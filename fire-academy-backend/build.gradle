@@ -20,6 +20,17 @@ java {
     }
 }
 
+// Overrides of versions Spring Boot's BOM manages for us. Each one needs a reason and a way out —
+// a pin nobody remembers is how a project ends up older than the platform it sits on.
+ext {
+    // CVE-2026-54291: pgjdbc could be talked out of SCRAM-SHA-256-PLUS down to plain SCRAM, which
+    // drops the channel binding that ties authentication to the TLS connection. Our database is
+    // reachable only from inside the compose network, so the man in the middle would already have to
+    // be inside it — but this is a one-digit bump and the CVE gate is right to refuse the image.
+    // REMOVE once Spring Boot's BOM manages 42.7.12 or later; the pin is then just a way to fall behind.
+    set('postgresql.version', '42.7.12')
+}
+
 repositories {
     mavenCentral()
 }
