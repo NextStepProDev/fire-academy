@@ -11,7 +11,13 @@ RUN chmod +x gradlew
 RUN APP_VERSION=$APP_VERSION ./gradlew bootJar -x test
 
 FROM eclipse-temurin:25-jre-alpine
-RUN apk add --no-cache curl
+# curl is for the container healthcheck. The upgrade is for the CVE gate in CI: the base image ships
+# whatever Alpine packages it was built with, and it is rebuilt on its own schedule, not ours — so
+# fixes that already exist in the Alpine repo can sit unapplied here for weeks. Upgrading everything
+# on top of the base pulls those in at build time and keeps the image current between base bumps.
+# `apk upgrade` (not a list of package names) on purpose: naming today's offenders means coming back
+# to edit this line for tomorrow's, which is the maintenance nobody does.
+RUN apk upgrade --no-cache && apk add --no-cache curl
 WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar app.jar
