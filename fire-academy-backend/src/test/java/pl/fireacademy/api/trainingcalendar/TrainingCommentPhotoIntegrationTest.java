@@ -234,6 +234,79 @@ class TrainingCommentPhotoIntegrationTest extends BaseIntegrationTest {
      * comments have no delete of their own. Removing the photo leaves the words behind.
      */
     @Test
+    void shouldRefuseTheDaysTwentySixthPhotoInOneCalendar() throws Exception {
+        // The per-training cap bounds one tile; a client can open as many tiles as they like. This is
+        // the ceiling that bounds the disk the photos share with the database.
+        String admin = adminToken();
+        String client = flagAthlete("photo-daily@fireacademy.test", "Ola");
+        UUID athlete = idOf("photo-daily@fireacademy.test");
+
+        // 25 photos = nine trainings at three each, minus the last two slots
+        for (int i = 0; i < 9; i++) {
+            String trainingId = planTraining(admin, athlete);
+            int room = Math.min(3, 25 - i * 3);
+            for (int p = 0; p < room; p++) {
+                uploadAsClient(client, trainingId, null);
+            }
+        }
+
+        String fresh = planTraining(admin, athlete);
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/user/my-training/photos")
+                        .file(screenshot())
+                        .param("trainingId", fresh)
+                        .header("Authorization", "Bearer " + client))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("25")));
+    }
+
+    @Test
+    void shouldNotSpendOneClientsAllowanceOnAnother() throws Exception {
+        // The reason this is counted per calendar and not per uploader: planning for a roster means
+        // the coach uploads into many calendars in one sitting. Twenty clients at three photos each
+        // would stop a per-account cap at the seventh person, having touched nobody's calendar hard.
+        String admin = adminToken();
+        String first = flagAthlete("photo-quota-a@fireacademy.test", "Ala");
+        flagAthlete("photo-quota-b@fireacademy.test", "Bea");
+
+        String firstTraining = planTraining(admin, idOf("photo-quota-a@fireacademy.test"));
+        uploadAsClient(first, firstTraining, null);
+        uploadAsClient(first, firstTraining, null);
+        uploadAsClient(first, firstTraining, null);
+
+        // The second client's calendar is untouched by any of that
+        String secondTraining = planTraining(admin, idOf("photo-quota-b@fireacademy.test"));
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/admin/training-photos")
+                        .file(screenshot())
+                        .param("trainingId", secondTraining)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void shouldCountTheCoachsUploadsAgainstTheClientsDayToo() throws Exception {
+        // Whoever puts the photo there, it lands in the client's folder and takes the same disk. A
+        // cap the coach can walk around is not a cap.
+        String admin = adminToken();
+        String client = flagAthlete("photo-daily-coach@fireacademy.test", "Kuba");
+        UUID athlete = idOf("photo-daily-coach@fireacademy.test");
+
+        for (int i = 0; i < 9; i++) {
+            String trainingId = planTraining(admin, athlete);
+            int room = Math.min(3, 25 - i * 3);
+            for (int p = 0; p < room; p++) {
+                uploadAsClient(client, trainingId, null);
+            }
+        }
+
+        String fresh = planTraining(admin, athlete);
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/admin/training-photos")
+                        .file(screenshot())
+                        .param("trainingId", fresh)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void shouldLetAuthorRemoveTheirOwnPhotoAndKeepTheText() throws Exception {
         String admin = adminToken();
         String client = flagAthlete("photo-withdraw@fireacademy.test", "Ala");

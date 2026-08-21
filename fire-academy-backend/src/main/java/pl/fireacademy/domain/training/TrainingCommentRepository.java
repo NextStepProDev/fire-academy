@@ -63,6 +63,27 @@ public interface TrainingCommentRepository extends JpaRepository<TrainingComment
     long countPhotosForTraining(@Param("trainingId") UUID trainingId);
 
     /**
+     * Photos sitting in one client's calendar since {@code since}, whoever put them there.
+     * <p>
+     * Counted per ATHLETE and not per uploader, because the coach uploads into many calendars in one
+     * sitting: a cap on "photos this account sent today" would let a client through untouched and
+     * stop the coach at the seventh person they planned for. The thing that grows is one client's
+     * folder, so that is the thing with a ceiling — and the total then has a bound anybody can work
+     * out, since the roster size is the coach's own decision.
+     * <p>
+     * Rows still present, not rows ever created: deleting a photo takes the file off disk too, so a
+     * delete-and-reupload cycle leaves the disk exactly where it was. There is nothing to defend
+     * against there, and no second table to keep.
+     */
+    @Query("""
+        SELECT COUNT(c) FROM TrainingComment c
+        WHERE c.training.athlete.id = :athleteId
+          AND c.photoFilename IS NOT NULL
+          AND c.createdAt >= :since
+        """)
+    long countPhotosForAthleteSince(@Param("athleteId") UUID athleteId, @Param("since") Instant since);
+
+    /**
      * Filenames to unlink before a training is deleted. The rows go through the DB cascade without
      * Hibernate ever loading them, so no entity callback can do this — it has to be explicit.
      */

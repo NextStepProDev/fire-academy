@@ -269,6 +269,27 @@ z uprzejmą twarzą) i tylko do pustego pola.
 `training_comments` + `photo_filename/width/height/expires_at`, `body` nullable + CHECK
 `body IS NOT NULL OR photo_filename IS NOT NULL`.
 
+### Dlaczego limit dzienny wisi na podopiecznym, a nie na wrzucającym
+
+Limit „3 na trening" wygląda jak sufit i nim nie jest — treningów można założyć dowolnie wiele, a
+każdy otwiera trzy kolejne miejsca. Zdjęcia leżą na tym samym dysku co baza, więc folder bez sufitu
+kończy się Postgresem odmawiającym zapisu, a nie komunikatem o braku miejsca na zdjęcia.
+
+Pierwszy odruch — „X zdjęć dziennie na osobę" — jest złego kształtu i wywraca się na trenerze:
+**trener wrzuca do wielu kalendarzy w jednym posiedzeniu**. Dwudziestu podopiecznych po trzy zdjęcia
+to sześćdziesiąt, czyli limit na konto zatrzymałby go na siódmej osobie, nie dotknąwszy przy tym
+żadnego podopiecznego. Licznik siedzi więc na **kalendarzu podopiecznego**: ta sama sesja zostawia
+każdego na 3 z 25, a rosnące dane mają sufit tam, gdzie faktycznie rosną. Całość jest wtedy
+ograniczona przez `liczba podopiecznych × 25 × 30 dni retencji`, a liczbę podopiecznych ustala trener.
+
+Zdjęcia wrzucone przez trenera **liczą się do dnia podopiecznego**: plik zajmuje to samo miejsce
+niezależnie od tego, kto go wysłał, a limit, który da się obejść drugim kontem, nie jest limitem.
+
+Doba jest **kalendarzowa**, nie ruchoma. Obie tak samo ograniczają dysk w średniej, ale tylko jedną
+da się wytłumaczyć osobie stojącej na sali. Liczone są wiersze **istniejące**, więc skasowanie
+zdjęcia zwalnia miejsce w limicie — cykl „wrzuć i skasuj" zostawia dysk tam, gdzie był, więc nie ma
+tu czego bronić ani drugiej tabeli do utrzymywania.
+
 ### Dlaczego kolumna na komentarzu, a nie tabela
 
 Kuszące jest `training_photos` z własnym kluczem — wygląda porządniej i od razu daje wiele zdjęć

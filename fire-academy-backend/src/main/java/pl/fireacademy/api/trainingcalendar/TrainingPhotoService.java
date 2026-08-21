@@ -21,6 +21,8 @@ import pl.fireacademy.infrastructure.storage.StorePolicy;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -54,6 +56,26 @@ public class TrainingPhotoService {
 
     /** Per training, across the whole thread. A watch session is a summary, zones and splits. */
     static final int MAX_PHOTOS_PER_TRAINING = 3;
+
+    /**
+     * Per client's calendar, per day — the ceiling that actually bounds the disk.
+     * <p>
+     * The per-training cap above bounds one tile and nothing else: a client may create as many
+     * trainings as they like, and each one opens three more slots. Photos share a disk with the
+     * database, so a folder that grows without a ceiling does not end as "no more photos", it ends as
+     * Postgres refusing writes.
+     * <p>
+     * Counted per ATHLETE rather than per uploader, which is the part worth remembering. The coach
+     * uploads into many calendars in one sitting — twenty clients at three photos each is sixty —
+     * so a per-account cap would stop the coach at the seventh person while never touching a client.
+     * Per calendar, the same twenty-client session leaves every counter at 3.
+     * <p>
+     * 25 is roughly eight trainings' worth for one person in one day, against the two a hard week
+     * actually holds. It exists to stop a folder running away, not to ration anybody's diary. The
+     * whole estate is then bounded by roster size × 25 × the 30-day retention, and the roster is the
+     * coach's own decision.
+     */
+    static final int MAX_PHOTOS_PER_ATHLETE_PER_DAY = 25;
 
     private final TrainingCommentRepository commentRepository;
     private final TrainingAccessService access;
@@ -91,6 +113,10 @@ public class TrainingPhotoService {
         if (commentRepository.countPhotosForTraining(trainingId) >= MAX_PHOTOS_PER_TRAINING) {
             throw new IllegalStateException(msg.get("personaltraining.photo.limit"));
         }
+        if (photosToday(training) >= MAX_PHOTOS_PER_ATHLETE_PER_DAY) {
+            throw new IllegalStateException(
+                    msg.get("personaltraining.photo.daily.limit", MAX_PHOTOS_PER_ATHLETE_PER_DAY));
+        }
 
         User author = userRepository.findById(viewerId)
                 .orElseThrow(() -> new IllegalStateException(msg.get("error.user.not.found")));
@@ -101,6 +127,20 @@ public class TrainingPhotoService {
         TrainingComment comment = new TrainingComment(training, author, viewerIsAdmin, Strings.trimToNull(body));
         comment.attachPhoto(stored.filename(), stored.width(), stored.height(), Instant.now().plus(RETENTION));
         return TrainingCommentMapper.toResponse(commentRepository.save(comment), viewerId, viewerIsAdmin);
+    }
+
+    /**
+     * How many photos are already in this client's calendar today.
+     * <p>
+     * A calendar day in the club's timezone, not a rolling twenty-four hours. Both bound the disk
+     * the same way on average, and only one of them can be explained to somebody standing in a gym:
+     * "you have used today's allowance" is an answer, "you uploaded some of these nineteen hours ago"
+     * is a riddle. The JVM runs on Europe/Warsaw (see the Dockerfile), which is what makes midnight
+     * here mean midnight for the people using it.
+     */
+    private long photosToday(PersonalTraining training) {
+        Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return commentRepository.countPhotosForAthleteSince(training.getAthlete().getId(), startOfDay);
     }
 
     /**
