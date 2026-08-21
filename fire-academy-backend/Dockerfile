@@ -16,7 +16,13 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
-ENV SPRING_PROFILES_ACTIVE=docker
+# The image is safe on its own, not only when compose remembers to say so. This used to read
+# "docker" — a profile no application-docker.yml has ever defined — so anything starting the image
+# without compose (a debug run on the box, a new environment, somebody new to the project) silently
+# got NONE of the production settings: pool of 8 instead of 5, no max-connections guarding memory,
+# chatty logging, and CORS left at http://localhost:*. Nothing warned. compose still overrides this
+# with ${SPRING_PROFILES_ACTIVE:-prod}; the default is now the same answer rather than a trap.
+ENV SPRING_PROFILES_ACTIVE=prod
 
 # Uruchamiaj jako nieuprzywilejowany użytkownik (pinned uid 1001 → deterministyczny
 # chown wolumenu). /app/uploads jest pre-tworzony i nadany userowi: ŚWIEŻY named volume
