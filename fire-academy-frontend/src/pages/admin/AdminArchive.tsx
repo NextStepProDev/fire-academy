@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { AdminPrivateNote } from '../../components/notes/AdminPrivateNote'
+import { useNoteMarkers } from '../../components/notes/useNoteMarkers'
 import { useToast } from '../../context/ToastContext'
-import { ChevronDown, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, MessageSquare, NotebookPen, Trash2 } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
@@ -25,8 +27,9 @@ function isPastEvent(event: EventInstance): boolean {
   return (event.endDate ?? event.startDate) < today
 }
 
-function ArchiveCard({ event }: { event: ArchivedEvent }) {
+function ArchiveCard({ event, hasNote }: { event: ArchivedEvent; hasNote: boolean }) {
   const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('calendar')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -70,6 +73,9 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
             <span className={clsx('px-2 py-0.5 text-xs rounded-full font-medium', config.style)}>
               {t(config.labelKey)}
             </span>
+            {hasNote && (
+              <NotebookPen aria-label={tc('notes.marker')} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+            )}
             <p className="font-medium text-surface-100">{event.eventTypeName}</p>
           </div>
           <p className="text-sm text-surface-400">
@@ -149,6 +155,10 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
               </table>
             </div>
           )}
+
+          {/* The archive is where past terms actually live — without this mount the note could be
+              written but never read back. */}
+          <AdminPrivateNote anchor={{ target: 'event', id: event.id }} />
         </div>
       )}
 
@@ -179,6 +189,7 @@ function ArchiveCard({ event }: { event: ArchivedEvent }) {
 
 export function AdminArchive() {
   const { t } = useTranslation('admin')
+  const { notedEventIds } = useNoteMarkers()
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | EventCategory>('ALL')
 
   const { data: trainings, isLoading: l1 } = useQuery({
@@ -245,7 +256,7 @@ export function AdminArchive() {
       ) : (
         <div className="space-y-3">
           {filtered.map(ev => (
-            <ArchiveCard key={ev.id} event={ev} />
+            <ArchiveCard key={ev.id} event={ev} hasNote={notedEventIds.has(ev.id)} />
           ))}
         </div>
       )}

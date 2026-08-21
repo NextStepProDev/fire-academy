@@ -38,7 +38,7 @@ CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 
 ## Baza Danych — Flyway
 
-**Obecny stan: V39 (wszystko na `main`). Kolejna migracja: V40.**
+**Obecny stan: V40 (wszystko na `main`). Kolejna migracja: V41.**
 > ℹ️ Migracje treningowe zostały przenumerowane z V12–V15 na **V20–V23** po rebasie na main (2026-06-21). Luka V12–V15 nie jest już zarezerwowana.
 > ℹ️ V29–V38 (kalendarz 1:1 + waga + cele wagowe + zadania + zgoda RODO) zostały scalone do `main` 2026-08-02 wraz z resztą gałęzi treningowej.
 
@@ -80,6 +80,7 @@ CLAUDE.md · DECISIONS-TRAINING.md · VERSION
 | V37 | personal_trainings + `kind` TRAINING/TASK, `target_calories`. **Zadanie to osobny wiersz**, odhaczane bez RPE; statystyki treningowe zadań nie widzą — mają własny blok `tasks` |
 | V38 | users.training_consent_at — wyraźna zgoda RODO art. 9 na dane zdrowotne planu 1:1 (waga, trend, cele wagowe, limity kalorii, RPE, komentarze). NULL = brak; **celowo bez backfillu**, więc każdy obecny podopieczny raz przechodzi ekran zgody. Zdjęcie `is_athlete` **kasuje zgodę** (`User.setAthlete`) — dane wracają po ponownym włączeniu, zgoda nie |
 | V39 | training_comments + `photo_filename/width/height/expires_at`; `body` staje się nullable + CHECK `body IS NOT NULL OR photo_filename IS NOT NULL`. **Zdjęcie to kolumna na komentarzu**, nie tabela — dziedziczy liczniki nieprzeczytanych i kaskadę bez zmian w `TrainingUnreadService`. Maks. **3 na trening** i **25 dziennie na kalendarz podopiecznego**, retencja **30 dni** (`photo_expires_at` zapisane, nie liczone). Folder `trainingphotos/` **poza** białą listą `FileController`. Migracja **zeruje `training_consent_at` wszystkim** — zakres art. 9 poszerzony o zdjęcia, więc stara zgoda go nie obejmuje |
+| V40 | admin_private_notes — prywatne notatki właściciela (trening 1:1 · zajęcia cykliczne w kalendarzu osoby · slot tygodniowy · termin). **Trzy kolumny celu, cztery cele**: `slot_id` obsługuje dwa, rozróżniane przez `session_date` (zajęcia cykliczne nie mają wiersza nigdzie). Cztery prawdziwe FK z kaskadą zamiast dyskryminatora + cztery **partial** unique. Szczegóły → sekcja „Prywatne notatki właściciela — niezmienniki" |
 
 > 📖 **Pełne uzasadnienia V24–V39 → [`DECISIONS-TRAINING.md`](DECISIONS-TRAINING.md).** Tam leży „dlaczego" (bezpieczniki rozliczeń, kolejność płatności, kontrakty pól, testy pilnujące każdej reguły). Czytaj przed zmianą w danym obszarze.
 
@@ -141,11 +142,13 @@ Nginx wykrywa crawlery (Facebook, WhatsApp, Twitter itp.) i proxy detail pages d
 `/training-slots` — CRUD + `/batch` + `/{id}/deactivate|reactivate` + `/deleted` (archiwum) + `/{id}/cancel-session` (POST/DELETE) + `/cancel-instructor-day` + `/{id}/cancelled-sessions` + `/cancelled-sessions/overview` + `/{slotId}/enrollments` (roster, admin-add)
 `/training-enrollments` — `DELETE /{id}` · `DELETE /user/{userId}` · `GET /user/{userId}/history` · `PUT /{id}/payment` (opłacone per slot) · `PUT /{id}/start` (billable_from)
 `/training-payments` — `GET` (przegląd miesiąca) · `POST /pay-user/{userId}` (zbiorczo) · `/training-refunds` — `GET` · `GET /unconsumed-credit` · `POST /{id}/settle|unsettle` · `POST /settle-user/{userId}` · `/training-holidays` — `GET|POST|DELETE /{id}`
-`/users` — `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 50/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `marketing`, `created`} (whitelist, telefon niesortowalny; `marketing` = po `marketing_consent_at`), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`. Lista zwraca też `marketingConsent` per user (ikona zgody w UI). **Konta z `ADMIN_HIDDEN_EMAILS` ukryte** — filtr w SQL, by liczniki/paginacja były spójne; te same konta pominięte w wyszukiwarce admin-add i jako adresaci maila zbiorczego) · `POST /email` (`{subject, message, audience, userIds}` — `audience` ∈ {`MARKETING` (tylko zgody marketingowe + auto link rezygnacji w stopce), `ALL` (komunikat serwisowy do wszystkich, bez linku), `SELECTED` (wybrane `userIds`)}; branding+podpis auto, ukryte konta pomijane) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/logout-all` (wymuszone wylogowanie wskazanego konta — np. przejętego; kasuje jego refresh tokeny i czyści cache filtra JWT. Dozwolone także wobec adminów, inaczej niż `DELETE`, które chroni super-admina) · `POST /{id}/promote` (**tylko super-admin z `ADMIN_EMAIL`**) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
+`/users` — `DELETE /{id}/training-plan` (**trwałe skasowanie planu 1:1**: treningi, wagi, cele, wiadomości, zdjęcia i notatki o tej osobie. **Nie rusza zajęć grupowych, płatności ani konta** — subskrypcja to rozliczenie kogoś, kto dalej chodzi i płaci, a nie dane o zdrowiu. Działa **także gdy flaga `is_athlete` jest już zdjęta** — to właśnie to konto ma dane bez innej drogi wyjścia z panelu. Odróżnij od `DELETE /{id}/athlete`, które **chowa i nic nie kasuje**) · `GET /{id}` (profil: dane + avatar + ustawienia + `currentEnrollments`/`pastEnrollments` — bieżące vs archiwalne po `COALESCE(endDate,startDate)`) · `GET ?search=&page=&size=&sort=&direction=` (lista/wyszukiwanie po imieniu/nazwisku/mailu, **stronicowane** — domyślnie 50/stronę, max 100; zwraca `{content, page, size, totalElements, totalPages}`. Sortowanie: `sort` ∈ {`name`, `email`, `role`, `marketing`, `created`} (whitelist, telefon niesortowalny; `marketing` = po `marketing_consent_at`), `direction` ∈ {`asc`,`desc`}, domyślnie `created`/`desc`. Lista zwraca też `marketingConsent` per user (ikona zgody w UI). **Konta z `ADMIN_HIDDEN_EMAILS` ukryte** — filtr w SQL, by liczniki/paginacja były spójne; te same konta pominięte w wyszukiwarce admin-add i jako adresaci maila zbiorczego) · `POST /email` (`{subject, message, audience, userIds}` — `audience` ∈ {`MARKETING` (tylko zgody marketingowe + auto link rezygnacji w stopce), `ALL` (komunikat serwisowy do wszystkich, bez linku), `SELECTED` (wybrane `userIds`)}; branding+podpis auto, ukryte konta pomijane) · `DELETE /{id}` (bezpieczne usunięcie: przyszłe zapisy usuwane = zwolnienie miejsca, archiwalne anonimizowane, kasowane tokeny+avatar) · `POST /{id}/logout-all` (wymuszone wylogowanie wskazanego konta — np. przejętego; kasuje jego refresh tokeny i czyści cache filtra JWT. Dozwolone także wobec adminów, inaczej niż `DELETE`, które chroni super-admina) · `POST /{id}/promote` (**tylko super-admin z `ADMIN_EMAIL`**) · `POST /{id}/demote` (**tylko super-admin z `ADMIN_EMAIL`**; nie da się zdegradować super-admina ani siebie)
 
 > **Super-admin** = e-mail z `ADMIN_EMAIL` (`AdminEmailConfig.isAdminEmail`). `GET /api/user/me` zwraca flagę `superAdmin` (front pokazuje przyciski nadania i odebrania uprawnień admina tylko jemu). Maile admin→user: `AdminUserMailService` (logo Fire Academy, podpis „Pozdrawiam, Fire Academy", temat bez HTML-escape).
 
 > ⚠️ **Szkielet HTML maila istnieje w JEDNYM miejscu — `BrandedMailSender`.** Wszystkie cztery serwisy (`AuthMailService`, `AdminUserMailService`, `EnrollmentMailService`, `TrainingMailService`) renderują przez niego; nie dopisuj lokalnego szablonu „bo tylko ten jeden mail jest inny". Trzy z czterech miały własne kopie tego samego szkieletu (te same kolory, ta sama ramka 600px, ta sama stopka) — nic się nie psuło i na tym polegał problem: przestylowanie wymagało znalezienia czterech kopii, a pominięta oznaczała klasę maili wyglądającą inaczej. Wybór logo robi `category` (CAMP → Fire Camp, reszta → Fire Academy); maile bez sekcji (konto, wiadomości organizatora) wołają `academyTemplate(...)`, żeby nie udawać kategorii, której nie mają. Flaga `signOff` jest istotna: `EnrollmentMailService` i `AdminUserMailService` wołają z `false`, bo podpis mają wklejony we własną treść — przełączenie na wariant automatyczny dokleiłoby im drugi. `SharedMailTemplateTest` pilnuje, że każdy serwis wypuszcza wspólną ramkę.
+
+`/notes` — prywatne notatki właściciela: `GET|PUT|DELETE /{training|event|slot|session}/{id}` (dla `session` dodatkowo `?athleteId=&date=`) · `GET /markers?from=&to=&athleteId=` (same identyfikatory, nigdy treść; `from`/`to` opcjonalne — listy admina są otwarte w obie strony, kalendarz zawsze podaje okno). **Rodzaj celu to segment ścieżki, nie cztery rodziny endpointów.** Szczegóły i niezmienniki → sekcja „Prywatne notatki właściciela"
 
 ### Kalendarz treningów 1:1 — `pl.fireacademy.api.trainingcalendar`
 > Kontrolery trenera i podopiecznego siedzą w **jednym pakiecie** (nie w `api/admin`), żeby dzielić rekordy DTO — obie role dostają identyczny kształt odpowiedzi, bo front renderuje jeden komponent dla obu. Ochrona ról bierze się ze **ścieżki**, nie z pakietu.
@@ -384,6 +387,87 @@ Zasady, które łatwo po cichu złamać przy kolejnej zmianie. Każda ma test, k
 **Testy nakładki używają NASTĘPNEGO miesiąca.** Subskrypcja utworzona dziś jest prorowana od dzisiejszego dnia miesiąca, więc sesje wcześniejsze w bieżącym miesiącu poprawnie wypadają — pierwsze podejście wyglądało jak „nakładka nie działa", a była to działająca proracja.
 
 ---
+
+---
+
+## Prywatne notatki właściciela — niezmienniki
+
+Notatnik trenera: notatkę widzi **wyłącznie jej autor** — nie kursant, nie podopieczny, nie drugi
+admin. Cztery cele: trening 1:1, pojedyncze zajęcia cykliczne w kalendarzu konkretnej osoby, slot
+tygodniowy jako całość, termin obozu/szkolenia.
+
+**Notatka NIGDY nie jedzie w istniejącym DTO — i to jest cała ochrona, nie `@PreAuthorize`.**
+Ryzykiem nie jest brakująca bramka roli, tylko uczynne pole. `CalendarRangeResponse` (z
+`PersonalTrainingResponse` **i** `RecurringSession`) to **jeden rekord serwowany obu rolom** —
+trenerowi z `/api/admin/...` i podopiecznemu z `/api/user/my-training/calendar` — a listingi
+publiczne są cache'owane na brzegu. Pole dodane tam skompiluje się, będzie wyglądać na wygodę
+i opublikuje notatnik ludziom, o których jest pisany. Dlatego notatki serwuje własny endpoint per
+cel, a **typ notatki jest nieosiągalny poza `domain/adminnote` i `api/admin/note`** — serwis, który
+nie umie notatki przeczytać, nie umie jej wypuścić. Pilnują tego **dwa testy patrzące z przeciwnych
+stron**: `architecture/AdminNoteIsolationArchTest` (zasięg typu) i `AdminNoteLeakIntegrationTest`
+(prawdziwy kalendarz obu ról, asercja na **zserializowanym JSON-ie**, nie na komponentach rekordu —
+pole dopisane później pojedzie do przeglądarki niezależnie od tego, czy ktoś pamiętał o teście).
+Ten drugi **najpierw asercjuje, że notatka w bazie w ogóle jest**; bez tego przechodzi też wtedy,
+gdy fixture cicho nic nie zapisał, czyli jest nieodróżnialny od testu, który nic nie sprawdza.
+
+> ⚠️ Bramka izolacji dopasowuje po **granicach słów i po nazwie pakietu**, nigdy przez
+> `contains(typ + " ")`. Po nazwie typu stoi kropka (`AdminPrivateNote.MAX_BODY_LENGTH`) albo nawias
+> ostry (`List<AdminPrivateNote>`), a `import ...domain.adminnote.*;` nie zawiera nazwy typu w ogóle
+> — a wildcard własnego pakietu domenowego jest **konwencją tego repo** (66 plików z importami
+> gwiazdkowymi, dziewięć serwisów robi to ze swoją domeną). W bliźniaczej apce bramka miała dziurę
+> dokładnie tam. Test ma też własny dowód „na czerwono" na pięciu kształtach obejścia.
+
+**Kasowanie NIE przechodzi przez bramkę podopiecznego — odczyt i zapis tak.** To poprawka po
+audycie, nie przeoczenie. Symetria wygląda bezpiecznie i uwięziła cudze dane: po odebraniu komuś
+flagi `is_athlete` notatki o jego treningach stawały się **niewidoczne i nieusuwalne naraz** (bez
+flagi kalendarz trenera jest niedostępny, a bramka odmawiała jedynej operacji, która mogła je
+sprzątnąć) — dane osobowe bez ścieżki usunięcia, czyli odwrotność tego, po co ta bramka stoi.
+Usunięcie własnego tekstu nie może niczego wypuścić, a zapytanie zawężone do (autor, cel) trafi
+wyłącznie w wiersz, który wołający sam napisał. **Przy każdej bramce opartej na fladze pytaj
+osobno, co dzieje się z danymi utworzonymi, kiedy flaga jeszcze była.**
+
+**Cztery prawdziwe FK z kaskadą, nie para `(target_type, target_id)`.** Dyskryminator dałby jeden
+upsert zamiast czterech i zostawiałby po skasowanym slocie/terminie/treningu wiersz z cudzym
+tekstem, którego nic nie sprząta i którego nikt nie zobaczy, żeby usunąć. Notatka umiera razem
+z tym, czego dotyczy, i razem z kontem autora. Cztery bliźniacze upserty to świadoma cena za brak
+sierot. `slot_id` obsługuje **dwa** cele, rozróżniane przez `session_date` — zajęcia cykliczne nie
+mają wiersza nigdzie (`RecurringSessionOverlayService` liczy je przy każdym odczycie), więc
+adresuje je klucz `(autor, podopieczny, slot, data)`. **Indeksy unikatowe muszą być partial**:
+w wierszu dwie z trzech kolumn celu są NULL, a NULL-e nie kolidują w zwykłym UNIQUE — bez predykatu
+indeks przepuści dowolnie wiele notatek „bez slotu", a `ON CONFLICT (...) WHERE ...` nie ma czego
+wskazać.
+
+**Bez html-escape.** Escape przy zapisie zamienia cudzysłowy i apostrofy autora w encje, a wtedy
+każde miejsce renderujące musi to odkodowywać. Ta treść nie trafia do maila ani do `innerHTML`,
+a jedyny autor i jedyny czytelnik to ta sama osoba. Pusta notatka to notatka usunięta — od usuwania
+jest kosz, `PUT` z pustym ciałem to 400.
+
+**Zero wpisu w activity logu** — w tym repo activity logu nie ma, więc niezmiennik jest spełniony
+z definicji; gdyby powstał, notatki mają w nim nie występować (log audytuje działania dotykające
+ludzi, a zakładka aktywności ogłaszałaby samo istnienie notatek).
+
+**Notatka o człowieku ginie z jego planem, notatka o biznesie zostaje.** `DELETE /api/admin/users/{id}/training-plan` kasuje notatki o treningach i zajęciach tej osoby; notatki o **slocie** i o **terminie** przeżywają, bo są obserwacją o klubie („grupa środowa za duża"), nie o kimś. Kasowanie notatek celowo omija bramkę podopiecznego (patrz wyżej) — ale samo API nie wystarczyło: bez flagi kalendarz trenera jest niedostępny, więc **w panelu nie było gdzie kliknąć**. Ten endpoint jest drugą połową tej poprawki i dlatego siedzi w zakładce Użytkownicy, jedynej powierzchni niezależnej od flagi.
+
+**Znaczniki oddają SAME IDENTYFIKATORY, nigdy treść** — inaczej odpowiedź, która istnieje po to,
+żeby narysować ikonki, wsadza notatnik do przeglądarki i cofa powód, dla którego notatka ma osobny
+endpoint per cel. Dotyczy to **także zwykłego booleana `hasNote`** na współdzielonym DTO: sam fakt
+istnienia notatek jest prywatny.
+
+> ⚠️ **`staleTime` notatek to `SHORT_STALE_MS`, nie `0`.** „Zero cache" znaczy „autor widzi swój
+> zapis natychmiast" i zapewnia to inwalidacja **całego prefiksu** `['admin','notes']` po mutacji
+> (sam klucz jednej notatki nie zapaliłby znacznika). Zero w `staleTime` przy domyślnym
+> `refetchOnWindowFocus` odpala wszystkie zamontowane zapytania na każdy powrót na kartę, a trzy
+> wpięcia montują **jedno zapytanie na wiersz** — to udokumentowany tu incydent z limiterem.
+
+> ⚠️ **Kontrolka „pokaż całość" wynika z POMIARU (`scrollHeight` vs `clientHeight`), nie z długości
+> tekstu.** `line-clamp` liczy **linie**, warunek na `body.length` liczy **znaki**: notatka
+> wypunktowana na dziesięć krótkich linii przy 200 znakach była ucięta i nie dało się jej rozwinąć.
+> Jedno zjawisko, jedna jednostka.
+
+**Sekcji nie wolno bramkować na „termin się jeszcze nie odbył"** — zniknęłaby dokładnie z terminów,
+o które w tej funkcji chodzi. Dlatego notatka do terminu wisi w **dwóch** miejscach: w zakładkach
+Obozy/Szkolenia i w **Archiwum** (`AdminEvents` filtruje `(endDate ?? startDate) >= today`, więc
+minione terminy są widoczne wyłącznie tam).
 
 ## Testy
 

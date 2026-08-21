@@ -49,4 +49,9 @@ public interface AthleteWeightRepository extends JpaRepository<AthleteWeight, UU
                                   @Param("to") LocalDate to);
 
     void deleteByAthleteIdAndMeasuredOn(UUID athleteId, LocalDate measuredOn);
+
+    /** Erasing one athlete's 1-on-1 plan. Rows only — files are unlinked before this runs. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM AthleteWeight w WHERE w.athlete.id = :athleteId")
+    int deleteAllForAthlete(@Param("athleteId") UUID athleteId);
 }

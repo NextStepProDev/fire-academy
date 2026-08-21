@@ -1,3 +1,4 @@
+DELETE FROM admin_private_notes;
 DELETE FROM athlete_weights;
 DELETE FROM athlete_goals;
 DELETE FROM training_attachments;

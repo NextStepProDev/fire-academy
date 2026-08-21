@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, MailCheck, MailX, CalendarPlus, Trash2, CheckCircle, XCircle, Mail, Phone, KeyRound, Dumbbell } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, CalendarPlus, CheckCircle, ChevronDown, ChevronRight, Dumbbell, KeyRound, Mail, MailCheck, MailX, Phone, Trash2, XCircle } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -47,6 +47,7 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
   const [archiveExpanded, setArchiveExpanded] = useState(false)
   const [archivePage, setArchivePage] = useState(1)
   const [confirmUnflagAthlete, setConfirmUnflagAthlete] = useState(false)
+  const [confirmErasePlan, setConfirmErasePlan] = useState(false)
   // Events and trainings are two separate worlds the admin comes here for one at a time — a segmented switch keeps
   // each self-contained instead of stacking mixed, half-collapsible blocks.
   const [section, setSection] = useState<'events' | 'trainings'>('events')
@@ -108,6 +109,18 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
 
   // Flagging is non-destructive both ways: clearing it only hides the calendar, the plan and its
   // history stay in the database. The confirm below says so, so nobody hesitates over the switch.
+  const eraseP1Mutation = useMutation({
+    mutationFn: () => adminApi.eraseTrainingPlan(userId),
+    onSuccess: () => {
+      setConfirmErasePlan(false)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'user', userId] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'athletes'] })
+      // The notebook loses rows about this person, so every note query and marker is now stale.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notes'] })
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
   const athleteMutation = useMutation({
     mutationFn: (enabled: boolean) => adminApi.setAthlete(userId, enabled),
     onSuccess: (_data, enabled) => {
@@ -218,6 +231,23 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
           onClick={() => (user.isAthlete ? setConfirmUnflagAthlete(true) : athleteMutation.mutate(true))}
         >
           {user.isAthlete ? t('users.detail.athleteDisable') : t('users.detail.athleteEnable')}
+        </Button>
+      </div>
+
+      {/* Erasing the plan is a different act from hiding it, so it gets a different button and a
+          different colour. Shown regardless of the athlete flag: an account that already lost the
+          flag is precisely the one whose plan data has no other route out of the panel. */}
+      <div className="bg-surface-900 border border-surface-800 rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Trash2 className="w-5 h-5 mt-0.5 shrink-0 text-surface-500" />
+          <div>
+            <p className="font-medium text-surface-100">{t('users.detail.erasePlanTitle')}</p>
+            <p className="text-sm text-surface-400 mt-0.5">{t('users.detail.erasePlanDesc')}</p>
+          </div>
+        </div>
+        <Button variant="danger" size="sm" loading={eraseP1Mutation.isPending}
+          onClick={() => setConfirmErasePlan(true)}>
+          {t('users.detail.erasePlanAction')}
         </Button>
       </div>
 
@@ -375,6 +405,17 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
         message={t('users.detail.athleteDisableMessage', { name: `${user.firstName} ${user.lastName}` })}
         confirmLabel={t('users.detail.athleteDisable')}
         loading={athleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmErasePlan}
+        onClose={() => setConfirmErasePlan(false)}
+        onConfirm={() => eraseP1Mutation.mutate()}
+        title={t('users.detail.erasePlanTitle')}
+        message={t('users.detail.erasePlanMessage', { name: `${user.firstName} ${user.lastName}` })}
+        confirmLabel={t('users.detail.erasePlanAction')}
+        danger
+        loading={eraseP1Mutation.isPending}
       />
     </div>
   )

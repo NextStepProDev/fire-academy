@@ -204,6 +204,18 @@ public class TrainingPhotoService {
      * would leave those rows pointing at nothing, and the other side would be looking at a broken
      * frame for as long as the comment exists.
      */
+    /**
+     * Unlinks every photo on one athlete's trainings before that plan is erased.
+     * <p>
+     * Follows the CALENDAR, not authorship: the coach's photos live on the athlete's trainings too,
+     * and an erasure of the plan has to take those with it. The rows themselves go through the
+     * cascade when the trainings are deleted, so only the files need unlinking here.
+     */
+    @Transactional(readOnly = true)
+    public void purgeForAthlete(UUID athleteId) {
+        deleteAll(commentRepository.findPhotoFilenamesForAthlete(athleteId));
+    }
+
     @Transactional
     public void purgeForUser(UUID userId) {
         detachAll(commentRepository.findPhotosForUser(userId));

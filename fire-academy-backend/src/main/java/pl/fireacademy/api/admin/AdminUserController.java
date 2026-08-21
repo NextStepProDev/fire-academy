@@ -18,10 +18,13 @@ public class AdminUserController {
 
     private final AdminUserService service;
     private final UserRepository userRepository;
+    private final AdminTrainingPlanErasureService planErasure;
 
-    public AdminUserController(AdminUserService service, UserRepository userRepository) {
+    public AdminUserController(AdminUserService service, UserRepository userRepository,
+                               AdminTrainingPlanErasureService planErasure) {
         this.service = service;
         this.userRepository = userRepository;
+        this.planErasure = planErasure;
     }
 
     @GetMapping
@@ -89,5 +92,18 @@ public class AdminUserController {
     @DeleteMapping("/{id}/athlete")
     public AdminUserResponse disableAthlete(@PathVariable UUID id) {
         return service.setAthlete(id, false);
+    }
+
+    /**
+     * Erases the 1-on-1 plan for good: trainings, weights, goals, comments, photos and the coach's
+     * notes about this person. The opposite of the call above, which hides and keeps.
+     * <p>
+     * Group subscriptions, payments, the account and its camp sign-ups are untouched — a client can
+     * finish their personal coaching and carry on attending Wednesday's class. Works even when the
+     * athlete flag is already gone; that account is the one whose data would otherwise be stranded.
+     */
+    @DeleteMapping("/{id}/training-plan")
+    public AdminTrainingPlanErasureService.ErasedPlan eraseTrainingPlan(@PathVariable UUID id) {
+        return planErasure.erase(id);
     }
 }

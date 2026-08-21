@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { adminApi } from '../../api/admin'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { AdminPrivateNote } from '../../components/notes/AdminPrivateNote'
+import { useNoteMarkers } from '../../components/notes/useNoteMarkers'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
-import { Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, MessageSquare, Mail, CheckCircle } from 'lucide-react'
+import { CheckCircle, ChevronDown, ChevronRight, Mail, MessageSquare, NotebookPen, Pencil, Trash2, UserPlus } from 'lucide-react'
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
@@ -20,16 +22,19 @@ interface AdminEventsProps {
 
 function EventCard({
   event,
+  hasNote,
   onEdit,
   onDelete,
   onToggleActive,
 }: {
   event: EventInstance
+  hasNote: boolean
   onEdit: (ev: EventInstance) => void
   onDelete: (ev: EventInstance) => void
   onToggleActive: (id: string) => void
 }) {
   const { t } = useTranslation('admin')
+  const { t: tc } = useTranslation('calendar')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -125,7 +130,12 @@ function EventCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-surface-100">{event.eventTypeName}</p>
+          <p className="flex items-center gap-1.5 font-medium text-surface-100">
+            {hasNote && (
+              <NotebookPen aria-label={tc('notes.marker')} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+            )}
+            {event.eventTypeName}
+          </p>
           <p className="text-sm text-surface-400">
             {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
             {event.startTime ? ` · ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
@@ -228,6 +238,9 @@ function EventCard({
               </table>
             </div>
           )}
+
+          {/* Never gated on "the term is over": past terms are the ones there is something to say about. */}
+          <AdminPrivateNote anchor={{ target: 'event', id: event.id }} />
         </div>
       )}
 
@@ -333,6 +346,7 @@ function EventCard({
 
 export function AdminEvents({ category }: AdminEventsProps) {
   const { t } = useTranslation('admin')
+  const { notedEventIds } = useNoteMarkers()
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [editItem, setEditItem] = useState<EventInstance | null>(null)
@@ -462,6 +476,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
             <EventCard
               key={ev.id}
               event={ev}
+              hasNote={notedEventIds.has(ev.id)}
               onEdit={openEdit}
               onDelete={ev => setDeleteTarget(ev)}
               onToggleActive={id => toggleMut.mutate(id)}

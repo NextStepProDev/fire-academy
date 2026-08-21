@@ -10,6 +10,10 @@ interface DaySheetProps {
   date: string
   trainings: PersonalTraining[]
   recurring: RecurringSession[]
+  onOpenSession?: (session: RecurringSession) => void
+  /** Coach only: ids that already carry a private note. */
+  notedTrainingIds?: Set<string>
+  notedSessions?: Set<string>
   pasteArmed: boolean
   onClose: () => void
   onOpen: (training: PersonalTraining) => void
@@ -27,6 +31,8 @@ interface DaySheetProps {
     unread: string
     comments: string
     recurring: string
+    openSession?: string
+    note?: string
     task: string
     calories: string
     empty: string
@@ -41,7 +47,7 @@ interface DaySheetProps {
  * a second rendering of a training is a second thing to keep in step.
  */
 export function DaySheet({
-  date, trainings, recurring, pasteArmed, onClose, onOpen, onAdd, onPaste, onCopy, onCut,
+  date, trainings, recurring, onOpenSession, notedTrainingIds, notedSessions, pasteArmed, onClose, onOpen, onAdd, onPaste, onCopy, onCut,
   canReshape = () => true, labels,
 }: DaySheetProps) {
   return (
@@ -53,6 +59,8 @@ export function DaySheet({
 
         {trainings.map(training => (
           <TrainingTile
+            hasNote={notedTrainingIds?.has(training.id)}
+            noteLabel={labels.note}
             key={training.id}
             training={training}
             onOpen={t => { onClose(); onOpen(t) }}
@@ -68,7 +76,11 @@ export function DaySheet({
         ))}
 
         {recurring.map(session => (
-          <RecurringTile key={`${session.slotId}-${session.date}`} session={session} label={labels.recurring} />
+          <RecurringTile key={`${session.slotId}-${session.date}`} session={session} label={labels.recurring}
+            onOpen={onOpenSession && !pasteArmed ? () => onOpenSession(session) : undefined}
+            openLabel={labels.openSession}
+            hasNote={notedSessions?.has(`${session.slotId}@${session.date}`)}
+            noteLabel={labels.note} />
         ))}
 
         {pasteArmed ? (

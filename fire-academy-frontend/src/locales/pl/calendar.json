@@ -321,5 +321,20 @@
     "checkbox": "Zapoznałem/-am się z <1>polityką prywatności</1> i wyrażam zgodę na przetwarzanie moich danych treningowych, w tym pomiarów wagi, celów wagowych, limitów kalorii, ocen wysiłku oraz zdjęć, które sam/-a dołączę do komentarzy, w celu prowadzenia mojego planu treningowego.",
     "accept": "Akceptuję i przechodzę do planu",
     "withdrawNote": "Zgodę możesz wycofać w każdej chwili, pisząc na fireacademy.biz@gmail.com — usuniemy wtedy dane wagowe, kaloryczne, oceny wysiłku i dołączone zdjęcia. Pojedyncze zdjęcie możesz też usunąć samodzielnie, w dowolnym momencie. Bez zgody plan treningowy pozostaje zamknięty, reszta konta i zapisy na zajęcia działają normalnie."
+  },
+  "notes": {
+    "title": "Moja notatka",
+    "hint": "Widoczna wyłącznie dla Ciebie.",
+    "add": "Dodaj notatkę",
+    "edit": "Edytuj notatkę",
+    "delete": "Usuń notatkę",
+    "deleteTitle": "Usunąć notatkę?",
+    "deleteMessage": "Notatka zostanie trwale usunięta. Tej operacji nie da się cofnąć.",
+    "placeholder": "Obserwacje, uwagi, co poprawić następnym razem…",
+    "loading": "Wczytywanie…",
+    "showAll": "Pokaż całość",
+    "showLess": "Zwiń",
+    "sessionTitle": "Zajęcia grupowe",
+    "marker": "Jest notatka"
   }
 }

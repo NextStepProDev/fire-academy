@@ -1,6 +1,7 @@
 package pl.fireacademy.domain.training;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,4 +36,9 @@ public interface AthleteGoalRepository extends JpaRepository<AthleteGoal, UUID> 
         WHERE g.athlete.id = :athleteId AND g.createdAt > :since
         """)
     long countCreatedSince(@Param("athleteId") UUID athleteId, @Param("since") Instant since);
+
+    /** Erasing one athlete's 1-on-1 plan. Rows only — files are unlinked before this runs. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM AthleteGoal g WHERE g.athlete.id = :athleteId")
+    int deleteAllForAthlete(@Param("athleteId") UUID athleteId);
 }

@@ -283,6 +283,13 @@ export const adminApi = {
     fetchApi<AdminUser>(`/admin/users/${id}/demote`, { method: 'POST' }),
 
   // Personal training calendar (1-on-1)
+  /**
+   * Erases the 1-on-1 plan for good. Group subscriptions, payments and the account are untouched —
+   * see AdminTrainingPlanErasureService for why that separation is the whole point.
+   */
+  eraseTrainingPlan: (id: string) =>
+    fetchApi<{ trainings: number; weights: number; goals: number; notes: number }>(
+      `/admin/users/${id}/training-plan`, { method: 'DELETE' }),
   setAthlete: (id: string, enabled: boolean) =>
     fetchApi<AdminUser>(`/admin/users/${id}/athlete`, { method: enabled ? 'POST' : 'DELETE' }),
   getAthletes: () =>

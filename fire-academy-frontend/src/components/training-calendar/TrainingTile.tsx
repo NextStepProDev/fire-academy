@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Check, ClipboardList, Copy, MessageSquare, Scissors } from 'lucide-react'
+import { Check, ClipboardList, Copy, MessageSquare, NotebookPen, Scissors } from 'lucide-react'
 import type { PersonalTraining } from '../../types'
 
 /**
@@ -44,6 +44,9 @@ interface TrainingTileProps {
   copyLabel: string
   cutLabel: string
   unreadLabel: string
+  /** Whether the coach has already written a private note about this one. */
+  hasNote?: boolean
+  noteLabel?: string
   commentsLabel: string
   /** Names the clipboard icon on a task; the card itself says what it is by its dashed outline. */
   taskLabel: string
@@ -52,7 +55,7 @@ interface TrainingTileProps {
 
 export function TrainingTile({
   training, compact = false, cut = false, inert = false, onOpen, onCopy, onCut,
-  copyLabel, cutLabel, unreadLabel, commentsLabel, taskLabel, caloriesLabel,
+  copyLabel, cutLabel, unreadLabel, commentsLabel, taskLabel, caloriesLabel, hasNote = false, noteLabel,
 }: TrainingTileProps) {
   const showClipboard = (onCopy || onCut) && !inert
   const isTask = training.kind === 'TASK'
@@ -96,6 +99,9 @@ export function TrainingTile({
               title={unreadLabel}
               className="h-2 w-2 shrink-0 rounded-full bg-rose-400"
             />
+          )}
+          {hasNote && (
+            <NotebookPen aria-label={noteLabel} className="h-3.5 w-3.5 shrink-0 text-amber-400" />
           )}
           {isTask && (
             <ClipboardList aria-label={taskLabel} className="h-3.5 w-3.5 shrink-0 text-sky-400" />

@@ -20,6 +20,8 @@ import {
 } from '../../utils/calendarRange'
 import { keepWithinEntity } from '../../utils/queryEntity'
 import type { CreateTrainingBody, PersonalTraining, RecurringSession } from '../../types'
+import { RecurringSessionModal } from './RecurringSessionModal'
+import { notesApi } from '../../api/notes'
 import { canReshapeTraining, type TrainingCalendarAdapter } from './adapter'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 
@@ -43,6 +45,9 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   // resize: this is a starting point, and yanking the view out from under a reader who rotated the
   // phone would be worse than a stale choice they can change with the switch above.
   const [view, setView] = useState<CalendarView>(() => (compactViewport ? 'week' : 'month'))
+  // Coach only: the group session whose private note is open.
+  const [openSession, setOpenSession] = useState<RecurringSession | null>(null)
+
   const [anchor, setAnchor] = useState(todayIso())
   const [formDate, setFormDate] = useState<string | null>(null)
   const [editing, setEditing] = useState<PersonalTraining | null>(null)
@@ -53,6 +58,21 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const dotGrid = view === 'month' && compactViewport
 
   const range = useMemo(() => rangeFor(view, anchor), [view, anchor])
+  // Which entries already carry a private note. Coach only, and identifiers only — the text stays
+  // behind the per-entry endpoint. Without these a note is invisible until you happen to open the
+  // day it is on, which is how you forget you wrote it.
+  const isCoach = adapter.role === 'coach'
+  const markersQuery = useQuery({
+    queryKey: ['admin', 'notes', 'markers', adapter.athleteId, range.from, range.to],
+    queryFn: () => notesApi.markers(range.from, range.to, adapter.athleteId),
+    enabled: isCoach,
+    staleTime: SHORT_STALE_MS,
+  })
+  const notedTrainingIds = useMemo(
+    () => new Set(markersQuery.data?.trainingIds ?? []), [markersQuery.data])
+  const notedSessions = useMemo(
+    () => new Set((markersQuery.data?.sessions ?? []).map(s => `${s.slotId}@${s.date}`)),
+    [markersQuery.data])
   const days = useMemo(() => eachDay(range), [range])
 
   const rangeKey = useMemo(() => adapter.rangeKey(range.from, range.to), [adapter, range])
@@ -280,6 +300,9 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                 anchor={anchor}
                 trainings={byDay.get(date) ?? []}
                 recurring={recurringByDay.get(date) ?? []}
+                onOpenSession={isCoach ? setOpenSession : undefined}
+                notedTrainingIds={notedTrainingIds}
+                notedSessions={notedSessions}
                 compact={view === 'month'}
                 showWeekday={view === 'week'}
                 cutId={clipboard?.mode === 'MOVE' ? clipboard.trainingId : null}
@@ -298,6 +321,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                   unread: t('unread.dot'),
                   comments: t('comments.title'),
                   recurring: t('recurring.badge'),
+                  openSession: t('notes.title'),
+                  note: t('notes.marker'),
                   task: t('form.kind.TASK'),
                   calories: t('form.calories'),
                 }}
@@ -322,6 +347,9 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
           date={openDay}
           trainings={byDay.get(openDay) ?? []}
           recurring={recurringByDay.get(openDay) ?? []}
+          onOpenSession={isCoach ? setOpenSession : undefined}
+          notedTrainingIds={notedTrainingIds}
+          notedSessions={notedSessions}
           pasteArmed={clipboard != null}
           onClose={() => setOpenDay(null)}
           onOpen={setSelected}
@@ -338,6 +366,8 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
             unread: t('unread.dot'),
             comments: t('comments.title'),
             recurring: t('recurring.badge'),
+            openSession: t('notes.title'),
+            note: t('notes.marker'),
             task: t('form.kind.TASK'),
             calories: t('form.calories'),
             empty: t('day.empty'),
@@ -380,6 +410,14 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                 setSelected(null)
               }
             : undefined}
+        />
+      )}
+      {openSession && (
+        <RecurringSessionModal
+          key={`${openSession.slotId}-${openSession.date}`}
+          session={openSession}
+          athleteId={adapter.athleteId}
+          onClose={() => setOpenSession(null)}
         />
       )}
     </div>
