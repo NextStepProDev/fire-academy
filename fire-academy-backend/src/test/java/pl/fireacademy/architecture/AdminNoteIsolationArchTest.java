@@ -44,6 +44,17 @@ class AdminNoteIsolationArchTest {
     );
 
     /**
+     * Files outside those packages that may call the notebook's SERVICE, and why.
+     * <p>
+     * Keep this an explicit allowlist. An entry is a decision somebody made and can be argued with;
+     * a missing entry is an oversight, and the two must not look alike.
+     */
+    private static final List<String> SERVICE_CALLERS = List.of(
+        // Erasing one athlete's plan asks the notebook to empty itself rather than reaching in.
+        "AdminTrainingPlanErasureService.java"
+    );
+
+    /**
      * A note type named as code, not as prose. {@code \b} after the name is the whole point: it
      * matches the dot of a constant access and the angle bracket of a generic, which a trailing
      * space never would.
@@ -53,6 +64,18 @@ class AdminNoteIsolationArchTest {
 
     /** Catches both {@code import ...adminnote.Foo;} and {@code import ...adminnote.*;}. */
     private static final Pattern NOTE_PACKAGE = Pattern.compile("pl\\.fireacademy\\.domain\\.adminnote");
+
+    /**
+     * The service is a narrower door than the entity, but it is still a door.
+     * <p>
+     * It was demonstrated open: adding a note copy to {@code duplicate}/{@code paste} — the change
+     * somebody makes "for consistency" with attachments, which DO travel with a copy — went straight
+     * past the rule above, because {@code AdminPrivateNoteService} is not the entity and not the
+     * repository. Three behavioural tests caught it and this gate did not, so the gate now covers the
+     * seam as well: a new caller has to be argued for in {@code SERVICE_CALLERS} rather than merely
+     * compiling.
+     */
+    private static final Pattern NOTE_SERVICE = Pattern.compile("\\bAdminPrivateNoteService\\b");
 
     @Test
     void shouldKeepThePrivateNotebookUnreachableOutsideItsOwnPackages() {
@@ -67,8 +90,12 @@ class AdminNoteIsolationArchTest {
                 continue;
             }
             scanned++;
-            if (reachesTheNotebook(SourceFiles.readWithoutComments(file))) {
+            String source = SourceFiles.readWithoutComments(file);
+            if (reachesTheNotebook(source)) {
                 violations.add(relative);
+            } else if (NOTE_SERVICE.matcher(source).find()
+                    && SERVICE_CALLERS.stream().noneMatch(relative::endsWith)) {
+                violations.add(relative + " (calls AdminPrivateNoteService)");
             }
         }
 
@@ -83,7 +110,12 @@ class AdminNoteIsolationArchTest {
             A private note may only be read inside %s. The risk is not a missing role check — it is a \
             field added to a DTO that is already shared with the person the note is about \
             (CalendarRangeResponse goes to the coach AND the client). Serve notes from their own \
-            endpoint instead; then no shared shape and no cache has anything to leak.""".formatted(
+            endpoint instead; then no shared shape and no cache has anything to leak.
+
+            A file listed as "(calls AdminPrivateNoteService)" reached the notebook through its \
+            service rather than its entity. That is a real door — copying a note along with a \
+            duplicated training would leak one person's observation into another person's calendar. \
+            If the call is right, add the file to SERVICE_CALLERS with a sentence saying why.""".formatted(
             violations, OWNERS));
     }
 
@@ -123,6 +155,14 @@ class AdminNoteIsolationArchTest {
             class X { pl.fireacademy.domain.adminnote.AdminPrivateNote n; }
             """));
 
+        // 6. the service seam — the door the entity rule does not cover. This one shipped open:
+        //    copying a note alongside a duplicated training compiled, ran, and leaked one person's
+        //    observation into another's calendar without this gate saying a word.
+        assertEquals(true, reachesTheNotebookService("""
+            import pl.fireacademy.api.admin.note.AdminPrivateNoteService;
+            class X { X(AdminPrivateNoteService notes) {} }
+            """));
+
         // ...and green once each one is taken back out.
         assertEquals(false, reachesTheNotebook("""
             import pl.fireacademy.domain.training.PersonalTraining;
@@ -139,5 +179,9 @@ class AdminNoteIsolationArchTest {
     private static boolean reachesTheNotebook(String source) {
         String code = SourceFiles.stripComments(source);
         return NOTE_TYPE.matcher(code).find() || NOTE_PACKAGE.matcher(code).find();
+    }
+
+    private static boolean reachesTheNotebookService(String source) {
+        return NOTE_SERVICE.matcher(SourceFiles.stripComments(source)).find();
     }
 }
