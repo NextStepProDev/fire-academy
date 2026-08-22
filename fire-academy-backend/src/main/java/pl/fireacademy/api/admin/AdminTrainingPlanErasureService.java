@@ -78,9 +78,11 @@ public class AdminTrainingPlanErasureService {
     /**
      * @param userId whose plan to erase. Works whether or not the flag is still set — an account that
      *               lost its athlete status is exactly the one whose data would otherwise be stranded.
+     * @param actingAdminId only shapes the note count in the answer; the erasure itself is complete
+     *                      regardless of who asks for it.
      */
     @Transactional
-    public ErasedPlan erase(UUID userId) {
+    public ErasedPlan erase(UUID userId, UUID actingAdminId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(msg.get("error.user.not.found")));
 
@@ -89,7 +91,7 @@ public class AdminTrainingPlanErasureService {
         // after this point could find the filenames.
         photos.purgeForAthlete(userId);
 
-        int erasedNotes = notes.purgeForAthlete(userId);
+        int erasedNotes = notes.purgeForAthlete(userId, actingAdminId);
         int erasedTrainings = trainings.deleteAllForAthlete(userId);
         int erasedWeights = weights.deleteAllForAthlete(userId);
         int erasedGoals = goals.deleteAllForAthlete(userId);
