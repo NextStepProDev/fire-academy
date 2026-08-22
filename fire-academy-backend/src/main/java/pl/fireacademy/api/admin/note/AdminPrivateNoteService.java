@@ -156,10 +156,16 @@ public class AdminPrivateNoteService {
      * this package (see the isolation gate), so erasure asks the notebook to empty itself rather than
      * reaching in. Notes on a SLOT or a TERM survive — they are observations about the business, not
      * about the person.
+     *
+     * @return how many of the caller's OWN notes went. Everybody's are deleted — erasure of a
+     *         person's data cannot be selective — but the count must not describe somebody else's
+     *         notebook, or the reply becomes a way to discover that one exists.
      */
     @Transactional
-    public int purgeForAthlete(UUID athleteId) {
-        return notes.deleteAllAboutAthlete(athleteId);
+    public int purgeForAthlete(UUID athleteId, UUID actingAdminId) {
+        int mine = notes.deleteAboutAthleteByAuthor(athleteId, actingAdminId);
+        notes.deleteAllAboutAthlete(athleteId);
+        return mine;
     }
 
     @Transactional(readOnly = true)

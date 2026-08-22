@@ -150,6 +150,17 @@ public interface AdminPrivateNoteRepository extends JpaRepository<AdminPrivateNo
     @Query("DELETE FROM AdminPrivateNote n WHERE n.athlete.id = :athleteId")
     int deleteAllAboutAthlete(@Param("athleteId") UUID athleteId);
 
+    /**
+     * The caller's OWN notes about that athlete, deleted first so the count can be reported back.
+     * <p>
+     * Erasure removes everybody's, but the number that reaches the response must describe only what
+     * the caller wrote — otherwise the reply quietly announces that another admin keeps notes about
+     * this person, and how many.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM AdminPrivateNote n WHERE n.athlete.id = :athleteId AND n.author.id = :authorId")
+    int deleteAboutAthleteByAuthor(@Param("athleteId") UUID athleteId, @Param("authorId") UUID authorId);
+
     // --- markers ---------------------------------------------------------------------------------
     //
     // Identifiers only, never the text. A month at a time answers "is there a note here" and nothing

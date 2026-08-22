@@ -103,7 +103,8 @@ public class AdminUserController {
      * athlete flag is already gone; that account is the one whose data would otherwise be stranded.
      */
     @DeleteMapping("/{id}/training-plan")
-    public AdminTrainingPlanErasureService.ErasedPlan eraseTrainingPlan(@PathVariable UUID id) {
-        return planErasure.erase(id);
+    public AdminTrainingPlanErasureService.ErasedPlan eraseTrainingPlan(@CurrentUserId UUID adminId,
+                                                                        @PathVariable UUID id) {
+        return planErasure.erase(id, adminId);
     }
 }
