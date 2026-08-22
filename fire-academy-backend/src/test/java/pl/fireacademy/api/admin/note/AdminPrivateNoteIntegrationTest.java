@@ -312,6 +312,107 @@ class AdminPrivateNoteIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void shouldReportMarkersForOneAthletesTrainingsAndSessions() throws Exception {
+        // The main path of the markers endpoint, and until now the only one with no test at all:
+        // everything else covered the no-athlete case or an error.
+        String admin = adminToken();
+        flagAthlete();
+        TrainingSlot slot = seedSlot();
+        LocalDate today = LocalDate.now();
+
+        String created = mockMvc.perform(post("/api/admin/personal-trainings?athleteId=" + athleteId())
+                .header("Authorization", "Bearer " + admin)
+                .contentType(APPLICATION_JSON)
+                .content("{\"date\":\"" + today + "\",\"title\":\"Trening\"}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+        String trainingId = com.jayway.jsonpath.JsonPath.read(created, "$.id");
+
+        writeNote("/api/admin/notes/training/" + trainingId, admin, "o treningu", 204);
+        writeNote("/api/admin/notes/session/" + slot.getId()
+            + "?athleteId=" + athleteId() + "&date=" + today, admin, "o zajeciach", 204);
+
+        mockMvc.perform(get("/api/admin/notes/markers?athleteId=" + athleteId()
+                + "&from=" + today + "&to=" + today.plusDays(6))
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trainingIds[0]").value(trainingId))
+            .andExpect(jsonPath("$.sessions[0].slotId").value(slot.getId().toString()))
+            .andExpect(jsonPath("$.sessions[0].date").value(today.toString()));
+    }
+
+    @Test
+    void shouldMarkAMultiDayTermThatMerelyOVERLAPSTheWindow() throws Exception {
+        // "In range" for a term means OVERLAP, not containment — a camp running from before the
+        // window into the middle of it is very much on screen. The COALESCE that makes this work is
+        // easy to write the other way round and nothing else would notice.
+        String admin = adminToken();
+        Event camp = eventRepository.saveAndFlush(new Event(
+            EventCategory.CAMP, "Obóz", LocalDate.now().minusDays(10)));
+        camp.setEndDate(LocalDate.now().minusDays(3));
+        eventRepository.saveAndFlush(camp);
+        writeNote("/api/admin/notes/event/" + camp.getId(), admin, "padał deszcz", 204);
+
+        // Window starts AFTER the camp began and ends after it finished: it overlaps, so it counts.
+        mockMvc.perform(get("/api/admin/notes/markers?from=" + LocalDate.now().minusDays(5)
+                + "&to=" + LocalDate.now())
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.eventIds[0]").value(camp.getId().toString()));
+
+        // A window entirely after the camp must not.
+        mockMvc.perform(get("/api/admin/notes/markers?from=" + LocalDate.now().plusDays(1)
+                + "&to=" + LocalDate.now().plusDays(5))
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.eventIds").isEmpty());
+    }
+
+    // --- what the API refuses -------------------------------------------------------------------
+
+    @Test
+    void shouldRefuseANoteLongerThanTheColumnAndAcceptOneExactlyAtTheLimit() throws Exception {
+        String admin = adminToken();
+        Event event = seedEvent();
+        writeNote("/api/admin/notes/event/" + event.getId(), admin, "x".repeat(4001), 400);
+        assertEquals(0, countNotes());
+
+        writeNote("/api/admin/notes/event/" + event.getId(), admin, "x".repeat(4000), 204);
+        assertEquals(1, countNotes());
+    }
+
+    @Test
+    void shouldTreatASoftDeletedSlotAsAbsent() throws Exception {
+        String admin = adminToken();
+        TrainingSlot slot = seedSlot();
+        slot.setDeletedAt(java.time.Instant.now());
+        trainingSlotRepository.saveAndFlush(slot);
+
+        writeNote("/api/admin/notes/slot/" + slot.getId(), admin, "za pozno", 404);
+    }
+
+    @Test
+    void shouldBumpUpdatedAtWhenTheNoteIsCorrected() throws Exception {
+        String admin = adminToken();
+        Event event = seedEvent();
+        writeNote("/api/admin/notes/event/" + event.getId(), admin, "pierwsza", 204);
+        String first = mockMvc.perform(get("/api/admin/notes/event/" + event.getId())
+                .header("Authorization", "Bearer " + admin))
+            .andReturn().getResponse().getContentAsString();
+
+        Thread.sleep(10);
+        writeNote("/api/admin/notes/event/" + event.getId(), admin, "druga", 204);
+        String second = mockMvc.perform(get("/api/admin/notes/event/" + event.getId())
+                .header("Authorization", "Bearer " + admin))
+            .andReturn().getResponse().getContentAsString();
+
+        // The timestamp comes from the JVM clock, not SQL now(): now() is the transaction start
+        // time, which would freeze this across two writes in one request.
+        String before = com.jayway.jsonpath.JsonPath.read(first, "$.updatedAt");
+        String after = com.jayway.jsonpath.JsonPath.read(second, "$.updatedAt");
+        org.junit.jupiter.api.Assertions.assertNotEquals(before, after,
+            "a corrected note kept its old updatedAt");
+    }
+
     // --- cascades --------------------------------------------------------------------------------
 
     @Test
@@ -334,6 +435,41 @@ class AdminPrivateNoteIntegrationTest extends BaseIntegrationTest {
         UUID otherId = userRepository.findByEmail("other-admin@fireacademy.test").orElseThrow().getId();
         jdbc.update("DELETE FROM users WHERE id = ?", otherId);
         assertEquals(0, countNotes());
+    }
+
+    @Test
+    void shouldTakeASlotNoteDownWithItsSlot() throws Exception {
+        String admin = adminToken();
+        TrainingSlot slot = seedSlot();
+        writeNote("/api/admin/notes/slot/" + slot.getId(), admin, "grupa za duza", 204);
+        assertEquals(1, countNotes());
+
+        jdbc.update("DELETE FROM training_slots WHERE id = ?", slot.getId());
+        assertEquals(0, countNotes());
+    }
+
+    @Test
+    void shouldKeepASessionNoteWhenTheSessionItselfIsCancelled() throws Exception {
+        // A cancelled session can be restored, so deleting the note here would destroy the coach's
+        // text over a state that reverts. The note goes quiet and comes back with the session.
+        String admin = adminToken();
+        flagAthlete();
+        TrainingSlot slot = seedSlot();
+        LocalDate date = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.WEDNESDAY);
+        writeNote("/api/admin/notes/session/" + slot.getId()
+            + "?athleteId=" + athleteId() + "&date=" + date, admin, "uwaga", 204);
+
+        mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(APPLICATION_JSON)
+                .content("{\"sessionDate\":\"" + date + "\"}"))
+            .andExpect(status().is2xxSuccessful());
+
+        assertEquals(1, countNotes(), "cancelling a session destroyed the note about it");
+        mockMvc.perform(get("/api/admin/notes/session/" + slot.getId()
+                + "?athleteId=" + athleteId() + "&date=" + date)
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.body").value("uwaga"));
     }
 
     @Test
