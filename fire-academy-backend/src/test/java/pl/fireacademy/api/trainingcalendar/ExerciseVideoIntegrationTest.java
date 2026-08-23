@@ -254,6 +254,96 @@ class ExerciseVideoIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void shouldIgnoreMaterialsAClientSendsWithTheirOwnTraining() throws Exception {
+        // Hiding the picker kept the rule in the form alone: a request built by hand named a clip
+        // by id and the attachment layer looked it up without asking who was calling. Nothing leaks
+        // that way — a client can only name a clip already shown to them — but a clip they pin can
+        // no longer be deleted from the library, and the coach cannot see where it is being used.
+        String admin = adminToken();
+        String videoId = addVideo(admin, "Przysiad", "https://youtu.be/" + ID);
+        UUID clientId = flagClient(admin);
+        String client = createUserAndGetToken("client@fireacademy.test", "Ala", "Testowa", UserRole.USER);
+
+        mockMvc.perform(post("/api/user/my-training/trainings")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sam sobie","attachments":[
+                              {"kind":"VIDEO","videoId":"%s"},
+                              {"kind":"LINK","url":"https://example.test/plan","label":"Rozpiska"}]}"""
+                                .formatted(TOMORROW, videoId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attachments.length()").value(0));
+
+        // Still unused, so the coach can retire it
+        mockMvc.perform(delete("/api/admin/exercise-videos/" + videoId)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNoContent());
+        // The client's own entry is otherwise untouched — only the materials were dropped
+        mockMvc.perform(get("/api/admin/personal-trainings?athleteId=" + clientId
+                        + "&from=" + TOMORROW + "&to=" + TOMORROW)
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.trainings[0].title").value("Sam sobie"));
+    }
+
+    @Test
+    void shouldLeaveTheCoachsMaterialsAloneWhenTheClientEditsTheTrainingAroundThem() throws Exception {
+        // Why the client's list is IGNORED rather than refused. The form always sends the whole
+        // list, hidden section or not, so re-dating a training the coach had attached a clip to
+        // sends that clip's id straight back; an error there would break an edit that has nothing
+        // to do with materials. Neither may the client clear them by sending an empty list.
+        String admin = adminToken();
+        String videoId = addVideo(admin, "Przysiad", "https://youtu.be/" + ID);
+        UUID clientId = flagClient(admin);
+        String client = createUserAndGetToken("client@fireacademy.test", "Ala", "Testowa", UserRole.USER);
+
+        String created = mockMvc.perform(post("/api/user/my-training/trainings")
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sam sobie"}""".formatted(TOMORROW)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String trainingId = JsonPath.read(created, "$.id");
+        int version = JsonPath.read(created, "$.version");
+
+        // The coach may reshape anything on this calendar, including what the client logged
+        String equipped = mockMvc.perform(put("/api/admin/personal-trainings/" + trainingId)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sam sobie","version":%d,
+                             "attachments":[{"kind":"VIDEO","videoId":"%s"}]}"""
+                                .formatted(TOMORROW, version, videoId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attachments.length()").value(1))
+                .andReturn().getResponse().getContentAsString();
+        int equippedVersion = JsonPath.read(equipped, "$.version");
+
+        String moved = mockMvc.perform(put("/api/user/my-training/trainings/" + trainingId)
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sam sobie","version":%d,
+                             "attachments":[{"kind":"VIDEO","videoId":"%s"}]}"""
+                                .formatted(TOMORROW.plusDays(1), equippedVersion, videoId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attachments.length()").value(1))
+                .andExpect(jsonPath("$.attachments[0].videoName").value("Przysiad"))
+                .andReturn().getResponse().getContentAsString();
+        int movedVersion = JsonPath.read(moved, "$.version");
+
+        mockMvc.perform(put("/api/user/my-training/trainings/" + trainingId)
+                        .header("Authorization", "Bearer " + client)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                            {"date":"%s","title":"Sam sobie","version":%d,"attachments":[]}"""
+                                .formatted(TOMORROW.plusDays(1), movedVersion)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attachments.length()").value(1));
+    }
+
+    @Test
     void shouldKeepTemplateEditsFromRewritingTrainingsAlreadyHandedOut() throws Exception {
         // A template is a starting point, not a live link: a session someone already did must not
         // change because the coach renamed the template afterwards.

@@ -124,7 +124,7 @@ public class PersonalTrainingService {
         training.edit(request.date(), request.startTime(), request.endTime(),
                 request.title().trim(), Strings.trimToNull(request.description()), request.targetCalories(), byAdmin);
         PersonalTraining saved = repository.saveAndFlush(training);
-        attachments.applyToTraining(saved, request.attachments());
+        attachments.applyToTraining(saved, materialsFrom(request.attachments(), byAdmin));
         return single(saved);
     }
 
@@ -142,7 +142,7 @@ public class PersonalTrainingService {
         requireCompletedStaysInPast(training);
         PersonalTraining saved = save(training);
         // null here means "leave materials alone" — see AttachmentService for why that matters.
-        attachments.applyToTraining(saved, request.attachments());
+        attachments.applyToTraining(saved, materialsFrom(request.attachments(), viewerIsAdmin));
         return single(saved);
     }
 
@@ -370,6 +370,29 @@ public class PersonalTrainingService {
         if (expected == null || training.getVersion() != expected) {
             throw new IllegalStateException(msg.get("personaltraining.version.conflict"));
         }
+    }
+
+    /**
+     * Materials are the coach's to set, so a client's save never touches them.
+     * <p>
+     * The library belongs to the coach and the client has no screen for it — no picker, no link
+     * field, nothing. The rule therefore lived only in the form, and a request built by hand would
+     * have been accepted: {@code AttachmentService} looks a clip up by id without asking who is
+     * calling. Nothing leaks that way (a client can only name a clip already shown to them, and
+     * there is no listing or search on their side of the API), but a clip they pin can no longer be
+     * removed from the library — deletion is refused for anything in use, and the coach cannot see
+     * where it is being used.
+     * <p>
+     * Ignoring the field rather than rejecting it is what keeps the normal case working. The form
+     * always sends the full list, even with the section hidden, so a client re-dating a training the
+     * coach had attached a clip to would send that clip's id straight back; an error there would
+     * break an edit that had nothing to do with materials. Answering {@code null} means "leave them
+     * alone", which is exactly right for both shapes: a client's new entry has none to begin with,
+     * and an existing one keeps whatever the coach put there.
+     */
+    private @Nullable List<AttachmentRequest> materialsFrom(@Nullable List<AttachmentRequest> requested,
+                                                            boolean viewerIsAdmin) {
+        return viewerIsAdmin ? requested : null;
     }
 
     /**
