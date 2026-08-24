@@ -8,7 +8,7 @@ import { ApiError } from '../../utils/errors'
 import { VideoPickerModal } from '../exercise-videos/VideoPickerModal'
 import { formatLongDate } from '../../utils/calendarRange'
 import type { AttachmentKind, CreateTrainingBody, PersonalTraining, TrainingKind } from '../../types'
-import { inputClass } from '../../utils/fieldClass'
+import { inputClass, textareaClass } from '../../utils/fieldClass'
 
 /** Three materials fit on a card without turning it into a reading list. */
 const MAX_MATERIALS = 3
@@ -200,7 +200,7 @@ export function TrainingFormModal({
           </label>
           <textarea
             id="training-description"
-            className={`${inputClass} min-h-24`}
+            className={`${textareaClass} min-h-48`}
             value={description}
             maxLength={2000}
             onChange={e => setDescription(e.target.value)}
