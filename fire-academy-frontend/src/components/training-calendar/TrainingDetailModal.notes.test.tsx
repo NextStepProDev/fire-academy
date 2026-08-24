@@ -13,7 +13,7 @@ vi.mock('../../api/notes', () => ({
 }))
 
 const tMap: Record<string, string> = {
-  'notes.title': 'Moja notatka',
+  'notes.title': 'Prywatna notatka',
   'notes.add': 'Dodaj notatkę',
   'detail.title': 'Szczegóły',
 }
@@ -64,12 +64,12 @@ function renderModal(role: 'coach' | 'athlete') {
 describe('TrainingDetailModal — the private note section', () => {
   it('shows it to the coach', async () => {
     renderModal('coach')
-    expect(await screen.findByText('Moja notatka')).toBeInTheDocument()
+    expect(await screen.findByText('Prywatna notatka')).toBeInTheDocument()
   })
 
   it('never renders it for the athlete', () => {
     renderModal('athlete')
-    expect(screen.queryByText('Moja notatka')).not.toBeInTheDocument()
+    expect(screen.queryByText('Prywatna notatka')).not.toBeInTheDocument()
     // Not even the empty-state affordance: the athlete must not learn the notebook exists.
     expect(screen.queryByText('Dodaj notatkę')).not.toBeInTheDocument()
   })

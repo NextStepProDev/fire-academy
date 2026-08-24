@@ -11,7 +11,7 @@ const session: RecurringSession = {
 const labels = {
   add: 'Dodaj', copy: 'Kopiuj', cut: 'Wytnij', pasteHere: 'Wklej tutaj', unread: 'Nowe',
   comments: 'Komentarze', recurring: 'Grupowe', task: 'Zadanie', calories: 'kcal',
-  openSession: 'Moja notatka', note: 'Jest notatka',
+  openSession: 'Prywatna notatka', note: 'Jest notatka',
 }
 
 function renderColumn(pasteArmed: boolean) {
@@ -30,13 +30,13 @@ function renderColumn(pasteArmed: boolean) {
 describe('DayColumn — group session vs the clipboard', () => {
   it('offers the note only when the clipboard is idle', () => {
     renderColumn(false)
-    expect(screen.getByRole('button', { name: 'Moja notatka' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prywatna notatka' })).toBeInTheDocument()
   })
 
   it('withholds it while the clipboard is armed', () => {
     // With the clipboard armed the whole day is the drop target. A live button on the group tile
     // would open the note AND bubble the click into a paste — both from one tap.
     renderColumn(true)
-    expect(screen.queryByRole('button', { name: 'Moja notatka' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Prywatna notatka' })).not.toBeInTheDocument()
   })
 })

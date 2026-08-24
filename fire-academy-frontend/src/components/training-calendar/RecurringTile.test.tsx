@@ -24,16 +24,16 @@ describe('RecurringTile', () => {
 
   it('becomes openable for the coach, who is reaching their own notebook', () => {
     render(<RecurringTile session={session} label="Zajęcia grupowe"
-      onOpen={() => {}} openLabel="Moja notatka" />)
+      onOpen={() => {}} openLabel="Prywatna notatka" />)
 
-    expect(screen.getByRole('button', { name: 'Moja notatka' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prywatna notatka' })).toBeInTheDocument()
   })
 
   it('goes inert while the clipboard is armed, so one tap cannot both paste and open a note', () => {
     // The armed day is the drop target and the training cards already go inert for this reason. A
     // live button here would fire its own onClick AND bubble the click to the day, doing both.
     render(<RecurringTile session={session} label="Zajęcia grupowe"
-      onOpen={undefined} openLabel="Moja notatka" />)
+      onOpen={undefined} openLabel="Prywatna notatka" />)
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })

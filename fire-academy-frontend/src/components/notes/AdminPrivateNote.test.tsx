@@ -11,7 +11,7 @@ vi.mock('../../api/notes', async () => {
 })
 
 const tMap: Record<string, string> = {
-  'notes.title': 'Moja notatka',
+  'notes.title': 'Prywatna notatka',
   'notes.add': 'Dodaj notatkę',
   'notes.edit': 'Edytuj notatkę',
   'notes.delete': 'Usuń notatkę',
