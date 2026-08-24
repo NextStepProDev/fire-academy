@@ -6,11 +6,13 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.pub.PublicDtos.EventCard;
 import pl.fireacademy.api.pub.PublicDtos.EventTypeCard;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.event.EventCategory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
@@ -75,7 +77,13 @@ public class OgController {
                 if (et.thumbnailUrl() != null) {
                     imageUrl = siteUrl + et.thumbnailUrl();
                 }
-            } catch (IllegalArgumentException ignored) {}
+            } catch (NotFoundException ignored) {
+                // The term is live but its type has been switched off, which is an ordinary thing for
+                // the organizer to do and no reason to answer a crawler with 404. Catching
+                // IllegalArgumentException here caught nothing at all -- PublicService throws
+                // NotFoundException -- so sharing such a term produced no preview whatsoever.
+                // Falling back to the default artwork is the whole point of this block.
+            }
         }
 
         var sb = new StringBuilder();
@@ -112,7 +120,8 @@ public class OgController {
                         escapeJson(name), escapeJson(instructor.firstName()), escapeJson(instructor.lastName()),
                         instructor.bio() != null ? ",\"description\":\"" + escapeJson(truncate(instructor.bio(), 200)) + "\"" : "",
                         siteUrl, pageUrl);
-        return ogResponse(name + " — Fire Academy", truncate(instructor.bio(), 200), imageUrl, pageUrl, jsonLd);
+        // No brand suffix here: ogResponse appends " | Fire Academy" to every title it renders.
+        return ogResponse(name, truncate(instructor.bio(), 200), imageUrl, pageUrl, jsonLd);
     }
 
     @GetMapping("/")
@@ -122,7 +131,7 @@ public class OgController {
                 [{"@context":"https://schema.org","@type":"SportsActivityLocation","name":"Fire Academy","description":"Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.","url":"%s","telephone":"+48534823667","address":{"@type":"PostalAddress","addressLocality":"Katowice","addressRegion":"śląskie","addressCountry":"PL"},"areaServed":["Katowice","Podlesie","Piotrowice","Bażantowo"],"keywords":"sztuki walki, MMA, kickboxing, boks, zapasy, trening personalny, przygotowanie motoryczne, Katowice"},{"@context":"https://schema.org","@type":"WebSite","name":"Fire Academy","url":"%s","inLanguage":"pl-PL"}]"""
                 .formatted(siteUrl, siteUrl);
         return ogResponse(
-                "Szkoła sztuk walki Katowice — MMA, kickboxing, boks | Fire Academy",
+                "Szkoła sztuk walki Katowice — MMA, kickboxing, boks",
                 "Szkoła sztuk walki w Katowicach — MMA, kickboxing, boks, zapasy i przygotowanie motoryczne. Trening personalny w małych grupach, realne efekty.",
                 siteUrl + "/og-default.png",
                 siteUrl,
@@ -158,8 +167,15 @@ public class OgController {
                 </html>
                 """.formatted(safeDesc, pageUrl, safeTitle, safeDesc, imageUrl, pageUrl, jsonLdTag, pageUrl, safeTitle, pageUrl);
 
+        // Charset stated in the header, not only in the <meta> tag. Both work — HTML5 falls back to
+        // the meta when the header is silent, and it sits in the first sixty bytes here, which is why
+        // Polish titles have always rendered correctly in shared previews. But "correct because the
+        // parser guesses right" is one fallback away from wrong, and a response that does not
+        // describe its own bytes reads as ISO-8859-1 to everything that goes by the header alone:
+        // curl, logs, and MockMvc — where a test asserting Polish output fails while production is
+        // fine, which is a trap rather than a bug report.
         return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_HTML)
+                .contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8))
                 .body(html);
     }
 

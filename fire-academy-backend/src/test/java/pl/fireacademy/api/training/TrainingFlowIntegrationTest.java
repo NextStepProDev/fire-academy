@@ -28,6 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -125,6 +126,75 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$.eventTypeName").value("Trening personalny"))
             .andExpect(jsonPath("$.maxParticipants").value(6))
             .andExpect(jsonPath("$.enrolledThisMonth").value(0));
+    }
+
+    /**
+     * A slipped digit in the end time — 08:00 typed for 18:00 — used to save without a word.
+     * <p>
+     * Nothing downstream would have noticed: the bill counts weekday occurrences times the price and
+     * never reads the hours. The wrong time simply gets displayed — on the public catalogue card, the
+     * roster, the group-session overlay, and in every e-mail to the people subscribed to that slot.
+     * The 1-on-1 plan has had this check all along; group slots did not.
+     */
+    @Test
+    void shouldRefuseASlotEndingBeforeItStarts() throws Exception {
+        EventType et = seedType();
+        for (String endTime : List.of("08:00", "07:30")) {   // equal to the start, and before it
+            mockMvc.perform(post("/api/admin/training-slots")
+                    .header("Authorization", "Bearer " + adminToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                        {"eventTypeId":"%s","dayOfWeek":1,"startTime":"08:00","endTime":"%s","maxParticipants":6,"price":90}
+                        """.formatted(et.getId(), endTime)))
+                .andExpect(status().isBadRequest());
+        }
+        // Nothing reached the catalogue.
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    /** Same rule on the other two ways in, which do not share a code path with create. */
+    @Test
+    void shouldRefuseABackwardsEndTimeOnBatchAndOnUpdateToo() throws Exception {
+        EventType et = seedType();
+        mockMvc.perform(post("/api/admin/training-slots/batch")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"eventTypeId":"%s","slots":[
+                      {"dayOfWeek":1,"startTime":"08:00","endTime":"09:00","maxParticipants":6,"price":90},
+                      {"dayOfWeek":3,"startTime":"18:00","endTime":"08:00","maxParticipants":8,"price":100}
+                    ]}
+                    """.formatted(et.getId())))
+            .andExpect(status().isBadRequest());
+        // The whole batch is one transaction, so the good row must not survive the bad one.
+        mockMvc.perform(get("/api/public/training-slots").param("month", CURRENT))
+            .andExpect(jsonPath("$.length()").value(0));
+
+        TrainingSlot slot = seedSlot(8);
+        mockMvc.perform(put("/api/admin/training-slots/" + slot.getId())
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"eventTypeId":"%s","dayOfWeek":1,"startTime":"18:00","endTime":"08:00","maxParticipants":8,"price":90}
+                    """.formatted(slot.getEventType().getId())))
+            .andExpect(status().isBadRequest());
+        // Rejected as a whole: the hour it kept is the one it had, not half of the attempted change.
+        assertEquals(LocalTime.of(8, 0),
+                trainingSlotRepository.findById(slot.getId()).orElseThrow().getStartTime());
+    }
+
+    /** An open-ended slot is still legal — a null end time means "no end declared", as it always did. */
+    @Test
+    void shouldStillAcceptASlotWithNoEndTime() throws Exception {
+        EventType et = seedType();
+        mockMvc.perform(post("/api/admin/training-slots")
+                .header("Authorization", "Bearer " + adminToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"eventTypeId":"%s","dayOfWeek":1,"startTime":"08:00","maxParticipants":6,"price":90}
+                    """.formatted(et.getId())))
+            .andExpect(status().isCreated());
     }
 
     @Test
@@ -334,6 +404,66 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isNoContent());
         verify(trainingMail).sendAdminRemoved(eq(USER_EMAIL), anyString(), any());
+    }
+
+    /**
+     * Deleting an account takes its subscriptions with it — and the refund ledger hangs off those
+     * rows, so money paid ahead ends up owed with nothing left to record it. `cancel` refuses to
+     * leave exactly this behind and the organizer's own removal registers refunds for it; the
+     * account-deletion path could do neither and simply dropped the obligation in silence.
+     */
+    @Test
+    void shouldTellTheOrganizerWhatIsLeftUnsettledWhenAPaidUpAccountIsDeleted() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+        String admin = adminToken();
+        UUID userId = regularUserId();
+
+        mockMvc.perform(put("/api/admin/training-enrollments/" + enrollmentId + "/payment")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"month\":\"" + CURRENT + "\",\"paid\":true}"))
+            .andExpect(status().isNoContent());
+
+        // Read before the account goes: the payment row cascades away with the subscription, which
+        // is precisely why this obligation needs to leave the database as a message.
+        BigDecimal frozen = trainingPaymentRepository
+                .findPaidAmount(enrollmentId, CURRENT).orElseThrow();
+
+        mockMvc.perform(delete("/api/admin/users/" + userId)
+                .header("Authorization", "Bearer " + admin)
+                .param("notify", "false"))
+            .andExpect(status().isOk());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TrainingMailService.UnsettledLine>> lines =
+                ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<BigDecimal> total = ArgumentCaptor.forClass(BigDecimal.class);
+        verify(trainingMail).sendAdminAccountDeletionUnsettled(
+                anyString(), eq(USER_EMAIL), lines.capture(), total.capture());
+
+        assertEquals(1, lines.getValue().size());
+        assertEquals("Trening personalny", lines.getValue().getFirst().trainingName());
+        // The frozen amount, not a fresh estimate: it is what was actually collected.
+        assertEquals(1, frozen.signum());
+        assertEquals(0, total.getValue().compareTo(frozen));
+    }
+
+    /** The other half: an ordinary deletion must stay silent, or the alert stops meaning anything. */
+    @Test
+    void shouldNotRaiseAnUnsettledAlertWhenNothingWasPaidAhead() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID userId = regularUserId();
+
+        mockMvc.perform(delete("/api/admin/users/" + userId)
+                .header("Authorization", "Bearer " + adminToken())
+                .param("notify", "false"))
+            .andExpect(status().isOk());
+
+        verify(trainingMail, never()).sendAdminAccountDeletionUnsettled(
+                anyString(), anyString(), anyList(), any());
     }
 
     @Test

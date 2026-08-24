@@ -32,7 +32,7 @@ export function AdminPrivateNote({ anchor }: { anchor: NoteAnchor }) {
   const [clipped, setClipped] = useState(false)
   const previewRef = useRef<HTMLParagraphElement>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: noteKey(anchor),
     queryFn: () => notesApi.get(anchor),
     // Not 0. "No cache" here means the author sees their own save at once, and invalidation below
@@ -42,6 +42,14 @@ export function AdminPrivateNote({ anchor }: { anchor: NoteAnchor }) {
   })
 
   const saved = data?.body ?? ''
+
+  /**
+   * A read that failed with nothing to fall back on. Narrower than `isError` on purpose: when a
+   * background refetch fails, React Query reports an error AND keeps the last good note, and hiding
+   * a note we actually hold would be its own kind of wrong. Only the case where the stored text is
+   * genuinely unknown blocks the editor.
+   */
+  const loadFailed = isError && data === undefined
 
   // `draft` is seeded when edit mode opens, never synced from an effect: outside edit mode the
   // preview reads `saved` directly, so there is nothing to keep in step. Hooks below stay above
@@ -90,6 +98,21 @@ export function AdminPrivateNote({ anchor }: { anchor: NoteAnchor }) {
 
       {isLoading ? (
         <p className="text-sm text-surface-500">{t('notes.loading')}</p>
+      ) : loadFailed ? (
+        /*
+         * A failed read must NOT fall through to the "add a note" state. That state offers an empty
+         * editor, and saving from it goes through the same upsert as an edit — so a note that failed
+         * to load would be silently replaced by whatever was typed over it. The only honest answer
+         * while the stored text is unknown is to say so and offer another try.
+         */
+        <div className="space-y-2">
+          <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+            {t('notes.loadError')}
+          </p>
+          <Button variant="ghost" size="sm" loading={isFetching} onClick={() => { void refetch() }}>
+            {t('notes.retry')}
+          </Button>
+        </div>
       ) : editing ? (
         <div className="space-y-2">
           <textarea

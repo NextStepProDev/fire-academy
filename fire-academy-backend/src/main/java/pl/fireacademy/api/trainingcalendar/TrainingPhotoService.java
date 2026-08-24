@@ -194,17 +194,6 @@ public class TrainingPhotoService {
     }
 
     /**
-     * Removes every photo tied to an account about to be deleted — both the ones on that person's
-     * own trainings and the ones they wrote in someone else's thread.
-     * <p>
-     * The two halves end differently, which is why the rows are cleared and not just the files.
-     * Comments on the person's own trainings vanish with them through the cascade. Comments they
-     * wrote in someone ELSE's plan survive: {@code author_id} is only set to NULL, so the text stays
-     * and reads as "Konto usunięte". Unlinking the file without clearing {@code photo_filename}
-     * would leave those rows pointing at nothing, and the other side would be looking at a broken
-     * frame for as long as the comment exists.
-     */
-    /**
      * Unlinks every photo on one athlete's trainings before that plan is erased.
      * <p>
      * Follows the CALENDAR, not authorship: the coach's photos live on the athlete's trainings too,
@@ -216,6 +205,17 @@ public class TrainingPhotoService {
         deleteAll(commentRepository.findPhotoFilenamesForAthlete(athleteId));
     }
 
+    /**
+     * Removes every photo tied to an account about to be deleted — both the ones on that person's
+     * own trainings and the ones they wrote in someone else's thread.
+     * <p>
+     * The two halves end differently, which is why the rows are cleared and not just the files.
+     * Comments on the person's own trainings vanish with them through the cascade. Comments they
+     * wrote in someone ELSE's plan survive: {@code author_id} is only set to NULL, so the text stays
+     * and reads as "Konto usunięte". Unlinking the file without clearing {@code photo_filename}
+     * would leave those rows pointing at nothing, and the other side would be looking at a broken
+     * frame for as long as the comment exists.
+     */
     @Transactional
     public void purgeForUser(UUID userId) {
         detachAll(commentRepository.findPhotosForUser(userId));

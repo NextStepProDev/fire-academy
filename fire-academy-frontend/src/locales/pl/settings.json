@@ -71,6 +71,7 @@
     "title": "Strefa niebezpieczna",
     "deleteAccount": "Usuń konto",
     "deleteConfirm": "Czy na pewno chcesz usunąć swoje konto? Ta operacja jest nieodwracalna.",
+    "deleteTrainingsNote": "Jeśli masz zapisy na treningi cykliczne, znikną razem z kontem. Opłacone z góry miesiące i ewentualna nadpłata nie przepadają — organizator dostanie o nich wiadomość i rozliczy je z Tobą.",
     "passwordRequired": "Podaj hasło aby potwierdzić",
     "deleted": "Konto zostało usunięte"
   }
