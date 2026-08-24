@@ -132,8 +132,11 @@ export function WeightPanel({ athleteId }: { athleteId: string | null }) {
               {Number(data.currentTrendKg).toFixed(1)} kg
             </span>
             {change != null && change !== 0 && (
-              <span className={clsx('inline-flex items-center gap-0.5 text-xs',
-                change < 0 ? 'text-surface-400' : 'text-surface-400')}>
+              /* One colour whichever way the trend went, and deliberately a neutral one: green for
+                 down and red for up would make the panel cheer a loss and scold a gain, which is a
+                 verdict on somebody's week rather than a number. Same reasoning as the coach-only
+                 rapid-loss warning below. The arrow and the sign already say the direction. */
+              <span className="inline-flex items-center gap-0.5 text-xs text-surface-400">
                 {change < 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
                 <span className="[font-variant-numeric:tabular-nums]">
                   {change > 0 ? '+' : ''}{change.toFixed(1)}%

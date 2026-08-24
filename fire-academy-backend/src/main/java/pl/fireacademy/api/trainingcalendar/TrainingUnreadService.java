@@ -24,6 +24,7 @@ import java.util.UUID;
  *   <li>a training the coach created or edited</li>
  *   <li>a comment written by the coach</li>
  *   <li>a future training the coach deleted</li>
+ *   <li>a goal the coach set — the one source with no counterpart below</li>
  * </ol>
  *
  * <p><b>News for the coach (from the client):</b>

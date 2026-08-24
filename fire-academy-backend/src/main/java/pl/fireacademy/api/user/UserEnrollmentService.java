@@ -78,7 +78,7 @@ public class UserEnrollmentService {
             throw new IllegalStateException(msg.get("enrollment.event.inactive"));
         }
 
-        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(event.startDateTime())) {
+        if (cutoffPassed(event)) {
             throw new IllegalStateException(msg.get("enrollment.too.late"));
         }
 
@@ -123,7 +123,7 @@ public class UserEnrollmentService {
                 .orElseThrow(() -> new NotFoundException(msg.get("enrollment.not.found")));
 
         Event event = enrollment.getEvent();
-        if (LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(event.startDateTime())) {
+        if (cutoffPassed(event)) {
             throw new IllegalStateException(msg.get("enrollment.cancel.too.late"));
         }
 
@@ -142,9 +142,22 @@ public class UserEnrollmentService {
                 event.getCategory(), event.getId().toString());
     }
 
+    /**
+     * Whether the 24-hour window before the event has closed.
+     * <p>
+     * One expression for the rule, because the enforcing side and the displayed side used to spell
+     * it differently — {@code isAfter} in the guard, {@code isBefore} in the flag driving the
+     * button. They agree everywhere except at the exact boundary, where the server allowed a
+     * cancellation the page had already hidden the button for. Nobody would ever notice, and that is
+     * the point: two spellings of one rule drift, and this one had already drifted by a hair.
+     */
+    private static boolean cutoffPassed(Event event) {
+        return LocalDateTime.now().plusHours(CUTOFF_HOURS).isAfter(event.startDateTime());
+    }
+
     private MyEnrollmentResponse toResponse(Enrollment e, boolean past) {
         Event event = e.getEvent();
-        boolean canCancel = !past && LocalDateTime.now().plusHours(CUTOFF_HOURS).isBefore(event.startDateTime());
+        boolean canCancel = !past && !cutoffPassed(event);
         return new MyEnrollmentResponse(
                 e.getId(), event.getId(), event.getDisplayName(), event.getCategory(),
                 event.getStartDate(), event.getEndDate(), event.getStartTime(), event.getEndTime(),
