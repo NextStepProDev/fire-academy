@@ -32,6 +32,20 @@ public interface TrainingPaymentRepository extends JpaRepository<TrainingPayment
     @Query("SELECT p.yearMonth FROM TrainingPayment p WHERE p.enrollment.id = :enrollmentId")
     List<String> findPaidMonths(@Param("enrollmentId") UUID enrollmentId);
 
+    /**
+     * The frozen NET of one paid month, as a value rather than as an entity.
+     * <p>
+     * A projection on purpose: account deletion reads this and then deletes the subscription, and a
+     * TrainingPayment loaded into the persistence context would still point at the removed row at
+     * the next flush — Hibernate rejects that outright ("references an unsaved transient instance").
+     * Null both when the month is unpaid and when the row predates V26, which stored no amount;
+     * the caller tells them apart by whether the month is in {@link #findPaidMonths}.
+     */
+    @Query("SELECT p.amount FROM TrainingPayment p"
+            + " WHERE p.enrollment.id = :enrollmentId AND p.yearMonth = :month")
+    Optional<BigDecimal> findPaidAmount(@Param("enrollmentId") UUID enrollmentId,
+                                        @Param("month") String month);
+
     /** Total surplus already consumed by this subscription's paid months. */
     @Query("SELECT COALESCE(SUM(p.creditApplied), 0) FROM TrainingPayment p WHERE p.enrollment.id = :enrollmentId")
     BigDecimal sumCreditAppliedForEnrollment(@Param("enrollmentId") UUID enrollmentId);

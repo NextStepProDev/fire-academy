@@ -377,6 +377,13 @@ export function SettingsPage() {
         ) : (
           <div className="space-y-4">
             <p className="text-surface-300 text-sm">{t('danger.deleteConfirm')}</p>
+            {/*
+              * Said before the click, because after it there is nobody left to tell. Deleting the
+              * account deletes its group subscriptions, and the refund ledger hangs off those rows —
+              * so a prepaid month has no record left in the panel. The organizer gets a mail instead;
+              * this is the half of that promise the person leaving needs to hear.
+              */}
+            <p className="text-surface-400 text-sm">{t('danger.deleteTrainingsNote')}</p>
             {user?.hasPassword && (
               <div>
                 <label className="block text-sm font-medium text-surface-300 mb-1">{t('danger.passwordRequired')}</label>
@@ -388,7 +395,7 @@ export function SettingsPage() {
                 {t('danger.deleteAccount')}
               </Button>
               <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
+                {t('profile.cancel')}
               </Button>
             </div>
           </div>

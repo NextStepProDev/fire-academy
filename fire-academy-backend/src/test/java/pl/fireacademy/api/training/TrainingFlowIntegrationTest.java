@@ -28,6 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -334,6 +335,66 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + adminToken()))
             .andExpect(status().isNoContent());
         verify(trainingMail).sendAdminRemoved(eq(USER_EMAIL), anyString(), any());
+    }
+
+    /**
+     * Deleting an account takes its subscriptions with it — and the refund ledger hangs off those
+     * rows, so money paid ahead ends up owed with nothing left to record it. `cancel` refuses to
+     * leave exactly this behind and the organizer's own removal registers refunds for it; the
+     * account-deletion path could do neither and simply dropped the obligation in silence.
+     */
+    @Test
+    void shouldTellTheOrganizerWhatIsLeftUnsettledWhenAPaidUpAccountIsDeleted() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
+        String admin = adminToken();
+        UUID userId = regularUserId();
+
+        mockMvc.perform(put("/api/admin/training-enrollments/" + enrollmentId + "/payment")
+                .header("Authorization", "Bearer " + admin)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"month\":\"" + CURRENT + "\",\"paid\":true}"))
+            .andExpect(status().isNoContent());
+
+        // Read before the account goes: the payment row cascades away with the subscription, which
+        // is precisely why this obligation needs to leave the database as a message.
+        BigDecimal frozen = trainingPaymentRepository
+                .findPaidAmount(enrollmentId, CURRENT).orElseThrow();
+
+        mockMvc.perform(delete("/api/admin/users/" + userId)
+                .header("Authorization", "Bearer " + admin)
+                .param("notify", "false"))
+            .andExpect(status().isOk());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TrainingMailService.UnsettledLine>> lines =
+                ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<BigDecimal> total = ArgumentCaptor.forClass(BigDecimal.class);
+        verify(trainingMail).sendAdminAccountDeletionUnsettled(
+                anyString(), eq(USER_EMAIL), lines.capture(), total.capture());
+
+        assertEquals(1, lines.getValue().size());
+        assertEquals("Trening personalny", lines.getValue().getFirst().trainingName());
+        // The frozen amount, not a fresh estimate: it is what was actually collected.
+        assertEquals(1, frozen.signum());
+        assertEquals(0, total.getValue().compareTo(frozen));
+    }
+
+    /** The other half: an ordinary deletion must stay silent, or the alert stops meaning anything. */
+    @Test
+    void shouldNotRaiseAnUnsettledAlertWhenNothingWasPaidAhead() throws Exception {
+        TrainingSlot slot = seedSlot(8);
+        enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
+        UUID userId = regularUserId();
+
+        mockMvc.perform(delete("/api/admin/users/" + userId)
+                .header("Authorization", "Bearer " + adminToken())
+                .param("notify", "false"))
+            .andExpect(status().isOk());
+
+        verify(trainingMail, never()).sendAdminAccountDeletionUnsettled(
+                anyString(), anyString(), anyList(), any());
     }
 
     @Test

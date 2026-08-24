@@ -23,6 +23,7 @@ import pl.fireacademy.infrastructure.i18n.MessageService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -241,15 +242,77 @@ public class TrainingEnrollmentService {
     public void closeSubscriptionsBeforeAccountDeletion(UUID userId) {
         var current = YearMonth.now();
         var enrollments = enrollmentRepository.findActiveByUser(userId, current.toString());
+        if (enrollments.isEmpty()) {
+            return;
+        }
+        var user = enrollments.getFirst().getUser();
+        var unsettled = new ArrayList<TrainingMailService.UnsettledLine>();
+        var owed = BigDecimal.ZERO;
+
         for (var te : enrollments) {
-            var user = te.getUser();
             var slot = te.getSlot();
             long takenAfter = Math.max(0, enrollmentRepository.countCovering(slot.getId(), current.toString()) - 1);
             trainingMail.sendAdminEnrollmentNotification(false,
                     user.getFirstName() + " " + user.getLastName(), user.getEmail(), slotInfo(slot),
                     periodLabel(te.getStartMonth(), te.getEndMonth()), takenAfter, slot.getMaxParticipants());
+            // Read BEFORE the rows go: the payments and the refund ledger hang off the subscription
+            // and cascade away with it.
+            owed = owed.add(collectUnsettled(te, current, unsettled));
         }
+
         enrollmentRepository.deleteAll(enrollments);
+
+        if (!unsettled.isEmpty()) {
+            trainingMail.sendAdminAccountDeletionUnsettled(
+                    user.getFirstName() + " " + user.getLastName(), user.getEmail(), unsettled, owed);
+        }
+    }
+
+    /**
+     * What this subscription takes with it when the account goes: months already paid for that will
+     * not be attended, plus any surplus credit nobody spent.
+     * <p>
+     * {@code cancel} above refuses to leave exactly this behind — "money collected, no service, no
+     * refund trace" — and the organizer's own removal registers proper refunds for it. Deleting an
+     * account can do neither: the account has to go, and the refund rows would go with it. So the
+     * obligation is reported instead of recorded, in a mail that reaches the organizer only.
+     * <p>
+     * Months before the current one are attended and settled; they are not listed.
+     *
+     * @return the total added to {@code into}, so the caller can sum across subscriptions
+     */
+    private BigDecimal collectUnsettled(TrainingEnrollment te, YearMonth current,
+                                        List<TrainingMailService.UnsettledLine> into) {
+        String trainingName = te.getSlot().getEventType().getName();
+        var sum = BigDecimal.ZERO;
+
+        for (String paidMonth : paymentRepository.findPaidMonths(te.getId())) {
+            var month = YearMonth.parse(paidMonth);
+            if (month.isBefore(current)) {
+                continue;
+            }
+            // The frozen amount is what was actually collected; the live bill is the only figure
+            // available for rows predating V26, which never stored one. Read as a value, not as an
+            // entity: the subscription is about to be deleted, and a TrainingPayment sitting in the
+            // persistence context would still reference it at the next flush.
+            var amount = paymentRepository.findPaidAmount(te.getId(), paidMonth)
+                    .orElseGet(() -> billing.amount(te, month));
+            if (amount == null || amount.signum() <= 0) {
+                continue;
+            }
+            into.add(new TrainingMailService.UnsettledLine(trainingName,
+                    msg.get("email.training.admin.unsettled.month"),
+                    TrainingMailService.monthLabel(month), amount));
+            sum = sum.add(amount);
+        }
+
+        var credit = creditService.availableBalance(te.getId());
+        if (credit.signum() > 0) {
+            into.add(new TrainingMailService.UnsettledLine(trainingName,
+                    msg.get("email.training.admin.unsettled.credit"), "", credit));
+            sum = sum.add(credit);
+        }
+        return sum;
     }
 
     private TrainingMailService.SlotInfo slotInfo(TrainingSlot slot) {

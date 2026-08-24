@@ -135,6 +135,64 @@ public class TrainingMailService {
         }
     }
 
+    /**
+     * One line of what an account took with it: a paid month, or a surplus nobody spent.
+     *
+     * @param what a ready label ("opłacony miesiąc", "nadpłata") — the two are different kinds of
+     *             money and lumping them under one word would misdescribe at least one of them
+     */
+    public record UnsettledLine(String trainingName, String what, String period, BigDecimal amount) {}
+
+    /**
+     * A group subscription that was paid ahead, going away with the account that held it.
+     * <p>
+     * Deleting an account deletes its subscriptions, and the refund ledger hangs off those rows — so
+     * the money owed has no row left to sit in, and no tab in the panel to show up in. That is not a
+     * reason to refuse the deletion (the account has to go, and the person asking is exercising a
+     * right), but it is a reason to say so. This mail is the only remaining record; it goes to the
+     * organizer and never to the person leaving.
+     * <p>
+     * Sent only when something is actually outstanding. Every ordinary deletion stays silent.
+     */
+    @Async("mailExecutor")
+    public void sendAdminAccountDeletionUnsettled(String fullName, String email,
+                                                  List<UnsettledLine> lines, BigDecimal total) {
+        String content = """
+                <h1 style="color: #f97316; font-size: 20px;">%s</h1>
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+                %s
+                <div style="background-color: #292524; border-left: 3px solid #f97316; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+                    <p style="font-size: 14px; margin: 0;"><strong>%s</strong></p>
+                </div>
+                <p style="font-size: 16px; line-height: 1.6;">%s</p>
+            """.formatted(
+                msg.get("email.training.admin.unsettled.heading"),
+                msg.get("email.training.admin.unsettled.body", esc(fullName), esc(email)),
+                unsettledListHtml(lines),
+                msg.get("email.training.admin.unsettled.total", total.toPlainString()),
+                msg.get("email.training.admin.unsettled.footer")
+        );
+        String subject = msg.get("email.training.admin.unsettled.subject", fullName);
+        for (String adminEmail : adminEmailConfig.getAdminEmails()) {
+            mail.send(adminEmail, subject, branded(content, true));
+        }
+    }
+
+    private String unsettledListHtml(List<UnsettledLine> lines) {
+        var items = new StringBuilder();
+        for (var line : lines) {
+            // A credit balance belongs to no month, so the period segment is dropped rather than
+            // rendered empty — otherwise the line reads with a gap between two separators.
+            String what = line.period().isBlank()
+                    ? esc(line.what())
+                    : esc(line.what()) + " " + esc(line.period());
+            items.append("<li style=\"margin: 4px 0;\">%s · %s · <strong>%s zł</strong></li>"
+                    .formatted(esc(line.trainingName()), what, line.amount().toPlainString()));
+        }
+        return "<ul style=\"font-size: 16px; line-height: 1.6; padding-left: 20px; margin: 8px 0;\">%s</ul>"
+                .formatted(items);
+    }
+
     // ── C: cancellation confirmation (user) ──────────────────────────────────
     @Async("mailExecutor")
     public void sendCancellationConfirmation(String email, String firstName, SlotInfo slot,
