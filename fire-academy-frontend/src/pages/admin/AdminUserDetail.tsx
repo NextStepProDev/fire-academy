@@ -107,11 +107,13 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
-  // Flagging is non-destructive both ways: clearing it only hides the calendar, the plan and its
-  // history stay in the database. The confirm below says so, so nobody hesitates over the switch.
   const eraseP1Mutation = useMutation({
     mutationFn: () => adminApi.eraseTrainingPlan(userId),
-    onSuccess: () => {
+    onSuccess: (erased) => {
+      // The counts, not just a "done": this is the one irreversible action on the page, and a dialog
+      // that simply closes leaves the admin guessing whether it ran at all. `notes` covers both the
+      // ones on their trainings and the ones on their group sessions — and only ever the caller's own.
+      showToast(t('users.detail.erasePlanDone', erased))
       setConfirmErasePlan(false)
       queryClient.invalidateQueries({ queryKey: ['admin', 'user', userId] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'athletes'] })
@@ -121,6 +123,8 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
     onError: (e: Error) => showToast(e.message, 'error'),
   })
 
+  // Flagging is non-destructive both ways: clearing it only hides the calendar, the plan and its
+  // history stay in the database. The confirm below says so, so nobody hesitates over the switch.
   const athleteMutation = useMutation({
     mutationFn: (enabled: boolean) => adminApi.setAthlete(userId, enabled),
     onSuccess: (_data, enabled) => {

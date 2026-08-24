@@ -161,6 +161,19 @@ public interface AdminPrivateNoteRepository extends JpaRepository<AdminPrivateNo
     @Query("DELETE FROM AdminPrivateNote n WHERE n.athlete.id = :athleteId AND n.author.id = :authorId")
     int deleteAboutAthleteByAuthor(@Param("athleteId") UUID athleteId, @Param("authorId") UUID authorId);
 
+    /**
+     * How many of ONE author's notes hang off that athlete's trainings.
+     * <p>
+     * Counted rather than deleted: those rows leave on their own when the trainings do, through the
+     * foreign key's cascade. But a count is not optional — erasure reports back how many of the
+     * caller's notes went, and reading only the session-anchored rows made that number describe a
+     * fraction of what actually disappeared. Must be asked BEFORE the trainings are deleted.
+     */
+    @Query("SELECT COUNT(n) FROM AdminPrivateNote n JOIN n.training t"
+        + " WHERE n.author.id = :authorId AND t.athlete.id = :athleteId")
+    int countAboutAthleteTrainingsByAuthor(@Param("athleteId") UUID athleteId,
+                                           @Param("authorId") UUID authorId);
+
     // --- markers ---------------------------------------------------------------------------------
     //
     // Identifiers only, never the text. A month at a time answers "is there a note here" and nothing

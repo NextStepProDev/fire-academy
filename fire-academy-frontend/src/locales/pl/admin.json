@@ -101,7 +101,8 @@
       "erasePlanTitle": "Usuń plan treningowy 1:1",
       "erasePlanDesc": "Trwale kasuje plan, wagi, cele, wiadomości, zdjęcia i notatki o tej osobie. Zajęcia grupowe, płatności i konto zostają nietknięte.",
       "erasePlanAction": "Usuń plan",
-      "erasePlanMessage": "Trwale usunąć plan treningowy 1:1 osoby {{name}}? Zniknie cały plan, pomiary wagi, cele, wiadomości przy treningach, zdjęcia oraz Twoje notatki o tej osobie. Zapisy na zajęcia grupowe, płatności i samo konto pozostaną bez zmian. Tej operacji nie da się cofnąć."
+      "erasePlanMessage": "Trwale usunąć plan treningowy 1:1 osoby {{name}}? Zniknie cały plan, pomiary wagi, cele, wiadomości przy treningach, zdjęcia oraz Twoje notatki o tej osobie. Zapisy na zajęcia grupowe, płatności i samo konto pozostaną bez zmian. Tej operacji nie da się cofnąć.",
+      "erasePlanDone": "Plan treningowy 1:1 usunięty: treningi {{trainings}}, pomiary wagi {{weights}}, cele {{goals}}, notatki {{notes}}."
     }
   },
   "actions": {

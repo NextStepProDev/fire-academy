@@ -332,6 +332,8 @@
     "deleteMessage": "Notatka zostanie trwale usunięta. Tej operacji nie da się cofnąć.",
     "placeholder": "Obserwacje, uwagi, co poprawić następnym razem…",
     "loading": "Wczytywanie…",
+    "loadError": "Nie udało się wczytać notatki. Dopóki nie wiadomo, co jest zapisane, edycja jest zablokowana — zapis nadpisałby notatkę na ślepo.",
+    "retry": "Spróbuj ponownie",
     "showAll": "Pokaż całość",
     "showLess": "Zwiń",
     "sessionTitle": "Zajęcia grupowe",

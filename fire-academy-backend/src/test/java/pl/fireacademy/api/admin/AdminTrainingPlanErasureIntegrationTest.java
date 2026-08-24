@@ -112,7 +112,10 @@ class AdminTrainingPlanErasureIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.trainings").value(1))
             .andExpect(jsonPath("$.weights").value(1))
-            .andExpect(jsonPath("$.notes").value(1));
+            // BOTH of the admin's notes about them: the one on their training (which leaves through the
+            // cascade when the training goes) and the one on a group session. Counting only the
+            // second reported a fraction of what actually disappeared.
+            .andExpect(jsonPath("$.notes").value(2));
 
         // Gone: the whole 1-on-1 side.
         assertEquals(0, count("personal_trainings", "athlete_id = ?", id));
