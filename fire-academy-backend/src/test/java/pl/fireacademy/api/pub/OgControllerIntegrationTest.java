@@ -103,20 +103,20 @@ class OgControllerIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void shouldStillRenderAPreviewWhenTheTermsTypeWasSwitchedOff() throws Exception {
-        EventType et = new EventType(EventCategory.CAMP, "Camp With A Disabled Type");
+        EventType et = new EventType(EventCategory.CAMP, "Obóz z wyłączonym rodzajem");
         et.setDisplayOrder(0);
         et.setThumbnailFilename("whatever.jpg");
         et.setActive(false);
         et = eventTypeRepository.save(et);
 
         Event event = new Event(EventCategory.CAMP, et, LocalDate.of(2026, 8, 1));
-        event.setLocation("Ustron");
+        event.setLocation("Wisła");
         event.setActive(true);
         event = eventRepository.save(event);
 
         mockMvc.perform(get("/og/obozy/termin/" + event.getId()))
             .andExpect(status().isOk())
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Camp With A Disabled Type")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Obóz z wyłączonym rodzajem")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("og-default.png")));
     }
 
@@ -142,6 +142,30 @@ class OgControllerIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.not(
                 org.hamcrest.Matchers.containsString("Fire Academy | Fire Academy"))));
+    }
+
+    /**
+     * Polish survives the round trip, and the response says so in its own header.
+     * <p>
+     * Not a bug that was ever visible: the document declares utf-8 in its first sixty bytes and
+     * HTML5 falls back to that when the header is silent, so shared previews always rendered. It is
+     * a trap all the same — anything reading the header alone (curl, a log, MockMvc) decodes the
+     * body as ISO-8859-1, so the first test to assert Polish output fails against a perfectly
+     * healthy endpoint.
+     */
+    @Test
+    void shouldDeclareUtf8SoPolishSurvivesTheHeaderAndNotJustTheMetaTag() throws Exception {
+        EventType et = new EventType(EventCategory.CAMP, "Zażółć gęślą jaźń");
+        et.setDescription("Ćwiczenia w Świnoujściu — łóżko, żubr, ćma");
+        et.setDisplayOrder(0);
+        et.setActive(true);
+        et = eventTypeRepository.save(et);
+
+        mockMvc.perform(get("/og/obozy/rodzaj/" + et.getId()))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType("text/html;charset=UTF-8"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Zażółć gęślą jaźń")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Świnoujściu")));
     }
 
     @Test

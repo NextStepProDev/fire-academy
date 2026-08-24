@@ -12,6 +12,7 @@ import pl.fireacademy.api.pub.PublicDtos.EventTypeCard;
 import pl.fireacademy.config.AppConfig;
 import pl.fireacademy.domain.event.EventCategory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
@@ -166,8 +167,15 @@ public class OgController {
                 </html>
                 """.formatted(safeDesc, pageUrl, safeTitle, safeDesc, imageUrl, pageUrl, jsonLdTag, pageUrl, safeTitle, pageUrl);
 
+        // Charset stated in the header, not only in the <meta> tag. Both work — HTML5 falls back to
+        // the meta when the header is silent, and it sits in the first sixty bytes here, which is why
+        // Polish titles have always rendered correctly in shared previews. But "correct because the
+        // parser guesses right" is one fallback away from wrong, and a response that does not
+        // describe its own bytes reads as ISO-8859-1 to everything that goes by the header alone:
+        // curl, logs, and MockMvc — where a test asserting Polish output fails while production is
+        // fine, which is a trap rather than a bug report.
         return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_HTML)
+                .contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8))
                 .body(html);
     }
 
