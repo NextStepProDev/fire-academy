@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -47,6 +48,38 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidRefreshTokenException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidRefreshToken(InvalidRefreshTokenException e) {
         return error(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", e.getMessage());
+    }
+
+    /**
+     * A refusal by method security is 403, not the 500 the catch-all below would have given it.
+     *
+     * <p>{@code @PreAuthorize} throws from inside the controller, so the exception surfaces in the
+     * DispatcherServlet and this advice claims it before it can travel back out to Spring Security's
+     * {@code ExceptionTranslationFilter} and the {@code accessDeniedHandler} in {@code SecurityConfig}.
+     * Without this method the caller is told the server broke, and every ordinary "you may not do
+     * that" is written to the log as {@code Unexpected error} with a full stack trace — on a 1 GB box
+     * that is noise standing in front of real failures, and a 5xx that a monitor reads as an outage.
+     *
+     * <p>Nothing hits this today: the only {@code @PreAuthorize} in {@code main/} sits under
+     * {@code /api/admin/**}, which the filter chain already closes a level up, so a stranger is
+     * turned away with a proper 403 long before any controller runs. It is the next annotation
+     * placed outside that prefix that would find the gap — which is exactly why it is worth closing
+     * while nobody is standing in it.
+     *
+     * <p>Declared on the supertype so it also covers {@code AuthorizationDeniedException}, which is
+     * what Spring Security actually throws; the handler is chosen by class hierarchy rather than by
+     * the order these methods appear in. The body is the localized message, never
+     * {@code e.getMessage()} — that reads "Access Denied", in English, from our internals.
+     *
+     * <p>403 rather than 401 is right because every request that reaches a controller is already
+     * authenticated ({@code anyRequest().authenticated()}). An anonymous caller never gets this far.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
+        // Debug, not error: being refused is a normal outcome, and logging it as a failure is half
+        // of what this method exists to stop.
+        log.debug("Access denied: {}", e.getMessage());
+        return error(HttpStatus.FORBIDDEN, "FORBIDDEN", msg.get("error.forbidden"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
