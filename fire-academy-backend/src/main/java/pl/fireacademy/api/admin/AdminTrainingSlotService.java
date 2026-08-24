@@ -88,7 +88,7 @@ public class AdminTrainingSlotService {
     public TrainingSlotResponse create(CreateTrainingSlotRequest request) {
         var eventType = resolveTrainingType(request.eventTypeId());
         var slot = new TrainingSlot(eventType, request.dayOfWeek(), request.startTime(), request.maxParticipants());
-        applyCommon(slot, request.instructorId(), request.endTime(), request.price());
+        applyCommon(slot, request.instructorId(), request.startTime(), request.endTime(), request.price());
         return toResponse(slotRepository.save(slot), YearMonth.now().toString());
     }
 
@@ -100,9 +100,10 @@ public class AdminTrainingSlotService {
         List<TrainingSlotResponse> created = new ArrayList<>();
         for (var row : request.slots()) {
             var slot = new TrainingSlot(eventType, row.dayOfWeek(), row.startTime(), row.maxParticipants());
+            // The instructor is resolved once above rather than per row, which is why this does not
+            // go through applyCommon — but the hours still go through the one method that checks them.
             slot.setInstructor(instructor);
-            slot.setEndTime(row.endTime());
-            slot.setPrice(row.price());
+            applySchedule(slot, row.startTime(), row.endTime(), row.price());
             created.add(toResponse(slotRepository.save(slot), month));
         }
         return created;
@@ -117,9 +118,8 @@ public class AdminTrainingSlotService {
 
         slot.setEventType(resolveTrainingType(request.eventTypeId()));
         slot.setDayOfWeek(request.dayOfWeek());
-        slot.setStartTime(request.startTime());
         slot.setMaxParticipants(request.maxParticipants());
-        applyCommon(slot, request.instructorId(), request.endTime(), request.price());
+        applyCommon(slot, request.instructorId(), request.startTime(), request.endTime(), request.price());
         var saved = slotRepository.save(slot);
 
         var changes = diff(before, snapshot(saved));
@@ -534,9 +534,36 @@ public class AdminTrainingSlotService {
         }
     }
 
-    private void applyCommon(TrainingSlot slot, @Nullable UUID instructorId,
+    private void applyCommon(TrainingSlot slot, @Nullable UUID instructorId, LocalTime startTime,
                              @Nullable LocalTime endTime, @Nullable BigDecimal price) {
         slot.setInstructor(resolveInstructor(instructorId));
+        applySchedule(slot, startTime, endTime, price);
+    }
+
+    /**
+     * The one place a slot's hours are set, and therefore the one place they are checked.
+     * <p>
+     * An end before the start is a slipped digit — 08:00 typed for 18:00 — and nothing downstream
+     * would ever notice: the bill counts weekday occurrences times the price and never looks at the
+     * hours. So the wrong time simply gets displayed, and not only in the panel. It goes out on the
+     * public catalogue card, the roster, the group-session overlay on a client's calendar, and the
+     * e-mails to everybody subscribed — enrolment confirmations, slot changes, cancellations. A
+     * typo of the organizer's, delivered to their clients.
+     * <p>
+     * The rule already existed for the 1-on-1 plan ({@code PersonalTrainingService.validateTimes})
+     * and not for group slots, which is the shape of omission that never reports itself: one of two
+     * twin paths enforces something and the other does not.
+     * <p>
+     * Setting the hours and checking them in a single method is deliberate. Three call sites create
+     * or reshape a slot, and a check any of them could forget to make is a check that will be
+     * forgotten. A null end time stays legal — it always was, and it means "no end declared".
+     */
+    private void applySchedule(TrainingSlot slot, LocalTime startTime,
+                               @Nullable LocalTime endTime, @Nullable BigDecimal price) {
+        if (endTime != null && !endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException(msg.get("trainingslot.time.end.before.start"));
+        }
+        slot.setStartTime(startTime);
         slot.setEndTime(endTime);
         slot.setPrice(price);
     }
