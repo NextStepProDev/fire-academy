@@ -8,13 +8,13 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { visibleMonths, formatMonth } from '../../utils/trainingSchedule'
+import { todayIso } from '../../utils/calendarRange'
 import type { TrainingHoliday } from '../../types'
 import clsx from 'clsx'
 import { inputClass } from '../../utils/fieldClass'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { DateInput } from '../../components/ui/DateInput'
 
-const TODAY_ISO = new Date().toISOString().slice(0, 10)
 const fmtDate = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}` }
 
 
@@ -31,7 +31,7 @@ export function AdminTrainingHolidays() {
 
   const monthStart = `${month}-01`
   const monthEnd = `${month}-${String(new Date(Number(month.split('-')[0]), Number(month.split('-')[1]), 0).getDate()).padStart(2, '0')}`
-  const minDate = monthStart > TODAY_ISO ? monthStart : TODAY_ISO
+  const minDate = monthStart > todayIso() ? monthStart : todayIso()
 
   const { data: holidays, isLoading, isFetching } = useQuery({
     queryKey: ['admin', 'training-holidays', month],

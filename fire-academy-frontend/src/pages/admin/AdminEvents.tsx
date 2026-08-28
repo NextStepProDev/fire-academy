@@ -13,6 +13,7 @@ import { CheckCircle, ChevronDown, ChevronRight, Mail, MessageSquare, NotebookPe
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
+import { todayIso } from '../../utils/calendarRange'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { DateInput } from '../../components/ui/DateInput'
 
@@ -363,7 +364,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
   const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIso()
   const events = allEvents?.filter(ev => (ev.endDate ?? ev.startDate) >= today)
 
   const invalidate = () => {
@@ -524,7 +525,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
-              <DateInput value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={startDate => setForm(f => ({ ...f, startDate }))} className={inputClass} />
+              <DateInput value={form.startDate} min={todayIso()} onChange={startDate => setForm(f => ({ ...f, startDate }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
