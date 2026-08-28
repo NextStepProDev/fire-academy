@@ -16,7 +16,20 @@ interface TrainingEnrollModalProps {
   onClose: () => void
 }
 
-export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: TrainingEnrollModalProps) {
+/**
+ * Shell, and the reason it exists: the hooks below hold a COMMITMENT LENGTH, and this modal is
+ * rendered unconditionally by its pages — an absent slot hides it without unmounting it. Six months
+ * picked for Monday would then still be standing when Wednesday's form opens, one click from a
+ * subscription nobody chose. Keying on the slot makes every open a fresh mount, so the reset cannot
+ * be forgotten at a call site; the alternative was the same `key` repeated at three of them.
+ */
+export function TrainingEnrollModal({ slot, ...rest }: TrainingEnrollModalProps) {
+  if (!slot) return null
+  return <TrainingEnrollForm key={slot.id} slot={slot} {...rest} />
+}
+
+function TrainingEnrollForm({ slot, startMonth, holidays, onClose }:
+  Omit<TrainingEnrollModalProps, 'slot'> & { slot: TrainingSlotCard }) {
   const { t } = useTranslation('events')
   const { showToast } = useToast()
   const queryClient = useQueryClient()
@@ -26,11 +39,10 @@ export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: Tra
   const myEnrollments = useQuery({
     queryKey: ['user', 'training-enrollments'],
     queryFn: userApi.getMyTrainingEnrollments,
-    enabled: !!slot,
   })
 
   const enrollMut = useMutation({
-    mutationFn: () => userApi.enrollTrainingSlot(slot!.id, {
+    mutationFn: () => userApi.enrollTrainingSlot(slot.id, {
       startMonth,
       months: mode === 'fixed' ? months : undefined,
     }),
@@ -42,8 +54,6 @@ export function TrainingEnrollModal({ slot, startMonth, holidays, onClose }: Tra
     },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
-
-  if (!slot) return null
 
   // Dates the slot does not take place this month: cancelled sessions + days off on its weekday.
   const slotHolidays = holidaysForDay(holidays, slot.dayOfWeek)
