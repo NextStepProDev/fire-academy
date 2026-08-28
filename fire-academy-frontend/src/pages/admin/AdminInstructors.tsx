@@ -27,6 +27,9 @@ export function AdminInstructors() {
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState({ firstName: '', lastName: '', bio: '', categories: [] as EventCategory[] })
+  // Rendered next to Save. A refused write that says nothing is indistinguishable from a dead button,
+  // and the values in the form are the only copy the user has.
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const { data: instructors, isLoading } = useQuery({
     queryKey: ['admin', 'instructors'],
@@ -42,12 +45,12 @@ export function AdminInstructors() {
   const createMut = useMutation({ mutationFn: (d: typeof form) => adminApi.createInstructor(d), onSuccess: invalidate })
   const updateMut = useMutation({ mutationFn: ({ id, ...d }: typeof form & { id: string }) => adminApi.updateInstructor(id, d), onSuccess: invalidate })
   const deleteMut = useMutation({ mutationFn: adminApi.deleteInstructor, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
-  const toggleMut = useMutation({ mutationFn: adminApi.toggleInstructorActive, onSuccess: invalidate })
-  const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderInstructor(id, dir), onSuccess: invalidate })
+  const toggleMut = useMutation({ mutationFn: adminApi.toggleInstructorActive, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
+  const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderInstructor(id, dir), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const photoMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadInstructorPhoto(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
 
-  const openCreate = () => { setForm({ firstName: '', lastName: '', bio: '', categories: [] }); setIsCreating(true) }
-  const openEdit = (i: Instructor) => { setForm({ firstName: i.firstName, lastName: i.lastName, bio: i.bio ?? '', categories: [...i.categories] }); setEditItem(i) }
+  const openCreate = () => { setForm({ firstName: '', lastName: '', bio: '', categories: [] }); setSaveError(null); setIsCreating(true) }
+  const openEdit = (i: Instructor) => { setForm({ firstName: i.firstName, lastName: i.lastName, bio: i.bio ?? '', categories: [...i.categories] }); setSaveError(null); setEditItem(i) }
 
   const toggleCategory = (cat: EventCategory) => {
     setForm(f => ({
@@ -60,12 +63,17 @@ export function AdminInstructors() {
 
   const handleSave = async () => {
     if (form.categories.length === 0) return
-    if (editItem) {
-      await updateMut.mutateAsync({ id: editItem.id, ...form })
-      setEditItem(null)
-    } else {
-      await createMut.mutateAsync(form)
-      setIsCreating(false)
+    setSaveError(null)
+    try {
+      if (editItem) {
+        await updateMut.mutateAsync({ id: editItem.id, ...form })
+        setEditItem(null)
+      } else {
+        await createMut.mutateAsync(form)
+        setIsCreating(false)
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -138,7 +146,7 @@ export function AdminInstructors() {
       {/* Create / Edit Modal */}
       <Modal
         isOpen={isCreating || !!editItem}
-        onClose={() => { setIsCreating(false); setEditItem(null) }}
+        onClose={() => { setIsCreating(false); setEditItem(null); setSaveError(null) }}
         size="xl"
         title={editItem ? t('kadra.editTitle') : t('kadra.createTitle')}
       >
@@ -176,8 +184,11 @@ export function AdminInstructors() {
               <p className="text-xs text-rose-400 mt-1">{t('kadra.categoriesRequired')}</p>
             )}
           </div>
+          {saveError && (
+            <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{saveError}</p>
+          )}
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null); setSaveError(null) }}>{t('actions.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={form.categories.length === 0 || !isDirty}>{t('actions.save')}</Button>
           </div>
         </div>

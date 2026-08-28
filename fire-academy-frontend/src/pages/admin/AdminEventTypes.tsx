@@ -25,6 +25,9 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', description: '' })
+  // Rendered next to Save. A refused write that says nothing is indistinguishable from a dead button,
+  // and the values in the form are the only copy the user has.
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const queryKey = ['admin', 'event-types', category]
   const { data: types, isLoading } = useQuery({
@@ -55,8 +58,8 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     onSuccess: invalidate,
   })
   const deleteMut = useMutation({ mutationFn: adminApi.deleteEventType, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
-  const toggleMut = useMutation({ mutationFn: adminApi.toggleEventTypeActive, onSuccess: invalidate })
-  const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderEventType(id, dir), onSuccess: invalidate })
+  const toggleMut = useMutation({ mutationFn: adminApi.toggleEventTypeActive, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
+  const reorderMut = useMutation({ mutationFn: ({ id, dir }: { id: string; dir: string }) => adminApi.reorderEventType(id, dir), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const thumbMut = useMutation({ mutationFn: ({ id, file }: { id: string; file: File }) => adminApi.uploadEventTypeThumbnail(id, file), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
   const photoMut = useMutation({
     mutationFn: async ({ id, files }: { id: string; files: File[] }) => {
@@ -66,24 +69,30 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
     onError: (e: Error) => showToast(e.message, 'error'),
   })
   const deletePhotoMut = useMutation({ mutationFn: ({ id, photoId }: { id: string; photoId: string }) => adminApi.deleteEventTypePhoto(id, photoId), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
-  const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate })
+  const reorderPhotoMut = useMutation({ mutationFn: ({ id, photoId, dir }: { id: string; photoId: string; dir: string }) => adminApi.reorderEventTypePhoto(id, photoId, dir), onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
 
-  const openCreate = () => { setForm({ name: '', description: '' }); setIsCreating(true) }
+  const openCreate = () => { setForm({ name: '', description: '' }); setSaveError(null); setIsCreating(true) }
   const openEdit = (et: EventType) => {
     setForm({
       name: et.name,
       description: et.description ?? '',
     })
+    setSaveError(null)
     setEditItem(et)
   }
 
   const handleSave = async () => {
-    if (editItem) {
-      await updateMut.mutateAsync(editItem.id)
-      setEditItem(null)
-    } else {
-      await createMut.mutateAsync()
-      setIsCreating(false)
+    setSaveError(null)
+    try {
+      if (editItem) {
+        await updateMut.mutateAsync(editItem.id)
+        setEditItem(null)
+      } else {
+        await createMut.mutateAsync()
+        setIsCreating(false)
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -156,7 +165,7 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
 
       <Modal
         isOpen={isCreating || !!editItem}
-        onClose={() => { setIsCreating(false); setEditItem(null) }}
+        onClose={() => { setIsCreating(false); setEditItem(null); setSaveError(null) }}
         size="xl"
         title={editItem ? t('eventTypes.editTitle') : t('eventTypes.createTitle')}
       >
@@ -169,8 +178,11 @@ export function AdminEventTypes({ category }: AdminEventTypesProps) {
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('eventTypes.description')}</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={12} className={textareaClass} />
           </div>
+          {saveError && (
+            <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{saveError}</p>
+          )}
           <div className="flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null) }}>{t('actions.cancel')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setEditItem(null); setSaveError(null) }}>{t('actions.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={!isDirty}>{t('actions.save')}</Button>
           </div>
         </div>

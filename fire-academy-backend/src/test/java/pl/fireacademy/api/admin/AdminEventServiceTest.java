@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pl.fireacademy.api.NotFoundException;
 import pl.fireacademy.api.admin.EventDtos.*;
 import pl.fireacademy.domain.enrollment.Enrollment;
 import pl.fireacademy.domain.enrollment.EnrollmentRepository;
@@ -278,6 +279,87 @@ class AdminEventServiceTest {
         verify(enrollmentMailService, never()).sendEnrollmentDeletionNotification(any(), any(), any(), any(), any(), any());
         verify(enrollmentRepository).deleteByEventId(eventId);
         verify(eventRepository).delete(event);
+    }
+
+    /**
+     * A term that has already begun is still edited: its location changes, its price is corrected.
+     * The guard must ask whether the date MOVED, not whether it is in the past — the form resends the
+     * unchanged start date on every save, so asking the second question locks the whole record.
+     */
+    @Test
+    void shouldAllowEditingAnEventThatHasAlreadyStarted() {
+        LocalDate startedThreeDaysAgo = LocalDate.now().minusDays(3);
+        Event running = new Event(EventCategory.TRAINING, eventType, startedThreeDaysAgo);
+        running.setEndDate(LocalDate.now().plusDays(4));
+        setIdUnchecked(running, eventId);
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(running));
+        when(eventTypeRepository.findById(eventTypeId)).thenReturn(Optional.of(eventType));
+        when(eventRepository.save(running)).thenReturn(running);
+        when(enrollmentRepository.countByEventId(eventId)).thenReturn(0L);
+        stubChangeLabels();
+
+        UpdateEventRequest request = new UpdateEventRequest(
+            eventTypeId, null, "Sala nr 2, wejscie od podworza",
+            startedThreeDaysAgo, LocalDate.now().plusDays(4), null, null,
+            null, null, null
+        );
+
+        EventResponse result = service.update(eventId, request);
+
+        assertNotNull(result);
+        assertEquals("Sala nr 2, wejscie od podworza", running.getDescription());
+    }
+
+    @Test
+    void shouldRejectMovingAnEventIntoThePast() {
+        Event running = new Event(EventCategory.TRAINING, eventType, LocalDate.now().minusDays(3));
+        setIdUnchecked(running, eventId);
+
+        // Lenient: before the guard compares against the stored row it never reaches the repository.
+        lenient().when(eventRepository.findById(eventId)).thenReturn(Optional.of(running));
+        when(msg.get("event.date.past")).thenReturn("Data w przeszlosci");
+
+        UpdateEventRequest request = new UpdateEventRequest(
+            eventTypeId, null, null,
+            LocalDate.now().minusDays(10), null, null, null,
+            null, null, null
+        );
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.update(eventId, request));
+        assertEquals("Data w przeszlosci", ex.getMessage());
+    }
+
+    /**
+     * Reading the row first is what makes the guard above possible, and it fixes a second thing on the
+     * way: an unknown id used to answer 400 "the date is in the past" instead of 404.
+     */
+    @Test
+    void shouldAnswerNotFoundBeforeCheckingTheDate() {
+        UUID unknownId = UUID.randomUUID();
+        when(eventRepository.findById(unknownId)).thenReturn(Optional.empty());
+        lenient().when(msg.get("event.not.found")).thenReturn("Nie znaleziono");
+        lenient().when(msg.get("event.date.past")).thenReturn("Data w przeszlosci");
+
+        UpdateEventRequest request = new UpdateEventRequest(
+            eventTypeId, null, null,
+            LocalDate.now().minusDays(10), null, null, null,
+            null, null, null
+        );
+
+        assertThrows(NotFoundException.class, () -> service.update(unknownId, request));
+    }
+
+    /** All eight labels are evaluated on every update, whether or not anything changed. */
+    private void stubChangeLabels() {
+        when(msg.get("email.change.name")).thenReturn("Nazwa");
+        when(msg.get("email.change.date")).thenReturn("Data");
+        when(msg.get("email.change.endDate")).thenReturn("Data koncowa");
+        when(msg.get("email.change.startTime")).thenReturn("Godzina rozpoczecia");
+        when(msg.get("email.change.endTime")).thenReturn("Godzina zakonczenia");
+        when(msg.get("email.change.location")).thenReturn("Lokalizacja");
+        when(msg.get("email.change.price")).thenReturn("Cena");
+        when(msg.get("email.change.maxParticipants")).thenReturn("Max uczestnikow");
     }
 
     private static void setId(Object entity, UUID id) throws Exception {
