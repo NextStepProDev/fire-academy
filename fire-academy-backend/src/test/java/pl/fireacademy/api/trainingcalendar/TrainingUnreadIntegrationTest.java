@@ -51,13 +51,21 @@ class TrainingUnreadIntegrationTest extends BaseIntegrationTest {
         return JsonPath.read(json, "$.id");
     }
 
+    /**
+     * Every date this file uses sits inside {@link #OPENED_THROUGH}, so "the calendar was opened"
+     * means the whole fixture was on screen — which is what these tests are about. The window itself
+     * is exercised in {@link TrainingUnreadRangeIntegrationTest}.
+     */
+    private static final LocalDate OPENED_THROUGH = LocalDate.now().plusMonths(1);
+
     private void coachOpensCalendar(String admin, UUID athleteId) throws Exception {
-        mockMvc.perform(post("/api/admin/personal-trainings/mark-seen?athleteId=" + athleteId)
+        mockMvc.perform(post("/api/admin/personal-trainings/mark-seen?athleteId=" + athleteId
+                        + "&to=" + OPENED_THROUGH)
                 .header("Authorization", "Bearer " + admin));
     }
 
     private void clientOpensCalendar(String client) throws Exception {
-        mockMvc.perform(post("/api/user/my-training/mark-seen")
+        mockMvc.perform(post("/api/user/my-training/mark-seen?to=" + OPENED_THROUGH)
                 .header("Authorization", "Bearer " + client));
     }
 

@@ -88,15 +88,15 @@ public class PersonalTrainingService {
         List<PersonalTraining> trainings = repository.findRange(athleteId, from, to);
         List<UUID> ids = trainings.stream().map(PersonalTraining::getId).toList();
 
-        Instant since = unread.seenAt(viewerId, athleteId);
-        Set<UUID> withNewComments = unread.unreadTrainingIds(ids, viewerIsAdmin, since);
+        TrainingUnreadService.SeenMarker seen = unread.seenMarker(viewerId, athleteId);
+        Set<UUID> withNewComments = unread.unreadTrainingIds(ids, viewerIsAdmin, seen);
         Map<UUID, Integer> commentCounts = commentCounts(ids);
         Map<UUID, List<AttachmentResponse>> materials = attachments.forTrainings(ids);
 
         LocalDateTime now = LocalDateTime.now();
         List<PersonalTrainingResponse> items = trainings.stream()
                 .map(t -> toResponse(t, now,
-                        isUnread(t, viewerIsAdmin, since) || withNewComments.contains(t.getId()),
+                        isUnread(t, viewerIsAdmin, seen) || withNewComments.contains(t.getId()),
                         commentCounts.getOrDefault(t.getId(), 0),
                         materials.getOrDefault(t.getId(), List.of())))
                 .toList();
@@ -285,9 +285,10 @@ public class PersonalTrainingService {
     }
 
     @Transactional
-    public void markSeen(UUID athleteId, UUID viewerId, boolean viewerIsAdmin) {
+    public void markSeen(UUID athleteId, UUID viewerId, boolean viewerIsAdmin,
+                         LocalDate viewedThrough) {
         access.requireAthlete(athleteId);
-        unread.markSeen(viewerId, athleteId);
+        unread.markSeen(viewerId, athleteId, viewedThrough);
     }
 
     /**
@@ -328,8 +329,18 @@ public class PersonalTrainingService {
      * Keyed on {@code updatedAt}, never {@code completedAt}: undoing a completion clears that column
      * and the coach still needs to hear about it.
      */
-    private static boolean isUnread(PersonalTraining t, boolean viewerIsAdmin, Instant since) {
-        return t.isLastModifiedByAdmin() != viewerIsAdmin && t.getUpdatedAt().isAfter(since);
+    /**
+     * Mirrors {@code PersonalTrainingRepository.countTouchedSince} exactly — the badge counts what
+     * these dots mark, so the two conditions cannot drift apart. Either half alone is wrong: without
+     * the timestamp an old entry never stops shouting, without the reach a page the viewer never
+     * opened is silently treated as read.
+     */
+    private static boolean isUnread(PersonalTraining t, boolean viewerIsAdmin,
+                                    TrainingUnreadService.SeenMarker seen) {
+        if (t.isLastModifiedByAdmin() == viewerIsAdmin) {
+            return false;
+        }
+        return t.getUpdatedAt().isAfter(seen.at()) || t.getDate().isAfter(seen.reach());
     }
 
     private PersonalTrainingResponse single(PersonalTraining training) {

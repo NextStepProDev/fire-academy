@@ -14,6 +14,7 @@ import pl.fireacademy.domain.user.User;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -32,28 +33,43 @@ public class AthleteGoalService {
     private final AthleteGoalRepository repository;
     private final TrainingAccessService access;
     private final AthleteWeightService weights;
+    private final TrainingUnreadService unread;
     private final MessageService msg;
 
     public AthleteGoalService(AthleteGoalRepository repository,
                               TrainingAccessService access,
                               AthleteWeightService weights,
+                              TrainingUnreadService unread,
                               MessageService msg) {
         this.repository = repository;
         this.access = access;
         this.weights = weights;
+        this.unread = unread;
         this.msg = msg;
     }
 
+    /**
+     * A new goal is one of the seven things the client's badge counts, and until now it was the only
+     * one with nowhere on the page to point at: the number went up and every card looked the same.
+     * The mark comes off the SAME read marker as the calendar, because both sit on one screen —
+     * a second notion of "seen" would need its own way of being cleared.
+     * <p>
+     * Goals carry no date, so only the timestamp half of the marker applies; there is no page of the
+     * plan a goal can be out of reach on.
+     */
     @Transactional(readOnly = true)
-    public GoalsResponse getGoals(UUID athleteId) {
+    public GoalsResponse getGoals(UUID athleteId, UUID viewerId, boolean viewerIsAdmin) {
         access.requireAthlete(athleteId);
+        // Absent for the coach: a goal they wrote is never news to them, and the field stays out of
+        // their JSON rather than arriving as false.
+        Instant since = viewerIsAdmin ? null : unread.seenMarker(viewerId, athleteId).at();
         return new GoalsResponse(
                 repository.findActive(athleteId).stream()
                         // By the enum's own order (SHORT, MEDIUM, LONG) — see the repository for why
                         // this cannot be left to SQL.
                         .sorted(Comparator.comparing(AthleteGoal::getHorizon))
-                        .map(AthleteGoalService::toResponse).toList(),
-                repository.findAchieved(athleteId).stream().map(AthleteGoalService::toResponse).toList());
+                        .map(g -> toResponse(g, since)).toList(),
+                repository.findAchieved(athleteId).stream().map(g -> toResponse(g, since)).toList());
     }
 
     @Transactional
@@ -201,9 +217,16 @@ public class AthleteGoalService {
         return goal;
     }
 
+    /** Writes echo back their own change, so nothing they just saved is news: {@code unread} absent. */
     static GoalResponse toResponse(AthleteGoal g) {
+        return toResponse(g, null);
+    }
+
+    /** @param since null for the coach — see {@link #getGoals}. */
+    private static GoalResponse toResponse(AthleteGoal g, @Nullable Instant since) {
         return new GoalResponse(g.getId(), g.getKind(), g.getHorizon(), g.getContent(),
                 g.getTargetDate(), g.getAchievedAt(), g.isAchievedAutomatically(),
-                g.getTargetWeightKg(), g.getStartWeightKg());
+                g.getTargetWeightKg(), g.getStartWeightKg(),
+                since == null ? null : g.getCreatedAt().isAfter(since));
     }
 }

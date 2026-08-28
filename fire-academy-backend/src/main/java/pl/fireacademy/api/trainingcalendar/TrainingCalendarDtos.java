@@ -369,6 +369,10 @@ public final class TrainingCalendarDtos {
      * @param achievedAutomatically closed by the weight log rather than by a person — the only kind
      *                              of achievement the coach may undo
      * @param startWeightKg         the trend when the goal was set; the progress bar measures from it
+     * @param unread                null for the coach — a goal is theirs to write, so it is never
+     *                              news to them, and the field is absent from their JSON rather than
+     *                              false. Same shape as {@code overtraining}. Without it the client's
+     *                              badge counts a new goal that nothing on the page points at.
      */
     public record GoalResponse(
             UUID id,
@@ -379,7 +383,8 @@ public final class TrainingCalendarDtos {
             @Nullable LocalDate achievedAt,
             boolean achievedAutomatically,
             @Nullable BigDecimal targetWeightKg,
-            @Nullable BigDecimal startWeightKg
+            @Nullable BigDecimal startWeightKg,
+            @Nullable Boolean unread
     ) {}
 
     /** Active goals render as three cards; achieved ones pile up in the trophy case. */

@@ -1,10 +1,12 @@
 package pl.fireacademy.api.trainingcalendar;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.domain.training.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +39,12 @@ import java.util.UUID;
  * <p>Symmetry is the point for the six that pair up: both directions are computed by the same code
  * with the role flag flipped, so a rule cannot be enforced one way and forgotten the other. Goals
  * are the deliberate exception, and the code says so at the point where it breaks the symmetry.
+ *
+ * <p><b>Being caught up has two edges.</b> "As of when" is not enough on its own: the calendar is
+ * read one page at a time, so opening this week said nothing about next month — yet it used to stamp
+ * the whole plan as seen. The marker therefore also carries how far the viewer got, and a source is
+ * unread when the other side touched it after the last visit OR when it sits past that day.
+ * Deletions are the exception: they arrive through the banner, which is not bounded by the page.
  */
 @Service
 public class TrainingUnreadService {
@@ -59,12 +67,37 @@ public class TrainingUnreadService {
         this.goalRepository = goalRepository;
     }
 
-    /** No marker means the calendar was never opened — everything counts as new. */
+    /**
+     * How caught up this viewer is with this calendar.
+     *
+     * @param at      nothing changed before this instant is news
+     * @param through the last calendar day they actually opened; null means none yet, so everything
+     *                on the plan is still unseen however old it is
+     */
+    public record SeenMarker(Instant at, @Nullable LocalDate through) {
+        /**
+         * Stands in for "no day reached yet" wherever the reach is compared.
+         * <p>
+         * A sentinel rather than a null check in the query: {@code :param IS NULL} gives Postgres no
+         * type to infer the bind from, and the statement fails outright. Every real training date is
+         * after this one, so an unopened calendar correctly counts as entirely unseen.
+         */
+        private static final LocalDate NOTHING_REACHED = LocalDate.of(1, 1, 1);
+
+        /** A calendar nobody has opened: everything counts as new. */
+        static final SeenMarker NEVER = new SeenMarker(Instant.EPOCH, null);
+
+        /** The reach, never null — pass this to anything that compares dates. */
+        public LocalDate reach() {
+            return through == null ? NOTHING_REACHED : through;
+        }
+    }
+
     @Transactional(readOnly = true)
-    public Instant seenAt(UUID viewerId, UUID athleteId) {
+    public SeenMarker seenMarker(UUID viewerId, UUID athleteId) {
         return readRepository.findByUserIdAndAthleteId(viewerId, athleteId)
-                .map(TrainingCalendarRead::getSeenAt)
-                .orElse(Instant.EPOCH);
+                .map(read -> new SeenMarker(read.getSeenAt(), read.getSeenThrough()))
+                .orElse(SeenMarker.NEVER);
     }
 
     /**
@@ -74,14 +107,16 @@ public class TrainingUnreadService {
      */
     @Transactional(readOnly = true)
     public long countUnread(UUID viewerId, UUID athleteId, boolean viewerIsAdmin) {
-        Instant since = seenAt(viewerId, athleteId);
+        SeenMarker seen = seenMarker(viewerId, athleteId);
         boolean fromAdmin = !viewerIsAdmin;
-        long count = trainingRepository.countTouchedSince(athleteId, fromAdmin, since)
-                + commentRepository.countSince(athleteId, fromAdmin, since)
-                + deletionRepository.countSince(athleteId, fromAdmin, since);
+        long count = trainingRepository.countTouchedSince(athleteId, fromAdmin, seen.at(), seen.reach())
+                + commentRepository.countSince(athleteId, fromAdmin, seen.at(), seen.reach())
+                // Deletions carry no page of their own — the banner shows them whatever window is
+                // open — so they are counted on time alone.
+                + deletionRepository.countSince(athleteId, fromAdmin, seen.at());
         // Goals are the coach's alone, so a new one is news for the client and never the other way.
         if (!viewerIsAdmin) {
-            count += goalRepository.countCreatedSince(athleteId, since);
+            count += goalRepository.countCreatedSince(athleteId, seen.at());
         }
         return count;
     }
@@ -115,21 +150,24 @@ public class TrainingUnreadService {
 
     /** Per-training dots for one calendar page, batched — one query for the whole range. */
     @Transactional(readOnly = true)
-    public Set<UUID> unreadTrainingIds(List<UUID> trainingIds, boolean viewerIsAdmin, Instant since) {
+    public Set<UUID> unreadTrainingIds(List<UUID> trainingIds, boolean viewerIsAdmin, SeenMarker seen) {
         if (trainingIds.isEmpty()) {
             return Set.of();
         }
-        return Set.copyOf(commentRepository.findTrainingIdsWithNewComments(trainingIds, !viewerIsAdmin, since));
+        return Set.copyOf(commentRepository.findTrainingIdsWithNewComments(
+                trainingIds, !viewerIsAdmin, seen.at(), seen.reach()));
     }
 
     /**
-     * Stamps "seen" for this viewer.
+     * Stamps "seen" for this viewer, up to the last day of the page they were looking at.
      * <p>
      * The caller decides WHEN: the frontend must wait until the calendar has actually rendered, or
-     * the dots are cleared before anyone sees them.
+     * the dots are cleared before anyone sees them. It also decides WHAT — {@code viewedThrough} is
+     * the end of the window on screen, and claiming more than that is how a month nobody opened got
+     * marked as read.
      */
     @Transactional
-    public void markSeen(UUID viewerId, UUID athleteId) {
-        readRepository.upsertSeen(viewerId, athleteId, Instant.now());
+    public void markSeen(UUID viewerId, UUID athleteId, LocalDate viewedThrough) {
+        readRepository.upsertSeen(viewerId, athleteId, Instant.now(), viewedThrough);
     }
 }

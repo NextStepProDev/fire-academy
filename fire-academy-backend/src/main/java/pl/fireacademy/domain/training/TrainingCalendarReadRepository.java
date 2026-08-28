@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -19,27 +20,39 @@ public interface TrainingCalendarReadRepository
     /**
      * Upsert of the seen marker.
      * <p>
-     * Two deliberate details:
+     * Three deliberate details:
      * <ul>
      *   <li>{@code seenAt} comes from the JVM clock, not SQL {@code now()}. Postgres {@code now()} is
      *       the transaction start time, which can predate activity written moments earlier and would
      *       freeze the counter at a stale value.</li>
-     *   <li>{@code clearAutomatically} — without it Hibernate keeps serving the old {@code seenAt}
-     *       from its identity map for the rest of the transaction.</li>
+     *   <li>{@code seenThrough} only ever moves FORWARD. Paging back to last week must not un-read a
+     *       month already read, so the greater of the stored and incoming value wins. GREATEST
+     *       ignores nulls, which is what carries rows written before this column existed.</li>
+     *   <li>{@code clearAutomatically} — without it Hibernate keeps serving the old marker from its
+     *       identity map for the rest of the transaction.</li>
      * </ul>
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
-        INSERT INTO training_calendar_reads (user_id, athlete_id, seen_at)
-        VALUES (:userId, :athleteId, :seenAt)
-        ON CONFLICT (user_id, athlete_id) DO UPDATE SET seen_at = :seenAt
+        INSERT INTO training_calendar_reads (user_id, athlete_id, seen_at, seen_through)
+        VALUES (:userId, :athleteId, :seenAt, :seenThrough)
+        ON CONFLICT (user_id, athlete_id) DO UPDATE
+        SET seen_at = :seenAt,
+            seen_through = GREATEST(training_calendar_reads.seen_through, :seenThrough)
         """, nativeQuery = true)
     void upsertSeen(@Param("userId") UUID userId,
                     @Param("athleteId") UUID athleteId,
-                    @Param("seenAt") Instant seenAt);
+                    @Param("seenAt") Instant seenAt,
+                    @Param("seenThrough") LocalDate seenThrough);
 
     /**
      * Unread counts for a whole roster in ONE query per source.
+     * <p>
+     * Each row is unread when the other side touched it after this viewer's last visit OR when it
+     * sits beyond the last day they reached — the badge must not count anything the calendar cannot
+     * show, and must not stop counting something the viewer never got to. Deletions are the one
+     * source without that second clause: they reach the screen through the banner, which is not
+     * bounded by the page at all.
      * <p>
      * The seen marker differs per athlete, which is why this cannot be a simple {@code IN} count:
      * each row has to be compared against that viewer's own marker for that athlete. The LEFT JOIN
@@ -54,7 +67,10 @@ public interface TrainingCalendarReadRepository
                ON r.user_id = :viewerId AND r.athlete_id = pt.athlete_id
         WHERE pt.athlete_id IN (:athleteIds)
           AND pt.last_modified_by_admin = :fromAdmin
-          AND (r.seen_at IS NULL OR pt.updated_at > r.seen_at)
+          AND (r.seen_at IS NULL
+               OR pt.updated_at > r.seen_at
+               OR r.seen_through IS NULL
+               OR pt.training_date > r.seen_through)
         GROUP BY pt.athlete_id
         """, nativeQuery = true)
     List<UnreadCount> countUnreadTrainings(@Param("viewerId") UUID viewerId,
@@ -69,7 +85,10 @@ public interface TrainingCalendarReadRepository
                ON r.user_id = :viewerId AND r.athlete_id = pt.athlete_id
         WHERE pt.athlete_id IN (:athleteIds)
           AND c.author_is_admin = :fromAdmin
-          AND (r.seen_at IS NULL OR c.created_at > r.seen_at)
+          AND (r.seen_at IS NULL
+               OR c.created_at > r.seen_at
+               OR r.seen_through IS NULL
+               OR pt.training_date > r.seen_through)
         GROUP BY pt.athlete_id
         """, nativeQuery = true)
     List<UnreadCount> countUnreadComments(@Param("viewerId") UUID viewerId,

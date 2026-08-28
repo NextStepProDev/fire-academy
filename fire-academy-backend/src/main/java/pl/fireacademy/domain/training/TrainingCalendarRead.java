@@ -8,15 +8,21 @@ import jakarta.persistence.Table;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * "Last time this viewer looked at this calendar."
+ * "Last time this viewer looked at this calendar, and how far into it they got."
  * <p>
  * The client is the row where {@code userId == athleteId}; a coach gets one row per client, so two
  * admins keep independent counters. A missing row means EPOCH — count everything, which is the right
  * answer for a calendar nobody has opened yet.
+ * <p>
+ * Two columns rather than one, because being caught up has two edges. {@code seenAt} answers "as of
+ * when", {@code seenThrough} answers "up to which day" — and without the second, opening one week
+ * cleared the notice for a month the viewer never reached. It only ever moves forward: paging back
+ * to last week cannot un-read what was already read.
  */
 @Entity
 @Table(name = "training_calendar_reads")
@@ -34,6 +40,10 @@ public class TrainingCalendarRead {
     @Column(name = "seen_at", nullable = false)
     private Instant seenAt;
 
+    /** Null means no day has been reached yet — see the class note on why this is not backfilled. */
+    @Column(name = "seen_through")
+    private LocalDate seenThrough;
+
     protected TrainingCalendarRead() {}
 
     public UUID getUserId() {
@@ -46,6 +56,10 @@ public class TrainingCalendarRead {
 
     public Instant getSeenAt() {
         return seenAt;
+    }
+
+    public LocalDate getSeenThrough() {
+        return seenThrough;
     }
 
     public static class Key implements Serializable {

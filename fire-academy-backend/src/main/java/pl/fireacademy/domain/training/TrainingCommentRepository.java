@@ -1,10 +1,12 @@
 package pl.fireacademy.domain.training;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -20,18 +22,23 @@ public interface TrainingCommentRepository extends JpaRepository<TrainingComment
     List<TrainingComment> findThread(@Param("trainingId") UUID trainingId);
 
     /**
-     * Comments the given viewer has not seen: written by the other side after their last visit.
-     * {@code authorIsAdmin} is the frozen role, so this stays correct even if someone changes role.
+     * Comments the given viewer has not seen: written by the other side after their last visit, or
+     * sitting on a training beyond the last day they reached. {@code authorIsAdmin} is the frozen
+     * role, so this stays correct even if someone changes role.
+     * <p>
+     * The date clause reads the TRAINING's day, not the comment's timestamp: a comment is findable
+     * exactly where its training is, so that is what decides whether the viewer could have seen it.
      */
     @Query("""
         SELECT COUNT(c) FROM TrainingComment c
         WHERE c.training.athlete.id = :athleteId
           AND c.authorIsAdmin = :fromAdmin
-          AND c.createdAt > :since
+          AND (c.createdAt > :since OR c.training.date > :seenThrough)
         """)
     long countSince(@Param("athleteId") UUID athleteId,
                     @Param("fromAdmin") boolean fromAdmin,
-                    @Param("since") Instant since);
+                    @Param("since") Instant since,
+                    @Param("seenThrough") LocalDate seenThrough);
 
     long countByTrainingId(UUID trainingId);
 
@@ -43,16 +50,24 @@ public interface TrainingCommentRepository extends JpaRepository<TrainingComment
         """)
     List<Object[]> countByTrainingIds(@Param("trainingIds") List<UUID> trainingIds);
 
-    /** Per-training flag for the unread dot, batched for one calendar page. */
+    /**
+     * Per-training flag for the unread dot, batched for one calendar page.
+     * <p>
+     * The {@code seenThrough} clause has to match {@link #countSince} exactly: the number promises
+     * something findable, and these are the dots it is found by. Every id here is already on the page
+     * being rendered, so the clause only ever adds trainings the viewer is looking at for the first
+     * time.
+     */
     @Query("""
         SELECT DISTINCT c.training.id FROM TrainingComment c
         WHERE c.training.id IN :trainingIds
           AND c.authorIsAdmin = :fromAdmin
-          AND c.createdAt > :since
+          AND (c.createdAt > :since OR c.training.date > :seenThrough)
         """)
     List<UUID> findTrainingIdsWithNewComments(@Param("trainingIds") List<UUID> trainingIds,
                                               @Param("fromAdmin") boolean fromAdmin,
-                                              @Param("since") Instant since);
+                                              @Param("since") Instant since,
+                                              @Param("seenThrough") LocalDate seenThrough);
 
     /** The per-training photo cap counts across the whole thread, not per comment. */
     @Query("""

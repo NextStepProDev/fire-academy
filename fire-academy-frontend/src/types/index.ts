@@ -310,6 +310,11 @@ export interface AthleteGoal {
   targetWeightKg: number | null
   /** The trend when the goal was set; the progress bar measures from it. */
   startWeightKg: number | null
+  /**
+   * Set since the client last opened the plan. Absent for the coach — a goal they wrote is never
+   * news to them, so the field is missing from their JSON rather than false, same as `overtraining`.
+   */
+  unread?: boolean
 }
 
 export interface AthleteGoals {
