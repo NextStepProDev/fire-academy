@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
+import { todayIso } from '../../utils/calendarRange'
 import { formatDate } from '../../utils/dates'
 import type { MonthlyTrainingLine, UserMonthlyPayment } from '../../types'
 import clsx from 'clsx'
@@ -20,7 +21,6 @@ const selectClass =
   'px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 const money = (n: number) => `${Math.round(n * 100) / 100} zł`
-const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
 const timeLabel = (l: MonthlyTrainingLine) =>
   `${l.startTime.slice(0, 5)}${l.endTime ? `–${l.endTime.slice(0, 5)}` : ''}`
@@ -94,7 +94,7 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
 
   // Remove a person from ALL their trainings at once, effective from a chosen date.
   const [removeAll, setRemoveAll] = useState<{ userId: string; name: string } | null>(null)
-  const [removeAllDate, setRemoveAllDate] = useState(TODAY_ISO)
+  const [removeAllDate, setRemoveAllDate] = useState(todayIso)
   const removeAllMut = useMutation({
     mutationFn: ({ userId, date }: { userId: string; date: string }) => adminApi.removeAllTrainingEnrollments(userId, date),
     onSuccess: () => { invalidate(); showToast(t('participants.removeAllSuccess'), 'success') },
@@ -352,7 +352,7 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
                       </button>
 
                       <button
-                        onClick={() => { setRemoveAll({ userId: u.userId, name: `${u.firstName} ${u.lastName}` }); setRemoveAllDate(TODAY_ISO) }}
+                        onClick={() => { setRemoveAll({ userId: u.userId, name: `${u.firstName} ${u.lastName}` }); setRemoveAllDate(todayIso()) }}
                         title={t('participants.removeAll')}
                         aria-label={t('participants.removeAll')}
                         className="shrink-0 text-surface-400 hover:text-rose-400"
@@ -465,7 +465,7 @@ export function AdminTrainingParticipants({ onOpenUser }: { onOpenUser: (userId:
         danger
       >
         <label className="block text-sm font-medium text-surface-300 mb-1">{t('participants.removeAllDateLabel')}</label>
-        <DateInput max={TODAY_ISO} value={removeAllDate} onChange={setRemoveAllDate} className={selectClass} />
+        <DateInput max={todayIso()} value={removeAllDate} onChange={setRemoveAllDate} className={selectClass} />
         <p className="mt-2 text-xs text-surface-500">{t('participants.removeAllDateHint')}</p>
       </ConfirmDialog>
     </div>

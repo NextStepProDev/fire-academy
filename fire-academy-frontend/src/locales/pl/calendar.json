@@ -181,6 +181,7 @@
   },
   "goals": {
     "title": "Cele",
+    "unread": "Nowy cel",
     "horizon": {
       "SHORT": "Krótkoterminowy",
       "MEDIUM": "Średnioterminowy",

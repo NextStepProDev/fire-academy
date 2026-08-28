@@ -335,8 +335,9 @@ export const adminApi = {
   },
   deleteTrainingCommentPhoto: (commentId: string) =>
     fetchApi<void>(`/admin/personal-trainings/comments/${commentId}/photo`, { method: 'DELETE' }),
-  markTrainingCalendarSeen: (athleteId: string) =>
-    fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}`, { method: 'POST' }),
+  /** `to` is the last day that was on screen — the server clears the dots only that far. */
+  markTrainingCalendarSeen: (athleteId: string, to: string) =>
+    fetchApi<void>(`/admin/personal-trainings/mark-seen?athleteId=${athleteId}&to=${to}`, { method: 'POST' }),
   dismissTrainingDeletions: (athleteId: string) =>
     fetchApi<void>(`/admin/personal-trainings/deletions/dismiss?athleteId=${athleteId}`, { method: 'POST' }),
 

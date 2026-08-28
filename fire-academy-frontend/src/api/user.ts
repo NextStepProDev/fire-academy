@@ -71,8 +71,9 @@ export const myTrainingApi = {
   },
   deleteCommentPhoto: (commentId: string) =>
     fetchApi<void>(`/user/my-training/comments/${commentId}/photo`, { method: 'DELETE' }),
-  markSeen: () =>
-    fetchApi<void>('/user/my-training/mark-seen', { method: 'POST' }),
+  /** `to` is the last day that was on screen — the server clears the dots only that far. */
+  markSeen: (to: string) =>
+    fetchApi<void>(`/user/my-training/mark-seen?to=${to}`, { method: 'POST' }),
   dismissDeletions: () =>
     fetchApi<void>('/user/my-training/deletions/dismiss', { method: 'POST' }),
   getSummary: () =>

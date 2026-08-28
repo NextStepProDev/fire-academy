@@ -86,11 +86,18 @@ public class AdminEventService {
     })
     @Transactional
     public EventResponse update(UUID id, UpdateEventRequest request) {
-        if (request.startDate().isBefore(LocalDate.now())) {
+        var event = findOrThrow(id);
+
+        // Asks whether the date MOVED, not whether it is in the past. The form resends every field,
+        // including the start date it never touched, so the second question would lock a term the
+        // moment it begins — and a multi-day camp is edited most while it runs (room, price, notes).
+        // Reading the row first is also what lets an unknown id answer 404 rather than "date in the
+        // past", which is what it used to say.
+        if (!request.startDate().equals(event.getStartDate())
+                && request.startDate().isBefore(LocalDate.now())) {
             throw new IllegalArgumentException(msg.get("event.date.past"));
         }
 
-        var event = findOrThrow(id);
         var changes = new ArrayList<FieldChange>();
 
         String oldName = event.getDisplayName();

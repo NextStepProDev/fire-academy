@@ -41,7 +41,11 @@ export interface TrainingCalendarAdapter {
   addComment: (trainingId: string, body: string, photo?: File | null) => Promise<TrainingComment>
   /** The words survive; only the picture goes. A photo-only comment goes with it. */
   deleteCommentPhoto: (commentId: string) => Promise<void>
-  markSeen: () => Promise<void>
+  /**
+   * Clears the dots as far as `to`, the last day of the window that was rendered. Claiming more than
+   * was on screen is what used to swallow a month nobody opened.
+   */
+  markSeen: (to: string) => Promise<void>
   dismissDeletions: () => Promise<void>
 }
 
@@ -85,7 +89,7 @@ export function coachAdapter(athleteId: string): TrainingCalendarAdapter {
       ? adminApi.addTrainingPhotoComment(id, photo, body)
       : adminApi.addTrainingComment(id, body),
     deleteCommentPhoto: (commentId) => adminApi.deleteTrainingCommentPhoto(commentId),
-    markSeen: () => adminApi.markTrainingCalendarSeen(athleteId),
+    markSeen: (to) => adminApi.markTrainingCalendarSeen(athleteId, to),
     dismissDeletions: () => adminApi.dismissTrainingDeletions(athleteId),
   }
 }
@@ -108,7 +112,7 @@ export function athleteAdapter(athleteId: string): TrainingCalendarAdapter {
       ? myTrainingApi.addPhotoComment(id, photo, body)
       : myTrainingApi.addComment(id, body),
     deleteCommentPhoto: (commentId) => myTrainingApi.deleteCommentPhoto(commentId),
-    markSeen: () => myTrainingApi.markSeen(),
+    markSeen: (to) => myTrainingApi.markSeen(to),
     dismissDeletions: () => myTrainingApi.dismissDeletions(),
   }
 }

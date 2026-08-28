@@ -11,6 +11,7 @@ import { ChevronDown, ChevronRight, MessageSquare, NotebookPen, Trash2 } from 'l
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
+import { todayIso } from '../../utils/calendarRange'
 
 type ArchivedEvent = EventInstance & { category: EventCategory }
 
@@ -23,7 +24,7 @@ const categoryConfig: Record<EventCategory, { labelKey: string; style: string }>
 const filterOptions: ('ALL' | EventCategory)[] = ['ALL', 'TRAINING', 'CAMP', 'COURSE']
 
 function isPastEvent(event: EventInstance): boolean {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIso()
   return (event.endDate ?? event.startDate) < today
 }
 

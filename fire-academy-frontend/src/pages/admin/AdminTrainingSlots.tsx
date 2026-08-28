@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useToast } from '../../context/ToastContext'
 import { adminVisibleMonths, currentMonth, formatMonth } from '../../utils/trainingSchedule'
+import { todayIso } from '../../utils/calendarRange'
 import { Archive, CalendarOff, Check, ChevronDown, ChevronRight, NotebookPen, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react'
 import type { TrainingSlot, AdminUserSummary } from '../../types'
 import clsx from 'clsx'
@@ -18,7 +19,6 @@ import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { DateInput } from '../../components/ui/DateInput'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const
-const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
 /** All dates (ISO) in a given month falling on a given day of the week (ISO 1–7). */
 function sessionDatesInMonth(month: string, isoDayOfWeek: number): string[] {
@@ -73,9 +73,9 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
   const [expanded, setExpanded] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [removeId, setRemoveId] = useState<string | null>(null)
-  const [removeDate, setRemoveDate] = useState(TODAY_ISO)
+  const [removeDate, setRemoveDate] = useState(todayIso)
   const [isDeactivating, setIsDeactivating] = useState(false)
-  const [deactivateDate, setDeactivateDate] = useState(TODAY_ISO)
+  const [deactivateDate, setDeactivateDate] = useState(todayIso)
   const [confirmCancelDate, setConfirmCancelDate] = useState<string | null>(null)
   const [confirmRestoreDate, setConfirmRestoreDate] = useState<string | null>(null)
   const [addForm, setAddForm] = useState<{ query: string; selectedUser: AdminUserSummary | null; mode: 'indefinite' | 'fixed'; months: number; startDate: string }>({ query: '', selectedUser: null, mode: 'indefinite', months: 1, startDate: '' })
@@ -219,7 +219,7 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
               </span>
             )
           ) : (
-            <button onClick={() => { setDeactivateDate(TODAY_ISO); setIsDeactivating(true) }} className="px-2 py-1 text-xs rounded bg-surface-800 text-surface-400 hover:text-amber-400">
+            <button onClick={() => { setDeactivateDate(todayIso()); setIsDeactivating(true) }} className="px-2 py-1 text-xs rounded bg-surface-800 text-surface-400 hover:text-amber-400">
               {t('actions.deactivate')}
             </button>
           )}
@@ -302,7 +302,7 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
                         </div>
                       </td>
                       <td className="py-2.5 text-right">
-                        <button onClick={() => { setRemoveId(r.enrollmentId); setRemoveDate(TODAY_ISO) }} className="p-1 text-surface-400 hover:text-rose-400" title={t('trainingSlots.removeParticipant')}>
+                        <button onClick={() => { setRemoveId(r.enrollmentId); setRemoveDate(todayIso()) }} className="p-1 text-surface-400 hover:text-rose-400" title={t('trainingSlots.removeParticipant')}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -324,7 +324,7 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
               <div className="flex flex-wrap gap-2">
                 {sessionDates.map(date => {
                   const isCancelled = cancelledSet.has(date)
-                  const isPast = date < TODAY_ISO
+                  const isPast = date < todayIso()
                   // Past cancellations can't be undone (a session that didn't happen can't un-happen).
                   const canRestore = isCancelled && !isPast
                   return (
@@ -445,7 +445,7 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
         danger
       >
         <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.removeDateLabel')}</label>
-        <DateInput max={TODAY_ISO} value={removeDate} onChange={setRemoveDate} className={inputClass} />
+        <DateInput max={todayIso()} value={removeDate} onChange={setRemoveDate} className={inputClass} />
         <p className="mt-2 text-xs text-surface-500">{t('trainingSlots.removeDateHint')}</p>
       </ConfirmDialog>
 
@@ -454,7 +454,7 @@ function SlotRow({ slot, month, hasNote, onEdit, onDelete }: {
           <p className="text-sm text-surface-400">{t('trainingSlots.deactivateHint')}</p>
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1">{t('trainingSlots.deactivateFrom')}</label>
-            <DateInput min={TODAY_ISO} value={deactivateDate} onChange={setDeactivateDate} className={inputClass} />
+            <DateInput min={todayIso()} value={deactivateDate} onChange={setDeactivateDate} className={inputClass} />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsDeactivating(false)}>{t('actions.cancel')}</Button>

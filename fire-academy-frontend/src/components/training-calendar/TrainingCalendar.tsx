@@ -124,7 +124,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
   const canReshape = (training: PersonalTraining) => canReshapeTraining(adapter.role, training)
 
   const markSeenMutation = useMutation({
-    mutationFn: () => adapter.markSeen(),
+    mutationFn: (to: string) => adapter.markSeen(to),
     onSuccess: () => {
       // refetchType 'none' on purpose: the dots the viewer is looking at RIGHT NOW must stay lit for
       // this visit — that is the whole point of them. Marking the cache stale means the next entry
@@ -134,18 +134,25 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
     },
   })
 
-  // Only once the page has genuinely arrived. On a cached revisit React Query reports isSuccess in
-  // the same tick, and marking seen before the server has counted the dots clears them before they
-  // are ever shown — the exact failure the reference implementation shipped.
-  const seenSent = useRef(false)
+  // Once per WINDOW PER PERSON, not once per mount. A single flag would report the first page and
+  // then stay quiet, so paging to next month could never mark that month as read — and with the
+  // server now clearing only as far as it is told, those dots would stand for good. The athlete id
+  // belongs in the key because the coach switches clients without this component unmounting: keyed
+  // on the window alone, the second client's page would be silently treated as already reported.
+  //
+  // Still gated on the page having genuinely arrived: on a cached revisit React Query reports
+  // isSuccess in the same tick, and marking seen before the server has counted the dots clears them
+  // before they are ever shown — the exact failure the reference implementation shipped.
+  const seenRanges = useRef(new Set<string>())
   const canMarkSeen = rangeQuery.isSuccess && !rangeQuery.isFetching
   useEffect(() => {
-    if (!canMarkSeen || seenSent.current) return
-    seenSent.current = true
-    markSeenMutation.mutate()
+    const reported = `${adapter.athleteId}|${range.to}`
+    if (!canMarkSeen || seenRanges.current.has(reported)) return
+    seenRanges.current.add(reported)
+    markSeenMutation.mutate(range.to)
     // markSeenMutation is stable for the lifetime of the component
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canMarkSeen])
+  }, [canMarkSeen, range.to, adapter.athleteId])
 
   const dismissMutation = useMutation({
     mutationFn: () => adapter.dismissDeletions(),

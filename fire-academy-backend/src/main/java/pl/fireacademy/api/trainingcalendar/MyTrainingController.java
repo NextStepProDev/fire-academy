@@ -1,6 +1,7 @@
 package pl.fireacademy.api.trainingcalendar;
 
 import jakarta.validation.Valid;
+import org.jspecify.annotations.Nullable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -109,9 +110,20 @@ public class MyTrainingController {
         return service.addComment(id, request, userId, false);
     }
 
+    /**
+     * Clears the dots for the window that was on screen — not for the whole plan.
+     * <p>
+     * {@code to} is required, because without it the call has no meaning left: "I looked" is exactly
+     * the claim that used to wipe a month nobody opened. A cached bundle mid-deploy gets a 400, so
+     * its dots stay lit for that visit and the badge keeps the value it had — the safe direction,
+     * and self-correcting on the next load. Accepting the call and silently claiming everything
+     * would lose the notice for good.
+     */
     @PostMapping("/mark-seen")
-    public ResponseEntity<Void> markSeen(@CurrentUserId UUID userId) {
-        service.markSeen(userId, userId, false);
+    public ResponseEntity<Void> markSeen(
+            @CurrentUserId UUID userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        service.markSeen(userId, userId, false, to);
         return ResponseEntity.noContent().build();
     }
 
@@ -162,6 +174,6 @@ public class MyTrainingController {
     /** Read-only: goals are the coach's call, the trophy case is the client's to look at. */
     @GetMapping("/goals")
     public GoalsResponse goals(@CurrentUserId UUID userId) {
-        return goalService.getGoals(userId);
+        return goalService.getGoals(userId, userId, false);
     }
 }

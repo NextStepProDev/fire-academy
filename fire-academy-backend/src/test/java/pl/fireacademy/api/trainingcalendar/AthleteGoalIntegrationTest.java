@@ -142,7 +142,7 @@ class AthleteGoalIntegrationTest extends BaseIntegrationTest {
         // Goals are the one-directional seventh unread source.
         String admin = adminToken();
         String client = flagClient();
-        mockMvc.perform(post("/api/user/my-training/mark-seen").header("Authorization", "Bearer " + client));
+        mockMvc.perform(post("/api/user/my-training/mark-seen?to=" + LocalDate.now().plusMonths(1)).header("Authorization", "Bearer " + client));
 
         addGoal(admin, clientId(), "SHORT", "Podciągnięcie x10");
 

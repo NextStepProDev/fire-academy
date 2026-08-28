@@ -435,18 +435,23 @@ describe('TrainingCalendar', () => {
     await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(1))
   })
 
-  it('marks seen exactly once per visit', async () => {
-    // Paging weeks refetches the range; re-marking on every page would be pointless write traffic.
+  it('marks seen once per window, reporting how far the reader actually got', async () => {
+    // The server clears the dots only as far as it is told, so each new page has to say so — a
+    // single report on mount would leave next month permanently lit. Paging BACK reports nothing
+    // new: that window was already accounted for, and re-marking it is pointless write traffic.
     const user = userEvent.setup()
     const markSeen = vi.fn().mockResolvedValue(undefined)
     renderCalendar(stubAdapter([training()], { markSeen }))
     await screen.findByText('Siła')
     await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(1))
+    const firstWindowEnd = markSeen.mock.calls[0][0]
 
     await user.click(screen.getByRole('button', { name: 'Następny okres' }))
-    await user.click(screen.getByRole('button', { name: 'Poprzedni okres' }))
+    await waitFor(() => expect(markSeen).toHaveBeenCalledTimes(2))
+    expect(markSeen.mock.calls[1][0] > firstWindowEnd).toBe(true)
 
-    expect(markSeen).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Poprzedni okres' }))
+    expect(markSeen).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the grid standing while paging to a page that is not cached yet', async () => {

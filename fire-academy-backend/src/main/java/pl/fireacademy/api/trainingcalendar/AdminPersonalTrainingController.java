@@ -1,6 +1,7 @@
 package pl.fireacademy.api.trainingcalendar;
 
 import jakarta.validation.Valid;
+import org.jspecify.annotations.Nullable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -86,12 +87,19 @@ public class AdminPersonalTrainingController {
     }
 
     /**
-     * Clears this coach's dots for this client. The frontend calls it only once the calendar has
-     * actually rendered — clearing on mount would wipe the dots before anyone saw them.
+     * Clears this coach's dots for this client, for the window that was on screen — not for the whole
+     * plan. The frontend calls it only once the calendar has actually rendered; clearing on mount
+     * would wipe the dots before anyone saw them.
+     * <p>
+     * {@code to} is required — see the client-side twin for why "I looked" without a window is the
+     * claim that caused this bug in the first place.
      */
     @PostMapping("/mark-seen")
-    public ResponseEntity<Void> markSeen(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
-        service.markSeen(athleteId, adminId, true);
+    public ResponseEntity<Void> markSeen(
+            @CurrentUserId UUID adminId,
+            @RequestParam UUID athleteId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        service.markSeen(athleteId, adminId, true, to);
         return ResponseEntity.noContent().build();
     }
 
@@ -121,8 +129,8 @@ public class AdminPersonalTrainingController {
     // --- Goals. Set by the coach; the client only reads them. ---
 
     @GetMapping("/goals")
-    public GoalsResponse goals(@RequestParam UUID athleteId) {
-        return goalService.getGoals(athleteId);
+    public GoalsResponse goals(@CurrentUserId UUID adminId, @RequestParam UUID athleteId) {
+        return goalService.getGoals(athleteId, adminId, true);
     }
 
     @PostMapping("/goals")

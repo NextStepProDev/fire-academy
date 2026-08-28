@@ -29,21 +29,27 @@ public interface PersonalTrainingRepository extends JpaRepository<PersonalTraini
                                      @Param("to") LocalDate to);
 
     /**
-     * Trainings the other side touched since this viewer last looked.
+     * Trainings the other side touched that this viewer has not caught up with.
      * <p>
      * Keyed on {@code updatedAt}, never {@code completedAt}: undoing a completion clears that column,
      * and the coach still needs to hear about it. {@code lastModifiedByAdmin} is what separates
      * "they changed it" from "I did" — {@code @PreUpdate} bumps {@code updatedAt} either way.
+     * <p>
+     * The second half of the condition is what keeps this number honest against the dots. Opening one
+     * page used to stamp "seen" over the whole plan, so a month the viewer never reached was cleared
+     * from the badge without a dot ever appearing on it. A row past {@code seenThrough} has not been
+     * looked at, whenever it was written.
      */
     @Query("""
         SELECT COUNT(pt) FROM PersonalTraining pt
         WHERE pt.athlete.id = :athleteId
           AND pt.lastModifiedByAdmin = :byAdmin
-          AND pt.updatedAt > :since
+          AND (pt.updatedAt > :since OR pt.date > :seenThrough)
         """)
     long countTouchedSince(@Param("athleteId") UUID athleteId,
                            @Param("byAdmin") boolean byAdmin,
-                           @Param("since") Instant since);
+                           @Param("since") Instant since,
+                           @Param("seenThrough") LocalDate seenThrough);
 
     /**
      * Next training from today onwards — powers the "what's next" line on the account tile. Tasks are

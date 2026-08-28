@@ -95,7 +95,7 @@ class AccountDeletionErasesTrainingDataTest extends BaseIntegrationTest {
                             {"horizon":"SHORT","content":"Podciągnięcia"}"""))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/user/my-training/mark-seen")
+        mockMvc.perform(post("/api/user/my-training/mark-seen?to=" + LocalDate.now().plusMonths(1))
                         .header("Authorization", "Bearer " + client))
                 .andExpect(status().isNoContent());
 

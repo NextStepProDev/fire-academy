@@ -298,7 +298,15 @@ function GoalCard({
           : 'border-surface-800 bg-surface-900/60',
     )}>
       <div className="flex items-start justify-between gap-2">
-        <HorizonLabel horizon={horizon} />
+        <span className="flex items-center gap-1.5">
+          {/* The same dot the calendar cards use. Without it the badge counted a new goal and
+              nothing on the page said which one — a number with nowhere to go. */}
+          {goal.unread && (
+            <span aria-label={t('goals.unread')} title={t('goals.unread')}
+              className="h-2 w-2 shrink-0 rounded-full bg-rose-400" />
+          )}
+          <HorizonLabel horizon={horizon} />
+        </span>
         {achieved && <Trophy className="h-4 w-4 shrink-0 text-emerald-400" />}
       </div>
       <p className="mt-1 text-sm text-surface-100">{goal.content}</p>

@@ -13,6 +13,7 @@ import { useToast } from '../../context/ToastContext'
 import type { EventCategory, EventInstance, UserEnrollment } from '../../types'
 import clsx from 'clsx'
 import { inputClassLg, textareaClassLg } from '../../utils/fieldClass'
+import { todayIso } from '../../utils/calendarRange'
 
 const categoryLabelKey: Record<EventCategory, string> = {
   TRAINING: 'archive.categoryTraining',
@@ -31,7 +32,7 @@ function formatSchedule(en: UserEnrollment): string {
 }
 
 function isUpcoming(event: EventInstance): boolean {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIso()
   return (event.endDate ?? event.startDate) >= today
 }
 

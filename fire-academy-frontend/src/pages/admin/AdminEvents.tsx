@@ -13,6 +13,7 @@ import { CheckCircle, ChevronDown, ChevronRight, Mail, MessageSquare, NotebookPe
 import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
+import { todayIso } from '../../utils/calendarRange'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { DateInput } from '../../components/ui/DateInput'
 
@@ -152,7 +153,7 @@ function EventCard({
           <button onClick={() => onToggleActive(event.id)} className={clsx('px-2 py-1 text-xs rounded', event.active ? 'bg-green-900/30 text-green-400' : 'bg-surface-800 text-surface-500')}>
             {event.active ? t('actions.deactivate') : t('actions.activate')}
           </button>
-          <button onClick={() => onEdit(event)} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
+          <button onClick={() => onEdit(event)} aria-label={t('actions.edit')} title={t('actions.edit')} className="p-1 text-surface-400 hover:text-primary-400"><Pencil className="w-4 h-4" /></button>
           <button onClick={() => onDelete(event)} className="p-1 text-surface-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
         </div>
       </div>
@@ -353,6 +354,9 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<EventInstance | null>(null)
   const [form, setForm] = useState({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
+  // Rendered next to Save. A refused write that says nothing is indistinguishable from a dead button,
+  // and the values in the form are the only copy the user has.
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const queryKey = ['admin', 'events', category]
   // Opt out of the global keepPreviousData: switching category tabs is a different dataset,
@@ -360,7 +364,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
   const { data: allEvents, isLoading } = useQuery({ queryKey, queryFn: () => adminApi.getEvents(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
   const { data: eventTypes } = useQuery({ queryKey: ['admin', 'event-types', category], queryFn: () => adminApi.getEventTypes(category), staleTime: SHORT_STALE_MS, placeholderData: undefined })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIso()
   const events = allEvents?.filter(ev => (ev.endDate ?? ev.startDate) >= today)
 
   const invalidate = () => {
@@ -412,10 +416,11 @@ export function AdminEvents({ category }: AdminEventsProps) {
     onSuccess: invalidate,
     onError: (e: Error) => showToast(e.message, 'error'),
   })
-  const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate })
+  const toggleMut = useMutation({ mutationFn: adminApi.toggleEventActive, onSuccess: invalidate, onError: (e: Error) => showToast(e.message, 'error') })
 
   const openCreate = () => {
     setForm({ eventTypeName: '', description: '', startDate: '', endDate: '', startTime: '', endTime: '', location: '', price: '', maxParticipants: '' })
+    setSaveError(null)
     setIsCreating(true)
   }
   const openEdit = (ev: EventInstance) => {
@@ -430,18 +435,24 @@ export function AdminEvents({ category }: AdminEventsProps) {
       price: ev.price?.toString() ?? '',
       maxParticipants: ev.maxParticipants?.toString() ?? '',
     })
+    setSaveError(null)
     setEditItem(ev)
   }
 
-  const closeForm = () => { setIsCreating(false); setEditItem(null) }
+  const closeForm = () => { setIsCreating(false); setEditItem(null); setSaveError(null) }
 
   const handleSave = async () => {
-    if (editItem) {
-      await updateMut.mutateAsync(editItem.id)
-      setEditItem(null)
-    } else {
-      await createMut.mutateAsync()
-      setIsCreating(false)
+    setSaveError(null)
+    try {
+      if (editItem) {
+        await updateMut.mutateAsync(editItem.id)
+        setEditItem(null)
+      } else {
+        await createMut.mutateAsync()
+        setIsCreating(false)
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -514,7 +525,7 @@ export function AdminEvents({ category }: AdminEventsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.startDate')}</label>
-              <DateInput value={form.startDate} min={new Date().toISOString().split('T')[0]} onChange={startDate => setForm(f => ({ ...f, startDate }))} className={inputClass} />
+              <DateInput value={form.startDate} min={todayIso()} onChange={startDate => setForm(f => ({ ...f, startDate }))} className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-surface-300 mb-1">{t('events.endDate')}</label>
@@ -545,6 +556,9 @@ export function AdminEvents({ category }: AdminEventsProps) {
               <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} className={inputClass} />
             </div>
           </div>
+          {saveError && (
+            <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{saveError}</p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={closeForm}>{t('actions.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={handleSave} loading={createMut.isPending || updateMut.isPending} disabled={!isDirty}>{t('actions.save')}</Button>

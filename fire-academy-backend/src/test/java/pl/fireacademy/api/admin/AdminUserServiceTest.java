@@ -86,7 +86,7 @@ class AdminUserServiceTest {
     }
 
     private static final java.util.Set<String> ALLOWED_SORT_PROPERTIES =
-            java.util.Set.of("lastName", "firstName", "email", "role", "marketingConsentAt", "createdAt");
+            java.util.Set.of("lastName", "firstName", "email", "role", "marketingConsentAt", "createdAt", "id");
 
     @ParameterizedTest(name = "sort=\"{0}\" dir={1} -> {3} {2}")
     @CsvSource({
@@ -117,6 +117,31 @@ class AdminUserServiceTest {
                         "Niedozwolona właściwość sortowania: " + o.getProperty()));
     }
 
+    /**
+     * Every sort key has to end in something unique, or paging tears.
+     * <p>
+     * The list is paged 50 at a time and three of the four keys are heavily tied — `role` holds two
+     * values and `marketingConsentAt` is null on most accounts. Postgres makes no promise about the
+     * order of rows inside a tie, and it does not have to make the same choice for OFFSET 0 as for
+     * OFFSET 50: the same person can then appear on both pages while somebody else appears on
+     * neither. Asserted on the Sort rather than against a live database, because a database test for
+     * this passes or fails by luck.
+     */
+    @ParameterizedTest(name = "sort=\"{0}\" ends with id")
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"name", "email", "role", "marketing", "created", "garbage"})
+    void shouldBreakEverySortTieOnId(String sort) {
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(regular)));
+
+        service.list(null, 0, 50, sort, "asc");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(userRepository).findAll(captor.capture());
+        List<String> properties = captor.getValue().getSort().toList().stream()
+                .map(Sort.Order::getProperty).toList();
+        assertEquals("id", properties.getLast(),
+                "Sortowanie po \"" + sort + "\" nie kończy się unikalną kolumną: " + properties);
+    }
+
     @Test
     void shouldSortByLastNameThenFirstNameForNameKey() {
         when(userRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(regular)));
@@ -125,7 +150,7 @@ class AdminUserServiceTest {
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(userRepository).findAll(captor.capture());
-        assertEquals(List.of("lastName", "firstName"),
+        assertEquals(List.of("lastName", "firstName", "id"),
                 captor.getValue().getSort().toList().stream().map(Sort.Order::getProperty).toList());
     }
 
