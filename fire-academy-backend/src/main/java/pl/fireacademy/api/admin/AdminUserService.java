@@ -102,14 +102,24 @@ public class AdminUserService {
 
     // Whitelist of sortable fields (protects against injecting an arbitrary property into Sort).
     // Phone is intentionally not sortable.
+    //
+    // Every key ends on `id`, and that is not decoration. The list is paged 50 at a time and three of
+    // the four keys are heavily tied — `role` holds two values, `marketingConsentAt` is null on most
+    // accounts. Postgres promises nothing about the order of rows inside a tie and need not answer
+    // OFFSET 0 and OFFSET 50 the same way, so without a unique last key one person lands on two pages
+    // while another lands on none. Adding a sortable column? Give it the same tiebreaker.
+    //
+    // Note on "role": the column stores the enum as text, so this sorts alphabetically rather than by
+    // declaration order. With ADMIN and USER the two happen to coincide. A third role would not, and
+    // the fix then belongs in the service, the way AthleteGoalService sorts horizons.
     private Sort resolveSort(String sort, String direction) {
         Sort.Direction dir = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return switch (sort == null ? "" : sort) {
-            case "name" -> Sort.by(dir, "lastName", "firstName");
-            case "email" -> Sort.by(dir, "email");
-            case "role" -> Sort.by(dir, "role");
-            case "marketing" -> Sort.by(dir, "marketingConsentAt");
-            default -> Sort.by(dir, "createdAt");
+            case "name" -> Sort.by(dir, "lastName", "firstName").and(Sort.by(dir, "id"));
+            case "email" -> Sort.by(dir, "email").and(Sort.by(dir, "id"));
+            case "role" -> Sort.by(dir, "role").and(Sort.by(dir, "id"));
+            case "marketing" -> Sort.by(dir, "marketingConsentAt").and(Sort.by(dir, "id"));
+            default -> Sort.by(dir, "createdAt").and(Sort.by(dir, "id"));
         };
     }
 
