@@ -10,7 +10,7 @@ const session: RecurringSession = {
 
 const labels = {
   add: 'Dodaj', copy: 'Kopiuj', cut: 'Wytnij', pasteHere: 'Wklej tutaj', unread: 'Nowe',
-  comments: 'Komentarze', recurring: 'Grupowe', task: 'Zadanie', calories: 'kcal',
+  comments: 'Komentarze', recurring: 'Grupowe', task: 'Zadanie', calories: 'kcal', weekendFree: 'wolne',
   openSession: 'Prywatna notatka', note: 'Jest notatka',
 }
 

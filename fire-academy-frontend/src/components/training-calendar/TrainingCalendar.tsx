@@ -332,6 +332,7 @@ export function TrainingCalendar({ adapter }: { adapter: TrainingCalendarAdapter
                   note: t('notes.marker'),
                   task: t('form.kind.TASK'),
                   calories: t('form.calories'),
+                  weekendFree: t('day.weekendFree'),
                 }}
               />
             ))}
