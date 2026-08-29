@@ -422,7 +422,7 @@ public class AdminTrainingSlotService {
             }
             cancelledSessionRepository.save(new TrainingCancelledSession(slot, date));
             if (notify) {
-                collectPaidCancellations(buckets, slot, month);
+                collectCancellations(buckets, slot, month);
             }
             refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null,
                     TrainingRefundService.ClosureCause.SINGLE_SESSION);
@@ -437,18 +437,30 @@ public class AdminTrainingSlotService {
         return cancelled;
     }
 
-    /** Adds a slot's paid subscribers (and their would-be refund) to the per-person grouping for a grouped email. */
-    private void collectPaidCancellations(java.util.Map<UUID, PersonCancellationBucket> buckets, TrainingSlot slot, String month) {
-        for (var te : paidSubscribers(slot, month)) {
+    /**
+     * Adds a slot's subscribers to the per-person grouping for a grouped cancellation email.
+     *
+     * Everyone enrolled goes in, paid or not — the email's job is to stop people turning up. Only a paid
+     * session carries a refund, so the price is attached for payers alone and the rest get the same email
+     * without an amount.
+     */
+    private void collectCancellations(java.util.Map<UUID, PersonCancellationBucket> buckets, TrainingSlot slot, String month) {
+        var subscribers = coveringSubscribers(slot, month);
+        var paid = paidIdsOf(subscribers, month);
+        for (var te : subscribers) {
             buckets.computeIfAbsent(te.getUser().getId(), k -> new PersonCancellationBucket(te.getUser()))
-                    .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());
+                    .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(),
+                            paid.contains(te.getId()) ? slot.getPrice() : null);
         }
     }
 
     /**
-     * Registers refunds and emails the affected subscribers about a single cancelled session. Only subscribers who
-     * have PAID that month are emailed — for the unpaid ones the training just gets cheaper (their estimate updates),
-     * no notification. Refunds are registered for paid subscribers regardless.
+     * Registers refunds and emails the affected subscribers about a single cancelled session.
+     *
+     * EVERY subscriber covering that month is emailed, paid or not: the message exists to stop someone
+     * travelling to a session that will not happen, and an unpaid subscriber intends to attend exactly as
+     * much as a paid one. Only payers are told about a refund, and refunds themselves are registered for
+     * payers alone — unchanged.
      */
     private void notifyAndRefundForCancelledSession(TrainingSlot slot, java.time.LocalDate date) {
         // A past session already happened — the cancellation email exists to tell people not to come, which is
@@ -456,24 +468,30 @@ public class AdminTrainingSlotService {
         if (!date.isBefore(java.time.LocalDate.now())) {
             var info = mailInfo(slot);
             String month = YearMonth.from(date).toString();
-            for (var te : paidSubscribers(slot, month)) {
+            var subscribers = coveringSubscribers(slot, month);
+            var paid = paidIdsOf(subscribers, month);
+            for (var te : subscribers) {
                 var u = te.getUser();
-                trainingMail.sendSessionCancelled(u.getEmail(), u.getFirstName(), info, date, slot.getPrice());
+                trainingMail.sendSessionCancelled(u.getEmail(), u.getFirstName(), info, date,
+                        paid.contains(te.getId()) ? slot.getPrice() : null);
             }
         }
         refundService.registerForSlotSession(slot, date, TrainingRefund.TYPE_SESSION, null,
                 TrainingRefundService.ClosureCause.SINGLE_SESSION);
     }
 
-    /** Subscribers of a slot who have paid the given month — the only ones notified about a cancellation. */
-    private List<TrainingEnrollment> paidSubscribers(TrainingSlot slot, String month) {
-        var subs = enrollmentRepository.findCoveringForSlot(slot.getId(), month);
-        var ids = subs.stream().map(TrainingEnrollment::getId).toList();
+    /** Everyone whose subscription covers the given month on this slot — paid or not. */
+    private List<TrainingEnrollment> coveringSubscribers(TrainingSlot slot, String month) {
+        return enrollmentRepository.findCoveringForSlot(slot.getId(), month);
+    }
+
+    /** Which of those subscriptions have the month paid — one query for the whole group, not one per person. */
+    private java.util.Set<UUID> paidIdsOf(List<TrainingEnrollment> subscribers, String month) {
+        var ids = subscribers.stream().map(TrainingEnrollment::getId).toList();
         if (ids.isEmpty()) {
-            return List.of();
+            return java.util.Set.of();
         }
-        var paid = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
-        return subs.stream().filter(te -> paid.contains(te.getId())).toList();
+        return new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
     }
 
     /**

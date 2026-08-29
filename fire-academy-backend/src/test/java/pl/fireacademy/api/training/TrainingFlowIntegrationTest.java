@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -1465,11 +1466,13 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotEmailUnpaidSubscriberAboutCancelledSession() throws Exception {
+    void shouldEmailUnpaidSubscriberAboutCancelledSessionButOweThemNothing() throws Exception {
         TrainingSlot slot = seedSlot(8);
         LocalDate date = nextSlotDate();
         String admin = adminToken();
-        // Enrolled but NOT paid → no cancellation email; the training just gets cheaper (estimate updates).
+        // Enrolled but NOT paid. Payment is taken up front, before the month's first session, so this is
+        // exactly the window in which cancellations get announced — and this person still means to turn up.
+        // They get the email; what they do NOT get is a refund line, because they are owed nothing.
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + YearMonth.from(date) + "\"}");
 
         mockMvc.perform(post("/api/admin/training-slots/" + slot.getId() + "/cancel-session")
@@ -1478,8 +1481,14 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
                 .content("{\"sessionDate\":\"" + date + "\"}"))
             .andExpect(status().isCreated());
 
-        verify(trainingMail, org.mockito.Mockito.never())
-                .sendSessionCancelled(eq(USER_EMAIL), anyString(), any(), any(), any());
+        var refund = ArgumentCaptor.forClass(BigDecimal.class);
+        verify(trainingMail, org.mockito.Mockito.times(1))
+                .sendSessionCancelled(eq(USER_EMAIL), anyString(), any(), eq(date), refund.capture());
+        assertNull(refund.getValue(), "an unpaid session owes nothing back");
+
+        // And no refund is booked for them.
+        mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
+            .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -1526,8 +1535,9 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldRefundAndEmailOnlyPaidSessionsOnInstructorDay() throws Exception {
-        // Per-training paid filter: the subscriber paid ONE of the trainer's two slots. Only that session is
-        // refunded and listed in the email; the unpaid one just gets cheaper (no refund, not in the email).
+        // The subscriber paid ONE of the trainer's two slots. BOTH cancelled sessions are listed in the
+        // email — they would have travelled for either — but only the paid one is refunded, so the total
+        // covers one session, not two. Money follows payment; the warning follows attendance.
         var instr = instructorRepository.save(new pl.fireacademy.domain.instructor.Instructor("Anna", "Trener"));
         EventType type = seedType();
         TrainingSlot paidSlot = instructorSlot(instr, type, DAY, 8);
@@ -1547,8 +1557,9 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
         var refund = ArgumentCaptor.forClass(BigDecimal.class);
         verify(trainingMail, org.mockito.Mockito.times(1)).sendInstructorDayCancellation(
                 eq(USER_EMAIL), anyString(), eq("Anna Trener"), eq(date), sessions.capture(), refund.capture());
-        assertEquals(1, sessions.getValue().size());       // only the paid session listed
-        assertEquals(0, refund.getValue().compareTo(new BigDecimal("90")));
+        assertEquals(2, sessions.getValue().size());       // both cancelled sessions listed
+        assertEquals(0, refund.getValue().compareTo(new BigDecimal("90")),
+                "only the paid session is refunded, even though both are listed");
 
         // Only the paid session generates a refund.
         mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
@@ -1585,8 +1596,9 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldNotEmailOrRefundUnpaidSubscriberOnInstructorDay() throws Exception {
-        // An unpaid subscriber gets no email and no refund — the training just gets cheaper (estimate updates).
+    void shouldEmailButNotRefundUnpaidSubscriberOnInstructorDay() throws Exception {
+        // An unpaid subscriber IS told the trainer's day is off — they were going to come — but is owed
+        // nothing, so the email carries no refund and the ledger stays empty.
         var instr = instructorRepository.save(new pl.fireacademy.domain.instructor.Instructor("Anna", "Trener"));
         TrainingSlot slot = instructorSlot(instr, seedType(), DAY, 8);
         LocalDate date = nextSlotDate();
@@ -1596,8 +1608,11 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
 
         assertEquals(1, (int) JsonPath.read(cancelInstructorDay(instr.getId(),date, admin), "$.cancelled"));
 
-        verify(trainingMail, org.mockito.Mockito.never())
-                .sendInstructorDayCancellation(any(), any(), any(), any(), any(), any());
+        var refund = ArgumentCaptor.forClass(BigDecimal.class);
+        verify(trainingMail, org.mockito.Mockito.times(1)).sendInstructorDayCancellation(
+                eq(USER_EMAIL), anyString(), eq("Anna Trener"), eq(date), any(), refund.capture());
+        assertNull(refund.getValue(), "nothing was paid, so nothing is owed back");
+
         mockMvc.perform(get("/api/admin/training-refunds").header("Authorization", "Bearer " + admin))
             .andExpect(jsonPath("$.length()").value(0));
     }

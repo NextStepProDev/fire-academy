@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -75,7 +76,12 @@ public class AdminTrainingHolidayService {
         return !refundService.hasCashRefundForDate(date) && !refundService.hasConsumedCreditForDate(date);
     }
 
-    /** Distinct paid participants affected by a day off (those who got the email / need a phone call on removal). */
+    /**
+     * Distinct participants affected by a day off — everyone who got the email, and therefore everyone
+     * who may need a phone call if the day off is removed again. Counts the unpaid too: they are told
+     * about the cancellation as well, so leaving them out here would send the admin calling back only
+     * half of the people who were informed.
+     */
     private int countNotified(LocalDate date) {
         String month = YearMonth.from(date).toString();
         var users = new HashSet<UUID>();
@@ -83,7 +89,7 @@ public class AdminTrainingHolidayService {
             if (!affectedByHoliday(slot, date)) {
                 continue;
             }
-            for (var te : paidSubscribers(slot, month)) {
+            for (var te : coveringSubscribers(slot, month)) {
                 users.add(te.getUser().getId());
             }
         }
@@ -104,17 +110,28 @@ public class AdminTrainingHolidayService {
         // Refund ledger: register refunds for already-paid subscribers of affected slots.
         refundService.registerForHoliday(date, cleanLabel);
 
-        // Group each affected PAID subscriber's sessions that day → ONE day-off email listing them all. Unpaid
-        // subscribers are NOT emailed — their training simply gets cheaper and the estimate updates.
+        // Group each affected subscriber's sessions that day → ONE day-off email listing them all.
+        //
+        // EVERYONE enrolled is emailed, not only those who have paid. Payment is taken up front, before
+        // the month's first session, so "enrolled but not yet paid" is exactly the window in which a day
+        // off is normally announced — and those people still intend to show up. Mailing only the payers
+        // handled their money and let the rest drive to a closed gym.
+        //
+        // What still depends on payment is the REFUND: only a paid session is owed anything back, so the
+        // price goes into the bucket only for payers and everyone else gets the same email without an
+        // amount. `registerForHoliday` above is unchanged — it books refunds for the paid ones only.
         var month = YearMonth.from(date).toString();
         var buckets = new java.util.LinkedHashMap<UUID, PersonCancellationBucket>();
         for (var slot : slotRepository.findActiveByDayOfWeek(date.getDayOfWeek().getValue())) {
             if (!affectedByHoliday(slot, date)) {
                 continue;   // stopped/cancelled earlier — informed and refunded by that closure, not this one
             }
-            for (var te : paidSubscribers(slot, month)) {
+            var subscribers = coveringSubscribers(slot, month);
+            var paid = paidIdsOf(subscribers, month);
+            for (var te : subscribers) {
                 buckets.computeIfAbsent(te.getUser().getId(), k -> new PersonCancellationBucket(te.getUser()))
-                        .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(), slot.getPrice());
+                        .add(slot.getEventType().getName(), slot.getStartTime(), slot.getEndTime(),
+                                paid.contains(te.getId()) ? slot.getPrice() : null);
             }
         }
         for (var b : buckets.values()) {
@@ -125,15 +142,18 @@ public class AdminTrainingHolidayService {
                 buckets.size(), true);   // just added → restorable; buckets.size() = participants notified
     }
 
-    /** Subscribers of a slot who have paid the given month — the only ones notified about a day off. */
-    private List<TrainingEnrollment> paidSubscribers(TrainingSlot slot, String month) {
-        var subs = enrollmentRepository.findCoveringForSlot(slot.getId(), month);
-        var ids = subs.stream().map(TrainingEnrollment::getId).toList();
+    /** Everyone whose subscription covers the given month on this slot — paid or not. */
+    private List<TrainingEnrollment> coveringSubscribers(TrainingSlot slot, String month) {
+        return enrollmentRepository.findCoveringForSlot(slot.getId(), month);
+    }
+
+    /** Which of those subscriptions have the month paid — one query for the whole group, not one per person. */
+    private Set<UUID> paidIdsOf(List<TrainingEnrollment> subscribers, String month) {
+        var ids = subscribers.stream().map(TrainingEnrollment::getId).toList();
         if (ids.isEmpty()) {
-            return List.of();
+            return Set.of();
         }
-        var paid = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
-        return subs.stream().filter(te -> paid.contains(te.getId())).toList();
+        return new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
     }
 
     @Transactional
