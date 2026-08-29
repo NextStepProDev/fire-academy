@@ -39,7 +39,10 @@
     "emailSignatureHint": "Logo Fire Academy oraz podpis „Pozdrawiam, Fire Academy\" zostaną dodane automatycznie.",
     "emailUnsubscribeHint": "Na dole wiadomości dodamy link umożliwiający rezygnację z marketingu.",
     "emailSend": "Wyślij",
-    "emailSuccess": "Wysłano wiadomość do {{count}} użytkowników.",
+    "emailSuccess_one": "Wysłano wiadomość do {{count}} użytkownika.",
+    "emailSuccess_few": "Wysłano wiadomość do {{count}} użytkowników.",
+    "emailSuccess_many": "Wysłano wiadomość do {{count}} użytkowników.",
+    "emailSuccess_other": "Wysłano wiadomość do {{count}} użytkowników.",
     "cancel": "Anuluj",
     "deleteTitle": "Usuń konto użytkownika",
     "deleteMessage": "Czy na pewno chcesz usunąć konto {{name}} ({{email}})? Zapisy na nadchodzące wydarzenia zostaną usunięte (zwolnią miejsce), a archiwalne zanonimizowane. Tej operacji nie można cofnąć.",
@@ -456,7 +459,10 @@
     "noItems": "Brak terminów",
     "selectEventType": "Wybierz rodzaj",
     "typeOrSelect": "Wybierz lub wpisz nazwę",
-    "deleteEnrolledConfirm": "Na ten termin zapisanych jest {{count}} osób. Zostaną powiadomione mailem o odwołaniu, a ich zapisy zostaną trwale usunięte. Czy na pewno usunąć?"
+    "deleteEnrolledConfirm_one": "Na ten termin zapisana jest {{count}} osoba. Zostanie powiadomiona mailem o odwołaniu. Czy na pewno chcesz usunąć ten termin?",
+    "deleteEnrolledConfirm_few": "Na ten termin zapisane są {{count}} osoby. Zostaną powiadomione mailem o odwołaniu. Czy na pewno chcesz usunąć ten termin?",
+    "deleteEnrolledConfirm_many": "Na ten termin zapisanych jest {{count}} osób. Zostaną powiadomione mailem o odwołaniu. Czy na pewno chcesz usunąć ten termin?",
+    "deleteEnrolledConfirm_other": "Na ten termin zapisanych jest {{count}} osób. Zostaną powiadomione mailem o odwołaniu. Czy na pewno chcesz usunąć ten termin?"
   },
   "archive": {
     "title": "Archiwum",
@@ -488,7 +494,10 @@
     "optional": "opcjonalnie",
     "noItems": "Brak zapisów",
     "summary": "{{count}} / {{max}} zapisanych",
-    "summaryNoLimit": "{{count}} zapisanych",
+    "summaryNoLimit_one": "{{count}} zapisany",
+    "summaryNoLimit_few": "{{count}} zapisanych",
+    "summaryNoLimit_many": "{{count}} zapisanych",
+    "summaryNoLimit_other": "{{count}} zapisanych",
     "selectUser": "Wybierz użytkownika",
     "searchUserPlaceholder": "Szukaj po imieniu, nazwisku lub mailu…",
     "noUsers": "Brak pasujących użytkowników"
@@ -498,9 +507,15 @@
     "messagePlaceholder": "Wpisz treść wiadomości...",
     "send": "Wyślij",
     "sending": "Wysyłanie...",
-    "success": "Wiadomość wysłana do {{count}} uczestników",
+    "success_one": "Wiadomość wysłana do {{count}} uczestnika",
+    "success_few": "Wiadomość wysłana do {{count}} uczestników",
+    "success_many": "Wiadomość wysłana do {{count}} uczestników",
+    "success_other": "Wiadomość wysłana do {{count}} uczestników",
     "noEnrollments": "Brak zapisanych uczestników",
     "confirmTitle": "Potwierdzenie wysyłki",
-    "confirmMessage": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestników wydarzenia \"{{event}}\"?"
+    "confirmMessage_one": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestnika wydarzenia \"{{event}}\"?",
+    "confirmMessage_few": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestników wydarzenia \"{{event}}\"?",
+    "confirmMessage_many": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestników wydarzenia \"{{event}}\"?",
+    "confirmMessage_other": "Czy na pewno chcesz wysłać wiadomość do {{count}} uczestników wydarzenia \"{{event}}\"?"
   }
 }

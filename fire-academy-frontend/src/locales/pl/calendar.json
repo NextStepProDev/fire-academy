@@ -10,7 +10,8 @@
   "day": {
     "add": "Dodaj wpis",
     "open": "Pokaż dzień",
-    "empty": "Nic tego dnia."
+    "empty": "Nic tego dnia.",
+    "weekendFree": "wolne"
   },
   "empty": "Nic zaplanowanego w tym okresie.",
   "status": {
@@ -257,7 +258,10 @@
     "typePersonal": "Indywidualne 1:1",
     "typeRecurring": "Grupowe",
     "avgPerMonth": "Średnio {{value}} miesięcznie",
-    "badgeTotal": "{{count}} treningów",
+    "badgeTotal_one": "{{count}} trening",
+    "badgeTotal_few": "{{count}} treningi",
+    "badgeTotal_many": "{{count}} treningów",
+    "badgeTotal_other": "{{count}} treningów",
     "badgeStreak_one": "{{count}} tydzień z rzędu",
     "badgeStreak_few": "{{count}} tygodnie z rzędu",
     "badgeStreak_many": "{{count}} tygodni z rzędu",

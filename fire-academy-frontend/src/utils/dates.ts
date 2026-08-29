@@ -5,6 +5,17 @@ export function formatDate(iso: string): string {
   return format(parseISO(iso), 'd MMM yyyy', { locale: pl })
 }
 
+/**
+ * Trims a wire time to what a reader wants to see: "09:00:00" → "09:00".
+ * The API serialises `LocalTime` with seconds, and nobody schedules a class at 9:00:07 — the
+ * seconds are always ":00" and always noise. Kept as one exported helper rather than a `.slice(0, 5)`
+ * repeated at each call site: the four places that forgot the slice were all showing the seconds to
+ * the customer, on the pages where they decide to buy.
+ */
+export function hhmm(time: string): string {
+  return time.slice(0, 5)
+}
+
 export function formatDateRange(start: string, end: string | null): string {
   const startDate = parseISO(start)
   if (!end) return format(startDate, 'd MMM yyyy', { locale: pl })
@@ -34,15 +45,15 @@ export function formatSchedule(
 
   if (multiDay) {
     if (startTime || endTime) {
-      const from = `${formatDate(startDate)}${startTime ? `, ${startTime}` : ''}`
-      const to = `${formatDate(endDate)}${endTime ? `, ${endTime}` : ''}`
+      const from = `${formatDate(startDate)}${startTime ? `, ${hhmm(startTime)}` : ''}`
+      const to = `${formatDate(endDate)}${endTime ? `, ${hhmm(endTime)}` : ''}`
       return `${from} – ${to}`
     }
     return formatDateRange(startDate, endDate)
   }
 
   const day = formatDate(startDate)
-  if (startTime && endTime) return `${day}, ${startTime} – ${endTime}`
-  if (startTime) return `${day}, ${startTime}`
+  if (startTime && endTime) return `${day}, ${hhmm(startTime)} – ${hhmm(endTime)}`
+  if (startTime) return `${day}, ${hhmm(startTime)}`
   return day
 }
