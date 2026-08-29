@@ -14,6 +14,7 @@ import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { inputClass, textareaClass, textareaClassFixed } from '../../utils/fieldClass'
 import { todayIso } from '../../utils/calendarRange'
+import { hhmm } from '../../utils/dates'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { DateInput } from '../../components/ui/DateInput'
 
@@ -71,12 +72,19 @@ function EventCard({
     staleTime: 30_000,
   })
 
+  // Shown next to Save. The two refusals that actually happen here — the event is full, the person is
+  // already on the list — are things the admin has to read and act on, so they belong in the form, not
+  // in a toast that slides away.
+  const [addError, setAddError] = useState<string | null>(null)
+
   const addMut = useMutation({
     mutationFn: () => adminApi.adminEnroll({
       eventId: event.id,
       userId: selectedUserId,
       note: note.trim() || undefined,
     }),
+    onMutate: () => setAddError(null),
+    onError: (e: Error) => setAddError(e.message),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', event.id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'events'] })
@@ -97,6 +105,9 @@ function EventCard({
 
   const bulkEmailMut = useMutation({
     mutationFn: () => adminApi.sendBulkEmail({ eventId: event.id, message: emailMessage }),
+    // The one failure in this file that must never pass silently: a send that did not happen looks
+    // exactly like one that did, and the admin walks away believing every participant was told.
+    onError: (e: Error) => showToast(e.message, 'error'),
     onSuccess: (data) => {
       setEmailConfirm(false)
       setIsSendingEmail(false)
@@ -139,7 +150,7 @@ function EventCard({
           </p>
           <p className="text-sm text-surface-400">
             {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
-            {event.startTime ? ` · ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
+            {event.startTime ? ` · ${hhmm(event.startTime)}${event.endTime ? ` – ${hhmm(event.endTime)}` : ''}` : ''}
             {event.location ? ` · ${event.location}` : ''}
           </p>
           <p className="text-sm text-surface-500">
@@ -284,6 +295,9 @@ function EventCard({
             </label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000} className={textareaClassFixed} />
           </div>
+          {addError && (
+            <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{addError}</p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>{t('actions.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={() => addMut.mutate()} loading={addMut.isPending} disabled={!selectedUserId}>{t('actions.save')}</Button>

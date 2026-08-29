@@ -96,15 +96,24 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
     queryKey: isCoach ? ['admin', 'goals', athleteId] : ['user', 'my-training', 'goals'],
   })
 
+  // Deleting and reopening are the two actions on this board that fire straight from a click, with
+  // no form of their own to carry a message. Without this line a refusal closed the dialog and left
+  // the goal sitting there — indistinguishable from a dead button.
+  const [actionError, setActionError] = useState<string | null>(null)
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminApi.deleteAthleteGoal(id),
+    onMutate: () => setActionError(null),
     onSuccess: () => { setToDelete(null); invalidate() },
+    onError: (e: Error) => setActionError(e.message),
   })
 
   /** Only ever offered for an automatic close — the server refuses the rest. */
   const reopenMutation = useMutation({
     mutationFn: (id: string) => adminApi.reopenAthleteGoal(id),
+    onMutate: () => setActionError(null),
     onSuccess: invalidate,
+    onError: (e: Error) => setActionError(e.message),
   })
 
   // The starting point for a new weight goal, and what the progress bars measure against.
@@ -158,6 +167,10 @@ export function GoalsBoard({ athleteId }: { athleteId: string | null }) {
           </button>
         )}
       </div>
+
+      {actionError && (
+        <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{actionError}</p>
+      )}
 
       {/*
         Two rows rather than one. A technique goal and a weight goal are different kinds of thing —
