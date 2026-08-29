@@ -12,6 +12,7 @@ import type { EventCategory, EventInstance } from '../../types'
 import clsx from 'clsx'
 import { SHORT_STALE_MS } from '../../utils/queryFreshness'
 import { todayIso } from '../../utils/calendarRange'
+import { hhmm } from '../../utils/dates'
 
 type ArchivedEvent = EventInstance & { category: EventCategory }
 
@@ -81,7 +82,7 @@ function ArchiveCard({ event, hasNote }: { event: ArchivedEvent; hasNote: boolea
           </div>
           <p className="text-sm text-surface-400">
             {event.startDate}{event.endDate ? ` – ${event.endDate}` : ''}
-            {event.startTime ? ` · ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
+            {event.startTime ? ` · ${hhmm(event.startTime)}${event.endTime ? ` – ${hhmm(event.endTime)}` : ''}` : ''}
             {event.location ? ` · ${event.location}` : ''}
           </p>
           <p className="text-sm text-surface-500">

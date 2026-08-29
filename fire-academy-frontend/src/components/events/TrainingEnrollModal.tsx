@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { userApi } from '../../api/user'
 import { useToast } from '../../context/ToastContext'
-import { remainingOccurrences, formatMonth, addMonths, holidaysForDay } from '../../utils/trainingSchedule'
+import { remainingOccurrences, formatMonth, formatMonthLocative, addMonths, holidaysForDay } from '../../utils/trainingSchedule'
 import type { TrainingSlotCard, TrainingHolidayItem } from '../../types'
 import { inputClass } from '../../utils/fieldClass'
 
@@ -124,7 +124,7 @@ function TrainingEnrollForm({ slot, startMonth, holidays, onClose }:
 
         {amount != null && (
           <p className="text-sm text-primary-400 font-medium">
-            {t('enrollTraining.summaryAmount', { month: formatMonth(startMonth), amount, sessions, price: slot.price })}
+            {t('enrollTraining.summaryAmount', { month: formatMonthLocative(startMonth), amount, sessions, count: sessions, price: slot.price })}
           </p>
         )}
         {slotHolidays.length > 0 && (
