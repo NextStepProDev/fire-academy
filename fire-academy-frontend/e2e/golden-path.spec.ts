@@ -139,6 +139,28 @@ test.describe('Golden Path — gość', () => {
     await expect(page).toHaveURL(/\/logowanie$/)
   })
 
+  test('przy prośbie o mniej animacji intro w ogóle się nie pokazuje', async ({ page }) => {
+    // The intro blocks every click for ~3s. Someone who set "reduce motion" has asked not to be made
+    // to sit through that, and index.css already honoured the request for the decoration inside it —
+    // the overlay was simply missed.
+    // Set on the page rather than through `test.use({ reducedMotion })`: the fixture form did not
+    // reach the document here — matchMedia still reported no preference — so the test would have
+    // been green for the wrong reason. This form was checked against the browser directly.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+
+    const trainings = page.locator('a[href="/treningi"] h2').first()
+    await expect(trainings).toBeAttached()   // React has mounted; the page is worth inspecting
+
+    // A one-shot count, NOT `await expect(locator).toHaveCount(0)`. Web-first assertions retry for
+    // five seconds, and the intro leaves on its own after three — so the retrying form passed just
+    // as happily with this fix reverted, which is to say it asserted nothing. Checked both ways.
+    expect(await page.locator('div.fixed.inset-0.z-50').count()).toBe(0)
+    await expect(trainings).toBeVisible()
+    await trainings.click()
+    await expect(page).toHaveURL(/\/treningi$/)
+  })
+
   test('nieznany adres pokazuje stronę 404, nie pustkę', async ({ page }) => {
     await page.goto('/tego-adresu-nie-ma')
     await expect(page.getByRole('heading', { level: 1, name: /Nie ma takiej strony/i })).toBeVisible()
