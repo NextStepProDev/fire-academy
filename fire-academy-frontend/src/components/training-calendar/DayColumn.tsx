@@ -29,6 +29,8 @@ interface DayColumnProps {
   labels: {
     add: string; copy: string; cut: string; pasteHere: string
     unread: string; comments: string; recurring: string; task: string; calories: string
+    /** Shown on an empty Sat/Sun. Never on a day that carries an entry — see the render below. */
+    weekendFree: string
     openSession?: string
     note?: string
   }
@@ -71,7 +73,12 @@ export function DayColumn({
             {dayOfMonth(date)}
           </span>
         </span>
-        {isWeekend(date) && !compact && <span className="text-[10px] uppercase text-surface-600">wolne</span>}
+        {isWeekend(date) && !compact && trainings.length === 0 && recurring.length === 0 && (
+          // Only an ACTUALLY empty weekend day is "free". The flag used to hang on isWeekend alone,
+          // so a Saturday session — the norm in combat sports — sat under a label saying the day was
+          // off, and the label contradicted the card right below it.
+          <span className="text-[10px] uppercase text-surface-600">{labels.weekendFree}</span>
+        )}
       </div>
 
       <div className={clsx('flex flex-col', compact ? 'gap-1' : 'gap-2')}>

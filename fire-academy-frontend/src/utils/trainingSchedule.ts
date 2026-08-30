@@ -70,6 +70,22 @@ export function formatMonth(month: string): string {
   return new Date(year, m - 1, 1).toLocaleDateString('pl', { month: 'long', year: 'numeric' })
 }
 
+/**
+ * The same month, in the form that follows the preposition "w": "w sierpniu", not "w sierpień".
+ *
+ * `formatMonth` gives the nominative, which is right after "za" ("za sierpień") and wrong after "w".
+ * Polish needs the locative there, and Intl has no case setting — so the twelve names are listed.
+ */
+const MONTHS_LOCATIVE = [
+  'styczniu', 'lutym', 'marcu', 'kwietniu', 'maju', 'czerwcu',
+  'lipcu', 'sierpniu', 'wrześniu', 'październiku', 'listopadzie', 'grudniu',
+] as const
+
+export function formatMonthLocative(month: string): string {
+  const [year, m] = month.split('-').map(Number)
+  return `${MONTHS_LOCATIVE[m - 1]} ${year}`
+}
+
 /** Shifts month 'YYYY-MM' by n months. */
 export function addMonths(month: string, n: number): string {
   const [year, m] = month.split('-').map(Number)

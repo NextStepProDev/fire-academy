@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useTranslation } from 'react-i18next'
 import { Calendar, MapPin, Users, Phone, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react'
-import { formatDateRange } from '../../utils/dates'
+import { formatDateRange, hhmm } from '../../utils/dates'
 import { visibleMonths, formatMonth, holidaysForDay } from '../../utils/trainingSchedule'
 import { publicApi } from '../../api/public'
 import clsx from 'clsx'
@@ -188,7 +188,7 @@ export function EventTypeModal({ eventType, events, onEnroll, onClose, category,
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
                             {formatDateRange(event.startDate, event.endDate)}
-                            {event.startTime ? `, ${event.startTime}${event.endTime ? ` – ${event.endTime}` : ''}` : ''}
+                            {event.startTime ? `, ${hhmm(event.startTime)}${event.endTime ? ` – ${hhmm(event.endTime)}` : ''}` : ''}
                           </span>
                           {event.location && (
                             <span className="flex items-center gap-1">

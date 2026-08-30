@@ -50,5 +50,10 @@
     "privacy": "Polityka prywatności",
     "terms": "Regulamin",
     "shareLabel": "Udostępnij Fire Academy:"
+  },
+  "notFound": {
+    "title": "Nie ma takiej strony",
+    "description": "Adres jest nieprawidłowy albo strona została usunięta. Sprawdź, czy link jest kompletny — albo przejdź do jednej z sekcji poniżej.",
+    "home": "Strona główna"
   }
 }

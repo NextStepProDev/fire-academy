@@ -48,6 +48,19 @@ jobs:
       - run: npm run lint
       - run: npx tsc -b
       - run: npm test
+      # The end-to-end suite used to be local-only, and drifted red without anyone noticing: three of
+      # its checks asserted routes and markup that had changed months earlier. A suite nobody runs is
+      # not a safety net, it is a file. It costs ~1 min here (one browser, API stubbed, no backend).
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: E2E golden path
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: fire-academy-frontend/playwright-report/
+          retention-days: 7
       - run: npm run build
 
   docker:

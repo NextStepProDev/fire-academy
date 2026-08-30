@@ -17,9 +17,14 @@ interface SeoProps {
   type?: 'website' | 'article'
   jsonLd?: Record<string, unknown> | Record<string, unknown>[]
   breadcrumbs?: Breadcrumb[]
+  /**
+   * Keep the page out of the index. For the 404 page: without it a crawler that follows a dead link
+   * gets a 200 with real-looking content and files it away as a page of the site.
+   */
+  noIndex?: boolean
 }
 
-export function Seo({ title, description, path, image, type = 'website', jsonLd, breadcrumbs }: SeoProps) {
+export function Seo({ title, description, path, image, type = 'website', jsonLd, breadcrumbs, noIndex }: SeoProps) {
   const fullTitle = title === SITE_NAME ? title : `${title} | ${SITE_NAME}`
   const desc = description || DEFAULT_DESCRIPTION
   const img = image || DEFAULT_IMAGE
@@ -53,7 +58,15 @@ export function Seo({ title, description, path, image, type = 'website', jsonLd,
     <Helmet>
       <title>{fullTitle}</title>
       <meta name="description" content={desc} />
-      <link rel="canonical" href={canonical} />
+      {/*
+        Both names, not just "robots": index.html ships a static googlebot directive, and for Google
+        the crawler-specific tag beats the generic one — leaving only `robots` here would have let
+        Googlebot index the 404 anyway. Where two directives conflict the restrictive one wins, so
+        emitting both is enough and the static tags can stay where they are.
+      */}
+      {noIndex && <meta name="robots" content="noindex,follow" />}
+      {noIndex && <meta name="googlebot" content="noindex,follow" />}
+      {!noIndex && <link rel="canonical" href={canonical} />}
 
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={desc} />

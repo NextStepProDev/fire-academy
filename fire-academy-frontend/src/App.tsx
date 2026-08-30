@@ -31,6 +31,7 @@ const MarketingUnsubscribePage = lazyWithReload(() => import('./pages/MarketingU
 const EventTypeDetailPage = lazyWithReload(() => import('./pages/EventTypeDetailPage').then(m => ({ default: m.EventTypeDetailPage })))
 const EventDetailPage = lazyWithReload(() => import('./pages/EventDetailPage').then(m => ({ default: m.EventDetailPage })))
 const InstructorDetailPage = lazyWithReload(() => import('./pages/InstructorDetailPage').then(m => ({ default: m.InstructorDetailPage })))
+const NotFoundPage = lazyWithReload(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 const LazyFallback = () => (
   <div className="flex justify-center py-12">
@@ -97,6 +98,13 @@ export default function App() {
             <Route path="register" element={<Navigate to="/rejestracja" replace />} />
             <Route path="admin/login" element={<Navigate to="/logowanie" replace />} />
             <Route path="admin/register" element={<Navigate to="/rejestracja" replace />} />
+
+            {/*
+              Catch-all, and it must stay last: React Router picks the best match, but keeping this
+              at the bottom is what makes the file readable as "everything above, then everything
+              else". Inside the Layout on purpose — a lost visitor needs the navbar and footer most.
+            */}
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </Suspense>

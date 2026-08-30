@@ -155,6 +155,7 @@ export function MyTrainingsPage() {
                               month: formatMonth(en.billingMonth),
                               amount: en.monthlyAmount,
                               sessions: en.sessionsInBillingMonth,
+                              count: en.sessionsInBillingMonth,
                             })}
                           </p>
                         )}
@@ -178,6 +179,7 @@ export function MyTrainingsPage() {
                             month: formatMonth(en.nextBillingMonth),
                             amount: en.nextMonthAmount,
                             sessions: en.nextMonthSessions ?? 0,
+                            count: en.nextMonthSessions ?? 0,
                           })}
                         </p>
                         {en.nextMonthCreditApplied != null && en.nextMonthCreditApplied > 0 && (
