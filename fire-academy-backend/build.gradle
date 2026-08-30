@@ -96,6 +96,18 @@ tasks.named('processResources') {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Run the suite in the clock the business logic assumes. Billing months, payment windows, "today"
+    // and session dates are all computed from the JVM default zone, which production pins via
+    // -Duser.timezone in the Dockerfile — and nothing pinned it here, so tests inherited the host:
+    // Europe/Warsaw on a developer's machine, UTC on a CI runner. The same assertion could pass in
+    // one place and fail in the other for reasons having nothing to do with the change under test,
+    // and a green suite proved nothing about how a Polish client's bill actually adds up.
+    systemProperty 'user.timezone', 'Europe/Warsaw'
+    // ClockZoneArchTest reads the Dockerfile to check production is still pinned to the same clock.
+    // Gradle only knows the inputs it is told about: without this line the file could lose the flag
+    // and the task would report UP-TO-DATE and never run — a gate that passes by not executing looks
+    // exactly like one that holds. Verified by deleting the flag and watching the build go red.
+    inputs.file('Dockerfile').withPathSensitivity(PathSensitivity.RELATIVE)
     finalizedBy jacocoTestReport
 }
 
