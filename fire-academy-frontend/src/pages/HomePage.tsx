@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Seo } from '../components/seo/Seo'
+import { prefersReducedMotion } from '../utils/prefersReducedMotion'
 import { HeroIntro } from '../components/home/HeroIntro'
 
 const sections = [
@@ -46,7 +47,12 @@ const separators = [
 
 export function HomePage() {
   const { t } = useTranslation('common')
-  const [showIntro, setShowIntro] = useState(true)
+  // Skipped outright for anyone who asked their system for less motion. index.css already stilled
+  // the burst and the glow inside the intro, but the intro itself kept running its full timeline —
+  // so the part that merely looked busy was calmed while the part that actually costs the visitor
+  // (three seconds of a page that swallows every click) was left alone. Lazy initialiser: matchMedia
+  // is a one-time question, not something to re-ask on each render.
+  const [showIntro, setShowIntro] = useState(() => !prefersReducedMotion())
   const handleIntroComplete = useCallback(() => setShowIntro(false), [])
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   useEffect(() => {
