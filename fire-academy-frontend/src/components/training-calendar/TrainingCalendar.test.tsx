@@ -460,8 +460,15 @@ describe('TrainingCalendar', () => {
     // month, which is exactly the kind of bug that gets dismissed as "it looked fine the second time".
     const user = userEvent.setup()
     const week = weekRange(TODAY)
+    // Mid-month on purpose, NOT today: the next month's grid starts on the Monday on or before its
+    // 1st, so on the last days of a month it reaches back and TODAY is one of its leading cells. The
+    // fixture would then legitimately render on the next page and the assertion below would fail —
+    // on about forty days a year, which is how this landed on an unrelated dependency bump. Nothing
+    // before the 25th can ever be pulled into the following month's grid.
+    const midMonth = `${TODAY.slice(0, 7)}-15`
     const first: CalendarRange = {
-      from: week.from, to: week.to, trainings: [training()], recurring: [], deletions: [],
+      from: week.from, to: week.to,
+      trainings: [training({ date: midMonth })], recurring: [], deletions: [],
     }
     let resolveNext: (value: CalendarRange) => void = () => {}
     const fetchRange = vi.fn()
