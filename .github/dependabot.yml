@@ -59,3 +59,17 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(docker)"
+
+  # The compose files pin postgres:17-alpine — the image holding every client record — and nothing
+  # was watching them. `docker` above covers the two Dockerfiles only: Dependabot treats Docker and
+  # Docker Compose as SEPARATE ecosystems, so adding /fire-academy-hub to the entry above would have
+  # looked like a fix and updated nothing. Note the database image is the one piece of this stack
+  # that CI never scans, because Trivy only sees images this repo builds.
+  - package-ecosystem: docker-compose
+    directory: /fire-academy-hub
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(docker)"

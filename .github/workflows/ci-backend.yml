@@ -12,6 +12,14 @@ on:
       - fire-academy-backend/**
       - VERSION
 
+  # Re-scan what is already published. A build-time scan is only ever as fresh as the day it
+  # ran: these three CRITICAL Tomcat advisories were published into Trivy's database AFTER
+  # the last merge, so CI stayed green because it never ran again, not because it passed.
+  # Monday 06:00 UTC, ahead of Dependabot's Monday run so a fix lands the same morning.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,9 +27,13 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  # Required by github/codeql-action/upload-sarif so Trivy findings land in the Security tab.
+  security-events: write
 
 jobs:
   build-and-test:
+    # The scheduled run re-scans a published image; it does not rebuild or retest.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -79,22 +91,139 @@ jobs:
           build-args: APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Image CVE scan, and it now FAILS the build. It sat at exit-code 0 for months with a comment
-      # saying "flip this to 1 once the results are clean" — which is a scan nobody reads, written
-      # into a log nobody opens. ignore-unfixed keeps the noise out: what is left is fixable by
-      # bumping the base image. This job runs only on merges to main and does not gate deploy.yml,
-      # so the cost of a finding is a red build asking for a base bump, not a blocked release.
-      # If it turns out to be too noisy in practice, narrow `severity` rather than going back to 0.
-      - name: Trivy image scan (high+)
+      # The scan produces a REPORT and a GATE, deliberately as two steps.
+      #
+      # The report (SARIF) never fails the build: its job is to put every HIGH and CRITICAL into the
+      # Security tab, where a finding outlives the run that produced it. `format: table` wrote them
+      # into the log of a build that then went green, and a finding that exists only inside a passing
+      # build's log is a finding nobody reads. Three CRITICAL Tomcat auth-bypass advisories
+      # (CVE-2026-65182 / -65905 / -68525) reached production that way.
+      #
+      # The gate fails on CRITICAL only — not HIGH. The Alpine layer carries a HIGH or two (curl,
+      # openssl) at any given moment, unrelated to our code and fixed on Alpine's release rhythm
+      # rather than ours; a gate that goes red on somebody else's schedule gets switched off within
+      # a month, and then nothing gates anything. Measured before this landed: backend CRITICAL 0
+      # (after the 11.0.25 bump), frontend CRITICAL 0 — green from day one.
+      - name: Trivy report (SARIF, never fails)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           # Nazwa obrazu musi być lowercase (owner NextStepProDev ma wielkie litery,
           # a OCI reference wymaga małych — metadata-action lowercase'uje sam przy pushu).
           image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
-          format: table
+          format: sarif
+          output: trivy-backend.sarif
           severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      # if: always() so the report still arrives when the gate below fails — the run where the gate
+      # fires is exactly the run whose findings somebody needs to read.
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Trivy gate (CRITICAL fails the build)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          format: table
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  # Same report+gate as the docker job, pointed at the image already in the registry rather than
+  # one just built. This is the job that would have caught the Tomcat advisories: it re-asks the
+  # question every week against a fresh vulnerability database, with no commit required.
+  scheduled-image-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+      - name: Trivy report (SARIF, never fails)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          format: sarif
+          output: trivy-backend.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+      - name: Trivy gate (CRITICAL fails the build)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  # The database image is the one thing in this stack that nothing else watches. Trivy only ever
+  # sees images this repo BUILDS, so it never looked at Postgres; Dependabot can only offer
+  # 17-alpine -> 18-alpine, and the 17-alpine tag does not change its name when upstream patches
+  # what is inside it. So a CVE in the image holding every client record reached nobody.
+  #
+  # Report-only, deliberately no gate. Our own images earn a gate because a CRITICAL there is
+  # something we can fix and ship. Here we cannot: at the time of writing postgres:17-alpine
+  # carries CVE-2025-68121 (CRITICAL) in the Go stdlib bundled into `gosu`, a startup helper that
+  # never does TLS, and the only lever we have is waiting for upstream to rebuild. A gate that is
+  # red from day one over something unfixable is a gate somebody switches off inside a month, and
+  # then the whole weekly scan goes with it. Findings land in the Security tab for a human to judge.
+  #
+  # The tag is read from the compose file rather than written here, so this cannot quietly drift
+  # into scanning a version production stopped running.
+  scheduled-postgres-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read Postgres image from the production compose file
+        id: pg
+        run: |
+          image=$(grep -oE 'postgres:[0-9]+[a-z0-9.-]*' fire-academy-hub/docker-compose.prod.yml | head -1)
+          if [ -z "$image" ]; then
+            echo "::error::Could not find a postgres image pin in fire-academy-hub/docker-compose.prod.yml"
+            exit 1
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Scanning $image"
+      - name: Trivy report (SARIF, never fails)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.pg.outputs.image }}
+          format: sarif
+          output: trivy-postgres.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-postgres.sarif
+          category: trivy-postgres
