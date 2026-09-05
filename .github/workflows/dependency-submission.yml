@@ -1,0 +1,54 @@
+# Makes the backend's dependencies visible to GitHub, which is the precondition for ever receiving
+# a security advisory about them.
+#
+# GitHub's dependency graph has NO static parser for Gradle — not build.gradle, not
+# build.gradle.kts, not gradle/libs.versions.toml. (Maven's pom.xml is parsed statically; the two
+# are not symmetric, which is what makes this easy to get wrong.) Gradle is supported only through
+# the Dependency Submission API, which is what this workflow calls.
+#
+# The consequence of not having it, measured before this landed: the repo's SBOM listed 332 npm and
+# 11 actions packages and ZERO maven ones, so no advisory against Spring Boot, Tomcat or jjwt could
+# reach anybody. Three CRITICAL Tomcat authentication-bypass CVEs sat in the production image and
+# were found by reading a Trivy table by hand, not by an alert.
+#
+# Note what this does NOT change: Dependabot's weekly "chore(deps)" pull requests parse build.gradle
+# themselves and have always worked. A healthy stream of those is not evidence that advisories can
+# reach you — that stream was green throughout.
+#
+# This runs a real Gradle resolution, so it reports the versions actually on the runtime classpath,
+# including the transitive ones the Spring Boot BOM manages and a file parser could never see.
+name: Dependency Submission
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - fire-academy-backend/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # contents: write is what the Dependency Submission API requires, and it is granted HERE rather
+    # than at workflow level so it covers this job alone. Nothing else in this repo needs to write
+    # to the repository, and a token that can is worth keeping to the smallest scope that works.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Generate and submit dependency graph
+        uses: gradle/actions/dependency-submission@v6.3.0
+        with:
+          build-root-directory: fire-academy-backend
