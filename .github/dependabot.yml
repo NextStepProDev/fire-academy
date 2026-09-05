@@ -73,3 +73,14 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(docker)"
+    ignore:
+      # A Postgres MAJOR bump is a data migration, not a version bump. The server refuses to start
+      # on a data directory written by the previous major, so merging such a PR does not upgrade
+      # anything — it takes the database down and the whole site with it, until somebody puts the
+      # old tag back. That is not hypothetical: #113 (17-alpine -> 18-alpine) was merged and the
+      # next deploy left fa-postgres-prod in a restart loop with backend and frontend unable to
+      # start. Data survived only because Postgres refuses rather than converts.
+      # Minor and patch updates still come through; a major belongs to a planned pg_upgrade, so it
+      # must not arrive as a routine dependency PR that looks like all the others.
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
