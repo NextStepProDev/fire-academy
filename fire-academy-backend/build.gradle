@@ -23,12 +23,20 @@ java {
 // Overrides of versions Spring Boot's BOM manages for us. Each one needs a reason and a way out —
 // a pin nobody remembers is how a project ends up older than the platform it sits on.
 ext {
-    // CVE-2026-54291: pgjdbc could be talked out of SCRAM-SHA-256-PLUS down to plain SCRAM, which
-    // drops the channel binding that ties authentication to the TLS connection. Our database is
-    // reachable only from inside the compose network, so the man in the middle would already have to
-    // be inside it — but this is a one-digit bump and the CVE gate is right to refuse the image.
-    // REMOVE once Spring Boot's BOM manages 42.7.12 or later; the pin is then just a way to fall behind.
-    set('postgresql.version', '42.7.12')
+    // Three CRITICAL advisories against the embedded Tomcat that serves every request:
+    // CVE-2026-65182 (security constraint bypass via improper access control), CVE-2026-65905
+    // (authentication bypass by limited replay against the DIGEST authenticator) and CVE-2026-68525
+    // (unauthorized resource access via FORM authentication bypass). All three are fixed in 11.0.25.
+    //
+    // This is an override rather than a Boot bump because there is nothing to bump to: 4.1.1 is the
+    // newest Spring Boot release in existence and its BOM still manages tomcat.version 11.0.24, one
+    // patch short. Waiting for the platform would mean shipping the bypasses until Boot 4.1.2.
+    //
+    // REMOVE the moment the BOM manages 11.0.25 or later — from then on the override stops raising
+    // the version and starts holding it down, which is the failure mode this whole block exists to
+    // document. Check with: ./gradlew dependencyInsight --dependency tomcat-embed-core \
+    //   --configuration runtimeClasspath   (it prints "selected by rule" while this pin is active).
+    set('tomcat.version', '11.0.25')
 }
 
 repositories {
