@@ -158,7 +158,9 @@ class EnrollmentMailServiceTest {
 
     @Test
     void shouldSendBulkEventMessageWithSenderSignature() {
-        service.sendBulkEventMessage("jan@test.com", "Jan", "Trening", "30.05.2026, 10:00–11:30",
+        service.sendBulkEventCampaign(
+            List.of(new EnrollmentMailService.BulkEventRecipient("jan@test.com", "Jan")),
+            "Trening", "30.05.2026, 10:00–11:30",
             "Kraków", "Do zobaczenia na zajęciach!", "Przemysław Fajer",
             EventCategory.TRAINING, EVENT_ID);
 
@@ -167,11 +169,49 @@ class EnrollmentMailServiceTest {
 
     @Test
     void shouldSendBulkEventMessageWithoutSenderSignature() {
-        service.sendBulkEventMessage("jan@test.com", "Jan", "Trening", "30.05.2026, 10:00–11:30",
+        service.sendBulkEventCampaign(
+            List.of(new EnrollmentMailService.BulkEventRecipient("jan@test.com", "Jan")),
+            "Trening", "30.05.2026, 10:00–11:30",
             null, "Do zobaczenia na zajęciach!", null,
             EventCategory.TRAINING, EVENT_ID);
 
         verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
+    }
+
+    /**
+     * The campaign is one background task for the whole list, and it must sit on the executor built
+     * for that. Asserted on the annotation because behaviour cannot tell the two pools apart: with
+     * @Async unproxied in a unit test, a per-recipient dispatch on mailExecutor would send exactly
+     * the same messages and pass every other test in this file.
+     */
+    @Test
+    void shouldRunTheBulkCampaignOnTheCampaignExecutor() throws Exception {
+        var method = EnrollmentMailService.class.getMethod("sendBulkEventCampaign",
+            List.class, String.class, String.class, String.class, String.class, String.class,
+            EventCategory.class, String.class);
+        var async = method.getAnnotation(org.springframework.scheduling.annotation.Async.class);
+
+        assertNotNull(async, "the bulk campaign must be dispatched to a background executor");
+        assertEquals("mailCampaignExecutor", async.value(),
+            "A bulk send belongs on the single-thread campaign executor. mailExecutor carries "
+                + "verification and password-reset mail; a camp-sized send queues in front of it and, "
+                + "past ~104 recipients, its AbortPolicy throws into the caller mid-send.");
+    }
+
+    /** One task for the whole list, not one per recipient — the shape the fix exists to keep. */
+    @Test
+    void shouldSendOneMessagePerRecipientFromASingleCampaignTask() {
+        service.sendBulkEventCampaign(
+            List.of(new EnrollmentMailService.BulkEventRecipient("jan@test.com", "Jan"),
+                    new EnrollmentMailService.BulkEventRecipient("anna@test.com", "Anna"),
+                    new EnrollmentMailService.BulkEventRecipient("ola@test.com", "Ola")),
+            "Obóz", "30.05.2026, 10:00–11:30",
+            "Kraków", "Zmiana terminu.", "Przemysław Fajer",
+            EventCategory.CAMP, EVENT_ID);
+
+        verify(mailDispatcher).sendHtml(eq("jan@test.com"), anyString(), anyString());
+        verify(mailDispatcher).sendHtml(eq("anna@test.com"), anyString(), anyString());
+        verify(mailDispatcher).sendHtml(eq("ola@test.com"), anyString(), anyString());
     }
 
     @Test

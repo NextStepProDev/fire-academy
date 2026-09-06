@@ -134,13 +134,18 @@ public class AdminEnrollmentService {
                 .orElse(null);
 
         var schedule = EnrollmentMailService.formatSchedule(event);
-        for (var enrollment : recipients) {
-            enrollmentMailService.sendBulkEventMessage(
-                    enrollment.displayEmail(), enrollment.displayFirstName(),
-                    event.getDisplayName(), schedule,
-                    event.getLocation(), request.message(), senderName,
-                    event.getCategory(), event.getId().toString());
-        }
+        // One campaign task, not one @Async task per participant: that pool carries password resets
+        // and account verifications, and a well-attended camp would queue in front of them. See the
+        // sendBulkEventCampaign javadoc. Recipients are flattened to plain values inside this
+        // transaction, before crossing the @Async boundary.
+        var campaign = recipients.stream()
+                .map(e -> new EnrollmentMailService.BulkEventRecipient(
+                        e.displayEmail(), e.displayFirstName()))
+                .toList();
+        enrollmentMailService.sendBulkEventCampaign(
+                campaign, event.getDisplayName(), schedule,
+                event.getLocation(), request.message(), senderName,
+                event.getCategory(), event.getId().toString());
 
         return new EnrollmentDtos.BulkEmailResponse(recipients.size());
     }

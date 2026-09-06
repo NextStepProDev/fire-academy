@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pl.fireacademy.api.NotFoundException;
@@ -169,6 +170,41 @@ class AdminEnrollmentServiceTest {
 
         assertThrows(IllegalStateException.class, () -> service.adminEnroll(request));
         verify(enrollmentRepository, never()).save(any());
+    }
+
+    /**
+     * A message to an event's participants goes out as ONE campaign task carrying the whole list —
+     * never one @Async task per person on the pool that also carries verification and password-reset
+     * mail. Written against the dispatch count rather than the mails themselves: both shapes deliver
+     * the same three messages, and only the number of tasks says which pool paid for them.
+     */
+    @Test
+    void shouldDispatchTheParticipantMessageAsASingleCampaign() throws Exception {
+        Enrollment first = enrollmentFor("jan@test.com", "Jan");
+        Enrollment second = enrollmentFor("anna@test.com", "Anna");
+        Enrollment third = enrollmentFor("ola@test.com", "Ola");
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(enrollmentRepository.findByEventIdOrderByCreatedAtDesc(eventId))
+            .thenReturn(List.of(first, second, third));
+
+        var response = service.sendBulkEmail(null, new BulkEmailRequest(eventId, "Zmiana terminu."));
+
+        assertEquals(3, response.recipientCount());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<EnrollmentMailService.BulkEventRecipient>> captor =
+            ArgumentCaptor.forClass(List.class);
+        verify(enrollmentMailService, times(1)).sendBulkEventCampaign(
+            captor.capture(), anyString(), anyString(), any(), anyString(), any(), any(), anyString());
+        assertEquals(List.of("jan@test.com", "anna@test.com", "ola@test.com"),
+            captor.getValue().stream().map(EnrollmentMailService.BulkEventRecipient::email).toList());
+    }
+
+    private Enrollment enrollmentFor(String email, String firstName) throws Exception {
+        User participant = new User(email, firstName, "Testowy", "500600700");
+        setId(participant, UUID.randomUUID());
+        Enrollment e = Enrollment.forUser(event, participant, null, false);
+        setId(e, UUID.randomUUID());
+        return e;
     }
 
     private static void setId(Object entity, UUID id) throws Exception {
