@@ -80,7 +80,16 @@ docker compose -f "${COMPOSE_DIR}/docker-compose.prod.yml" exec -T postgres \
 
 # pg_dump signs off with its own end marker. Its presence is the only cheap proof that the database
 # reached the end of the dump instead of dying halfway through a table.
-if ! gunzip -c "${DB_BACKUP}.part" | tail -5 | grep -q "PostgreSQL database dump complete"; then
+#
+# The window is 20 lines, not 5, because the marker is NOT the last thing in the file and what
+# follows it grows with the server version. Postgres 17 began appending a `\unrestrict <token>`
+# line after it, which put the marker at exactly line 5 of 5 — a passing check with zero margin,
+# measured on 2026-09-06 during the move to Postgres 18. One more trailing line from any future
+# release and this test starts calling every good dump corrupt, deleting it and publishing none.
+# The failure would at least be loud (it pings /fail), but it would stop backups completely, on a
+# routine database upgrade, for no reason. Twenty lines costs nothing and does not weaken the
+# check: a dump truncated mid-table has no marker anywhere near its end.
+if ! gunzip -c "${DB_BACKUP}.part" | tail -20 | grep -q "PostgreSQL database dump complete"; then
     log "FAILED: dump has no completion marker — refusing to publish it"
     rm -f "${DB_BACKUP}.part"
     ping_healthcheck "/fail"
