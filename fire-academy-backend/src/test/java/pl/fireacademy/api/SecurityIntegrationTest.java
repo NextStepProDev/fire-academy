@@ -68,6 +68,21 @@ class SecurityIntegrationTest extends BaseIntegrationTest {
             .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * "Bearer " with nothing after it is a 401 like any other bad credential — not a server error.
+     *
+     * <p>jjwt answers an empty token with IllegalArgumentException rather than a JwtException, and
+     * that catch was missing, so the exception left JwtAuthenticationFilter. A filter runs before the
+     * DispatcherServlet, which means @RestControllerAdvice never sees what it throws: the caller got
+     * the container's own error page instead of the JSON 401 every other rejection here produces.
+     */
+    @Test
+    void shouldRejectAnEmptyBearerTokenAsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/user/me")
+                .header("Authorization", "Bearer "))
+            .andExpect(status().isUnauthorized());
+    }
+
     @Test
     void shouldAllowAdminToAccessUserEndpoints() throws Exception {
         String token = adminToken();

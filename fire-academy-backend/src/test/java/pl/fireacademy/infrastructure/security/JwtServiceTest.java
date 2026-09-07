@@ -176,6 +176,39 @@ class JwtServiceTest {
         assertEquals(testUser.getId(), jwtService.extractUserId(token));
     }
 
+    /**
+     * The single-parse entry point the filter runs on. Behaviour has to match the three String-taking
+     * methods exactly, because it replaced them on the hot path: a valid access token yields claims
+     * that answer the same two questions, and anything unusable yields null rather than throwing.
+     */
+    @Test
+    void shouldReadClaimsOnceAndAnswerTheSameQuestionsAsTheStringMethods() {
+        String token = jwtService.generateAccessToken(testUser);
+
+        var claims = jwtService.readClaims(token);
+
+        assertNotNull(claims);
+        assertTrue(JwtService.isAccessToken(claims));
+        assertEquals(testUser.getId(), JwtService.userIdOf(claims));
+        assertEquals(jwtService.isAccessToken(token), JwtService.isAccessToken(claims));
+        assertEquals(jwtService.extractUserId(token), JwtService.userIdOf(claims));
+    }
+
+    @Test
+    void shouldReadNoClaimsFromAnUnusableToken() {
+        assertNull(jwtService.readClaims("not-a-token"));
+        assertNull(jwtService.readClaims(""));
+    }
+
+    /** A refresh token verifies fine and is still not an access token — the filter must see that. */
+    @Test
+    void shouldNotMistakeARefreshTokenForAnAccessToken() {
+        var claims = jwtService.readClaims(jwtService.generateRefreshToken(testUser));
+
+        assertNotNull(claims);
+        assertFalse(JwtService.isAccessToken(claims));
+    }
+
     private static void setId(User user, UUID id) throws Exception {
         Field idField = User.class.getDeclaredField("id");
         idField.setAccessible(true);

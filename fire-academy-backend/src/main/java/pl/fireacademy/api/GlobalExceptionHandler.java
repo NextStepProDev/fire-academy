@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -144,6 +146,42 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
         log.warn("Upload size exceeded: {}", e.getMessage());
         return error(HttpStatus.CONTENT_TOO_LARGE, "PAYLOAD_TOO_LARGE", msg.get("file.too.large"));
+    }
+
+    /**
+     * A unique index refused the write — 409, not the 500 the catch-all would give it.
+     *
+     * <p>Three call sites already catch this locally and turn it into a sentence somebody can act on:
+     * registration ("that e-mail is taken"), a second active goal on the same horizon, and the
+     * weight upsert. Those stay, because a specific message beats a generic one. What was missing was
+     * a floor under the rest — every other unique index in the schema (an enrolment per user and
+     * event, a payment per subscription and month, a refund per subscription and session date, an
+     * attachment position, a private note per target) had nothing but the catch-all beneath it, so
+     * losing a race meant "the server broke" plus a stack trace in the log of a 1 GB box.
+     *
+     * <p>The message is deliberately generic and localized, never {@code e.getMessage()}: that string
+     * carries the constraint name, the table and often the offending values straight from Postgres.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException e) {
+        // Warn rather than error: a lost race is a normal outcome under concurrency, not a fault.
+        log.warn("Write refused by a database constraint: {}", e.getMostSpecificCause().getMessage());
+        return error(HttpStatus.CONFLICT, "CONFLICT", msg.get("error.concurrent.modification"));
+    }
+
+    /**
+     * Two writers, one row, and the second one lost — 409, and specifically not a 500.
+     *
+     * <p>{@code PersonalTraining} is the only entity carrying {@code @Version}, and
+     * {@code PersonalTrainingService} already translates the failure for its own saves. Hibernate can
+     * also raise this from a flush the service never wrapped, and any entity given a version later
+     * would arrive here with nothing under it. "Somebody else changed this, reload" is an answer;
+     * "internal server error" is not.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleOptimisticLock(OptimisticLockingFailureException e) {
+        log.warn("Write lost an optimistic lock: {}", e.getMessage());
+        return error(HttpStatus.CONFLICT, "CONFLICT", msg.get("error.concurrent.modification"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -2,6 +2,7 @@ package pl.fireacademy.infrastructure.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -90,17 +91,48 @@ public class JwtService {
     }
 
     public boolean validateToken(String token) {
+        return readClaims(token) != null;
+    }
+
+    /**
+     * Verifies the signature once and hands back the claims, or null if the token is not usable.
+     *
+     * <p>Every request used to pay for this three times over: {@code validateToken},
+     * {@code isAccessToken} and {@code extractUserId} each parsed the token from scratch, which means
+     * three HMAC verifications and three claim decodings for one {@code Authorization} header. The
+     * result was always the same — the token does not change between the three calls — and the cost
+     * fell on the busiest code path in the application. The three methods stay, because they read
+     * clearly at the call sites; they now share this one parse.
+     */
+    @Nullable
+    public Claims readClaims(String token) {
         try {
-            parseToken(token);
-            return true;
+            return parseToken(token);
         } catch (ExpiredJwtException e) {
             log.debug("JWT token expired");
         } catch (MalformedJwtException e) {
             log.debug("Invalid JWT token");
         } catch (JwtException e) {
             log.debug("JWT validation failed: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // jjwt answers a null or empty token with IllegalArgumentException, not a JwtException,
+            // and this catch was missing. The header "Authorization: Bearer " (nothing after the
+            // space) therefore threw out of JwtAuthenticationFilter — which runs before the
+            // DispatcherServlet, so @RestControllerAdvice never sees it and the caller gets the
+            // container's own error page instead of being treated, correctly, as not logged in.
+            log.debug("JWT missing or empty");
         }
-        return false;
+        return null;
+    }
+
+    /** Whether these already-verified claims came from an access token. */
+    public static boolean isAccessToken(Claims claims) {
+        return TOKEN_TYPE_ACCESS.equals(claims.get("type", String.class));
+    }
+
+    /** The account these already-verified claims belong to. */
+    public static UUID userIdOf(Claims claims) {
+        return UUID.fromString(claims.getSubject());
     }
 
     private Claims parseToken(String token) {
