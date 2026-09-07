@@ -94,4 +94,38 @@ class AdminTrainingRefundServiceTest {
         verify(refund).setSettlementType(null);
         verifyNoInteractions(credit);   // made-up has no cash and no surplus — the credit guard never runs
     }
+
+    /**
+     * Resolving an already-resolved refund is a second answer, not a correction — and the two answers
+     * spend different money. REFUNDED means cash left the till; re-settling it as CREDITED puts the
+     * same amount back on the ledger as a discount against the next unpaid month, so the club pays it
+     * twice. unsettle already refuses to pull back a consumed credit; this is that same invariant
+     * from the other side, which was missing.
+     */
+    @Test
+    void blocksSettlingARefundThatIsAlreadySettled() {
+        var id = UUID.randomUUID();
+        var refund = mock(TrainingRefund.class);
+        when(refund.getSettledAt()).thenReturn(java.time.Instant.now());
+        when(refunds.findById(id)).thenReturn(Optional.of(refund));
+        when(msg.get("trainingrefund.already.settled")).thenReturn("Już rozliczony");
+
+        assertThrows(IllegalStateException.class,
+            () -> service.settle(id, TrainingRefund.SETTLEMENT_CREDITED));
+        verify(refund, never()).setSettlementType(any());
+        verify(refund, never()).setSettledAt(any());
+    }
+
+    /** ...and a pending one still settles, so the guard is a guard and not a wall. */
+    @Test
+    void allowsSettlingAPendingRefund() {
+        var id = UUID.randomUUID();
+        var refund = mock(TrainingRefund.class);
+        when(refund.getSettledAt()).thenReturn(null);
+        when(refunds.findById(id)).thenReturn(Optional.of(refund));
+
+        service.settle(id, TrainingRefund.SETTLEMENT_REFUNDED);
+
+        verify(refund).setSettlementType(TrainingRefund.SETTLEMENT_REFUNDED);
+    }
 }
