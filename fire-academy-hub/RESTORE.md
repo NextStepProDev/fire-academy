@@ -67,8 +67,14 @@ docker run --rm \
   alpine sh -c "rm -rf /data/* && tar xzf /backup/2026-08-20.tar.gz -C /data"
 ```
 
-Wolumen musi nazywać się dokładnie tak — to nazwa nadana przez compose (prefiks projektu
-`fire-academy_`). Sprawdź w razie wątpliwości: `docker volume ls | grep uploads`.
+**Sprawdź nazwę wolumenu, zanim go użyjesz:** `docker volume ls | grep uploads`.
+
+Prefiks nadaje compose i bierze go z nazwy katalogu, w którym leży plik compose — czyli nazwa wyżej
+jest prawdziwa tylko dopóki projekt stoi w katalogu `fire-academy`. To nie jest kosmetyka: podanie
+nieistniejącej nazwy w `docker run -v` **nie jest błędem** — Docker zakłada wtedy nowy, pusty wolumen.
+Przy odtwarzaniu oznacza to rozpakowanie kopii w próżnię, a przy robieniu kopii — spakowanie niczego.
+Dlatego `fire-academy-backup.sh` sprawdza istnienie wolumenu (`docker volume inspect`) i przerywa,
+zamiast wyprodukować poprawny, pusty i zupełnie bezużyteczny plik.
 
 ---
 
@@ -95,7 +101,7 @@ Bez dotykania produkcji, na dowolnej maszynie z Dockerem:
 
 ```bash
 docker run -d --name restore-test -e POSTGRES_PASSWORD=test \
-  -e POSTGRES_USER=fireacademy -e POSTGRES_DB=fireacademy -p 55432:5432 postgres:17-alpine
+  -e POSTGRES_USER=fireacademy -e POSTGRES_DB=fireacademy -p 55432:5432 postgres:18-alpine
 sleep 5
 gunzip -c 2026-08-20.sql.gz | docker exec -i restore-test psql -U fireacademy -d fireacademy
 docker exec -i restore-test psql -U fireacademy -d fireacademy -c "SELECT count(*) FROM users;"
@@ -103,6 +109,11 @@ docker rm -f restore-test
 ```
 
 Jeśli liczba użytkowników się zgadza — kopie działają i wiecie o tym, zamiast zakładać.
+
+> ⚠️ **Wersja obrazu musi zgadzać się z produkcją** (dziś `18-alpine`). Zrzut z nowszego Postgresa
+> wgrany do starszego potrafi paść w połowie albo — gorzej — przejść częściowo, i wtedy ćwiczenie
+> daje fałszywe poczucie bezpieczeństwa. Przy każdej zmianie majora bazy popraw tę linijkę razem
+> z `docker-compose.prod.yml`.
 
 ---
 
