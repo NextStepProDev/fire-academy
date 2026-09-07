@@ -52,6 +52,17 @@ class RateLimitCoverageTest {
         "/api/dev" // dev profile only; never mapped in production
     );
 
+    /**
+     * A write mapping and its own path, e.g. {@code @PostMapping("/{id}/photo")}. The parameter list
+     * is not matched here — a single regex spanning annotations, generics and a multi-line signature
+     * is the kind that quietly stops matching and leaves this gate iterating an empty list. The scan
+     * below instead reads forward from the annotation to the start of the method body.
+     */
+    private static final Pattern WRITE_MAPPING = Pattern.compile(
+        "@(?:Post|Put|Patch)Mapping(?:\\s*\\(\\s*(?:value\\s*=\\s*)?(?:\"([^\"]*)\")?[^)]*\\))?");
+
+    private static final Pattern PATH_VARIABLE = Pattern.compile("\\{[^}]*\\}");
+
     @Test
     void shouldGiveEveryControllerBasePathItsOwnRateLimitBucket() {
         for (String base : controllerBasePaths()) {
@@ -113,6 +124,51 @@ class RateLimitCoverageTest {
     }
 
     /**
+     * Every endpoint that accepts a file must be rationed by the upload bucket, whatever prefix it
+     * happens to sit under.
+     *
+     * <p>The other buckets ration cheap requests; this one rations bytes. A multipart body is read
+     * into memory — up to 10 MB of it — before any handler can refuse it, on a container capped at
+     * 384 MB. Missing an endpoint costs nothing visible: it simply gets measured by whatever roomier
+     * ceiling its prefix happens to carry, so the ration protecting memory covers some doors into the
+     * same expensive operation and not others.
+     *
+     * <p>That is not hypothetical. The avatar upload sat in the ordinary user bucket for months, and
+     * the three gallery uploads — instructor photo, event-type thumbnail, event-type gallery — sat in
+     * the admin bucket, because their id falls in the MIDDLE of the path and the rule was written as
+     * a prefix. Both were found by reading the filter, which is the reading this test replaces.
+     */
+    @Test
+    void shouldRationEveryFileUploadWithTheUploadBucket() {
+        List<String> uploads = multipartEndpointPaths();
+        for (String path : uploads) {
+            assertEquals("upload", RateLimitFilter.bucketFor(path), """
+                %s accepts a file but is counted into the "%s" bucket.
+
+                Multipart bodies are parsed into memory before a handler can reject them, so they are
+                rationed by bytes rather than by request count. Add the path to the "upload" rule in
+                RateLimitFilter.RULES — and note that a prefix will not reach an endpoint whose id
+                sits mid-path; endsWithSegmentUnder exists for those.
+                """.formatted(path, RateLimitFilter.bucketFor(path)));
+        }
+    }
+
+    /**
+     * Second half of the guard below, for the upload scan specifically: the handler regex is the
+     * fussiest thing in this file, and one that quietly stops matching would leave the assertion
+     * above iterating an empty list — passing exactly like a gate that holds.
+     */
+    @Test
+    void shouldFindTheFileUploadsItClaimsToCheck() {
+        List<String> uploads = multipartEndpointPaths();
+        assertTrue(uploads.size() >= 6,
+            "Expected at least 6 multipart endpoints, found " + uploads.size() + " " + uploads
+                + ". The handler regex is probably stale.");
+        assertTrue(uploads.contains("/api/user/me/avatar"),
+            "The avatar upload should be among the endpoints found: " + uploads);
+    }
+
+    /**
      * Guards the gate itself: if the regex or the source path goes stale, every assertion above
      * passes over an empty list and this file becomes indistinguishable from one that checks nothing.
      */
@@ -136,6 +192,39 @@ class RateLimitCoverageTest {
             }
         }
         return bases;
+    }
+
+    /**
+     * Concrete request paths of every handler taking a {@code MultipartFile}, built from the class
+     * mapping plus the method mapping with path variables filled in, so they can be put through the
+     * real filter rather than a paraphrase of it.
+     */
+    private static List<String> multipartEndpointPaths() {
+        List<String> paths = new ArrayList<>();
+        for (Path file : controllerSources()) {
+            String source = SourceFiles.readWithoutComments(file);
+            Matcher classMapping = CLASS_MAPPING.matcher(source);
+            if (!classMapping.find()) {
+                continue;
+            }
+            String base = classMapping.group(1);
+            Matcher mapping = WRITE_MAPPING.matcher(source);
+            while (mapping.find()) {
+                // From the end of the annotation to the opening brace of the method body: whatever
+                // the signature looks like, its parameter list is inside that span.
+                int bodyStart = source.indexOf('{', mapping.end());
+                if (bodyStart < 0 || !source.substring(mapping.end(), bodyStart).contains("MultipartFile")) {
+                    continue;
+                }
+                String suffix = mapping.group(1) == null ? "" : mapping.group(1);
+                String path = PATH_VARIABLE.matcher(base + suffix)
+                    .replaceAll("11111111-2222-3333-4444-555555555555");
+                if (!paths.contains(path)) {
+                    paths.add(path);
+                }
+            }
+        }
+        return paths;
     }
 
     private static List<Path> controllerSources() {
