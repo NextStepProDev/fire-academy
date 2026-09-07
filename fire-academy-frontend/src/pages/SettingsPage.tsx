@@ -257,16 +257,16 @@ export function SettingsPage() {
         {showProfileForm && (
         <form onSubmit={handleProfileSave} className="space-y-4 mt-4">
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('profile.firstName')}</label>
-            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputClass} required />
+            <label htmlFor="settings-first-name" className="block text-sm font-medium text-surface-300 mb-1">{t('profile.firstName')}</label>
+            <input id="settings-first-name" type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className={inputClass} required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('profile.lastName')}</label>
-            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputClass} required />
+            <label htmlFor="settings-last-name" className="block text-sm font-medium text-surface-300 mb-1">{t('profile.lastName')}</label>
+            <input id="settings-last-name" type="text" value={lastName} onChange={e => setLastName(e.target.value)} className={inputClass} required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">{t('profile.phone')}</label>
-            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} />
+            <label htmlFor="settings-phone" className="block text-sm font-medium text-surface-300 mb-1">{t('profile.phone')}</label>
+            <input id="settings-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputClass} />
           </div>
           {profileError && <p className="text-sm text-rose-400/80">{profileError}</p>}
           <div className="flex gap-3">
@@ -295,17 +295,17 @@ export function SettingsPage() {
           {showPasswordForm && (
           <form onSubmit={handlePasswordChange} className="space-y-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.current')}</label>
-              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className={inputClass} required />
+              <label htmlFor="settings-current-password" className="block text-sm font-medium text-surface-300 mb-1">{t('password.current')}</label>
+              <input id="settings-current-password" type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className={inputClass} required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.new')}</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required minLength={10} />
+              <label htmlFor="settings-new-password" className="block text-sm font-medium text-surface-300 mb-1">{t('password.new')}</label>
+              <input id="settings-new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required minLength={10} />
               <PasswordStrengthMeter password={newPassword} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-surface-300 mb-1">{t('password.confirm')}</label>
-              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} required />
+              <label htmlFor="settings-confirm-password" className="block text-sm font-medium text-surface-300 mb-1">{t('password.confirm')}</label>
+              <input id="settings-confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} required />
             </div>
             {passwordError && <p className="text-sm text-rose-400/80">{passwordError}</p>}
             <p className="text-sm text-surface-400">{t('password.changeHint')}</p>
@@ -386,8 +386,8 @@ export function SettingsPage() {
             <p className="text-surface-400 text-sm">{t('danger.deleteTrainingsNote')}</p>
             {user?.hasPassword && (
               <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1">{t('danger.passwordRequired')}</label>
-                <input type="password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} className={inputClass} />
+                <label htmlFor="settings-delete-password" className="block text-sm font-medium text-surface-300 mb-1">{t('danger.passwordRequired')}</label>
+                <input id="settings-delete-password" type="password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} className={inputClass} />
               </div>
             )}
             <div className="flex gap-3">

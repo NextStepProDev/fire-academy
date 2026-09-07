@@ -117,6 +117,9 @@ export function Navbar() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
+                  aria-controls="user-menu"
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-800 active:scale-95 transition-all duration-150"
                 >
                   <Avatar src={user?.avatarUrl} name={user?.firstName} className="w-9 h-9" />
@@ -126,7 +129,7 @@ export function Navbar() {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-surface-900 border border-surface-700 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
+                  <div id="user-menu" className="absolute right-0 mt-2 w-56 bg-surface-900 border border-surface-700 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
                     <div className="px-4 py-3 border-b border-surface-800">
                       <p className="text-sm font-medium text-surface-100">{user?.firstName} {user?.lastName}</p>
                       <p className="text-xs text-surface-500 mt-0.5">{user?.email}</p>
@@ -187,6 +190,8 @@ export function Navbar() {
           <button
             className="md:hidden -mr-2 p-2 text-surface-300 active:scale-90 transition-transform duration-150"
             aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="w-6 h-6 pointer-events-none" /> : <Menu className="w-6 h-6 pointer-events-none" />}
@@ -195,7 +200,7 @@ export function Navbar() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden bg-surface-900 border-t border-surface-800 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+        <div id="mobile-menu" className="md:hidden bg-surface-900 border-t border-surface-800 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           <div className="px-4 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link
