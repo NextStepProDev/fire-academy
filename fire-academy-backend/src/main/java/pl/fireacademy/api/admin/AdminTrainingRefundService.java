@@ -67,6 +67,16 @@ public class AdminTrainingRefundService {
     public void settle(UUID id, String settlementType) {
         requireValidType(settlementType);
         var refund = find(id);
+        // Resolving something already resolved is never a correction, it is a second answer to a
+        // question that was already answered — and the two answers spend different money. A refund
+        // settled REFUNDED (cash handed over) re-settled as CREDITED would put that same amount back
+        // on the ledger as a discount against the next unpaid month, so the club pays it twice.
+        // unsettle guards its side of this already, refusing to pull back a credit that has been
+        // consumed; the guard was simply missing here. The panel offers no button for it today, but
+        // the money invariant belongs at the API, not in what the screen happens to render.
+        if (refund.getSettledAt() != null) {
+            throw new IllegalStateException(msg.get("trainingrefund.already.settled"));
+        }
         refund.setSettledAt(Instant.now());
         refund.setSettlementType(settlementType);
     }

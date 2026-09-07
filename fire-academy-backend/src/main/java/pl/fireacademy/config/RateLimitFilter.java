@@ -110,7 +110,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // minute, so that costs nothing.
         new Rule("upload", UPLOAD_LIMIT, path -> under(path, "/api/user/my-training/photos")
             || under(path, "/api/admin/training-photos")
-            || under(path, "/api/user/me/avatar")),
+            || under(path, "/api/user/me/avatar")
+            // The gallery uploads carry their id in the MIDDLE of the path
+            // (/api/admin/instructors/{id}/photo), so a prefix cannot reach them and they sat in the
+            // roomy admin bucket instead. Matched on the closing segment, which also keeps the reads
+            // out: a comment photo is fetched from .../comments/{id}/photo and stays on the calendar
+            // ceiling, and DELETE .../photos/{photoId} does not end in "photos" either.
+            || endsWithSegmentUnder(path, "/api/admin/instructors", "photo")
+            || endsWithSegmentUnder(path, "/api/admin/event-types", "thumbnail")
+            || endsWithSegmentUnder(path, "/api/admin/event-types", "photos")),
         // The Google sign-in handshake shares the credential bucket: both legs end in a session, so
         // they belong with the other ways of getting one rather than outside every ceiling.
         new Rule("auth", AUTH_LIMIT, path -> under(path, "/api/auth")
@@ -224,6 +232,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     private static boolean under(String path, String base) {
         return path.equals(base) || path.startsWith(base + "/");
+    }
+
+    /**
+     * Under {@code base} and ending in exactly {@code lastSegment} — for endpoints whose identifier
+     * sits between the two, which a prefix match cannot express.
+     */
+    private static boolean endsWithSegmentUnder(String path, String base, String lastSegment) {
+        return under(path, base) && path.endsWith("/" + lastSegment);
     }
 
     private Locale resolveLocale(HttpServletRequest request) {

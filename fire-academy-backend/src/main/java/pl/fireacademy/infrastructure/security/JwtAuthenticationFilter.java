@@ -2,6 +2,7 @@ package pl.fireacademy.infrastructure.security;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -59,19 +60,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = authHeader.substring(BEARER_PREFIX.length());
 
-        if (!jwtService.validateToken(jwt)) {
+        // One parse, not three. Validating, checking the token type and reading the subject each used
+        // to verify the signature and decode the claims again, on every single request.
+        Claims claims = jwtService.readClaims(jwt);
+
+        if (claims == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if (!jwtService.isAccessToken(jwt)) {
+        if (!JwtService.isAccessToken(claims)) {
             log.debug("Token is not an access token");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            UUID userId = jwtService.extractUserId(jwt);
+            UUID userId = JwtService.userIdOf(claims);
             User user = userCache.get(userId, id -> userRepository.findById(id).orElse(null));
 
             if (user == null) {

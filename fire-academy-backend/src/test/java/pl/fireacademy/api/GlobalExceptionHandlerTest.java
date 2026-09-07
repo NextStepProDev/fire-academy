@@ -154,4 +154,38 @@ class GlobalExceptionHandlerTest {
         assertNotNull(body);
         assertEquals("INTERNAL_ERROR", body.get("code"));
     }
+
+    /**
+     * A unique index refusing a write is a conflict somebody can act on, not a server fault. Three
+     * services catch this locally and say something specific; every other unique index in the schema
+     * had only the catch-all beneath it, so a lost race answered 500 and wrote a stack trace.
+     */
+    @Test
+    void shouldAnswerConflictWhenADatabaseConstraintRefusesTheWrite() {
+        when(msg.get("error.concurrent.modification")).thenReturn("Konflikt zmian");
+
+        var response = handler.handleDataIntegrity(
+            new org.springframework.dao.DataIntegrityViolationException(
+                "duplicate key value violates unique constraint \"uq_enrollments_user_event\""));
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("CONFLICT", body.get("code"));
+        // Never the driver's message: it carries the constraint name, the table and often the values.
+        assertEquals("Konflikt zmian", body.get("message"));
+    }
+
+    @Test
+    void shouldAnswerConflictWhenAWriteLosesItsOptimisticLock() {
+        when(msg.get("error.concurrent.modification")).thenReturn("Konflikt zmian");
+
+        var response = handler.handleOptimisticLock(
+            new org.springframework.dao.OptimisticLockingFailureException("row was updated"));
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        var body = response.getBody();
+        assertNotNull(body);
+        assertEquals("Konflikt zmian", body.get("message"));
+    }
 }

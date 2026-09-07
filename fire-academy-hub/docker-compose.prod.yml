@@ -105,6 +105,17 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/etc/nginx/certs:ro
+    # Postgres and the backend report their health; nginx did not, so `docker compose ps` called this
+    # container healthy whatever it was serving. Probed over plain HTTP on the container's own port:
+    # the TLS listener needs the mounted origin certificate and SNI, which is a lot of moving parts
+    # for a liveness check, and the redirect this returns already proves nginx parsed its config and
+    # is answering. wget comes with nginx:alpine — no extra layer, unlike curl.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
     logging:
       driver: "json-file"

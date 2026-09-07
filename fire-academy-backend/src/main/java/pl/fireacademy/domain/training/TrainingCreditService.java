@@ -122,6 +122,13 @@ public class TrainingCreditService {
             return BigDecimal.ZERO;                              // outside the covered, still-payable window
         }
         Set<String> paidMonths = new HashSet<>(paymentRepository.findPaidMonths(te.getId()));
+        // This walk is bounded by its target, and the target comes from the request. Two exits only:
+        // the balance runs out, or `month` is reached — and a month that bills to nothing (a slot
+        // priced at zero, or one whose scheduled deactivation has closed every session left in it)
+        // subtracts nothing, so on a run of those the first exit never fires. Breaking out on a
+        // zero-cost month would be wrong, because a later month may still cost something and still
+        // has to consume its share; the bound therefore lives at the door, in
+        // RequestParams.parseMonth. Do not loosen it there without putting a real limit here.
         for (var m = first; m.isBefore(month); m = m.plusMonths(1)) {
             if (paidMonths.contains(m.toString())) {
                 continue;                                        // already consumed — its share is out of `balance`

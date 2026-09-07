@@ -217,18 +217,74 @@ class AuthServiceTest {
         assertEquals("Zaloguj przez OAuth", ex.getMessage());
     }
 
+    /** The owner — someone who knows the password — is told why they cannot get in. */
     @Test
     void shouldThrowWhenAccountLocked() throws Exception {
         existingUser.setPasswordHash("encoded-password");
-        Field lockedField = User.class.getDeclaredField("lockedUntil");
-        lockedField.setAccessible(true);
-        lockedField.set(existingUser, Instant.now().plusSeconds(600));
+        lockAccount(existingUser);
 
         when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(true);
         when(msg.get(eq("auth.login.locked"), anyLong())).thenReturn("Konto zablokowane");
 
         var ex = assertThrows(IllegalStateException.class, () -> authService.login(loginRequest));
         assertEquals("Konto zablokowane", ex.getMessage());
+    }
+
+    /**
+     * The oracle this endpoint used to be. Five wrong guesses locked an existing account, and the
+     * sixth then answered "locked for N minutes" while an address with no account kept answering
+     * "invalid" — so anyone could ask whether a given person had signed up. Every other
+     * anti-enumeration path in this service is deliberate; this one has to match them.
+     */
+    @Test
+    void shouldNotRevealALockedAccountToSomebodyWhoDoesNotKnowThePassword() throws Exception {
+        existingUser.setPasswordHash("encoded-password");
+        lockAccount(existingUser);
+
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
+        when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+        assertEquals("Nieprawidłowe dane", ex.getMessage());
+        verify(msg, never()).get(eq("auth.login.locked"), anyLong());
+    }
+
+    /**
+     * The other half of the same claim: an unknown address must be answered exactly as the locked
+     * account above. Asserted together, because "they are the same" is the property — either one
+     * alone can drift.
+     */
+    @Test
+    void shouldAnswerAnUnknownAddressExactlyAsALockedOne() {
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.empty());
+        when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
+
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+        assertEquals("Nieprawidłowe dane", ex.getMessage());
+    }
+
+    /** A locked account does not count the attempt again — the window cannot be stacked past 15 min. */
+    @Test
+    void shouldNotExtendTheLockoutOnFurtherAttempts() throws Exception {
+        existingUser.setPasswordHash("encoded-password");
+        lockAccount(existingUser);
+        Instant lockedUntilBefore = existingUser.getLockedUntil();
+
+        when(userRepository.findByEmailIgnoreCase("test@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("Password123", "encoded-password")).thenReturn(false);
+        when(msg.get("auth.login.invalid")).thenReturn("Nieprawidłowe dane");
+
+        assertThrows(IllegalArgumentException.class, () -> authService.login(loginRequest));
+        assertEquals(lockedUntilBefore, existingUser.getLockedUntil());
+        verify(userRepository, never()).save(any());
+    }
+
+    private static void lockAccount(User user) throws Exception {
+        Field lockedField = User.class.getDeclaredField("lockedUntil");
+        lockedField.setAccessible(true);
+        lockedField.set(user, Instant.now().plusSeconds(600));
     }
 
     @Test

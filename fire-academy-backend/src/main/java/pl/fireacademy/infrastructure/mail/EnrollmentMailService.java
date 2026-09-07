@@ -336,8 +336,39 @@ public class EnrollmentMailService {
         }
     }
 
-    @Async("mailExecutor")
-    public void sendBulkEventMessage(String recipientEmail, String firstName,
+    /**
+     * One participant of a bulk send, flattened inside the transaction so nothing lazy crosses the
+     * {@code @Async} boundary. Only these two fields vary between recipients — the event, the message
+     * and the signature are the same for the whole campaign, so they stay parameters of the campaign.
+     */
+    public record BulkEventRecipient(String email, String firstName) {
+    }
+
+    /**
+     * A message to everyone signed up for one event, as ONE background task looping over the
+     * recipients on the dedicated single-thread {@code mailCampaignExecutor}.
+     * <p>
+     * Never dispatch this as one {@code @Async} task per recipient on {@code mailExecutor} — the twin
+     * warning on {@code AdminUserMailService.sendCampaign} applies here word for word, and this is the
+     * path that had it wrong. That pool carries transactional mail (verification, password reset,
+     * enrolment confirmations) and its queue holds 100: a camp of sixty puts a password reset behind
+     * sixty campaign messages with their SMTP retries, and past ~104 participants the pool's
+     * {@code AbortPolicy} throws into the caller, so the organizer sees a 500 with an unknown number
+     * of people already told.
+     */
+    @Async("mailCampaignExecutor")
+    public void sendBulkEventCampaign(List<BulkEventRecipient> recipients,
+                                      String eventName, String schedule,
+                                      @Nullable String location, String message,
+                                      @Nullable String senderName,
+                                      EventCategory category, String eventId) {
+        for (BulkEventRecipient recipient : recipients) {
+            doSendBulkEventMessage(recipient.email(), recipient.firstName(), eventName, schedule,
+                    location, message, senderName, category, eventId);
+        }
+    }
+
+    private void doSendBulkEventMessage(String recipientEmail, String firstName,
                                       String eventName, String schedule,
                                       @Nullable String location, String message,
                                       @Nullable String senderName,

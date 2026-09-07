@@ -156,13 +156,34 @@ public class AuthService {
             throw new IllegalArgumentException(msg.get("auth.login.oauth"));
         }
 
-        // Check if account is locked due to too many failed attempts
+        // The password is checked BEFORE the lockout is reported, and that order is the whole point.
+        //
+        // Reporting the lockout first made this endpoint the one place in the application that
+        // answers "does this address have an account". Every other anti-enumeration path is
+        // deliberate and documented — forgot-password, resend-verification and the marketing
+        // unsubscribe all reply identically whether or not the account exists, and claimMailQuota
+        // stays silent for the same reason. Here five wrong guesses were enough: an existing account
+        // then answered "locked for N minutes" while an unknown address kept answering "invalid".
+        //
+        // Checking the secret first means the lockout notice only ever reaches somebody who already
+        // proved they know the password, so it tells them nothing they did not have. To everyone
+        // else a locked account, a live account with the wrong password and an address with no
+        // account are one answer. The timing matches too: this branch runs BCrypt exactly like the
+        // unlocked one, and an unknown address already pays for the dummy comparison above.
+        //
+        // The lockout itself is unchanged — it still refuses, and the counter still does not move
+        // while the account is locked, so attempts cannot stack the window past 15 minutes.
+        boolean passwordMatches = passwordEncoder.matches(request.password(), user.getPasswordHash());
+
         if (user.isAccountLocked()) {
             log.warn("Login attempt for locked account: {}", request.email());
-            throw new IllegalStateException(msg.get("auth.login.locked", user.getRemainingLockoutMinutes()));
+            if (passwordMatches) {
+                throw new IllegalStateException(msg.get("auth.login.locked", user.getRemainingLockoutMinutes()));
+            }
+            throw new IllegalArgumentException(msg.get("auth.login.invalid"));
         }
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (!passwordMatches) {
             log.debug("Invalid password attempt for: {}", request.email());
             // Increment failed attempts and potentially lock the account
             user.incrementFailedLoginAttempts();

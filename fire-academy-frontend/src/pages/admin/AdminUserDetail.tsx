@@ -116,7 +116,11 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
       // ones on their trainings and the ones on their group sessions — and only ever the caller's own.
       showToast(t('users.detail.erasePlanDone', erased))
       setConfirmErasePlan(false)
-      queryClient.invalidateQueries({ queryKey: ['admin', 'user', userId] })
+      // invalidate(), not a hand-written key: this panel is registered as ['admin-user', userId],
+      // so ['admin', 'user', userId] matched no query at all and the one irreversible action on the
+      // page refreshed nothing. Harmless today only because the payload carries nothing the erasure
+      // changes — the first field that does would fail silently.
+      invalidate()
       queryClient.invalidateQueries({ queryKey: ['admin', 'athletes'] })
       // The notebook loses rows about this person, so every note query and marker is now stale.
       queryClient.invalidateQueries({ queryKey: ['admin', 'notes'] })
