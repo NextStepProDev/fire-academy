@@ -19,9 +19,16 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
+    // Runs first and gates the rest: reuse below only checks that SOMETHING answers on the port, and
+    // the sibling climbing project uses the same one. See e2e/app-identity.setup.ts.
+    {
+      name: 'identity',
+      testMatch: /app-identity\.setup\.ts/,
+    },
     {
       name: 'chromium',
       use: { browserName: 'chromium' },
+      dependencies: ['identity'],
     },
   ],
   webServer: {
