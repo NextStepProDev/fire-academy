@@ -44,7 +44,47 @@ o błędzie nie zgłosi: wyłączonego crona, wyłączoną maszynę, skasowany s
 pomijany, więc skrypt działa i bez niego.
 
 ### CI/CD (GitHub Actions)
+
+> ⚠️ **Obrazy PAKUJĄ artefakt, który przeszedł testy — nie budują własnego.** Wcześniej oba
+> `Dockerfile`'e kompilowały aplikację od nowa (`RUN ./gradlew bootJar -x test`, `COPY . .` +
+> `npm run build`), mimo że sąsiedni job w tym samym przebiegu dopiero co to zrobił. To nie była
+> kwestia czasu, tylko tego, że **testowana i wdrażana była inna kompilacja**, na innej maszynie
+> (front dodatkowo na innym Node: suite na 24, obraz na `FROM node:26-alpine`), a tej drugiej nic
+> nigdy nie uruchomiło. Teraz `app.jar` i `dist/` powstają w jobie testowym i jadą do joba `docker`
+> jako artefakt workflow (`upload-artifact` / `download-artifact`, `if-no-files-found: error`),
+> a `Dockerfile`'e mają wyłącznie warstwę runtime. **Dockerfile, który kompiluje, to regres.**
+>
+> **Ręczny build obrazu na laptopie wymaga wcześniejszego zbudowania artefaktu** (compose dev nie
+> buduje obrazów, więc jedyną zautomatyzowaną ścieżką jest CI):
+> ```bash
+> cd fire-academy-backend && ./gradlew clean bootJar && cp build/libs/*.jar app.jar && docker build -t fire-academy-backend .
+> cd fire-academy-frontend && nvm use && npm ci && npm run build && docker build -t fire-academy-frontend .
+> ```
+> `clean` nie jest ozdobnikiem: `build/libs` trzyma po jarze na każdą kiedykolwiek zbudowaną wersję,
+> a `assemble` dokłada `-plain.jar` **bez `Main-Class`**, który sortuje się *przed* właściwym — czyli
+> `cp build/libs/*.jar` bez `clean` potrafi wybrać jar budujący poprawny obraz, który umiera na
+> starcie. W CI pilnuje tego asercja `-eq 1`.
+> Przed zbudowaniem obrazu job `docker` sprawdza jeszcze dwie rzeczy, bo to ostatni moment, w którym
+> są tanie: że artefakt w ogóle dojechał w oczekiwanym układzie (`app.jar` / `dist/index.html`, nie
+> `dist/dist`) i że **jar deklaruje w środku tę wersję, którą właśnie tagujemy** — ta druga asercja
+> łapie od drugiej strony dokładnie tę usterkę, którą naprawia `inputs.property` w `build.gradle`.
+> Oba `.dockerignore` są **deny-by-default** (`*` + wyjątek na to, co obraz kopiuje) — lista wykluczeń
+> wymaga dopisywania każdego nowego katalogu, lista jednego wpuszczonego nie ma jak się zestarzeć.
+
+> ⚠️ **Wersja frontu: `fire-academy-frontend/.nvmrc` jest jedynym źródłem prawdy** (dziś `26`),
+> czytany przez `setup-node` (`node-version-file`). Po przeniesieniu builda do CI obraz nie zawiera
+> już Node'a, więc nie ma drugiego miejsca, które mogłoby się rozjechać. Zmiana wersji = zmierzyć
+> suite, nie założyć: przy vitest 5 / jsdom 30 node 26 przechodzi 258/258 (w bliźniaczym repo na
+> vitest 4 ta sama wersja wywalała 32 testy przez globalny `localStorage`).
+
 - `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main + **skan CVE obrazu (Trivy, `ignore-unfixed`)**. Uwaga na dwa progi, bo to nie jest jeden krok: **raport SARIF bierze HIGH i CRITICAL i nigdy nie wywala builda** (`exit-code: 0`, ląduje w zakładce Security), a **bramka bierze wyłącznie CRITICAL i wywala** (`exit-code: 1`). Czyli HIGH jest widoczne, ale nie blokuje — świadomie, żeby build nie czerwienił się od podatności, na które nie ma jeszcze łatki w obrazie bazowym. Tylko na merge'u do `main`, nie blokuje `deploy.yml`; znalezisko = czerwony build proszący o bump obrazu bazowego. Nie wracać do `exit-code: 0` w bramce (skan, który nic nie blokuje, to skan, którego nikt nie czyta) — jeśli szumi, zawężać `severity`. Ten sam kształt raport+bramka powtarza się w cotygodniowych skanach obrazu i obrazu Postgresa
+- Nazwa obrazu ma **jedno** źródło: krok `Read version and image owner` wypluwa `owner`
+  (`github.repository_owner` zmałolitrowany — GHCR wymaga małych liter, a organizacja nazywa się
+  `NextStepProDev`), z którego korzystają i `metadata-action`, i wszystkie `image-ref` Trivy'ego.
+  Wcześniej stał tam wpisany na sztywno literał w 8 miejscach — dwie pisownie jednej nazwy, zgodne
+  wyłącznie przez przypadek, do pierwszej zmiany nazwy organizacji albo forka
+- Oba workflow mają **własny plik na liście `paths`** — bez tego PR ruszający wyłącznie CI nie
+  odpalał CI i wjeżdżał na main nieprzetestowany, a dziś przez te pliki przechodzi artefakt wdrożeniowy
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
 
 ### Zmienne środowiskowe (`.env`)

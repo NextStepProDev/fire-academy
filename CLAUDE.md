@@ -71,6 +71,12 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 - `staleTime: 0` jest błędem (lawina żądań przy powrocie na kartę) — jest `SHORT_STALE_MS` z `utils/queryFreshness.ts`.
 - Surowy `<input type="date">` poza `components/ui/DateInput` wywala build.
 
+**Obrazy i CI → [`INFRA.md`](INFRA.md)**
+- Obraz **pakuje** artefakt, który przeszedł testy (`app.jar` / `dist/` jadą z joba testowego artefaktem workflow). **`Dockerfile`, który kompiluje aplikację, to regres** — testowana i wdrażana byłaby inna kompilacja. Ręczny `docker build` wymaga wcześniej `./gradlew clean bootJar && cp build/libs/*.jar app.jar` (front: `npm run build`).
+- `COPY app.jar` stoi **nad** blokiem `addgroup … && chown -R app:app /app` — to ten `chown` czyni jara własnością usera kontenera. Przestawienie zostawia go rootowego i nic nie krzyczy.
+- Podmiana `@version@` w `application.yml` wymaga `inputs.property('appVersion', …)` w `processResources`. Bez tego po samym bumpie `VERSION` zadanie zostaje UP-TO-DATE: jar dostaje nową nazwę, ale w środku niesie **poprzedni** numer (odtworzone: `…-0.5.23.jar` z `version: '0.5.22'`), a `app.version` karmi Swagger i log startowy.
+- Wersja Node'a dla frontu żyje **tylko** w `fire-academy-frontend/.nvmrc`. Obraz nie zawiera już Node'a — nie dokładać drugiego miejsca.
+
 **Proces**
 - **Migracje SQL są niezmienne** — nawet poprawka komentarza w zaaplikowanym pliku zmienia checksum Flyway i wywala deploy.
 - Produkt po polsku, kod (komentarze, logi, commity, PR) po angielsku.

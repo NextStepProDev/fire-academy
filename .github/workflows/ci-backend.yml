@@ -6,11 +6,17 @@ on:
     paths:
       - fire-academy-backend/**
       - VERSION
+      # This workflow tests itself. Without this line a PR touching only CI never runs CI and reaches
+      # main unexercised — which mattered little while these files were thin, and matters now that
+      # the deployable jar travels between two jobs here: a broken download-artifact could merge
+      # green without a single run.
+      - .github/workflows/ci-backend.yml
   pull_request:
     branches: [main]
     paths:
       - fire-academy-backend/**
       - VERSION
+      - .github/workflows/ci-backend.yml
 
   # Re-scan what is already published. A build-time scan is only ever as fresh as the day it
   # ran: these three CRITICAL Tomcat advisories were published into Trivy's database AFTER
@@ -51,11 +57,48 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6.3.0
       - run: ./gradlew classes
       - run: ./gradlew test
+      # Packaged HERE, in the job that just ran the suite, and handed to the docker job as an
+      # artifact. The image used to compile its own jar with `-x test`, so what was tested and what
+      # was deployed were two different builds and only the tested one was ever executed.
+      # Deliberately not gated on the branch: on a PR this costs seconds against a warm cache and
+      # catches a packaging failure before the merge rather than after it.
+      - run: ./gradlew bootJar
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-reports
           path: fire-academy-backend/build/reports/tests/
+          retention-days: 7
+      # Only the deployable branch needs the artifact stored.
+      - name: Stage the jar for the image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # build/libs is not guaranteed to hold one file: it keeps a jar per version ever built,
+          # and `assemble` adds a dependency-less `-plain.jar` that sorts BEFORE the real one
+          # (verified locally: `-plain.jar` and the bootJar side by side). Picking that one produces
+          # a valid image that dies at startup with no main manifest attribute. A fresh CI checkout
+          # currently hides all of this, so the assertion travels with the copy rather than trusting
+          # that the directory stays tidy.
+          count=$(ls build/libs/*.jar | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Expected exactly one jar in build/libs, found $count:"
+            ls -la build/libs/
+            exit 1
+          fi
+          cp build/libs/*.jar app.jar
+      - name: Upload the jar
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-jar
+          # Relative to the REPOSITORY ROOT, not to defaults.run.working-directory.
+          path: fire-academy-backend/app.jar
+          # Default is `warn`: an empty upload would go green here and fail two jobs later as
+          # "artifact not found", nowhere near the cause.
+          if-no-files-found: error
+          # 7 days, not 1: re-running the docker job is now a download, so a jar that has expired
+          # turns "Re-run failed jobs" into "artifact not found" days after the fact. Storage is
+          # free on a public repository, so the shorter window buys nothing.
           retention-days: 7
 
   docker:
@@ -65,9 +108,46 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - name: Read version
+      - name: Read version and image owner
         id: version
-        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          # One source of truth for the image name. github.repository_owner is "NextStepProDev" and
+          # an OCI reference must be lowercase, which is why a hardcoded literal used to sit in every
+          # Trivy step: two spellings of one name, agreeing by luck until an org rename or a fork.
+          echo "owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - name: Download the jar built by the test job
+        uses: actions/download-artifact@v7
+        with:
+          name: backend-jar
+          # upload-artifact packs the CONTENTS of what it was given, so this restores app.jar here
+          # rather than in a nested directory. Asserted below rather than assumed.
+          path: fire-academy-backend
+      # Two things the release path should refuse to ship, checked here because this is the last
+      # point where either is cheap to see.
+      - name: Verify the jar before it becomes an image
+        run: |
+          if [ ! -f fire-academy-backend/app.jar ]; then
+            echo "::error::app.jar is missing after download-artifact — the artifact layout changed."
+            ls -R fire-academy-backend | head -20
+            exit 1
+          fi
+          # The same defect this change fixes in build.gradle, caught from the opposite side: a jar
+          # about to be tagged :$version has to say $version inside, whatever the build believed.
+          # Without this, a stale stamp is invisible until someone reads Swagger or a startup log.
+          #
+          # Deliberately not `unzip -p ... | grep -q`: the runner's shell is `bash -e -o pipefail`,
+          # `grep -q` exits on the first match, unzip then takes SIGPIPE, and pipefail reports the
+          # pipeline as 141 — turning the SUCCESS case into an intermittent failure that depends on
+          # whether the file was small enough to be written before grep left. sed reads to the end.
+          version=$(cat VERSION)
+          stamped=$(unzip -p fire-academy-backend/app.jar BOOT-INF/classes/application.yml \
+            | sed -n "s/^ *version: '\(.*\)'.*/\1/p")
+          if [ "$stamped" != "$version" ]; then
+            echo "::error::app.jar declares '$stamped' but this build is tagged '$version'."
+            exit 1
+          fi
+          echo "app.jar declares $version"
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -77,7 +157,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/${{ github.repository_owner }}/fire-academy-backend
+          images: ghcr.io/${{ steps.version.outputs.owner }}/fire-academy-backend
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-
@@ -88,9 +168,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: APP_VERSION=${{ steps.version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No build-args and no GHA layer cache any more. APP_VERSION was load-bearing while the
+          # image compiled its own jar (build.gradle reads ../VERSION first, and ../VERSION sits
+          # outside this build context) — the jar is now built in the job where that file exists.
+          # The cache was already close to useless with `COPY src src` above the Gradle run; what is
+          # left is a COPY of one file plus `apk upgrade`, and caching an `apk upgrade` layer would
+          # preserve exactly the stale packages that line exists to avoid.
       # The scan produces a REPORT and a GATE, deliberately as two steps.
       #
       # The report (SARIF) never fails the build: its job is to put every HIGH and CRITICAL into the
@@ -107,9 +190,7 @@ jobs:
       - name: Trivy report (SARIF, never fails)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          # Nazwa obrazu musi być lowercase (owner NextStepProDev ma wielkie litery,
-          # a OCI reference wymaga małych — metadata-action lowercase'uje sam przy pushu).
-          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          image-ref: ghcr.io/${{ steps.version.outputs.owner }}/fire-academy-backend:${{ steps.version.outputs.version }}
           format: sarif
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
@@ -131,7 +212,7 @@ jobs:
       - name: Trivy gate (CRITICAL fails the build)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          image-ref: ghcr.io/${{ steps.version.outputs.owner }}/fire-academy-backend:${{ steps.version.outputs.version }}
           format: table
           severity: CRITICAL
           ignore-unfixed: true
@@ -149,13 +230,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - name: Read version
+      - name: Read version and image owner
         id: version
-        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          echo "owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
       - name: Trivy report (SARIF, never fails)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          image-ref: ghcr.io/${{ steps.version.outputs.owner }}/fire-academy-backend:${{ steps.version.outputs.version }}
           format: sarif
           output: trivy-backend.sarif
           severity: HIGH,CRITICAL
@@ -173,7 +256,7 @@ jobs:
       - name: Trivy gate (CRITICAL fails the build)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/nextstepprodev/fire-academy-backend:${{ steps.version.outputs.version }}
+          image-ref: ghcr.io/${{ steps.version.outputs.owner }}/fire-academy-backend:${{ steps.version.outputs.version }}
           format: table
           severity: CRITICAL
           ignore-unfixed: true
@@ -205,7 +288,10 @@ jobs:
       - name: Read Postgres image from the production compose file
         id: pg
         run: |
-          image=$(grep -oE 'postgres:[0-9]+[a-z0-9.-]*' fire-academy-hub/docker-compose.prod.yml | head -1)
+          # `grep -m1` rather than `grep ... | head -1`: the shell here is `bash -e -o pipefail`, and
+          # head leaving early can hand grep a SIGPIPE, which pipefail then reports as a failed step
+          # for a lookup that actually succeeded. Same hazard as the version check in the docker job.
+          image=$(grep -m1 -oE 'postgres:[0-9]+[a-z0-9.-]*' fire-academy-hub/docker-compose.prod.yml)
           if [ -z "$image" ]; then
             echo "::error::Could not find a postgres image pin in fire-academy-hub/docker-compose.prod.yml"
             exit 1

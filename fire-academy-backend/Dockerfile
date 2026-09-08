@@ -1,15 +1,13 @@
-FROM eclipse-temurin:25-jdk-alpine AS build
-WORKDIR /app
-ARG APP_VERSION=dev
-
-COPY gradlew .
-COPY gradle/ gradle/
-COPY build.gradle settings.gradle gradle.properties ./
-COPY src src
-
-RUN chmod +x gradlew
-RUN APP_VERSION=$APP_VERSION ./gradlew bootJar -x test
-
+# Runtime only. This image PACKAGES the jar the CI suite ran against; it does not compile one.
+# It used to do both: a builder stage ran `./gradlew bootJar -x test`, so the artifact the tests
+# proved something about and the artifact that reached production were two different compilations
+# on two different machines, and nothing ever executed the second one. The jar now arrives from the
+# job that tested it, as a workflow artifact (see .github/workflows/ci-backend.yml).
+#
+# Consequence for a manual build on a laptop: produce the jar first, the image expects it here.
+#   ./gradlew clean bootJar && cp build/libs/*.jar app.jar && docker build -t fire-academy-backend .
+# `clean` is not decoration — build/libs keeps one jar per version ever built, so `cp *.jar` without
+# it copies whichever the shell glob happens to hand over.
 FROM eclipse-temurin:25-jre-alpine
 # curl is for the container healthcheck. The upgrade is for the CVE gate in CI: the base image ships
 # whatever Alpine packages it was built with, and it is rebuilt on its own schedule, not ours — so
@@ -20,7 +18,9 @@ FROM eclipse-temurin:25-jre-alpine
 RUN apk upgrade --no-cache && apk add --no-cache curl
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+# Stays ABOVE the addgroup/chown block below: that chown is what makes the jar owned by the user
+# the container runs as. Move this line under it and the jar stays root-owned, silently.
+COPY app.jar app.jar
 
 # The image is safe on its own, not only when compose remembers to say so. This used to read
 # "docker" — a profile no application-docker.yml has ever defined — so anything starting the image
@@ -30,10 +30,10 @@ COPY --from=build /app/build/libs/*.jar app.jar
 # with ${SPRING_PROFILES_ACTIVE:-prod}; the default is now the same answer rather than a trap.
 ENV SPRING_PROFILES_ACTIVE=prod
 
-# Uruchamiaj jako nieuprzywilejowany użytkownik (pinned uid 1001 → deterministyczny
-# chown wolumenu). /app/uploads jest pre-tworzony i nadany userowi: ŚWIEŻY named volume
-# dziedziczy tę własność, więc nowe wdrożenia działają bez ręcznego chown. ISTNIEJĄCY
-# (rootowy) wolumen wymaga jednorazowo, przed startem tego obrazu:
+# Run as an unprivileged user (uid pinned to 1001 so the volume chown is deterministic).
+# /app/uploads is pre-created and handed to that user: a FRESH named volume inherits the ownership,
+# so a new deployment works with no manual chown. An EXISTING (root-owned) volume needs this once,
+# before starting this image:
 #   docker run --rm -v fa_uploads_data_prod:/u alpine chown -R 1001:1001 /u
 RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app \
     && mkdir -p /app/uploads && chown -R app:app /app
