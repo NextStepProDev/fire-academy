@@ -43,6 +43,29 @@ public interface TrainingRefundRepository extends JpaRepository<TrainingRefund, 
     List<TrainingRefund> findBySlotAndDate(@Param("slotId") UUID slotId, @Param("date") LocalDate date);
 
     /** Enrollment ids that still have an unresolved refund for a slot's session date — drives the "do zwrotu" badge. */
+    /**
+     * Of these subscriptions, the ones that already carry a refund for this session date.
+     * <p>
+     * The batched form of {@code existsByEnrollmentIdAndSessionDate}. Registering refunds walks a
+     * slot's whole group for one date, and asked per person that question is a query each.
+     */
+    @Query("SELECT r.enrollment.id FROM TrainingRefund r "
+        + "WHERE r.enrollment.id IN :ids AND r.sessionDate = :date")
+    List<UUID> findEnrollmentIdsWithRefundOn(@Param("ids") java.util.Collection<UUID> ids,
+                                             @Param("date") LocalDate date);
+
+    /**
+     * How much each of these subscriptions has already been refunded for the month, as
+     * {@code [enrollmentId, amount]} rows. The batched form of {@code sumForEnrollmentAndMonth}.
+     * <p>
+     * A subscription with no refunds yet is simply absent — the caller reads a missing row as zero,
+     * which is what the single-row version returns through its COALESCE.
+     */
+    @Query("SELECT r.enrollment.id, COALESCE(SUM(r.amount), 0) FROM TrainingRefund r "
+        + "WHERE r.enrollment.id IN :ids AND r.yearMonth = :month GROUP BY r.enrollment.id")
+    List<Object[]> sumByEnrollmentForMonth(@Param("ids") java.util.Collection<UUID> ids,
+                                           @Param("month") String month);
+
     @Query("SELECT r.enrollment.id FROM TrainingRefund r "
             + "WHERE r.enrollment.slot.id = :slotId AND r.sessionDate = :date AND r.settledAt IS NULL")
     List<UUID> findPendingEnrollmentIdsForSlotAndDate(@Param("slotId") UUID slotId, @Param("date") LocalDate date);

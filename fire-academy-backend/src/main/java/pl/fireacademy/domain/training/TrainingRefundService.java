@@ -125,9 +125,25 @@ public class TrainingRefundService {
             return;
         }
         var ids = enrollments.stream().map(TrainingEnrollment::getId).toList();
-        var paid = new HashSet<>(paymentRepository.findPaidEnrollmentIds(ids, month));
+
+        // Everything below depends on (subscription, month) or (subscription, date) — the same month and
+        // the same date for the whole group — so it is fetched once for all of them rather than three
+        // times per person. That per-person shape turned a group of six into eighteen round trips, and a
+        // club-wide day off multiplies it again by every slot falling on that weekday.
+        var paymentByEnrollment = new java.util.HashMap<UUID, TrainingPayment>();
+        for (var payment : paymentRepository.findPaidForMonth(ids, month)) {
+            paymentByEnrollment.put(payment.getEnrollment().getId(), payment);
+        }
+        var alreadyRefundedOnDate = new HashSet<>(refundRepository.findEnrollmentIdsWithRefundOn(ids, date));
+        var refundedSoFarByEnrollment = new java.util.HashMap<UUID, java.math.BigDecimal>();
+        for (Object[] row : refundRepository.sumByEnrollmentForMonth(ids, month)) {
+            refundedSoFarByEnrollment.put((UUID) row[0], (java.math.BigDecimal) row[1]);
+        }
+
         for (var te : enrollments) {
-            if (!paid.contains(te.getId())) {
+            // The month has to be paid: an unpaid month owes nothing back.
+            var payment = paymentByEnrollment.get(te.getId());
+            if (payment == null) {
                 continue;
             }
             // The date must actually be part of what this subscriber paid: a mid-month joiner (or an organizer's
@@ -136,15 +152,15 @@ public class TrainingRefundService {
             if (!billingService.isBillableSession(te, date)) {
                 continue;
             }
-            if (refundRepository.existsByEnrollmentIdAndSessionDate(te.getId(), date)) {
+            if (alreadyRefundedOnDate.contains(te.getId())) {
                 continue;
             }
             // Safety net: whatever combination of closures led here, refunds for one paid month must never
             // exceed what that month's payment actually collected (a frozen payment.amount is the ceiling;
             // legacy rows without one, pre-V26, are left uncapped since there is nothing to cap against).
-            var payment = paymentRepository.findByEnrollmentIdAndYearMonth(te.getId(), month).orElse(null);
-            if (payment != null && payment.getAmount() != null) {
-                var alreadyRefunded = refundRepository.sumForEnrollmentAndMonth(te.getId(), month);
+            if (payment.getAmount() != null) {
+                var alreadyRefunded = refundedSoFarByEnrollment
+                        .getOrDefault(te.getId(), java.math.BigDecimal.ZERO);
                 if (alreadyRefunded.add(slot.getPrice()).compareTo(payment.getAmount()) > 0) {
                     continue;
                 }
