@@ -40,7 +40,7 @@ RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app \
 USER app
 
 EXPOSE 8081
-# JVM tuning for a ~1GB RAM / 2 vCPU box (mem_limit 384m — see CLAUDE.md "Infrastruktura"):
+# JVM tuning for a ~1GB RAM / 2 vCPU box (mem_limit 384m — see INFRA.md "Serwer produkcyjny"):
 # - MaxRAMPercentage=55 / MaxMetaspaceSize=128m -> heap+non-heap stays under the limit;
 #   ExitOnOutOfMemoryError -> clean restart (compose restart: unless-stopped) over a wedged JVM.
 # - TieredStopAtLevel=1 -> C1-only JIT: skips the C2 optimizing compiler. On 2 vCPU the C2
