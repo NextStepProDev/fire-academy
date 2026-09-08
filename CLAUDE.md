@@ -338,7 +338,7 @@ o błędzie nie zgłosi: wyłączonego crona, wyłączoną maszynę, skasowany s
 pomijany, więc skrypt działa i bez niego.
 
 ### CI/CD (GitHub Actions)
-- `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main + **skan CVE obrazu (Trivy, HIGH/CRITICAL, `ignore-unfixed`) wywala build** — tylko na merge'u do `main`, nie blokuje `deploy.yml`; znalezisko = czerwony build proszący o bump obrazu bazowego. Nie wracać do `exit-code: 0` (skan, który nic nie blokuje, to skan, którego nikt nie czyta) — jeśli szumi, zawężać `severity`
+- `ci-backend.yml` / `ci-frontend.yml`: testy przy push/PR na main + **skan CVE obrazu (Trivy, `ignore-unfixed`)**. Uwaga na dwa progi, bo to nie jest jeden krok: **raport SARIF bierze HIGH i CRITICAL i nigdy nie wywala builda** (`exit-code: 0`, ląduje w zakładce Security), a **bramka bierze wyłącznie CRITICAL i wywala** (`exit-code: 1`). Czyli HIGH jest widoczne, ale nie blokuje — świadomie, żeby build nie czerwienił się od podatności, na które nie ma jeszcze łatki w obrazie bazowym. Tylko na merge'u do `main`, nie blokuje `deploy.yml`; znalezisko = czerwony build proszący o bump obrazu bazowego. Nie wracać do `exit-code: 0` w bramce (skan, który nic nie blokuje, to skan, którego nikt nie czyta) — jeśli szumi, zawężać `severity`. Ten sam kształt raport+bramka powtarza się w cotygodniowych skanach obrazu i obrazu Postgresa
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
 
 ### Zmienne środowiskowe (`.env`)

@@ -33,6 +33,13 @@ FILES_DIR="/backups/files"
 DB_BACKUP="${DB_DIR}/${DATE}.sql.gz"
 FILES_BACKUP="${FILES_DIR}/${DATE}.tar.gz"
 COMPOSE_DIR="/opt/fire-academy"
+# Docker prefixes compose volumes with the project name, which defaults to the directory the compose
+# file sits in. So this name is a guess about a path, and a wrong guess does not fail: `docker run -v
+# <unknown-name>:/data` CREATES an empty volume and tars nothing. The archive is then a valid,
+# readable, empty tar.gz — it passes the `tar tzf` check below, publishes, and copies off-site every
+# night. The uploads would be gone and the backup log would say OK the whole time. Hence the
+# existence check further down. Override in /etc/fire-academy-backup.env if the project is renamed.
+UPLOADS_VOLUME="${UPLOADS_VOLUME:-fire-academy_fa_uploads_data_prod}"
 LOG="/var/log/fire-academy-backup.log"
 REMOTE="gdrive-crypt:"
 
@@ -102,8 +109,18 @@ log "DB OK: $(du -sh "$DB_BACKUP" | cut -f1)"
 # --- uploaded files -----------------------------------------------------------------------------
 
 log "Files backup..."
+
+# Assert the volume exists before reading it. Without this the only symptom of a wrong name is an
+# empty archive that looks entirely healthy — see the note by UPLOADS_VOLUME.
+if ! docker volume inspect "$UPLOADS_VOLUME" >/dev/null 2>&1; then
+    log "FAILED: uploads volume '${UPLOADS_VOLUME}' does not exist — refusing to back up nothing"
+    log "        available: $(docker volume ls --format '{{.Name}}' | grep -i uploads | tr '\n' ' ')"
+    ping_healthcheck "/fail"
+    exit 1
+fi
+
 docker run --rm \
-    -v fire-academy_fa_uploads_data_prod:/data:ro \
+    -v "${UPLOADS_VOLUME}:/data:ro" \
     -v "${FILES_DIR}:/backup" \
     alpine tar czf "/backup/${DATE}.tar.gz.part" -C /data .
 

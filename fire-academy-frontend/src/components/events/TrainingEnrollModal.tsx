@@ -96,19 +96,26 @@ function TrainingEnrollForm({ slot, startMonth, holidays, onClose }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollTraining.startMonth')}</label>
+          {/* Not a <label>: the start month is read-only text, and a label pointing at no control
+              is announced as an empty field. */}
+          <p className="block text-sm font-medium text-surface-300 mb-1">{t('enrollTraining.startMonth')}</p>
           <p className="px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-surface-100 capitalize">{formatMonth(startMonth)}</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-surface-300 mb-1">{t('enrollTraining.duration')}</label>
+          {/* fieldset/legend rather than a bare label: this names a CHOICE, not one control, and a
+              label with no control for is read out as an empty field. The shared `name` is what
+              actually makes the two options one group — without it a screen reader announces two
+              unrelated radios and the arrow keys do not move between them. */}
+          <fieldset className="border-0 p-0 m-0">
+            <legend className="block text-sm font-medium text-surface-300 mb-1 p-0">{t('enrollTraining.duration')}</legend>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-surface-200 text-sm">
-              <input type="radio" checked={mode === 'indefinite'} onChange={() => setMode('indefinite')} />
+              <input type="radio" name="enroll-training-duration" checked={mode === 'indefinite'} onChange={() => setMode('indefinite')} />
               {t('enrollTraining.indefinite')}
             </label>
             <label className="flex items-center gap-2 text-surface-200 text-sm">
-              <input type="radio" checked={mode === 'fixed'} onChange={() => setMode('fixed')} />
+              <input type="radio" name="enroll-training-duration" checked={mode === 'fixed'} onChange={() => setMode('fixed')} />
               {t('enrollTraining.fixed')}
             </label>
             {mode === 'fixed' && (
@@ -120,6 +127,7 @@ function TrainingEnrollForm({ slot, startMonth, holidays, onClose }:
               />
             )}
           </div>
+          </fieldset>
         </div>
 
         {amount != null && (

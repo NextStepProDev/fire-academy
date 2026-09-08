@@ -91,10 +91,11 @@ export function EnrollmentModal({ isOpen, onClose, eventId, eventName, onEnrolle
             </div>
           </dl>
           <div>
-            <label className="block text-sm font-medium text-surface-300 mb-1">
+            <label htmlFor="enroll-note" className="block text-sm font-medium text-surface-300 mb-1">
               {t('enroll.note')} <span className="text-surface-500 font-normal">({t('enroll.optional')})</span>
             </label>
             <textarea
+              id="enroll-note"
               value={note}
               onChange={e => setNote(e.target.value)}
               rows={3}
