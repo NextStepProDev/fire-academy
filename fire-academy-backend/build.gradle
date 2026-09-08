@@ -95,6 +95,13 @@ tasks.named('bootRun') {
 }
 
 tasks.named('processResources') {
+    // The version is read at configuration time and used inside a closure, which Gradle cannot see
+    // into: without declaring it here the task has no idea the value changed, reports UP-TO-DATE
+    // after a ../VERSION bump and leaves the PREVIOUS number inside application.yml. The jar still
+    // gets the new name (that comes from project.version directly), so the file says one version and
+    // its contents say another — and app.version feeds OpenApiConfig, so Swagger and the startup log
+    // report the lie. Same failure mode the `test` task guards against with inputs.file below.
+    inputs.property('appVersion', project.version.toString())
     filesMatching('application*.yml') {
         filter { line ->
             line.replace('@version@', project.version.toString())
