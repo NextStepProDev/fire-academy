@@ -79,6 +79,7 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 
 **Proces**
 - **Migracje SQL są niezmienne** — nawet poprawka komentarza w zaaplikowanym pliku zmienia checksum Flyway i wywala deploy.
+- Nowy pakiet w backendzie = własny `package-info.java` z `@NullMarked`. Adnotacja **nie schodzi do podpakietów** (mówi to javadoc JSpecify), więc bez tego pliku każde `@Nullable` w pakiecie niesie pół umowy: sąsiedzi mają nullowość *nieokreśloną*, a nie „niepustą". Pilnuje `NullMarkedPackagesTest` — druga asercja łapie literówkę w nazwie pakietu, którą `compileJava` przepuszcza bez słowa. Uwaga na skutek uboczny: repozytorium w oznaczonym pakiecie dostaje `MethodInvocationValidator`, więc `null` w argumencie rzuca `IllegalArgumentException` zamiast zwrócić pustkę.
 - Produkt po polsku, kod (komentarze, logi, commity, PR) po angielsku.
 - Commit funkcjonalny zawsze z bumpem `VERSION` — bez tego CI frontu się nie odpala (filtr `paths`), a tag obrazu w GHCR jest nadpisywany.
 - Kopie zapasowe: `rclone copy`, **nigdy** `sync` → [`INFRA.md`](INFRA.md).

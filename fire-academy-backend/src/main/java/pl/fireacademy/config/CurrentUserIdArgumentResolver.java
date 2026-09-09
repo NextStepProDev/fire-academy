@@ -1,5 +1,6 @@
 package pl.fireacademy.config;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,9 +22,16 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
             && parameter.getParameterType().equals(UUID.class);
     }
 
+    /**
+     * Answering "nobody is logged in" with {@code null} is the contract, not a failure: Spring
+     * declares the return and both optional collaborators as nullable on the interface, so an
+     * override that omits the marks narrows a contract the framework deliberately left wide.
+     */
     @Override
-    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
-                                  NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+    public @Nullable Object resolveArgument(MethodParameter parameter,
+                                            @Nullable ModelAndViewContainer mavContainer,
+                                            NativeWebRequest webRequest,
+                                            @Nullable WebDataBinderFactory binderFactory) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof JwtAuthenticatedUser jwtUser) {
             return jwtUser.getUserId();
