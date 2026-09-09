@@ -149,6 +149,31 @@ class OAuth2UserServiceTest {
             () -> service.processOAuth2User("google", input));
     }
 
+    // Mockito rather than DefaultOAuth2User: that class refuses to be built without its own name
+    // attribute, so the one shape worth testing here cannot be expressed with it.
+    @Test
+    void shouldRejectMissingSubjectFromProvider() {
+        OAuth2User input = mock(OAuth2User.class);
+        when(input.getAttributes()).thenReturn(Map.of("email", "anna@gmail.com", "given_name", "Anna"));
+
+        assertThrows(OAuth2AuthenticationException.class,
+            () -> service.processOAuth2User("google", input));
+
+        verifyNoInteractions(userRepository, authMailService);
+    }
+
+    @Test
+    void shouldRejectBlankSubjectFromProvider() {
+        Map<String, Object> attrs = Map.of("sub", "   ", "email", "anna@gmail.com");
+        OAuth2User input = new DefaultOAuth2User(
+            List.of(new SimpleGrantedAuthority("ROLE_USER")), attrs, "sub");
+
+        assertThrows(OAuth2AuthenticationException.class,
+            () -> service.processOAuth2User("google", input));
+
+        verifyNoInteractions(userRepository, authMailService);
+    }
+
     @Test
     void shouldRejectUnsupportedProvider() {
         OAuth2User input = googleUser("anna@gmail.com", "Anna", "Nowak", "sub-1");

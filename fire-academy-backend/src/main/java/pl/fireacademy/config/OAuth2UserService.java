@@ -99,11 +99,22 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
         }
     }
 
+    // Guarded like extractEmail, and for the same reason: this is a cast off a map the provider
+    // filled, so the declared String was a promise this method could not keep. Google always sends
+    // "sub" — but an absent one used to sail through as a null oauthId, match no user, fall into
+    // the e-mail branch and create an account with no provider identity to log back in with. Since
+    // config became @NullMarked the repository refuses the null argument instead, turning that
+    // silent bad account into a 500. Naming the condition here makes it a refused login, which is
+    // what it always was.
     private String extractOAuthId(String provider, Map<String, Object> attributes) {
-        return switch (provider) {
+        String oauthId = switch (provider) {
             case "google" -> (String) attributes.get("sub");
             default -> throw new OAuth2AuthenticationException("Unsupported provider: " + provider);
         };
+        if (oauthId == null || oauthId.isBlank()) {
+            throw new OAuth2AuthenticationException("Account identifier not provided by OAuth provider");
+        }
+        return oauthId;
     }
 
     private String extractEmail(Map<String, Object> attributes) {
