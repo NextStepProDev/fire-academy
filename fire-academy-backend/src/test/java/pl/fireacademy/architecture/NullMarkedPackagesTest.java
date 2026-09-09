@@ -30,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class NullMarkedPackagesTest {
 
     private static final Pattern PACKAGE_DECLARATION = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+    private static final Pattern EQUALS_OVERRIDE =
+        Pattern.compile("boolean\\s+equals\\s*\\(([^)]*)\\)");
 
     /**
      * Every package holding production code declares the marker.
@@ -66,6 +68,40 @@ class NullMarkedPackagesTest {
         assertEquals(List.of(), unmarked,
             "these packages are outside null-marked scope, so every @Nullable in them means less than it looks like:\n  "
                 + String.join("\n  ", unmarked));
+    }
+
+    /**
+     * Every {@code equals} override accepts null.
+     * <p>
+     * {@code Object.equals} is contractually required to answer false for null, and collections and
+     * Hibernate both call it that way. Inside null-marked scope a bare {@code equals(Object o)}
+     * declares the opposite, so the one method in Java that must take null says it will not — and
+     * because the body almost always handles null correctly anyway, nothing ever fails to reveal it.
+     * <p>
+     * This is the same defect as an override that drops a framework's nullable marks, which is what
+     * made it worth a gate: it was missed on the pass that marked every package, by an audit
+     * specifically looking for exactly this.
+     */
+    @Test
+    void everyEqualsOverrideAcceptsNull() {
+        List<String> narrowed = new ArrayList<>();
+        int found = 0;
+
+        for (Path file : SourceFiles.mainJavaFiles()) {
+            String source = SourceFiles.readWithoutComments(file);
+            Matcher matcher = EQUALS_OVERRIDE.matcher(source);
+            while (matcher.find()) {
+                found++;
+                if (!matcher.group(1).contains("@Nullable")) {
+                    narrowed.add(SourceFiles.mainJavaRoot().relativize(file).toString());
+                }
+            }
+        }
+
+        assertTrue(found > 0, "no equals override found at all — the scan is looking in the wrong place");
+        assertEquals(List.of(), narrowed,
+            "these declare equals as refusing null, which Object does not allow:\n  "
+                + String.join("\n  ", narrowed));
     }
 
     /**
