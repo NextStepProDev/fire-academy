@@ -1,5 +1,6 @@
 package pl.fireacademy.api.pub;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -220,7 +221,8 @@ public class OgController {
                 .replace("<", "\\u003c").replace(">", "\\u003e");
     }
 
-    private static String truncate(String text, int maxLen) {
+    /** Optional free text in, optional free text out — a description nobody filled in stays absent. */
+    private static @Nullable String truncate(@Nullable String text, int maxLen) {
         if (text == null) return null;
         return text.length() <= maxLen ? text : text.substring(0, maxLen - 3) + "...";
     }

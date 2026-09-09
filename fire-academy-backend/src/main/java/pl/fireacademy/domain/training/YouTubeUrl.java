@@ -1,5 +1,6 @@
 package pl.fireacademy.domain.training;
 
+import org.jspecify.annotations.Nullable;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -60,7 +61,8 @@ public record YouTubeUrl(String key) {
         return key != null && ID.matcher(key).matches();
     }
 
-    private static String hostOf(String url) {
+    /** Null for anything the URI parser refuses — the caller treats "no host" as "not YouTube". */
+    private static @Nullable String hostOf(String url) {
         try {
             String withScheme = url.startsWith("http") ? url : "https://" + url;
             return java.net.URI.create(withScheme).getHost();

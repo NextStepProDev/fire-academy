@@ -1,5 +1,6 @@
 package pl.fireacademy.domain.training;
 
+import org.jspecify.annotations.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -73,8 +74,9 @@ public class TrainingCalendarRead {
             this.athleteId = athleteId;
         }
 
+        /** Null is a legal argument to {@code equals} and answers false — marked so the signature says it. */
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Nullable Object o) {
             if (this == o) return true;
             if (!(o instanceof Key key)) return false;
             return Objects.equals(userId, key.userId) && Objects.equals(athleteId, key.athleteId);
