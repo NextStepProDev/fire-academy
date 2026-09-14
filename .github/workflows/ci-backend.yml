@@ -117,7 +117,7 @@ jobs:
           # Trivy step: two spellings of one name, agreeing by luck until an org rename or a fork.
           echo "owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
       - name: Download the jar built by the test job
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: backend-jar
           # upload-artifact packs the CONTENTS of what it was given, so this restores app.jar here
