@@ -202,9 +202,14 @@ jobs:
 
       # if: always() so the report still arrives when the gate below fails — the run where the gate
       # fires is exactly the run whose findings somebody needs to read.
+      # ⚠️ ...but only when the file actually exists. `always()` alone also covers the case where
+      # the scan never ran because an earlier step in the job failed, and then this step ends with
+      # "Path does not exist: trivy-backend.sarif" — which becomes the run's annotation and BURIES
+      # the real cause. Seen in the sibling project: the image build died on a reset connection to
+      # auth.docker.io, and the only visible error pointed at a missing SARIF file.
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-backend.sarif') != ''
         with:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
@@ -247,9 +252,10 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      # Guarded like the one in the docker job above: no file, no upload, no misleading error.
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-backend.sarif') != ''
         with:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
@@ -307,9 +313,10 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '0'
+      # Guarded like the one in the docker job above; note the guard names THIS job's file.
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-postgres.sarif') != ''
         with:
           sarif_file: trivy-postgres.sarif
           category: trivy-postgres

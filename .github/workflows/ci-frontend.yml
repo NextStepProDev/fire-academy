@@ -188,9 +188,12 @@ jobs:
 
       # if: always() so the report still arrives when the gate below fails — the run where the gate
       # fires is exactly the run whose findings somebody needs to read.
+      # ⚠️ ...but only when the file actually exists — see the twin step in ci-backend.yml, where
+      # `always()` alone turned a failed image build into a misleading "missing SARIF" error that
+      # became the run's annotation instead of the real cause.
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-frontend.sarif') != ''
         with:
           sarif_file: trivy-frontend.sarif
           category: trivy-frontend
@@ -233,9 +236,10 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      # Guarded like the one in the docker job above: no file, no upload, no misleading error.
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('trivy-frontend.sarif') != ''
         with:
           sarif_file: trivy-frontend.sarif
           category: trivy-frontend
