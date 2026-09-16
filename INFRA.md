@@ -85,6 +85,13 @@ pomijany, więc skrypt działa i bez niego.
   wyłącznie przez przypadek, do pierwszej zmiany nazwy organizacji albo forka
 - Oba workflow mają **własny plik na liście `paths`** — bez tego PR ruszający wyłącznie CI nie
   odpalał CI i wjeżdżał na main nieprzetestowany, a dziś przez te pliki przechodzi artefakt wdrożeniowy
+- ⚠️ Każdy `upload-sarif` ma `always() && hashFiles('…') != ''`, nie samo `always()`. Gołe `always()`
+  obejmuje też przypadek, w którym skan **w ogóle nie ruszył**, bo padł wcześniejszy krok joba —
+  wtedy upload kończy się „Path does not exist" i **ten** błąd trafia do adnotacji przebiegu,
+  przykrywając prawdziwą przyczynę. Zdarzyło się w bliźniaczym projekcie: build obrazu padł na
+  zerwanym połączeniu z `auth.docker.io`, a jedyny widoczny komunikat mówił o brakującym SARIF-ie.
+  Strażnik nazywa **plik tego joba** (skan Postgresa ma własny). `upload-artifact` tej wady nie ma —
+  przy braku plików domyślnie tylko ostrzega
 - `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`
 
 ### Zmienne środowiskowe (`.env`)
