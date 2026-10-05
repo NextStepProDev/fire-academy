@@ -54,7 +54,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v6.3.0
+      - uses: gradle/actions/setup-gradle@v6.4.0
       - run: ./gradlew classes
       - run: ./gradlew test
       # Packaged HERE, in the job that just ran the suite, and handed to the docker job as an
