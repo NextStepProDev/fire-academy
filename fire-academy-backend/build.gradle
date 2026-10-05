@@ -37,6 +37,20 @@ ext {
     // document. Check with: ./gradlew dependencyInsight --dependency tomcat-embed-core \
     //   --configuration runtimeClasspath   (it prints "selected by rule" while this pin is active).
     set('tomcat.version', '11.0.25')
+
+    // HIGH advisories against jackson-core and jackson-databind, which parse every JSON request body:
+    // GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89, GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54,
+    // GHSA-q4xh-88c3-wmh7 (plus two MEDIUM). Boot 4.1.1 manages 3.1.5 / 2.21.5; the fixes are in
+    // 3.1.7 / 2.21.7. Both lines ship in the jar — Jackson 3 for Spring itself, Jackson 2 for
+    // springdoc and jjwt-jackson — so both need the pin. Patch bumps only, same minor as the BOM.
+    //
+    // Dependabot cannot raise these itself: the versions come from the BOM, not from this file, so
+    // its security updates fail with security_update_dependency_not_found. Only a property here works.
+    //
+    // REMOVE both lines the moment the BOM manages 3.1.7 / 2.21.7 or later (same check as above,
+    // with --dependency jackson-databind).
+    set('jackson-bom.version', '3.1.7')
+    set('jackson-2-bom.version', '2.21.7')
 }
 
 repositories {
