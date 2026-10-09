@@ -44,11 +44,28 @@ LOG="/var/log/fire-academy-backup.log"
 REMOTE="gdrive-crypt:"
 
 # How long copies live. Local is short because it is only a staging area and shares the disk with
-# the database; off-site is long because that is the copy you reach for when you discover a problem
-# late, and "late" is the whole reason it exists. Gzipped dumps are small enough that a quarter of
-# history costs nothing worth counting.
+# the database; off-site is longer because that is the copy you reach for when you discover a problem
+# late, and "late" is the whole reason it exists. 40 days, not 90: the Google Drive account (15 GB) is
+# shared with climbing and anovastudio, and at 90 days of daily upload archives from all three it
+# would have filled up in November 2026 (measured 2026-10-09).
 LOCAL_RETENTION_DAYS=7
-REMOTE_RETENTION_DAYS=90
+REMOTE_RETENTION_DAYS=40
+
+# The uploads archive is only made when the uploads changed. Every archive is a complete copy, so a
+# nightly archive of the same files spends Drive space for nothing. Here the saving may be modest:
+# training photos (uploads/trainingphotos, same volume) can arrive any day and expire after 30 days
+# (TrainingPhotoRetentionScheduler), so every upload or expiry means a new archive — how many
+# nights stay unchanged is not measured yet; the log says so on each run. The rule is kept the
+# same as in climbing and anovastudio, whose uploads change less often. Each archive is still
+# FULL, never incremental: a restore is the newest dump plus the newest uploads archive dated on or
+# before it — no newer archive means precisely that nothing changed.
+#
+# The state file holds a fingerprint of the volume (path, size and mtime of every file). Even with no
+# change an archive is made every FILES_REFRESH_DAYS days, which must stay below
+# REMOTE_RETENTION_DAYS, or the remote prune would delete the only archive there is. No state file
+# (a new server) means an archive straight away.
+FILES_REFRESH_DAYS=30
+FILES_STATE="/var/lib/fire-academy-backup/files-state"
 
 # Optional, and kept OUT of this file on purpose: the ping URL is a shared secret, and anyone
 # holding it can report a success we never had. Put HEALTHCHECK_URL=... in this file on the server,
@@ -76,8 +93,14 @@ on_failure() {
 }
 trap 'on_failure $LINENO' ERR
 
-mkdir -p "$DB_DIR" "$FILES_DIR"
+mkdir -p "$DB_DIR" "$FILES_DIR" "$(dirname "$FILES_STATE")"
 log "=== Backup start ==="
+
+if [ "$FILES_REFRESH_DAYS" -ge "$REMOTE_RETENTION_DAYS" ]; then
+    log "FAILED: FILES_REFRESH_DAYS (${FILES_REFRESH_DAYS}) must be below REMOTE_RETENTION_DAYS (${REMOTE_RETENTION_DAYS}) — Drive would be left without an uploads archive"
+    ping_healthcheck "/fail"
+    exit 1
+fi
 
 # --- database -----------------------------------------------------------------------------------
 
@@ -96,7 +119,12 @@ docker compose -f "${COMPOSE_DIR}/docker-compose.prod.yml" exec -T postgres \
 # The failure would at least be loud (it pings /fail), but it would stop backups completely, on a
 # routine database upgrade, for no reason. Twenty lines costs nothing and does not weaken the
 # check: a dump truncated mid-table has no marker anywhere near its end.
-if ! gunzip -c "${DB_BACKUP}.part" | tail -20 | grep -q "PostgreSQL database dump complete"; then
+#
+# The tail goes into a variable before grep looks at it. `grep -q` at the end of a pipeline exits on
+# its first match; if `tail` is still writing it gets SIGPIPE, and under pipefail the whole test
+# fails — a good dump reported as truncated. (Plain grep writing to /dev/null stops early too.)
+DUMP_TAIL=$(gunzip -c "${DB_BACKUP}.part" | tail -20)
+if ! grep -q "PostgreSQL database dump complete" <<<"$DUMP_TAIL"; then
     log "FAILED: dump has no completion marker — refusing to publish it"
     rm -f "${DB_BACKUP}.part"
     ping_healthcheck "/fail"
@@ -119,21 +147,48 @@ if ! docker volume inspect "$UPLOADS_VOLUME" >/dev/null 2>&1; then
     exit 1
 fi
 
-docker run --rm \
-    -v "${UPLOADS_VOLUME}:/data:ro" \
-    -v "${FILES_DIR}:/backup" \
-    alpine tar czf "/backup/${DATE}.tar.gz.part" -C /data .
+# Fingerprint of the volume: path|size|mtime of every file, sorted and hashed. Adding, removing or
+# replacing an upload changes it. Taken BEFORE the archive: a file added in between lands in the
+# archive and changes tomorrow's fingerprint — at worst one archive too many, never one too few.
+FILES_FP=$(docker run --rm -v "${UPLOADS_VOLUME}:/data:ro" alpine \
+    sh -c 'cd /data && find . -type f -exec stat -c "%n|%s|%Y" {} + | sort' \
+    | sha256sum | cut -d' ' -f1)
 
-# Reading the archive back is what separates "tar exited 0" from "the archive can be opened".
-if ! tar tzf "${FILES_BACKUP}.part" >/dev/null 2>&1; then
-    log "FAILED: files archive will not read back — refusing to publish it"
-    rm -f "${FILES_BACKUP}.part"
-    ping_healthcheck "/fail"
-    exit 1
+PREV_FP=""
+PREV_AT=0
+if [ -r "$FILES_STATE" ]; then
+    read -r PREV_FP PREV_AT < "$FILES_STATE" || true
 fi
+# A damaged state file (a write cut short by a full disk) must not break every night's backup:
+# anything that is not a number counts as no state, so an archive is made and the write after it
+# repairs the file.
+case "$PREV_AT" in
+    ''|*[!0-9]*) PREV_FP=""; PREV_AT=0 ;;
+esac
+FILES_AGE_DAYS=$(( ( $(date +%s) - PREV_AT ) / 86400 ))
 
-mv "${FILES_BACKUP}.part" "$FILES_BACKUP"
-log "Files OK: $(du -sh "$FILES_BACKUP" | cut -f1)"
+if [ "$FILES_FP" != "$PREV_FP" ] || [ "$FILES_AGE_DAYS" -ge "$FILES_REFRESH_DAYS" ]; then
+    docker run --rm \
+        -v "${UPLOADS_VOLUME}:/data:ro" \
+        -v "${FILES_DIR}:/backup" \
+        alpine tar czf "/backup/${DATE}.tar.gz.part" -C /data .
+
+    # Reading the archive back is what separates "tar exited 0" from "the archive can be opened".
+    if ! tar tzf "${FILES_BACKUP}.part" >/dev/null 2>&1; then
+        log "FAILED: files archive will not read back — refusing to publish it"
+        rm -f "${FILES_BACKUP}.part"
+        ping_healthcheck "/fail"
+        exit 1
+    fi
+
+    mv "${FILES_BACKUP}.part" "$FILES_BACKUP"
+    # Written only once the archive is published: a run that dies leaves the old fingerprint, so the
+    # next run makes the archive again.
+    printf '%s %s\n' "$FILES_FP" "$(date +%s)" > "$FILES_STATE"
+    log "Files OK: $(du -sh "$FILES_BACKUP" | cut -f1)"
+else
+    log "Files unchanged since $(date -d "@${PREV_AT}" +%F 2>/dev/null || echo "${FILES_AGE_DAYS} days ago") — newest archive still current, not making another"
+fi
 
 # --- off-site -------------------------------------------------------------------------------
 
@@ -149,7 +204,11 @@ rclone delete "$REMOTE" --min-age "${REMOTE_RETENTION_DAYS}d" --log-file="$LOG" 
 # --- local prune --------------------------------------------------------------------------------
 
 find "$DB_DIR" -name "*.sql.gz" -mtime "+${LOCAL_RETENTION_DAYS}" -delete
-find "$FILES_DIR" -name "*.tar.gz" -mtime "+${LOCAL_RETENTION_DAYS}" -delete
+# The newest uploads archive always stays, even past 7 days: while nothing changes it IS the current
+# copy, and a restore from this box alone (no Drive) must still have one. File names are dates, so
+# sorting by name is sorting by age.
+NEWEST_FILES=$(find "$FILES_DIR" -maxdepth 1 -name "*.tar.gz" | sort | tail -1)
+find "$FILES_DIR" -name "*.tar.gz" -mtime "+${LOCAL_RETENTION_DAYS}" ! -path "${NEWEST_FILES:-/none}" -delete
 # Leftovers from a run that died mid-dump. Never uploaded — they never got their real name — but
 # they do take up disk until something clears them.
 find "$DB_DIR" "$FILES_DIR" -name "*.part" -mtime +1 -delete
