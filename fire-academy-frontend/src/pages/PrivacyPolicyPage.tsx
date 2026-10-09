@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 import { GOOGLE_LOGIN_ENABLED } from '../config/features'
 
-const LAST_UPDATED = '20 sierpnia 2026'
+const LAST_UPDATED = '9 października 2026'
 
 /**
  * Google sign-in is described here in full while it is still switched off, so that the day it goes
@@ -388,8 +388,9 @@ export function PrivacyPolicyPage() {
               każde swoje zdjęcie samodzielnie.
             </p>
             <p>
-              <span className="text-surface-200 font-medium">Kopie zapasowe</span> — przechowywane w cyklu 7-dniowym
-              i nadpisywane, więc dane usunięte z bazy znikają z kopii najpóźniej po 7 dniach. Kopie służą wyłącznie
+              <span className="text-surface-200 font-medium">Kopie zapasowe</span> — przechowywane do 7 dni na
+              serwerze i do 40 dni w zaszyfrowanym archiwum na Google Drive, po czym są automatycznie usuwane.
+              Oznacza to, że dane usunięte z bazy mogą pozostawać w kopiach najdłużej przez 40 dni. Kopie służą wyłącznie
               odtworzeniu serwisu po awarii i nie są przeszukiwane w żadnym innym celu.
             </p>
             <p>
