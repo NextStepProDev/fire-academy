@@ -16,7 +16,11 @@
 
 `fire-academy-hub/fire-academy-backup.sh` — cron roota 03:00, zrzut całej bazy + wolumen uploadów,
 wysyłka na `gdrive-crypt:` (**remote typu `crypt`**, więc rclone szyfruje przed wysłaniem — to jest
-to, co obiecuje sekcja 7 polityki prywatności). Lokalnie 7 dni, na Dysku 90.
+to, co obiecuje sekcja 7 polityki prywatności). Lokalnie 7 dni, na Dysku 40 — Dysk (15 GB) dzielą
+fire-academy, climbing i anovastudio, a przy 90 dniach skończyłoby się na nim miejsce (09.10.2026).
+Archiwum uploadów powstaje **tylko gdy pliki się zmieniły** (odcisk: ścieżka, rozmiar, data
+modyfikacji), najrzadziej co 30 dni — każde jest pełne, a odtworzenie bierze najnowsze archiwum
+nie późniejsze niż zrzut (szczegóły w RESTORE.md).
 **Odtwarzanie: [`fire-academy-hub/RESTORE.md`](fire-academy-hub/RESTORE.md).** Skrypt jedzie na
 serwer przez `deploy.yml`, tą samą drogą co `nginx.conf` — wcześniej istniał **wyłącznie** na
 maszynie produkcyjnej, czyli był jedynym plikiem w systemie kopii bez własnej kopii.
@@ -26,7 +30,7 @@ z kasowaniem** — a skrypt przycina lokalnie do 7 dni, więc następnego dnia `
 pliki na Dysku. Efekt był podwójny: realne archiwum to było 7 dni (błąd zauważony po tygodniu =
 nie ma z czego wracać), a cokolwiek zniszczyłoby `/backups` na serwerze propagowało się do chmury
 w ciągu doby — czyli kopia off-site chroniła przed wszystkim oprócz katastrofy, dla której powstała.
-Zdalną historię przycina osobna, dużo wolniejsza linijka (`rclone delete --min-age 90d`).
+Zdalną historię przycina osobna, dużo wolniejsza linijka (`rclone delete --min-age 40d`).
 
 > ⚠️ **Zrzut dostaje właściwą nazwę dopiero po sprawdzeniu markera `PostgreSQL database dump
 complete`.** Powłoka tworzy plik, zanim `pg_dump` cokolwiek odda, więc przerwany zrzut zostawia coś,

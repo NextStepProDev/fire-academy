@@ -8,8 +8,19 @@ Kopie robi `fire-academy-backup.sh` (cron roota, 03:00). Dwa osobne zbiory:
 
 | co | gdzie lokalnie | ile dni | na Dysku Google |
 |---|---|---|---|
-| zrzut bazy | `/backups/db/RRRR-MM-DD.sql.gz` | 7 | 90 |
-| pliki (avatary, zdjęcia, galerie) | `/backups/files/RRRR-MM-DD.tar.gz` | 7 | 90 |
+| zrzut bazy (co noc) | `/backups/db/RRRR-MM-DD.sql.gz` | 7 | 40 |
+| pliki (avatary, zdjęcia, galerie) — **tylko gdy się zmieniły**, najrzadziej co 30 dni | `/backups/files/RRRR-MM-DD.tar.gz` | 7, najnowsze zawsze | 40 |
+
+**Archiwum plików nie powstaje co noc.** Skrypt porównuje listę plików (nazwa, rozmiar, data
+modyfikacji) z poprzednią i pakuje je tylko wtedy, gdy coś się zmieniło — albo gdy ostatnie archiwum
+ma 30 dni, żeby przycinanie Dysku po 40 dniach nigdy nie zostawiło go bez archiwum. **Każde archiwum
+jest pełne**, nie przyrostowe. Do odtworzenia bierzesz **najnowszy zrzut bazy i najnowsze archiwum
+plików z tego samego dnia albo wcześniejsze** — brak nowszego archiwum znaczy dokładnie tyle, że
+pliki od tamtej pory się nie zmieniły. Stan porównania: `/var/lib/fire-academy-backup/files-state`;
+jego skasowanie wymusza archiwum przy najbliższym przebiegu.
+
+40 dni, nie 90: Dysk (15 GB) dzielą fire-academy, climbing i anovastudio, a przy 90 dniach
+codziennych archiwów całej trójki skończyłoby się na nim miejsce (policzone 09.10.2026).
 
 Zdalny dysk to `gdrive-crypt:` — **remote typu `crypt`**, czyli rclone szyfruje pliki przed
 wysłaniem i Google nie widzi ich treści ani prawdziwych nazw. Deszyfrowanie dzieje się samo przy
@@ -23,15 +34,20 @@ znaczy, że **utrata konfiguracji rclone = utrata dostępu do kopii** — patrz 
 Jeśli pliki są jeszcze na serwerze, pomiń ten krok. Jeśli nie:
 
 ```bash
-rclone ls gdrive-crypt:db | tail -20                      # co jest dostępne
+rclone ls gdrive-crypt:db | sort -k2 | tail               # zrzuty bazy: co noc
+rclone ls gdrive-crypt:files | sort -k2 | tail            # pliki: tylko dni ze zmianą
 rclone copy gdrive-crypt:db/2026-08-20.sql.gz /tmp/restore/
-rclone copy gdrive-crypt:files/2026-08-20.tar.gz /tmp/restore/
+rclone copy gdrive-crypt:files/2026-08-12.tar.gz /tmp/restore/   # najnowsze ≤ data zrzutu
 ```
+
+Daty zrzutu i archiwum plików **nie muszą być równe** — weź **najnowsze** archiwum nie późniejsze
+niż zrzut. Ono zawsze pasuje, bo gdyby pliki zmieniły się przed zrzutem, powstałoby nowsze.
+Każde wcześniejsze archiwum może nie mieć plików, które baza już zna.
 
 Sprawdź, czy zrzut jest kompletny, **zanim** cokolwiek skasujesz:
 
 ```bash
-gunzip -c /tmp/restore/2026-08-20.sql.gz | tail -5 | grep "PostgreSQL database dump complete"
+gunzip -c /tmp/restore/2026-08-20.sql.gz | tail -20 | grep "PostgreSQL database dump complete"
 ```
 
 Brak tej linijki = plik jest ucięty. Weź starszy i nie ruszaj produkcji.
@@ -46,15 +62,23 @@ Brak tej linijki = plik jest ucięty. Weź starszy i nie ruszaj produkcji.
 cd /opt/fire-academy
 docker compose -f docker-compose.prod.yml stop backend      # nikt nie pisze w trakcie
 
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  sh -c 'dropdb --force -U fireacademy fireacademy && createdb -U fireacademy fireacademy'
+
 gunzip -c /tmp/restore/2026-08-20.sql.gz | \
   docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U fireacademy -d fireacademy
+  psql -v ON_ERROR_STOP=1 -U fireacademy -d fireacademy
 
 docker compose -f docker-compose.prod.yml start backend
 ```
 
 Backend zatrzymujemy celowo: Flyway i JPA piszą przy starcie, a odtwarzanie do bazy, w której coś
 się zmienia, kończy się konfliktami kluczy w połowie.
+
+Bazę zakładamy od nowa, zamiast wgrywać zrzut na istniejącą: zrzut tworzy tabele od zera, więc na
+niepustej bazie każde `CREATE TABLE` kończy się błędem, a `COPY` dokłada wiersze do starych —
+psql bez `ON_ERROR_STOP` przechodzi przez to bez zatrzymania i zostawia bazę w stanie mieszanym.
+Świeża baza to dokładnie warunki „Ćwiczenia” niżej. Poprawione 09.10.2026.
 
 ---
 
