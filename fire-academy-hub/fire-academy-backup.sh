@@ -198,8 +198,12 @@ log "Copy to Google Drive (encrypted remote)..."
 rclone copy /backups "$REMOTE" --log-file="$LOG" --log-level NOTICE
 
 # Pruned separately and slowly. --min-age is a filter, so nothing newer can be caught by it.
+# --drive-use-trash=false deletes for good instead of moving to the Drive trash. The trash counts
+# against the account's 15 GB and Google empties it only after 30 days, so every copy held space for
+# 70 days, not 40 — 13.2 GB of 15 in the worst case across the three projects sharing the account
+# (measured 2026-10-12). An expired backup has nothing worth undeleting.
 log "Pruning off-site copies older than ${REMOTE_RETENTION_DAYS} days..."
-rclone delete "$REMOTE" --min-age "${REMOTE_RETENTION_DAYS}d" --log-file="$LOG" --log-level NOTICE
+rclone delete "$REMOTE" --min-age "${REMOTE_RETENTION_DAYS}d" --drive-use-trash=false --log-file="$LOG" --log-level NOTICE
 
 # --- local prune --------------------------------------------------------------------------------
 
