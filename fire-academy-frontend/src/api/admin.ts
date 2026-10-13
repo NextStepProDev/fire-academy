@@ -275,6 +275,9 @@ export const adminApi = {
     fetchApi<{ recipientCount: number }>('/admin/users/email', { method: 'POST', body: JSON.stringify(data) }),
   deleteUser: (id: string, notify = true) =>
     fetchApi<{ freedEnrollments: number; anonymizedEnrollments: number }>(`/admin/users/${id}?notify=${notify}`, { method: 'DELETE' }),
+  /** Everything held about the person as a ZIP (GDPR art. 15/20) — the answer to a data request. */
+  exportUserData: (id: string) =>
+    fetchApi<Blob>(`/admin/users/${id}/export`, { responseType: 'blob' }),
   forceLogout: (id: string) =>
     fetchApi<void>(`/admin/users/${id}/logout-all`, { method: 'POST' }),
   promoteUser: (id: string) =>

@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, BadgeCheck, CalendarPlus, CheckCircle, ChevronDown, ChevronRight, Dumbbell, KeyRound, Mail, MailCheck, MailX, Phone, Trash2, XCircle } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, CalendarPlus, CheckCircle, ChevronDown, ChevronRight, Download, Dumbbell, KeyRound, Mail, MailCheck, MailX, Phone, Trash2, XCircle } from 'lucide-react'
 import { adminApi } from '../../api/admin'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -104,6 +104,22 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
       setSelectedEventId('')
       setNote('')
       invalidate()
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: () => adminApi.exportUserData(userId),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `dane-${userQuery.data?.lastName ?? 'uzytkownik'}-${todayIso()}.zip`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      // Revoking right after click() cancels the download in some browsers; give it a moment.
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     },
     onError: (e: Error) => showToast(e.message, 'error'),
   })
@@ -220,6 +236,21 @@ export function AdminUserDetail({ userId, onBack }: { userId: string; onBack: ()
         />
         <ProfileRow icon={<KeyRound className="w-4 h-4" />} label={t('users.detail.accountType')} value={user.oauthLinked ? 'Google' : (user.hasPassword ? t('users.detail.password') : '—')} />
         <ProfileRow label={t('users.created')} value={new Date(user.createdAt).toLocaleDateString('pl-PL')} />
+      </div>
+
+      {/* GDPR access request: one ZIP with everything held about the person, ready to send them. */}
+      <div className="bg-surface-900 border border-surface-800 rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Download className="w-5 h-5 mt-0.5 shrink-0 text-surface-500" />
+          <div>
+            <p className="font-medium text-surface-100">{t('users.detail.exportTitle')}</p>
+            <p className="text-sm text-surface-400 mt-0.5">{t('users.detail.exportDesc')}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" loading={exportMutation.isPending}
+          onClick={() => exportMutation.mutate()}>
+          {t('users.detail.exportAction')}
+        </Button>
       </div>
 
       {/* 1-on-1 coaching. Separate from the admin role: it grants no rights, it unlocks a calendar. */}

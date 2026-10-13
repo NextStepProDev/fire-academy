@@ -4,6 +4,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.fireacademy.api.NotFoundException;
+import pl.fireacademy.api.admin.note.NoteDtos.NoteExport;
 import pl.fireacademy.api.admin.note.NoteDtos.NoteMarkersResponse;
 import pl.fireacademy.api.admin.note.NoteDtos.NoteResponse;
 import pl.fireacademy.api.admin.note.NoteDtos.SessionMarkerResponse;
@@ -172,6 +173,28 @@ public class AdminPrivateNoteService {
         int minePerSession = notes.deleteAboutAthleteByAuthor(athleteId, actingAdminId);
         notes.deleteAllAboutAthlete(athleteId);
         return minePerTraining + minePerSession;
+    }
+
+    /**
+     * Every note about one person, from every author, for a GDPR access request (art. 15).
+     * <p>
+     * The other seam out of the notebook, next to {@link #purgeForAthlete}: the subject is entitled
+     * to everything held about them, so this one is not scoped to the caller either. It hands out
+     * plain values rather than the entity, so the fence around {@link AdminPrivateNote} stays whole.
+     * Notes on a SLOT or a TERM stay out — they are about the business, not about the person.
+     */
+    @Transactional(readOnly = true)
+    public List<NoteExport> exportForAthlete(UUID athleteId) {
+        return notes.findAllAboutAthlete(athleteId).stream()
+            .map(n -> {
+                var training = n.getTraining();
+                return training != null
+                    ? new NoteExport(NoteTarget.TRAINING, training.getDate(), training.getTitle(),
+                        n.getBody(), n.getCreatedAt(), n.getUpdatedAt())
+                    : new NoteExport(NoteTarget.SESSION, n.getSessionDate(), null,
+                        n.getBody(), n.getCreatedAt(), n.getUpdatedAt());
+            })
+            .toList();
     }
 
     @Transactional(readOnly = true)

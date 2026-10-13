@@ -45,4 +45,17 @@ public final class NoteDtos {
     ) {}
 
     public record SessionMarkerResponse(UUID slotId, LocalDate date) {}
+
+    /**
+     * One note as handed over to the person it is about (GDPR art. 15). Leaves the notebook only
+     * through {@link AdminPrivateNoteService#exportForAthlete}, and never inside a calendar shape.
+     */
+    public record NoteExport(
+        NoteTarget target,
+        @Nullable LocalDate date,
+        @Nullable String trainingTitle,
+        String body,
+        Instant createdAt,
+        Instant updatedAt
+    ) {}
 }
