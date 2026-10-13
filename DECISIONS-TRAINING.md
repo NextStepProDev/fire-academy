@@ -542,6 +542,8 @@ ludzi, a zakładka aktywności ogłaszałaby samo istnienie notatek).
 
 **Notatka o człowieku ginie z jego planem, notatka o biznesie zostaje.** `DELETE /api/admin/users/{id}/training-plan` kasuje notatki o treningach i zajęciach tej osoby; notatki o **slocie** i o **terminie** przeżywają, bo są obserwacją o klubie („grupa środowa za duża"), nie o kimś. Kasowanie notatek celowo omija bramkę podopiecznego (patrz wyżej) — ale samo API nie wystarczyło: bez flagi kalendarz trenera jest niedostępny, więc **w panelu nie było gdzie kliknąć**. Ten endpoint jest drugą połową tej poprawki i dlatego siedzi w zakładce Użytkownicy, jedynej powierzchni niezależnej od flagi.
 
+**Eksport RODO zabiera notatki o osobie — wszystkich autorów.** `GET /api/admin/users/{id}/export` (art. 15) dołącza notatki o treningach i zajęciach tej osoby, w tym zakresie co wymazanie planu; notatki o slocie i terminie zostają, bo nie są o niej. To drugi świadomy wyjątek od „jeden notatnik na admina": osoba ma prawo do wszystkiego, co o niej przechowujemy, a plik i tak trafia do niej. Notatki wychodzą wyłącznie przez `AdminPrivateNoteService.exportForAthlete` (płaskie rekordy, nie encja) — `AdminUserDataExportService` jest na allowliście `SERVICE_CALLERS`. Decyzja produktowa z 2026-10-13.
+
 **Znaczniki oddają SAME IDENTYFIKATORY, nigdy treść** — inaczej odpowiedź, która istnieje po to,
 żeby narysować ikonki, wsadza notatnik do przeglądarki i cofa powód, dla którego notatka ma osobny
 endpoint per cel. Dotyczy to **także zwykłego booleana `hasNote`** na współdzielonym DTO: sam fakt

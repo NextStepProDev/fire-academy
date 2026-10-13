@@ -65,6 +65,7 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 - Notatka **nigdy** nie jedzie w istniejącym DTO — także jako sam `hasNote`. Typ jest nieosiągalny poza `domain/adminnote` i `api/admin/note`; pilnują tego dwa testy z przeciwnych stron.
 - Kasowanie notatki **omija** bramkę `is_athlete` (odczyt i zapis nie omijają). Zdjęcie flagi nie może uwięzić cudzych danych bez ścieżki usunięcia.
 - Kopia treningu (`duplicate`, `paste`-COPY) **nie zabiera** notatki — inaczej niż załączniki.
+- Eksport RODO (`GET /api/admin/users/{id}/export`) **zabiera** notatki o osobie, wszystkich autorów — wyłącznie przez `exportForAthlete`. Nowa tabela z FK do `users` = wpis do eksportu albo do wykluczeń (`UserDataExportCoverageTest`).
 
 **Front → [`DECISIONS-TRAINING.md`](DECISIONS-TRAINING.md)**
 - `fetchApi` ponawia **tylko** `GET`/`HEAD`. Ponowiony zapis tworzy drugi wpis.

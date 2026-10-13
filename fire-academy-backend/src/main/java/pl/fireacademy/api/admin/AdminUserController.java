@@ -1,14 +1,20 @@
 package pl.fireacademy.api.admin;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.fireacademy.api.admin.AdminUserDtos.*;
 import pl.fireacademy.config.CurrentUserId;
 import pl.fireacademy.domain.user.UserRepository;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,12 +25,15 @@ public class AdminUserController {
     private final AdminUserService service;
     private final UserRepository userRepository;
     private final AdminTrainingPlanErasureService planErasure;
+    private final AdminUserDataExportService dataExport;
 
     public AdminUserController(AdminUserService service, UserRepository userRepository,
-                               AdminTrainingPlanErasureService planErasure) {
+                               AdminTrainingPlanErasureService planErasure,
+                               AdminUserDataExportService dataExport) {
         this.service = service;
         this.userRepository = userRepository;
         this.planErasure = planErasure;
+        this.dataExport = dataExport;
     }
 
     @GetMapping
@@ -64,6 +73,23 @@ public class AdminUserController {
     public DeleteUserResponse delete(@CurrentUserId UUID adminId, @PathVariable UUID id,
                                      @RequestParam(defaultValue = "true") boolean notify) {
         return service.delete(adminId, id, notify);
+    }
+
+    /**
+     * Everything held about one person as a ZIP, for a GDPR access request (art. 15/20). The data is
+     * read up front, so a missing user is still a plain 404; the photos are then written straight into
+     * the response. Synchronous on purpose: a StreamingResponseBody finishes on an async dispatch,
+     * which the JWT filter does not authenticate, so the download would end in a 401.
+     */
+    @GetMapping("/{id}/export")
+    public void export(@CurrentUserId UUID adminId, @PathVariable UUID id, HttpServletResponse response)
+            throws IOException {
+        var pkg = dataExport.collect(id, adminId);
+        String filename = "dane-" + pkg.lastName() + "-" + LocalDate.now() + ".zip";
+        response.setContentType("application/zip");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build().toString());
+        dataExport.writeZip(pkg, response.getOutputStream());
     }
 
     @PostMapping("/{id}/logout-all")

@@ -162,6 +162,17 @@ public interface AdminPrivateNoteRepository extends JpaRepository<AdminPrivateNo
     int deleteAboutAthleteByAuthor(@Param("athleteId") UUID athleteId, @Param("authorId") UUID authorId);
 
     /**
+     * Every note ANY author wrote about one person, for a GDPR access request (art. 15).
+     * <p>
+     * Same scope as erasure: notes on that person's trainings plus notes on their group sessions.
+     * Notes about a SLOT or a TERM are about the business and stay out. Training and slot are fetched
+     * eagerly so the export can name the anchor without one query per note.
+     */
+    @Query("SELECT n FROM AdminPrivateNote n LEFT JOIN FETCH n.training t LEFT JOIN FETCH n.slot"
+        + " WHERE n.athlete.id = :athleteId OR t.athlete.id = :athleteId ORDER BY n.createdAt")
+    List<AdminPrivateNote> findAllAboutAthlete(@Param("athleteId") UUID athleteId);
+
+    /**
      * How many of ONE author's notes hang off that athlete's trainings.
      * <p>
      * Counted rather than deleted: those rows leave on their own when the trainings do, through the

@@ -51,7 +51,9 @@ class AdminNoteIsolationArchTest {
      */
     private static final List<String> SERVICE_CALLERS = List.of(
         // Erasing one athlete's plan asks the notebook to empty itself rather than reaching in.
-        "AdminTrainingPlanErasureService.java"
+        "AdminTrainingPlanErasureService.java",
+        // A GDPR access request (art. 15) must hand over everything held about the person.
+        "AdminUserDataExportService.java"
     );
 
     /**

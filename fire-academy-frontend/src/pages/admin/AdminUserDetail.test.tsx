@@ -21,6 +21,7 @@ const tMap: Record<string, string> = {
   'users.detail.athleteEnable': 'Włącz kalendarz 1:1',
   'users.detail.athleteDisable': 'Wyłącz kalendarz 1:1',
   'users.detail.athleteDisableTitle': 'Wyłączyć kalendarz 1:1?',
+  'users.detail.exportAction': 'Pobierz dane',
 }
 
 vi.mock('react-i18next', () => ({
@@ -34,6 +35,7 @@ vi.mock('../../api/admin', () => ({
     deleteEnrollment: vi.fn(),
     adminEnroll: vi.fn(),
     setAthlete: vi.fn(),
+    exportUserData: vi.fn(),
   },
 }))
 
@@ -151,5 +153,23 @@ describe('AdminUserDetail', () => {
     await user.click(confirmButtons[confirmButtons.length - 1])
 
     await waitFor(() => expect(adminApi.setAthlete).toHaveBeenCalledWith('u1', false))
+  })
+
+  it('downloads the GDPR export as a ZIP named after the person', async () => {
+    const user = userEvent.setup()
+    const api = await renderDetail({})
+    vi.mocked(api.exportUserData).mockResolvedValue(new Blob(['zip'], { type: 'application/zip' }))
+    const createObjectURL = vi.fn(() => 'blob:export')
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.download).toMatch(/^dane-Kowalski-\d{4}-\d{2}-\d{2}\.zip$/)
+      expect(this.href).toBe('blob:export')
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Pobierz dane' }))
+
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1))
+    expect(api.exportUserData).toHaveBeenCalledWith('u1')
+    click.mockRestore()
   })
 })
