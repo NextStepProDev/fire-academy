@@ -33,6 +33,12 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    # No process in a container may gain privileges it did not start with (setuid binaries,
+    # file capabilities) — a cheap belt in case one is taken over (audit, 2026-10-26). Postgres
+    # and nginx start as root and drop to their own users, which this allows; checked on every
+    # image before adding.
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: "json-file"
       options:
@@ -87,6 +93,8 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: "json-file"
       options:
@@ -117,6 +125,8 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     logging:
       driver: "json-file"
       options:
