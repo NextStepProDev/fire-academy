@@ -84,6 +84,7 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 - Produkt po polsku, kod (komentarze, logi, commity, PR) po angielsku.
 - Commit funkcjonalny zawsze z bumpem `VERSION` — bez tego CI frontu się nie odpala (filtr `paths`), a tag obrazu w GHCR jest nadpisywany.
 - Kopie zapasowe: `rclone copy`, **nigdy** `sync` → [`INFRA.md`](INFRA.md).
+- **Akcje GitHub przypięte do SHA** (`uses: owner/action@<sha> # vX.Y.Z`; Dependabot podbija oba) — tag można przestawić na cudzy kod, a `appleboy/ssh-action` dostaje klucz do serwera. Token domyślnie tylko do odczytu (`packages`/`security-events` wyłącznie w jobach, które ich używają); wersja z formularza Deploy idzie przez `env:` i musi wyglądać jak tag obrazu. Kontenery w `docker-compose.prod.yml` mają `no-new-privileges`. Nowa akcja — od razu z SHA.
 
 ---
 

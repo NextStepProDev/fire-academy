@@ -11,8 +11,11 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.util.ServletRequestPathUtils;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -602,5 +605,38 @@ class RateLimitFilterTest {
         }
 
         assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), blocked.getStatus());
+    }
+
+    /**
+     * Spring routes on the DECODED path, so {@code /%61pi/auth/login} ({@code %61} = "a") reaches
+     * the login controller. A limiter matching the raw URI counted it in the default bucket
+     * (120/min) instead of auth (15/min) — eight times the password guesses (audit, 2026-10-26).
+     * Cloudflare normalises such URLs and the origin only accepts Cloudflare, so this is a second
+     * line, not the first; the test pins both halves: that Spring does route it, and that the
+     * limiter counts it where Spring sends it.
+     */
+    @Test
+    void shouldCountAPathInTheBucketSpringRoutesItTo() throws ServletException, IOException {
+        when(messageSource.getMessage(eq("rate.limit.exceeded"), isNull(), any(Locale.class)))
+            .thenReturn("Zbyt wiele żądań");
+
+        // Not `//api/auth/login`: Spring does not route a double slash to the endpoint at all.
+        for (String path : List.of("/%61pi/auth/login", "/api/auth/login;x=1")) {
+            MockHttpServletRequest routed = new MockHttpServletRequest("POST", path);
+            assertTrue(new PathPatternParser().parse("/api/auth/login")
+                    .matches(ServletRequestPathUtils.parseAndCache(routed).pathWithinApplication()),
+                "Spring routes " + path + " to the login endpoint");
+
+            RateLimitFilter fresh = new RateLimitFilter(messageSource);
+            MockHttpServletResponse last = null;
+            for (int i = 0; i <= 15; i++) {
+                MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
+                request.setRemoteAddr("198.51.100.9");
+                last = new MockHttpServletResponse();
+                fresh.doFilterInternal(request, last, filterChain);
+            }
+            assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), last.getStatus(),
+                path + " must spend the auth limit, not the default one");
+        }
     }
 }
