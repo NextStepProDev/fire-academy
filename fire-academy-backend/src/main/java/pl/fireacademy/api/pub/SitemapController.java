@@ -112,7 +112,7 @@ public class SitemapController {
         sb.append("  </url>\n");
     }
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_DATE.withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneOffset.UTC);
 
     private static String formatDate(Instant instant) {
         return DATE_FORMAT.format(instant);

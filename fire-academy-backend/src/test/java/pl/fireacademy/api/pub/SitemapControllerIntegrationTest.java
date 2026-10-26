@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -103,6 +104,26 @@ class SitemapControllerIntegrationTest extends BaseIntegrationTest {
         assertFalse(locs.contains(BASE + "/obozy/termin/" + inactiveEventId));
         assertFalse(locs.contains(BASE + "/szkolenia/rodzaj/" + inactiveTypeId));
         assertFalse(locs.contains(BASE + "/kadra/" + inactiveInstructorId));
+    }
+
+    /**
+     * A W3C date is YYYY-MM-DD. ISO_DATE used to append the zone and print "2026-10-26Z", which a crawler
+     * may reject or ignore. An active event is seeded so the per-entity lastmod (from updatedAt) is covered
+     * alongside the static pages' "today".
+     */
+    @Test
+    void shouldWriteLastmodAsAPlainW3cDate() throws Exception {
+        Event event = new Event(EventCategory.TRAINING, "Trening otwarty", LocalDate.now().plusDays(14));
+        event.setStartTime(LocalTime.of(18, 0));
+        event.setActive(true);
+        eventRepository.save(event);
+
+        String xml = mockMvc.perform(get("/sitemap.xml")).andReturn().getResponse().getContentAsString();
+        List<String> dates = Pattern.compile("<lastmod>([^<]*)</lastmod>").matcher(xml).results()
+            .map(m -> m.group(1)).toList();
+
+        assertEquals(5, dates.size(), "four static pages and the seeded event");
+        dates.forEach(d -> assertTrue(d.matches("\\d{4}-\\d{2}-\\d{2}"), "not a W3C date: " + d));
     }
 
     /** Parses the response as XML (a hard guarantee of correct structure) and extracts all {@code <loc>}. */
