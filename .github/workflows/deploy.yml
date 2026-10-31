@@ -168,3 +168,31 @@ jobs:
 
       - name: SEO smoke test (crawler routing + robots)
         run: bash fire-academy-hub/seo-smoke.sh https://fireworkout.pl
+
+      # `compose pull` keeps every tag it ever pulled: by 0.5.35 a hundred app images held 22 GB of
+      # a 45 GB disk that also carries Postgres, the uploads and the local backups. Last, so only a
+      # release that passed every check above prunes anything. Keeps the two newest images per repo —
+      # this release and the previous one, the quick rollback. Counted by image ID, not by tag: `main`
+      # and `0.5.35` can name the same image, and counting rows would then keep one image and delete
+      # the rollback. "Newest" is the build date, not the pull date, so a rollback to an older tag
+      # ranks third; it survives only because `docker rmi` without -f refuses an image a container
+      # uses, and the two newer ones stay too. Scoped to the app images on purpose: alpine runs the
+      # backup and postgres:17 is the rollback after the PG18 migration. Never fails the deploy, not
+      # even when SSH does: a full disk is a problem for later, not for this release.
+      - name: Remove old app images
+        continue-on-error: true
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            for repo in fire-academy-backend fire-academy-frontend; do
+              # Newest first; every tag of the third and older distinct image goes. <none> tags are
+              # left to the prune below.
+              docker images --filter "reference=ghcr.io/*/${repo}" --format '{{.ID}} {{.Repository}}:{{.Tag}}' \
+                | awk '!($1 in rank) { rank[$1] = ++n } rank[$1] > 2 && $2 !~ /:<none>$/ { print $2 }' \
+                | xargs -r docker rmi || echo "WARN: could not remove some ${repo} images"
+            done
+            docker image prune -f || echo "WARN: dangling image prune failed"
+            df -h /
