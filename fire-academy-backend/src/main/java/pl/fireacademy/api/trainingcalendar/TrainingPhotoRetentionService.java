@@ -18,10 +18,10 @@ import java.util.Set;
  * <p>
  * Photos are health data, and the retention promised in the privacy policy is 30 days — a promise
  * nothing else in the service would keep. The second pass is the one that matters for an audit:
- * every explicit unlink elsewhere happens inside a transaction that can still roll back, and
- * {@code LocalFileStorageService.delete} logs its failures rather than raising them. Reconciling the
- * folder against the rows turns every one of those races from a permanent leak of somebody's health
- * data into a file that survives at most one more night.
+ * every explicit unlink elsewhere waits for its transaction to commit, so a crash in between leaves
+ * the file behind, and {@code LocalFileStorageService.delete} logs its failures rather than raising
+ * them. Reconciling the folder against the rows turns every one of those races from a permanent leak
+ * of somebody's health data into a file that survives at most one more night.
  * <p>
  * Both passes live here rather than on {@code TrainingPhotoRetentionScheduler} so that the only way
  * to reach them is from another bean, through the proxy that gives {@code @Transactional} its
