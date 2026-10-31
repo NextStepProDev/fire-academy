@@ -65,7 +65,11 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
     }
 
     private TrainingSlot seedSlot(int maxParticipants) {
-        TrainingSlot slot = new TrainingSlot(seedType(), DAY, LocalTime.of(8, 0), maxParticipants);
+        return seedSlot(DAY, maxParticipants);
+    }
+
+    private TrainingSlot seedSlot(int weekday, int maxParticipants) {
+        TrainingSlot slot = new TrainingSlot(seedType(), weekday, LocalTime.of(8, 0), maxParticipants);
         slot.setPrice(BigDecimal.valueOf(90));
         slot.setActive(true);
         return trainingSlotRepository.save(slot);
@@ -415,7 +419,9 @@ class TrainingFlowIntegrationTest extends BaseIntegrationTest {
      */
     @Test
     void shouldTellTheOrganizerWhatIsLeftUnsettledWhenAPaidUpAccountIsDeleted() throws Exception {
-        TrainingSlot slot = seedSlot(8);
+        // Today's weekday, not DAY: the current month bills from today on, so a Monday slot is worth
+        // nothing once the month's last Monday has passed, and nothing paid means nothing unsettled.
+        TrainingSlot slot = seedSlot(LocalDate.now().getDayOfWeek().getValue(), 8);
         enroll(userToken(), slot.getId(), "{\"startMonth\":\"" + CURRENT + "\"}");
         UUID enrollmentId = trainingEnrollmentRepository.findActiveByUser(regularUserId(), CURRENT).getFirst().getId();
         String admin = adminToken();

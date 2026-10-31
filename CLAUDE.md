@@ -33,6 +33,7 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 - Nowy folder pod `uploads/` jest **domyślnie prywatny** — publiczny dopiero po wpisie na białą listę `PUBLIC_FOLDERS` w `FileController`. `trainingphotos/` (dane zdrowotne) celowo tam nie wchodzi.
 - Nowy format obrazu to **trzy miejsca**: `StorePolicy`, sygnatura w `ImageFormat.sniff`, wzorzec w `StoragePaths.FILENAME`. Pominięcie trzeciego → plik da się zapisać, ale nie odczytać ani skasować.
 - Sufit 24 mln pikseli i `CONCURRENT_DECODES = 1` są **policzone** pod `mem_limit: 384m`. Zmieniasz jedno — przelicz drugie.
+- `delete()` w transakcji kasuje plik **dopiero po commicie** — do końca transakcji `exists()` zwraca `true`, a rollback plik zostawia. Test, który sprawdza „plik zniknął" wewnątrz cofanej transakcji, kłamie.
 
 **Rate limiting i sesje → [`DECISIONS-SECURITY.md`](DECISIONS-SECURITY.md)**
 - Każdy endpoint z `MultipartFile` musi trafić do kubełka `upload` w `RateLimitFilter.RULES` — `RateLimitCoverageTest` wywala build, gdy któryś ucieknie.
