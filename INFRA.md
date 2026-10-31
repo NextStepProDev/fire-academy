@@ -99,7 +99,7 @@ pomijany, więc skrypt działa i bez niego.
   zerwanym połączeniu z `auth.docker.io`, a jedyny widoczny komunikat mówił o brakującym SARIF-ie.
   Strażnik nazywa **plik tego joba** (skan Postgresa ma własny). `upload-artifact` tej wady nie ma —
   przy braku plików domyślnie tylko ostrzega
-- `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`. Ostatni krok kasuje stare obrazy aplikacji (od 31.10.2026 — wcześniej każdy deploy zostawiał swój obraz na dysku serwera i do wersji 0.5.35 uzbierało się ich 22 GB). Zostają **dwa najnowsze obrazy na repozytorium** — bieżący i poprzedni do szybkiego powrotu — liczone po ID, nie po tagu (`main` i `0.5.35` mogą być tym samym obrazem). `alpine` (backup) i `postgres:17` (rollback po migracji na 18) są poza zasięgiem. Krok idzie po wszystkich sprawdzeniach i nigdy nie wywala deployu
+- `deploy.yml`: ręczny trigger → SSH → `docker compose pull && up -d`. **Przed** `pull` kasuje stare obrazy aplikacji (od 31.10.2026 — wcześniej każdy deploy zostawiał swój obraz na dysku serwera i do wersji 0.5.35 uzbierało się ich 22 GB). Przed, nie po: pull przerwany pełnym dyskiem kończy deploy na czerwono, zanim jakiekolwiek późniejsze sprzątanie by ruszyło (tak padło anovastudio przy 99%). Zostaje to, czego używa kontener, plus **dwa najnowsze obrazy na repozytorium** — bieżący i poprzedni do szybkiego powrotu — liczone po ID, nie po tagu (`main` i `0.5.35` mogą być tym samym obrazem). Z nowym pullem to najwyżej trzy na dysku. `alpine` (backup) i `postgres:17` (rollback po migracji na 18) są poza zasięgiem. Sprzątanie nigdy nie wywala deployu
 
 ### Zmienne środowiskowe (`.env`)
 `POSTGRES_DB/USER/PASSWORD`, `MAIL_HOST/PORT/USERNAME/PASSWORD`, `JWT_SECRET`, `GHCR_OWNER`, `VERSION`, `ADMIN_EMAIL`
