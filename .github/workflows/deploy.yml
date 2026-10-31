@@ -115,9 +115,12 @@ jobs:
             # PG18 migration. `|| echo` throughout: cleanup must never fail the deploy.
             IN_USE=$(docker ps -aq | xargs -r docker inspect --format '{{.Image}}' | sed 's/^sha256://' | cut -c1-12 | tr '\n' ' ')
             for repo in fire-academy-backend fire-academy-frontend; do
-              # Newest first; every tag of the third and older distinct image goes unless a
-              # container holds it. <none> tags are left to the prune below.
-              docker images --filter "reference=ghcr.io/*/${repo}" --format '{{.ID}} {{.Repository}}:{{.Tag}}' \
+              # Sorted by creation date here, not trusted from `docker images`: this box runs the
+              # containerd image store, which promises no order, and an unsorted list would rank the
+              # newest image third and delete it. Every tag of the third and older distinct image
+              # goes unless a container holds it. <none> tags are left to the prune below.
+              docker images --filter "reference=ghcr.io/*/${repo}" --format '{{.CreatedAt}}\t{{.ID}} {{.Repository}}:{{.Tag}}' \
+                | sort -r | cut -f2 \
                 | awk -v used="$IN_USE" '
                     BEGIN { n = split(used, u, " "); for (i = 1; i <= n; i++) inuse[u[i]] = 1 }
                     !($1 in rank) { rank[$1] = ++k }
