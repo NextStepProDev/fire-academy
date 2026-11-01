@@ -74,11 +74,12 @@ jobs:
           SWAP_B64: ${{ steps.swap.outputs.content }}
           BACKUP_B64: ${{ steps.backup.outputs.content }}
           LOGROTATE_B64: ${{ steps.logrotate.outputs.content }}
+          VERSION: ${{ steps.version.outputs.version }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: COMPOSE_B64,NGINX_B64,SWAP_B64,BACKUP_B64,LOGROTATE_B64
+          envs: COMPOSE_B64,NGINX_B64,SWAP_B64,BACKUP_B64,LOGROTATE_B64,VERSION
           script: |
             echo "$COMPOSE_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/docker-compose.prod.yml
             echo "$NGINX_B64" | base64 -d > ${{ secrets.DEPLOY_PATH }}/nginx.conf
@@ -95,7 +96,9 @@ jobs:
             sudo -n install -m 0644 ${{ secrets.DEPLOY_PATH }}/logrotate-fire-academy-backup /etc/logrotate.d/fire-academy-backup \
               || echo "WARN: could not install log rotation for the backup log"
             cd ${{ secrets.DEPLOY_PATH }}
-            export VERSION=${{ steps.version.outputs.version }}
+            # VERSION comes through `envs`, not pasted into the script: it is pattern-checked in
+            # "Resolve deploy version" already, this is the second layer. Exported for compose.
+            export VERSION
             # Persist the resolved version into the host .env so a later MANUAL
             # `docker compose pull/up -d` on the box uses the same tag instead of a
             # stale pin (a stale VERSION=0.1.0 once silently downgraded prod).
@@ -147,22 +150,32 @@ jobs:
 
       - name: Verify deployment health
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: VERSION
           script: |
             # Healthy is not enough: the PREVIOUS backend is healthy too, so a release that never
-            # replaced it passed this check. Both containers must run the tag just deployed (the
-            # version is pattern-checked in "Resolve deploy version", so it is safe to paste here).
-            VERSION="${{ steps.version.outputs.version }}"
+            # replaced it passed this check. Both containers must run the image the deployed tag
+            # names NOW. Compared by image ID, not by tag: a tag moves (`main`, or a version CI
+            # rebuilt without a VERSION bump), and a container left on yesterday's image still
+            # reports the same tag. The repository comes from the container itself, so it follows
+            # GHCR_OWNER in the server's .env the way compose does; the tag comes from VERSION.
+            # Different placeholders, so that two missing values never compare equal; assigned on
+            # failure rather than echoed, because a failed inspect still prints an empty line.
             for c in fa-backend-prod fa-frontend-prod; do
-              IMAGE=$(docker inspect --format '{{.Config.Image}}' "$c" 2>/dev/null || echo "missing")
-              if [ "${IMAGE##*:}" != "$VERSION" ]; then
-                echo "ERROR: $c runs '$IMAGE', expected tag '$VERSION'."
+              IMAGE=$(docker inspect --format '{{.Config.Image}}' "$c" 2>/dev/null) || IMAGE="missing"
+              REF="${IMAGE%:*}:${VERSION}"
+              RUNNING=$(docker inspect --format '{{.Image}}' "$c" 2>/dev/null) || RUNNING="missing"
+              WANTED=$(docker image inspect --format '{{.Id}}' "$REF" 2>/dev/null) || WANTED="not pulled"
+              if [ "$RUNNING" != "$WANTED" ]; then
+                echo "ERROR: $c runs image '$RUNNING', but $REF is '$WANTED'."
                 exit 1
               fi
-              echo "$c runs $IMAGE"
+              echo "$c runs $REF ($RUNNING)"
             done
             echo "Waiting for backend to become healthy..."
             for i in $(seq 1 16); do
