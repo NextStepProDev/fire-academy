@@ -58,16 +58,16 @@ jobs:
           cache: npm
           cache-dependency-path: fire-academy-frontend/package-lock.json
       - run: npm ci
-      # Two steps on purpose. The report always prints the full advisory list so a new "high" is visible
-      # in the log; the gate only fails the build on "critical". Reason for the gap: GHSA-qwww-vcr4-c8h2
-      # (react-router, high) has no fix inside the 7.x line — npm's only remedies are a downgrade to
-      # 7.11.0 or the 8.x major, and the advisory covers React Router's RSC mode, which this SPA does not
-      # use. Blocking on "high" today would just mean a permanently red build. Tighten this to
-      # `--audit-level=high` once the React Router 8 upgrade lands.
+      # Two steps on purpose. The report always prints the full advisory list, moderate ones
+      # included; the gate fails the build on "high" and above. Until 2026-11-18 the gate stopped
+      # only on "critical", because GHSA-qwww-vcr4-c8h2 (react-router, high) had no fix in 7.x;
+      # the advisory is no longer reported (react-router 7.18.5), so the gap closed with it.
+      # A new unfixable "high" is not a reason to lower the level for every advisory again — deal
+      # with that one advisory and write down here why it cannot be reached.
       - name: Report dependency advisories
         run: npm audit || true
-      - name: Fail on critical advisories
-        run: npm audit --audit-level=critical
+      - name: Fail on high or critical advisories
+        run: npm audit --audit-level=high
       - run: npm run lint
       - run: npx tsc -b
       - run: npm test

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Seo } from '../components/seo/Seo'
 import { GOOGLE_LOGIN_ENABLED } from '../config/features'
 
-const LAST_UPDATED = '9 października 2026'
+const LAST_UPDATED = '18 listopada 2026'
 
 /**
  * Google sign-in is described here in full while it is still switched off, so that the day it goes
@@ -424,6 +424,10 @@ export function PrivacyPolicyPage() {
               description="Serwer aplikacji i baza danych zlokalizowane w Europejskim Obszarze Gospodarczym."
             />
             <InfoItem
+              title="Cloudflare, Inc. (ochrona i dostarczanie strony)"
+              description="Pośredniczy w ruchu do strony i chroni ją przed atakami. Widzi przy tym m.in. adres IP odwiedzającego i adres otwieranej podstrony."
+            />
+            <InfoItem
               title="Zewnętrzny serwer poczty e-mail (SMTP)"
               description="Wykorzystywany do dostarczenia wszystkich wiadomości e-mail wysyłanych z systemu — zarówno serwisowych (potwierdzenie zapisu, weryfikacja konta, reset hasła, zmiany w terminach), jak i marketingowych (po udzieleniu zgody). Dostawca nie przetwarza Twoich danych w żadnym innym celu."
             />
@@ -436,15 +440,23 @@ export function PrivacyPolicyPage() {
               description="Zaszyfrowane kopie zapasowe bazy danych i przesłanych plików przechowywane są na prywatnym, niepublicznym dysku Google Drive. Kopia obejmuje całą bazę, a więc również dane planu treningowego 1:1. Google nie ma dostępu do treści kopii — są zaszyfrowane przed wysłaniem."
             />
           </div>
+          <p className="text-surface-400 leading-relaxed mt-4">
+            W planie treningowym trener może dołączyć do treningu filmy z YouTube. Miniatury i odtwarzacz
+            wczytują się z serwerów Google, które — jak przy każdym wyświetleniu strony — otrzymują przy tym
+            standardowe informacje techniczne, np. adres IP. Odtwarzacz działa w trybie ograniczonej
+            prywatności (youtube-nocookie.com) i włącza się dopiero po kliknięciu. Google korzysta z tych
+            informacji na zasadach opisanych w swojej polityce prywatności (policies.google.com/privacy).
+            Podstawą jest nasz uzasadniony interes: pokazanie ćwiczeń w planie (art. 6 ust. 1 lit. f RODO).
+          </p>
           <div className="mt-4 bg-surface-800/50 rounded-xl p-4">
             <p className="text-surface-200 font-medium text-sm mb-1">Przekazywanie danych poza EOG</p>
             <p className="text-surface-500 text-sm leading-relaxed">
-              Serwer i baza danych pozostają w EOG. Wyjątkiem jest współpraca z Google LLC opisana wyżej —
-              Google ma siedzibę w USA, więc w tym zakresie dane mogą być przetwarzane poza EOG. Transfer
-              odbywa się na podstawie programu EU‑US Data Privacy Framework (Google jest certyfikowany) oraz
-              standardowych klauzul umownych zatwierdzonych przez Komisję Europejską (SCC). Kopie zapasowe są
-              dodatkowo szyfrowane przed wysłaniem. Kopię stosowanych zabezpieczeń możesz uzyskać,
-              kontaktując się z nami.
+              Serwer i baza danych pozostają w EOG. Wyjątkiem jest współpraca z Google LLC i Cloudflare, Inc.
+              opisana wyżej — obie firmy mają siedzibę w USA, więc w tym zakresie dane mogą być przetwarzane
+              poza EOG. Transfer odbywa się na podstawie programu EU‑US Data Privacy Framework (obie firmy są
+              certyfikowane) oraz standardowych klauzul umownych zatwierdzonych przez Komisję Europejską
+              (SCC). Kopie zapasowe są dodatkowo szyfrowane przed wysłaniem. Kopię stosowanych zabezpieczeń
+              możesz uzyskać, kontaktując się z nami.
             </p>
           </div>
         </Section>

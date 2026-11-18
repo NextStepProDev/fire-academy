@@ -35,7 +35,7 @@ body {
 }
 
 @layer base {
-  /* Widoczny wskaźnik fokusu dla nawigacji klawiaturą (Button definiuje własny per-wariant) */
+  /* A visible focus indicator for keyboard navigation (Button defines its own per variant) */
   :focus-visible {
     outline: 2px solid var(--color-primary-400);
     outline-offset: 2px;
@@ -63,7 +63,7 @@ html {
   }
 }
 
-/* Intro „zderzenie": błysk ognia w momencie spotkania logotypów */
+/* The "collision" intro: a flash of fire the moment the logos meet */
 @keyframes intro-burst {
   0%   { opacity: 0;    transform: translate(-50%, -50%) scale(0.2); }
   35%  { opacity: 0.95; }
@@ -73,7 +73,7 @@ html {
   animation: intro-burst 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
 }
 
-/* Puls poświaty wokół logotypów tuż po zderzeniu */
+/* A pulse of glow around the logos right after the collision */
 @keyframes intro-glow {
   0%   { filter: drop-shadow(0 0 0 rgba(249, 115, 22, 0)); }
   40%  { filter: drop-shadow(0 0 45px rgba(249, 115, 22, 0.85)); }
