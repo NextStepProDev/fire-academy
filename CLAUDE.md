@@ -50,6 +50,7 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 **SEO i nginx → [`API.md`](API.md)**
 - Bot-list w `fire-academy-frontend/nginx.conf` **nigdy** nie zawiera wyszukiwarek — pętla przekierowań = „Redirect error" w Search Console.
 - Dokładasz zewnętrzny zasób → dopisz host do CSP w `nginx.conf` **i** do sekcji 4 w `seo-smoke.sh`. Dev server Vite nie wysyła CSP, więc lokalnie nic nie pęknie.
+- Zasób ładowany z cudzego serwera (osadzenie, miniatura, widget) **widzi adres IP odwiedzającego** — dopisz go też do sekcji 7 polityki prywatności i podbij `LAST_UPDATED`. Do 18.11.2026 polityka milczała o Cloudflare i miniaturach YouTube.
 
 **Kalendarz 1:1 i rozliczenia → [`DECISIONS-TRAINING.md`](DECISIONS-TRAINING.md)**
 - Nakładka zajęć cyklicznych **nigdy** nie jest materializowana do `personal_trainings`.
