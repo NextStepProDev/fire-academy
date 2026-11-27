@@ -2,12 +2,18 @@ version: 2
 
 # Weekly dependency updates. Minor/patch bumps are grouped into a single PR per ecosystem so routine
 # maintenance stays one review, while major bumps arrive on their own (they need a real look).
+# Every Monday at 06:00 Warsaw time, the same slot in all of the owner's projects, so the week's
+# dependency PRs from every repo land together and get cleared in one sitting. `time` is not
+# decoration: without it Dependabot picks a random hour per repo. Fresh releases wait out
+# Dependabot's default 3-day cooldown (security updates do not).
 updates:
   - package-ecosystem: npm
     directory: /fire-academy-frontend
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -24,6 +30,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -40,6 +48,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(ci)"
@@ -56,11 +66,21 @@ updates:
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(docker)"
+    ignore:
+      # 25 is the LTS line; the majors after it (26, 27, 28) are non-LTS releases supported for
+      # about six months each, and the next LTS is 29. A routine PR would move production onto one
+      # of them on the strength of a bigger number, while build.gradle (`languageVersion = 25`)
+      # and CI's setup-java stay on 25. Changing the Java line is a decision for all three at
+      # once. Patches of 25 still come through.
+      - dependency-name: eclipse-temurin
+        update-types: ["version-update:semver-major"]
 
-  # The compose files pin postgres:17-alpine — the image holding every client record — and nothing
+  # The compose files pin postgres:18-alpine — the image holding every client record — and nothing
   # was watching them. `docker` above covers the two Dockerfiles only: Dependabot treats Docker and
   # Docker Compose as SEPARATE ecosystems, so adding /fire-academy-hub to the entry above would have
   # looked like a fix and updated nothing. Note the database image is the one piece of this stack
@@ -70,6 +90,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
     open-pull-requests-limit: 3
     commit-message:
       prefix: "chore(docker)"
