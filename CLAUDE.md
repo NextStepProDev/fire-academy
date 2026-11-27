@@ -93,10 +93,10 @@ Jeśli zmiana dotyka któregoś punktu — otwórz wskazany plik **przed** pisan
 ## Stack
 
 ### Backend
-- **Java 25** + **Spring Boot 4.1.1**
-- Spring Security 7.1 + JWT (jjwt 0.13.0), Spring Data JPA + **PostgreSQL 18** (prod od 2026-09-06; dev compose też 18)
+- **Java 25** + **Spring Boot 4.2.0**
+- Spring Security 7.2 + JWT (jjwt 0.13.0), Spring Data JPA + **PostgreSQL 18** (prod od 2026-09-06; dev compose też 18)
 - Spring Boot Starter Mail, **Actuator** (health check), Cache + Caffeine, **Flyway 12**, DevTools (dev)
-- **JSpecify 1.0.1** (@NullMarked), **springdoc-openapi 3.1.0**
+- **JSpecify 1.0.1** (@NullMarked), **springdoc-openapi 3.2.1**
 - **Testcontainers 1.21.4** + JUnit 5
 
 ### Frontend
