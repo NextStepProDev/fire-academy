@@ -75,7 +75,12 @@ app:
 
 server:
   port: 8081
-  forward-headers-strategy: framework
+  # Was server.forward-headers-strategy, deprecated in Boot 4.2. X-Forwarded-Prefix stays ignored
+  # (Boot 4.2 default, use-prefix: false): nginx proxies without a path prefix.
+  request:
+    header:
+      forwarded:
+        strategy: framework
 
 springdoc:
   api-docs:

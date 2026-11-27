@@ -1,11 +1,11 @@
 package pl.fireacademy.infrastructure.youtube;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import pl.fireacademy.domain.training.YouTubeMetadata;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -35,8 +35,8 @@ public class YouTubeOEmbedClient {
     private static final Duration TIMEOUT = Duration.ofSeconds(4);
 
     /**
-     * Built here rather than injected: Spring Boot 4 auto-configures Jackson 3, while the codebase
-     * reads and writes Jackson 2 — the same reason RateLimitFilter and SecurityConfig hold their own.
+     * Built here rather than injected: a plain mapper for a third-party payload, independent of the
+     * application's Jackson configuration (Jackson 3, like the one Spring Boot 4 auto-configures).
      */
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -67,12 +67,7 @@ public class YouTubeOEmbedClient {
                 log.warn("YOUTUBE_OEMBED_UNEXPECTED_STATUS status={}", response.statusCode());
                 return YouTubeMetadata.unknown();
             }
-            JsonNode body = MAPPER.readTree(response.body());
-            String title = body.path("title").asText(null);
-            if (title == null || title.isBlank()) {
-                return YouTubeMetadata.unknown();
-            }
-            return YouTubeMetadata.ok(title, body.path("author_name").asText(null));
+            return parse(response.body());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return YouTubeMetadata.unknown();
@@ -81,5 +76,15 @@ public class YouTubeOEmbedClient {
             log.warn("YOUTUBE_OEMBED_FAILED message={}", e.getMessage());
             return YouTubeMetadata.unknown();
         }
+    }
+
+    /** Reads the oEmbed body. Without a usable title the answer is "unknown", not an empty title. */
+    static YouTubeMetadata parse(String json) {
+        JsonNode body = MAPPER.readTree(json);
+        String title = body.path("title").asString(null);
+        if (title == null || title.isBlank()) {
+            return YouTubeMetadata.unknown();
+        }
+        return YouTubeMetadata.ok(title, body.path("author_name").asString(null));
     }
 }

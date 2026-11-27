@@ -39,9 +39,10 @@ describe('nginx forwarded headers', () => {
 
   it('shouldSetEveryForwardedHeaderItselfInEveryBlockThatProxiesToTheBackend', () => {
     // nginx replaces only the headers it names; anything else the caller invents is passed through,
-    // and the backend trusts X-Forwarded-* when it builds absolute URLs (forward-headers-strategy:
-    // framework). A proxying block missing these is a request header deciding what our own addresses
-    // look like — which is exactly how the OAuth callback address became bendable.
+    // and the backend trusts X-Forwarded-* when it builds absolute URLs
+    // (server.request.header.forwarded.strategy: framework). A proxying block missing these is a
+    // request header deciding what our own addresses look like — which is exactly how the OAuth
+    // callback address became bendable.
     const proxying = locationBlocks(config).filter(b => b.body.includes('proxy_pass'))
     expect(proxying.length).toBeGreaterThan(5)
 

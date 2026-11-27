@@ -1,7 +1,5 @@
 package pl.fireacademy.api.admin;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +16,8 @@ import pl.fireacademy.domain.user.User;
 import pl.fireacademy.domain.user.UserRole;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 import pl.fireacademy.infrastructure.storage.StorePolicy;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -167,16 +167,16 @@ class AdminUserDataExportIntegrationTest extends BaseIntegrationTest {
 
         String raw = new String(zip.get("dane.json"), StandardCharsets.UTF_8);
         JsonNode data = JSON.readTree(raw);
-        assertEquals("marek@fireacademy.test", data.at("/profil/email").asText());
+        assertEquals("marek@fireacademy.test", data.at("/profil/email").asString());
         assertFalse(data.at("/zgody/zgoda_na_dane_zdrowotne").isNull());
         assertEquals(1, data.at("/treningi_cykliczne").size());
-        assertEquals("Boks", data.at("/treningi_cykliczne/0/zajecia").asText());
+        assertEquals("Boks", data.at("/treningi_cykliczne/0/zajecia").asString());
         assertEquals(199.0, data.at("/treningi_cykliczne/0/wplaty/0/kwota").asDouble());
         assertEquals(49.75, data.at("/treningi_cykliczne/0/zwroty/0/kwota").asDouble());
 
         JsonNode trainings = data.at("/plan_1na1/treningi_i_zadania");
         assertEquals(1, trainings.size());
-        assertEquals("Sparing Marka", trainings.at("/0/tytul").asText());
+        assertEquals("Sparing Marka", trainings.at("/0/tytul").asString());
         assertEquals(2, trainings.at("/0/komentarze").size());
         assertEquals(1, data.at("/plan_1na1/pomiary_wagi").size());
         assertEquals(80.5, data.at("/plan_1na1/pomiary_wagi/0/waga_kg").asDouble());

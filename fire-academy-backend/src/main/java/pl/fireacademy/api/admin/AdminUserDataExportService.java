@@ -1,6 +1,5 @@
 package pl.fireacademy.api.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +12,8 @@ import pl.fireacademy.api.trainingcalendar.TrainingPhotoService;
 import pl.fireacademy.infrastructure.i18n.MessageService;
 import pl.fireacademy.infrastructure.storage.FileStorageService;
 import pl.fireacademy.infrastructure.storage.StoragePaths;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -266,7 +267,7 @@ public class AdminUserDataExportService {
         byte[] json;
         try {
             json = OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsBytes(data);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Could not serialize the data export", e);
         }
 
